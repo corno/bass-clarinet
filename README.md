@@ -2,15 +2,22 @@
 
 ![NPM Downloads](http://img.shields.io/npm/dm/bass-clarinet.svg?style=flat) ![NPM Version](http://img.shields.io/npm/v/bass-clarinet.svg?style=flat)
 
-`bass-clarinet` is a port from `clarinet` to typescript
+`bass-clarinet` is a port from `clarinet` to TypeScript
+In addition to the port to TypeScript, the following changes have been made:
+* onopenobject no longer includes the first key
+* JSONTestSuite is added to the test set. All tests pass.
+* line and column information is improved
+* the parser accepts multiple subscribers per event type
+
+most credits go to the original author Nuno Job
 
 `clarinet/bass-clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. `clarinet` is inspired (and forked) from [sax-js][saxjs]. just like you shouldn't use `sax` when you need `dom` you shouldn't use `bass-clarinet` when you need `JSON.parse`. for a more detailed introduction and a performance study please refer to this [article][blog]. 
 
 # design goals
 
-`bass-clarinet` is very much like [yajl] but written in typescript:
+`bass-clarinet` is very much like [yajl] but written in TypeScript:
 
-* written in typescript
+* written in TypeScript
 * portable
 * robust (~110 tests pass before even announcing the project)
 * data representation independent
