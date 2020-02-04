@@ -7,63 +7,115 @@ export const MAX_BUFFER_LENGTH = 64 * 1024;
 export const DEBUG = (env.CDEBUG === 'debug');
 export const INFO = (env.CDEBUG === 'debug' || env.CDEBUG === 'info');
 
+function assertUnreachable(_x: never) {
+  throw new Error("unreachable")
+}
+
 export type Options = {
   trim?: boolean
   normalize?: boolean
 }
 
-enum S {
-  VALUE, // general stuff
-  OPEN_OBJECT, // {
-  CLOSE_OBJECT, // }
-  OPEN_ARRAY, // [
-  CLOSE_ARRAY, // ]
-  TEXT_ESCAPE, // \ stuff
-  STRING, // ""
-  BACKSLASH,
-  END, // No more stack
-  OPEN_KEY, // "a"
-  CLOSE_KEY, // :
+enum GlobalStateType {
+  STRING,
+  NUMBER,
+  KEYWORD,
+  OTHER,
+}
+
+enum OtherState {
+  EXPECTING_ROOTVALUE, // value at the root
+  END, // no more input expected
+
+  EXPECTING_OBJECTVALUE, // value in object
+  EXPECTING_KEY_OR_OBJECT_END,
+  EXPECTING_COMMA_OR_OBJECT_END, // , or }
+  EXPECTING_KEY, // "a"
+  EXPECTING_COLON, // :
+
+  EXPECTING_ARRAYVALUE, // value in array
+  EXPECTING_VALUE_OR_ARRAY_END,
+  EXPECTING_COMMA_OR_ARRAY_END, // , or ]
+}
+
+enum LiteralState {
   TRUE, // r
   TRUE2, // u
   TRUE3, // e
+
   FALSE, // a
   FALSE2, // l
   FALSE3, // s
   FALSE4, // e
+
   NULL, // u
   NULL2, // l
   NULL3, // l
-  NUMBER_DECIMAL_POINT, // .
-  NUMBER_DIGIT, // [0-9]
 }
 
-function getStateDescription(s: S) {
-  switch (s) {
-    case S.VALUE: return "VALUE"
-    case S.OPEN_OBJECT: return "OPEN_OBJECT"
-    case S.CLOSE_OBJECT: return "CLOSE_OBJECT"
-    case S.OPEN_ARRAY: return "OPEN_ARRAY"
-    case S.CLOSE_ARRAY: return "CLOSE_ARRAY"
-    case S.TEXT_ESCAPE: return "TEXT_ESCAPE"
-    case S.STRING: return "STRING"
-    case S.BACKSLASH: return "BACKSLASH"
-    case S.END: return "END"
-    case S.OPEN_KEY: return "OPEN_KEY"
-    case S.CLOSE_KEY: return "CLOSE_KEY"
-    case S.TRUE: return "TRUE"
-    case S.TRUE2: return "TRUE2"
-    case S.TRUE3: return "TRUE3"
-    case S.FALSE: return "FALSE"
-    case S.FALSE2: return "FALSE2"
-    case S.FALSE3: return "FALSE3"
-    case S.FALSE4: return "FALSE4"
-    case S.NULL: return "NULL"
-    case S.NULL2: return "NULL2"
-    case S.NULL3: return "NULL3"
-    case S.NUMBER_DECIMAL_POINT: return "NUMBER_DECIMAL_POINT"
-    case S.NUMBER_DIGIT: return "NUMBER_DIGIT"
+type GlobalState =
+  | [GlobalStateType.NUMBER, {
+    numberNode: string
+    nextState: OtherState
+    expectingDecimalPoint: boolean
+  }]
+  | [GlobalStateType.KEYWORD, {
+    nextState: OtherState
+    state: LiteralState
+  }]
+  | [GlobalStateType.STRING, {
+    textNode: string
+    stringType: StringType
+    nextState: OtherState
+    unicodeI: number //= 0
+    unicodeS: string //null
+    slashed: boolean // = false;
+  }]
+  | [GlobalStateType.OTHER, OtherStateData]
+
+type OtherStateData = {
+  state: OtherState
+}
+
+function getStateDescription(s: GlobalState) {
+  switch (s[0]) {
+    case GlobalStateType.NUMBER: return "NUMBER"
+    case GlobalStateType.STRING: return "STRING"
+    case GlobalStateType.KEYWORD: {
+      switch (s[1].state) {
+        case LiteralState.TRUE: return "TRUE"
+        case LiteralState.TRUE2: return "TRUE2"
+        case LiteralState.TRUE3: return "TRUE3"
+        case LiteralState.FALSE: return "FALSE"
+        case LiteralState.FALSE2: return "FALSE2"
+        case LiteralState.FALSE3: return "FALSE3"
+        case LiteralState.FALSE4: return "FALSE4"
+        case LiteralState.NULL: return "NULL"
+        case LiteralState.NULL2: return "NULL2"
+        case LiteralState.NULL3: return "NULL3"
+      }
+    }
+    case GlobalStateType.OTHER: {
+
+      switch (s[1].state) {
+        case OtherState.END: return "END"
+        case OtherState.EXPECTING_ROOTVALUE: return "EXPECTING_ROOTVALUE"
+        case OtherState.EXPECTING_OBJECTVALUE: return "EXPECTING_OBJECTVALUE"
+        case OtherState.EXPECTING_ARRAYVALUE: return "EXPECTING_ARRAYVALUE"
+        case OtherState.EXPECTING_KEY_OR_OBJECT_END: return "EXPECTING_KEY_OR_OBJECT_END"
+        case OtherState.EXPECTING_COMMA_OR_OBJECT_END: return "EXPECTING_COMMA_OR_OBJECT_END"
+        case OtherState.EXPECTING_VALUE_OR_ARRAY_END: return "EXPECTING_VALUE_OR_ARRAY_END"
+        case OtherState.EXPECTING_COMMA_OR_ARRAY_END: return "EXPECTING_COMMA_OR_ARRAY_END"
+        case OtherState.EXPECTING_KEY: return "EXPECTING_KEY"
+        case OtherState.EXPECTING_COLON: return "EXPECTING_COLON"
+      }
+    }
   }
+}
+
+enum StringType {
+  KEY,
+  VALUE,
 }
 
 const Char = {
@@ -104,6 +156,33 @@ const Char = {
   closeBrace: 0x7D,     // }
 }
 
+enum ContextType {
+  ROOT,
+  OBJECT,
+  ARRAY,
+}
+
+class Subscribers<T> {
+  subscribers = new Array<(t: T) => void>()
+  signal(t: T) {
+    this.subscribers.forEach(s => s(t))
+  }
+  subscribe(subscriber: (t: T) => void) {
+    this.subscribers.push(subscriber)
+  }
+}
+
+type Event =
+  | "ready"
+  | "end"
+  | "error"
+  | "openobject"
+  | "closeobject"
+  | "openarray"
+  | "closearray"
+  | "key"
+  | "value"
+
 
 const stringTokenPattern = /[\\"\n]/g;
 
@@ -115,60 +194,89 @@ export class CParser {
   pChar: number = 0;
   closed = false
   closedRoot = false
-  opt: Options
+  readonly opt: Options
   sawRoot = false;
   tag = null
-  error = null;
-  state = S.VALUE;
-  stack = new Array();
+  error: null | Error = null;
+  state: GlobalState = [GlobalStateType.OTHER, {
+    state: OtherState.EXPECTING_ROOTVALUE
+  }]
+
+  readonly stack = new Array<ContextType>()
   // mostly just for error reporting
   position = 0
   column = 0;
   line = 1;
-  slashed = false;
-  unicodeI = 0;
-  unicodeS: string | null = null;
-  depth = 0;
 
-  textNode?: string
-  numberNode?: string = ""
 
-  onend?: ((...args: any[]) => void)
-  onerror?: ((...args: any[]) => void)
+  onend = new Subscribers<void>()
+  onerror = new Subscribers<Error>()
+  onclosearray = new Subscribers<void>()
+  onopenarray = new Subscribers<void>()
+  oncloseobject = new Subscribers<void>()
+  onopenobject = new Subscribers<void>()
+  onkey = new Subscribers<string>()
+  onvalue = new Subscribers<string | boolean | null | number>()
+  onready = new Subscribers<void>()
 
-  onclosearray?: ((...args: any[]) => void)
-  onopenarray?: ((...args: any[]) => void)
-  onopenobject?: ((...args: any[]) => void)
-  oncloseobject?: ((...args: any[]) => void)
-  onkey?: ((...args: any[]) => void)
-  onvalue?: ((...args: any[]) => void)
-  onstring?: ((...args: any[]) => void)
-  onready?: ((...args: any[]) => void)
+  currentContext = ContextType.ROOT
 
   constructor(opt?: Options) {
     this.opt = opt || {};
-
-    this.clearBuffers();
-    this.emit("onready");
+    if (INFO) console.log('-- emit', "onready");
+    this.onready.signal();
   }
-  end() { this.endx(); }
 
-  private errorx(er: any) {
-    const parser = this
-    this.closeValue();
-    er += "\nLine: " + parser.line +
-      "\nColumn: " + parser.column +
-      "\nChar: " + parser.c;
-    er = new Error(er);
-    parser.error = er;
-    this.emit("onerror", er);
-    return parser;
+  public subscribe(event: Event, subscriber: (data?: any) => void) {
+    switch (event) {
+      case "closearray":
+        this.onclosearray.subscribers.push(subscriber)
+        break
+      case "openarray":
+        this.onopenarray.subscribers.push(subscriber)
+        break
+      case "closeobject":
+        this.oncloseobject.subscribers.push(subscriber)
+        break
+      case "openobject":
+        this.onopenobject.subscribers.push(subscriber)
+        break
+      case "end":
+        this.onend.subscribers.push(subscriber)
+        break
+      case "value":
+        this.onvalue.subscribers.push(subscriber)
+        break
+      case "ready":
+        this.onready.subscribers.push(subscriber)
+        break
+      case "error":
+        this.onerror.subscribers.push(subscriber)
+        break
+      case "key":
+        this.onkey.subscribers.push(subscriber)
+        break
+      default:
+        assertUnreachable(event)
+    }
+  }
+
+  private handleError(er: string) {
+    er += `
+    Line: ${this.line}
+    Column: ${this.column}
+    Char: '${String.fromCharCode(this.c)}'
+    Char#: ${this.c}`;
+    const error = new Error(er);
+    this.error = error;
+    this.onerror.signal(error)
+    return this;
   }
   write(chunk: string | null) {
     if (this.error) throw this.error;
-    if (this.closed) return this.errorx(
+    if (this.closed) return this.handleError(
       "Cannot write after close. Assign an onready handler.");
-    if (chunk === null) return this.endx();
+    if (chunk === null) return this.end();
     let i = 0
     let c = chunk.charCodeAt(0)
     let p = this.pChar;
@@ -191,102 +299,53 @@ export class CParser {
         this.line++;
         this.column = 0;
       } else this.column++;
-      switch (this.state) {
+      const st = this.state
+      switch (st[0]) {
+        case GlobalStateType.NUMBER: {
+          const $ = st[1]
 
-        case S.OPEN_KEY:
-        case S.OPEN_OBJECT:
-          if (isWhitespace(c)) continue;
-          if (this.state === S.OPEN_KEY) this.stack.push(S.CLOSE_KEY);
-          else {
-            if (c === Char.closeBrace) {
-              this.emit('onopenobject');
-              this.depth++;
-              this.emit('oncloseobject');
-              this.depth--;
-              this.state = this.stack.pop() || S.VALUE;
-              continue;
-            } else this.stack.push(S.CLOSE_OBJECT);
-          }
-          if (c === Char.doubleQuote) this.state = S.STRING;
-          else this.errorx("Malformed object key should start with \"");
-          continue;
-
-        case S.CLOSE_KEY:
-        case S.CLOSE_OBJECT:
-          if (isWhitespace(c)) continue;
-          //const event = (parser.state === S.CLOSE_KEY) ? 'key' : 'object';
-          if (c === Char.colon) {
-            if (this.state === S.CLOSE_OBJECT) {
-              this.stack.push(S.CLOSE_OBJECT);
-              this.closeValue('onopenobject');
-              this.depth++;
-            } else this.closeValue('onkey');
-            this.state = S.VALUE;
-          } else if (c === Char.closeBrace) {
-            this.emitNode('oncloseobject');
-            this.depth--;
-            this.state = this.stack.pop() || S.VALUE;
-          } else if (c === Char.comma) {
-            if (this.state === S.CLOSE_OBJECT)
-              this.stack.push(S.CLOSE_OBJECT);
-            this.closeValue();
-            this.state = S.OPEN_KEY;
-          } else this.errorx('Bad object');
-          continue;
-
-        case S.OPEN_ARRAY: // after an array there always a value
-        case S.VALUE:
-          if (isWhitespace(c)) continue;
-          if (this.state === S.OPEN_ARRAY) {
-            this.emit('onopenarray');
-            this.depth++;
-            this.state = S.VALUE;
-            if (c === Char.closeBracket) {
-              this.emit('onclosearray');
-              this.depth--;
-              this.state = this.stack.pop() || S.VALUE;
-              continue;
-            } else {
-              this.stack.push(S.CLOSE_ARRAY);
+          if ($.numberNode === "-0" || $.numberNode === "0") {
+            if (c !== Char.period && c !== Char.e && c !== Char.E && c !== Char.comma && c !== Char.closeBrace && c !== Char.closeBracket) {
+              this.handleError(`Leading zero not followed by '.', 'e', 'E', ',' ']' or '}'`)
             }
           }
-          if (c === Char.doubleQuote) this.state = S.STRING;
-          else if (c === Char.openBrace) this.state = S.OPEN_OBJECT;
-          else if (c === Char.openBracket) this.state = S.OPEN_ARRAY;
-          else if (c === Char.t) this.state = S.TRUE;
-          else if (c === Char.f) this.state = S.FALSE;
-          else if (c === Char.n) this.state = S.NULL;
-          else if (c === Char.minus) { // keep and continue
-            this.numberNode += "-";
-          } else if (Char._0 <= c && c <= Char._9) {
-            this.numberNode += String.fromCharCode(c);
-            this.state = S.NUMBER_DIGIT;
-          } else this.errorx("Bad value");
-          continue;
 
-        case S.CLOSE_ARRAY:
-          if (c === Char.comma) {
-            this.stack.push(S.CLOSE_ARRAY);
-            this.closeValue('onvalue');
-            this.state = S.VALUE;
-          } else if (c === Char.closeBracket) {
-            this.emitNode('onclosearray');
-            this.depth--;
-            this.state = this.stack.pop() || S.VALUE;
-          } else if (isWhitespace(c))
-            continue;
-          else this.errorx('Bad array');
-          continue;
+          if (Char._0 <= c && c <= Char._9) {
+            $.numberNode += String.fromCharCode(c);
+          } else if (c === Char.period) {
+            if ($.numberNode.indexOf('.') !== -1) {
+              this.handleError('Invalid number, has two dots');
+            }
+            $.numberNode += ".";
+          } else if (c === Char.e || c === Char.E) {
+            if ($.numberNode.indexOf('e') !== -1 ||
+              $.numberNode.indexOf('E') !== -1)
+              this.handleError('Invalid number has two exponential');
+            $.numberNode += "e";
+          } else if (c === Char.plus || c === Char.minus) {
+            if (!(p === Char.e || p === Char.E))
+              this.handleError('Invalid symbol in number');
+            $.numberNode += String.fromCharCode(c);
+          } else {
+            if ($.numberNode)
+            this.onvalue.signal(parseFloat($.numberNode))
+            i--; // go back one
+            this.state = [GlobalStateType.OTHER, { state: $.nextState }]
+          }
+          //   continue;
+          continue
+        }
+        case GlobalStateType.STRING: {
+          const $ = st[1]
 
-        case S.STRING:
-          if (this.textNode === undefined) {
-            this.textNode = "";
+          if ($.textNode === undefined) {
+            $.textNode = "";
           }
 
           // thanks thejh, this is an about 50% performance improvement.
           let starti = i - 1
-            , slashed = this.slashed
-            , unicodeI = this.unicodeI
+            , slashed = $.slashed
+            , unicodeI = $.unicodeI
             ;
           STRING_BIGLOOP: while (true) {
             if (DEBUG)
@@ -294,12 +353,12 @@ export class CParser {
                 , slashed);
             // zero means "no unicode active". 1-4 mean "parse some more". end after 4.
             while (unicodeI > 0) {
-              this.unicodeS += String.fromCharCode(c);
+              $.unicodeS += String.fromCharCode(c);
               c = chunk.charCodeAt(i++);
               this.position++;
               if (unicodeI === 4) {
                 // TODO this might be slow? well, probably not used too often anyway
-                this.textNode += String.fromCharCode(parseInt(this.unicodeS!, 16));
+                $.textNode += String.fromCharCode(parseInt($.unicodeS, 16));
                 unicodeI = 0;
                 starti = i - 1;
               } else {
@@ -309,14 +368,24 @@ export class CParser {
               if (!c) break STRING_BIGLOOP;
             }
             if (c === Char.doubleQuote && !slashed) {
-              this.state = this.stack.pop() || S.VALUE;
-              this.textNode += chunk.substring(starti, i - 1);
+              $.textNode += chunk.substring(starti, i - 1);
+
+              const textNode = textopts(this.opt, $.textNode);
+              if ($.stringType === StringType.KEY) {
+                this.onkey.signal(textNode)
+              } else {
+                this.onvalue.signal(textNode)
+              }
+
+
+
+              this.state = [GlobalStateType.OTHER, { state: $.nextState }]
               this.position += i - 1 - starti;
               break;
             }
             if (c === Char.backslash && !slashed) {
               slashed = true;
-              this.textNode += chunk.substring(starti, i - 1);
+              $.textNode += chunk.substring(starti, i - 1);
               this.position += i - 1 - starti;
               c = chunk.charCodeAt(i++);
               this.position++;
@@ -324,17 +393,17 @@ export class CParser {
             }
             if (slashed) {
               slashed = false;
-              if (c === Char.n) { this.textNode += '\n'; }
-              else if (c === Char.r) { this.textNode += '\r'; }
-              else if (c === Char.t) { this.textNode += '\t'; }
-              else if (c === Char.f) { this.textNode += '\f'; }
-              else if (c === Char.b) { this.textNode += '\b'; }
+              if (c === Char.n) { $.textNode += '\n'; }
+              else if (c === Char.r) { $.textNode += '\r'; }
+              else if (c === Char.t) { $.textNode += '\t'; }
+              else if (c === Char.f) { $.textNode += '\f'; }
+              else if (c === Char.b) { $.textNode += '\b'; }
               else if (c === Char.u) {
                 // \uxxxx. meh!
                 unicodeI = 1;
-                this.unicodeS = '';
+                $.unicodeS = '';
               } else {
-                this.textNode += String.fromCharCode(c);
+                $.textNode += String.fromCharCode(c);
               }
               c = chunk.charCodeAt(i++);
               this.position++;
@@ -347,111 +416,177 @@ export class CParser {
             const reResult = stringTokenPattern.exec(chunk);
             if (reResult === null) {
               i = chunk.length + 1;
-              this.textNode += chunk.substring(starti, i - 1);
+              $.textNode += chunk.substring(starti, i - 1);
               this.position += i - 1 - starti;
               break;
             }
             i = reResult.index + 1;
             c = chunk.charCodeAt(reResult.index);
             if (!c) {
-              this.textNode += chunk.substring(starti, i - 1);
+              $.textNode += chunk.substring(starti, i - 1);
               this.position += i - 1 - starti;
               break;
             }
           }
-          this.slashed = slashed;
-          this.unicodeI = unicodeI;
+          $.slashed = slashed;
+          $.unicodeI = unicodeI;
           continue;
+        }
+        case GlobalStateType.KEYWORD: {
+          const $ = st[1]
+          switch ($.state) {
 
-        case S.TRUE:
-          if (c === Char.r) this.state = S.TRUE2;
-          else this.errorx('Invalid true started with t' + c);
-          continue;
+            case LiteralState.TRUE:
+              if (c === Char.r) $.state = LiteralState.TRUE2;
+              else this.handleError('Invalid true started with t' + c);
+              continue;
 
-        case S.TRUE2:
-          if (c === Char.u) this.state = S.TRUE3;
-          else this.errorx('Invalid true started with tr' + c);
-          continue;
+            case LiteralState.TRUE2:
+              if (c === Char.u) $.state = LiteralState.TRUE3;
+              else this.handleError('Invalid true started with tr' + c);
+              continue;
 
-        case S.TRUE3:
-          if (c === Char.e) {
-            this.emit("onvalue", true);
-            this.state = this.stack.pop() || S.VALUE;
-          } else this.errorx('Invalid true started with tru' + c);
-          continue;
+            case LiteralState.TRUE3:
+              if (c === Char.e) {
+                this.finishKeyword(true, $.nextState)
+              } else this.handleError('Invalid true started with tru' + c);
+              continue;
 
-        case S.FALSE:
-          if (c === Char.a) this.state = S.FALSE2;
-          else this.errorx('Invalid false started with f' + c);
-          continue;
+            case LiteralState.FALSE:
+              if (c === Char.a) $.state = LiteralState.FALSE2;
+              else this.handleError('Invalid false started with f' + c);
+              continue;
 
-        case S.FALSE2:
-          if (c === Char.l) this.state = S.FALSE3;
-          else this.errorx('Invalid false started with fa' + c);
-          continue;
+            case LiteralState.FALSE2:
+              if (c === Char.l) $.state = LiteralState.FALSE3;
+              else this.handleError('Invalid false started with fa' + c);
+              continue;
 
-        case S.FALSE3:
-          if (c === Char.s) this.state = S.FALSE4;
-          else this.errorx('Invalid false started with fal' + c);
-          continue;
+            case LiteralState.FALSE3:
+              if (c === Char.s) $.state = LiteralState.FALSE4;
+              else this.handleError('Invalid false started with fal' + c);
+              continue;
 
-        case S.FALSE4:
-          if (c === Char.e) {
-            this.emit("onvalue", false);
-            this.state = this.stack.pop() || S.VALUE;
-          } else this.errorx('Invalid false started with fals' + c);
-          continue;
+            case LiteralState.FALSE4:
+              if (c === Char.e) {
+                this.finishKeyword(false, $.nextState)
+              } else this.handleError('Invalid false started with fals' + c);
+              continue;
 
-        case S.NULL:
-          if (c === Char.u) this.state = S.NULL2;
-          else this.errorx('Invalid null started with n' + c);
-          continue;
+            case LiteralState.NULL:
+              if (c === Char.u) $.state = LiteralState.NULL2;
+              else this.handleError('Invalid null started with n' + c);
+              continue;
 
-        case S.NULL2:
-          if (c === Char.l) this.state = S.NULL3;
-          else this.errorx('Invalid null started with nu' + c);
-          continue;
+            case LiteralState.NULL2:
+              if (c === Char.l) $.state = LiteralState.NULL3;
+              else this.handleError('Invalid null started with nu' + c);
+              continue;
 
-        case S.NULL3:
-          if (c === Char.l) {
-            this.emit("onvalue", null);
-            this.state = this.stack.pop() || S.VALUE;
-          } else this.errorx('Invalid null started with nul' + c);
-          continue;
-
-        case S.NUMBER_DECIMAL_POINT:
-          if (c === Char.period) {
-            this.numberNode += ".";
-            this.state = S.NUMBER_DIGIT;
-          } else this.errorx('Leading zero not followed by .');
-          continue;
-
-        case S.NUMBER_DIGIT:
-          if (Char._0 <= c && c <= Char._9) this.numberNode += String.fromCharCode(c);
-          else if (c === Char.period) {
-            if (this.numberNode!.indexOf('.') !== -1)
-              this.errorx('Invalid number has two dots');
-            this.numberNode += ".";
-          } else if (c === Char.e || c === Char.E) {
-            if (this.numberNode!.indexOf('e') !== -1 ||
-              this.numberNode!.indexOf('E') !== -1)
-              this.errorx('Invalid number has two exponential');
-            this.numberNode += "e";
-          } else if (c === Char.plus || c === Char.minus) {
-            if (!(p === Char.e || p === Char.E))
-              this.errorx('Invalid symbol in number');
-            this.numberNode += String.fromCharCode(c);
-          } else {
-            if (this.numberNode)
-              this.emit("onvalue", parseFloat(this.numberNode));
-            this.numberNode = "";
-            i--; // go back one
-            this.state = this.stack.pop() || S.VALUE;
+            case LiteralState.NULL3:
+              if (c === Char.l) {
+                this.finishKeyword(null, $.nextState)
+              } else this.handleError('Invalid null started with nul' + c);
+              continue;
+            default: assertUnreachable($.state)
+              continue
           }
-          continue;
+        }
+        case GlobalStateType.OTHER: {
+          const $ = st[1]
+          switch ($.state) {
 
-        default:
-          this.errorx("Unknown state: " + this.state);
+            case OtherState.EXPECTING_KEY:
+              if (isWhitespace(c)) continue;
+              this.processKey(c)
+              continue;
+            case OtherState.EXPECTING_KEY_OR_OBJECT_END:
+              if (isWhitespace(c)) continue;
+
+              if (c === Char.closeBrace) {
+                this.oncloseobject.signal()
+                this.pop($)
+                continue;
+              } else {
+                this.processKey(c)
+              }
+              continue;
+
+            case OtherState.EXPECTING_COLON:
+              if (isWhitespace(c)) continue;
+              //const event = (parser.state === S.CLOSE_KEY) ? 'key' : 'object';
+              if (c === Char.colon) {
+                $.state = OtherState.EXPECTING_OBJECTVALUE;
+                // } else if (c === Char.closeBrace) {
+                //   this.emitNode('oncloseobject');
+                //   this.depth--;
+                //   $.state = this.stack.pop() || State.END;
+                // } else if (c === Char.comma) {
+                //   $.state = State.OPEN_KEY;
+              } else this.handleError(`Expected colon, found ${String.fromCharCode(c)}`);
+              continue;
+            case OtherState.EXPECTING_COMMA_OR_OBJECT_END:
+              if (isWhitespace(c)) continue;
+              //const event = (parser.state === S.CLOSE_KEY) ? 'key' : 'object';
+              if (c === Char.closeBrace) {
+                this.oncloseobject.signal()
+
+                this.pop($)
+              } else if (c === Char.comma) {
+                $.state = OtherState.EXPECTING_KEY;
+              } else this.handleError(`Expected ',' or '}', found ${String.fromCharCode(c)}`);
+              continue;
+
+            case OtherState.EXPECTING_VALUE_OR_ARRAY_END: // after an array there always a value
+              if (isWhitespace(c)) continue;
+              if (c === Char.closeBracket) {
+                this.onclosearray.signal()
+                this.pop($)
+                continue;
+              } else {
+                this.processValue(c, OtherState.EXPECTING_COMMA_OR_ARRAY_END)
+              }
+              continue;
+            case OtherState.EXPECTING_ROOTVALUE:
+              if (isWhitespace(c)) continue;
+              this.processValue(c, OtherState.END)
+              continue;
+            case OtherState.EXPECTING_OBJECTVALUE:
+              if (isWhitespace(c)) continue;
+              this.processValue(c, OtherState.EXPECTING_COMMA_OR_OBJECT_END)
+              continue;
+            case OtherState.EXPECTING_ARRAYVALUE:
+              if (isWhitespace(c)) continue;
+              this.processValue(c, OtherState.EXPECTING_COMMA_OR_ARRAY_END)
+              continue;
+            case OtherState.EXPECTING_COMMA_OR_ARRAY_END:
+              if (isWhitespace(c)) {
+                continue
+              }
+              if (c === Char.comma) {
+                $.state = OtherState.EXPECTING_ARRAYVALUE;
+              } else if (c === Char.closeBracket) {
+                this.onclosearray.signal()
+                this.pop($)
+              }
+              else {
+                this.handleError(`Bad array, expected ',' or ']'`);
+              }
+              continue;
+
+            case OtherState.END: {
+              if (isWhitespace(c)) {
+                continue
+              }
+              this.handleError(`Unexpected data after end`)
+              continue
+            }
+            default:
+              assertUnreachable($.state)
+              continue
+          }
+        }
+        default: assertUnreachable(st[0])
       }
     }
     if (this.position >= this.bufferCheckPosition)
@@ -460,6 +595,11 @@ export class CParser {
   }
   resume() { this.error = null; return this; }
   close() { return this.write(null); }
+  private finishKeyword(value: false | true | null, nextState: OtherState) {
+
+    this.onvalue.signal(value)
+    this.state = [GlobalStateType.OTHER, { state: nextState }]
+  }
   private checkBufferLength() {
     const maxAllowed = Math.max(MAX_BUFFER_LENGTH, 10)
     let maxActual = 0
@@ -474,56 +614,104 @@ export class CParser {
             break;
 
           default:
-            this.errorx("Max buffer length exceeded: " + buffer);
+            this.handleError("Max buffer length exceeded: " + buffer);
         }
       }
       maxActual = Math.max(maxActual, len);
     }
-    const parser = this
-    x(parser.textNode)
-    x(parser.numberNode)
-    parser.bufferCheckPosition = (MAX_BUFFER_LENGTH - maxActual)
-      + parser.position;
+    switch (this.state[0]) {
+      case GlobalStateType.NUMBER:
+        x(this.state[1].numberNode)
+        break
+      case GlobalStateType.STRING:
+        x(this.state[1].textNode)
+        break
+    }
+    this.bufferCheckPosition = (MAX_BUFFER_LENGTH - maxActual)
+      + this.position;
   }
-  private endx() {
-    const parser = this
-    if (parser.state !== S.VALUE || parser.depth !== 0)
-      this.errorx("Unexpected end");
+  public end() {
+    if (this.state[0] !== GlobalStateType.OTHER || this.state[1].state !== OtherState.END || this.stack.length !== 0)
+      this.handleError("Unexpected end");
 
-    this.closeValue();
-    parser.c = 0;
-    parser.closed = true;
-    this.emit("onend");
+    this.c = 0;
+    this.closed = true;
+    this.onend.signal()
+
     //CParser.call(parser, parser.opt);
     //return parser;
   }
-
-
-  private emit(event: string, data?: any) {
-    if (INFO) console.log('-- emit', event, data);
-    const prsr: any = parser
-    if (prsr[event]) prsr[event](data);
+  private initString(stringType: StringType, nextState: OtherState) {
+    this.state = [GlobalStateType.STRING, {
+      textNode: "",
+      stringType: stringType,
+      nextState: nextState,
+      unicodeI: 0,
+      unicodeS: "",
+      slashed: false
+    }]
   }
-
-  private emitNode(event: string, data?: any) {
-    this.closeValue();
-    this.emit(event, data);
-  }
-
-  private closeValue(event?: any) {
-    const parser = this
-    parser.textNode = textopts(parser.opt, parser.textNode!);
-    if (parser.textNode !== undefined) {
-      this.emit((event ? event : "onvalue"), parser.textNode);
+  private pop(st: OtherStateData) {
+    const popped = this.stack.pop()
+    if (popped === undefined) {
+      this.handleError("unexpected end of stack")
+    } else {
+      this.currentContext = popped
+      switch (popped) {
+        case ContextType.ARRAY:
+          st.state = OtherState.EXPECTING_COMMA_OR_ARRAY_END
+          break
+        case ContextType.OBJECT:
+          st.state = OtherState.EXPECTING_COMMA_OR_OBJECT_END
+          break
+        case ContextType.ROOT:
+          st.state = OtherState.END
+          break
+      }
     }
-    parser.textNode = undefined;
+  }
+  private processKey(c: number) {
+    if (c === Char.doubleQuote) {
+      this.initString(StringType.KEY, OtherState.EXPECTING_COLON)
+    } else this.handleError(`Malformed object, key should start with '"'`);
+  }
+  private processValue(c: number, nextState: OtherState) {
+    if (c === Char.doubleQuote) {
+      this.initString(StringType.VALUE, nextState)
+    }
+    else if (c === Char.openBrace) {
+      this.state = [GlobalStateType.OTHER, { state: OtherState.EXPECTING_KEY_OR_OBJECT_END }]
+      this.onopenobject.signal()
+      this.stack.push(this.currentContext)
+      this.currentContext = ContextType.OBJECT
+
+    } else if (c === Char.openBracket) {
+      this.state = [GlobalStateType.OTHER, { state: OtherState.EXPECTING_VALUE_OR_ARRAY_END }]
+      this.onopenarray.signal()
+
+      this.stack.push(this.currentContext)
+      this.currentContext = ContextType.ARRAY
+
+    }
+    else if (c === Char.t) this.state = [GlobalStateType.KEYWORD, { state: LiteralState.TRUE, nextState: nextState }]
+    else if (c === Char.f) this.state = [GlobalStateType.KEYWORD, { state: LiteralState.FALSE, nextState: nextState }]
+    else if (c === Char.n) this.state = [GlobalStateType.KEYWORD, { state: LiteralState.NULL, nextState: nextState }]
+    else if (c === Char.minus) {
+      this.state = [GlobalStateType.NUMBER, {
+        numberNode: String.fromCharCode(c),
+        nextState: nextState,
+        expectingDecimalPoint: false,
+      }]
+    } else if (Char._0 <= c && c <= Char._9) {
+      this.state = [GlobalStateType.NUMBER, {
+        numberNode: String.fromCharCode(c),
+        nextState: nextState,
+        expectingDecimalPoint: c === Char._0,
+      }]
+    } else this.handleError("Bad value");
   }
 
-  public clearBuffers() {
-    const parser =this
-    parser.textNode = undefined
-    parser.numberNode = ""
-  }
+
 }
 
 

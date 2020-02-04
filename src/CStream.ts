@@ -3,7 +3,6 @@ import { CParser, Options } from "./CParser"
 
 export const EVENTS: AnyEvent[] =
     ["value"
-        , "string"
         , "key"
         , "openobject"
         , "closeobject"
@@ -16,7 +15,6 @@ export const EVENTS: AnyEvent[] =
 
 type Event =
     | "value"
-    | "string"
     | "key"
     | "openobject"
     | "closeobject"
@@ -55,17 +53,16 @@ export class CStream extends Stream {
 
         Stream.apply(this);
 
-        this._parser.onend = () => { this.emit("end"); };
-        this._parser.onerror = (er: any) => {
+        this._parser.subscribe("end", () => { this.emit("end"); })
+        this._parser.subscribe("error", (er: any) => {
             this.emit("error", er);
             this._parser.error = null;
-        };
+        })
         const me = this
 
         const parser: any = me._parser
 
         const streamWraps: Event[] = ["value"
-            , "string"
             , "key"
             , "openobject"
             , "closeobject"
@@ -160,21 +157,20 @@ export class CStream extends Stream {
     on(ev: Event, handler: (...args: any[]) => void): this {
         const me = this;
         switch (ev) {
-            case "key": if (!this._parser.onkey) { this._parser.onkey = (key: string) => { this.emit("key", key) } } break
-            case "string": if (!this._parser.onstring) { this._parser.onstring = (value: string) => { this.emit("string", value) } } break
-            case "value": if (!this._parser.onvalue) { this._parser.onvalue = (value: any) => { this.emit("value", value) } } break
-            case "openarray": if (!this._parser.onopenarray) { this._parser.onopenarray = () => { this.emit("openarray") } } break
-            case "closearray": if (!this._parser.onclosearray) { this._parser.onclosearray = () => { this.emit("closearray") } } break
-            case "openobject": if (!this._parser.onopenobject) { this._parser.onopenobject = (key: any) => { this.emit("openobject", key) } } break
-            case "closeobject": if (!this._parser.oncloseobject) { this._parser.oncloseobject = () => { this.emit("closeobject") } } break
-            case "ready": if (!this._parser.onready) { this._parser.onready = () => { this.emit("ready") } } break
+            case "key": this._parser.subscribe("key", (key: string) => { this.emit("key", key) }); break
+            case "value": this._parser.subscribe("value", (value: any) => { this.emit("value", value) }); break
+            case "openarray": this._parser.subscribe("openarray", () => { this.emit("openarray") }); break
+            case "closearray": this._parser.subscribe("closearray", () => { this.emit("closearray") }); break
+            case "openobject": this._parser.subscribe("openobject", (key: any) => { this.emit("openobject", key) }); break
+            case "closeobject": this._parser.subscribe("closeobject", () => { this.emit("closeobject") }); break
+            case "ready": this._parser.subscribe("ready", () => { this.emit("ready") }); break
             default: assertUnreachable(ev)
         }
         return super.on.call(me, ev, handler);
     };
 
     destroy() {
-        this._parser.clearBuffers();
+        //this._parser.state = [GlobalState:OTHER, { state: ??? }];
         this.emit("close");
     };
 

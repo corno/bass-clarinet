@@ -1,6 +1,9 @@
 import * as p from "../src/CParser"
 import { describe } from "mocha"
-import _ from "underscore"
+
+function assertUnreachable(_x: never) {
+  throw new Error("unreachable")
+}
 
 function assert(expr: boolean, msg?: string) {
   if (!expr) {
@@ -50,7 +53,8 @@ const docs: {
   {
     text: '{"foo": "\\u0000"}'
     , events:
-      [["openobject", "foo"]
+      [["openobject", undefined],
+      ["key", "foo"]
         , ["value", "\u0000"]
         , ["closeobject", undefined]
         , ['end', undefined]
@@ -59,20 +63,22 @@ const docs: {
   }
   , empty_value:
   {
-    text: '{"foo": ""}'
-    , events:
-      [["openobject", "foo"]
-        , ["value", ""]
-        , ["closeobject", undefined]
-        , ['end', undefined]
-        , ['ready', undefined]
-      ]
+    text: '{"foo": ""}',
+    events: [
+      ["openobject", undefined],
+      ["key", "foo"],
+      ["value", ""],
+      ["closeobject", undefined],
+      ['end', undefined],
+      ['ready', undefined],
+    ]
   }
   , empty_key:
   {
     text: '{"foo": "bar", "": "baz"}'
     , events:
-      [["openobject", "foo"]
+      [["openobject", undefined],
+      ["key", "foo"]
         , ["value", "bar"]
         , ["key", ""]
         , ["value", "baz"]
@@ -85,7 +91,8 @@ const docs: {
   {
     text: '{"matzue": "松江", "asakusa": "浅草"}'
     , events:
-      [["openobject", "matzue"]
+      [["openobject", undefined],
+      ["key", "matzue"]
         , ["value", "松江"]
         , ["key", "asakusa"]
         , ["value", "浅草"]
@@ -98,7 +105,8 @@ const docs: {
   {
     text: '{ "U+10ABCD": "������" }'
     , events:
-      [["openobject", "U+10ABCD"]
+      [["openobject", undefined],
+      ["key", "U+10ABCD"]
         , ["value", "������"]
         , ["closeobject", undefined]
         , ['end', undefined]
@@ -141,7 +149,8 @@ const docs: {
   {
     text: '{"foo": "bar"}'
     , events:
-      [["openobject", "foo"]
+      [["openobject", undefined],
+      ["key", "foo"]
         , ["value", "bar"]
         , ["closeobject", undefined]
         , ['end', undefined]
@@ -152,7 +161,8 @@ const docs: {
   {
     text: "{\"foo\": \"its \\\"as is\\\", \\\"yeah\", \"bar\": false}"
     , events:
-      [["openobject", "foo"]
+      [["openobject", undefined],
+      ["key", "foo"]
         , ["value", 'its "as is", "yeah']
         , ["key", "bar"]
         , ["value", false]
@@ -185,7 +195,8 @@ const docs: {
         , ['value', true]
         , ['value', false]
         , ['value', null]
-        , ['openobject', 'key']
+        , ['openobject', undefined]
+        , ["key", 'key']
         , ['value', "value"]
         , ["closeobject", undefined]
         , ['openarray', undefined]
@@ -216,8 +227,10 @@ const docs: {
   {
     text: '{"a":{"b":"c"}}'
     , events:
-      [["openobject", "a"]
-        , ["openobject", "b"]
+      [["openobject", undefined],
+      ["key", "a"]
+        , ["openobject", undefined],
+      ["key", "b"]
         , ["value", "c"]
         , ["closeobject", undefined]
         , ["closeobject", undefined]
@@ -229,7 +242,8 @@ const docs: {
   {
     text: '{"a":["b", "c"]}'
     , events:
-      [["openobject", "a"]
+      [["openobject", undefined],
+      ["key", "a"]
         , ['openarray', undefined]
         , ['value', 'b']
         , ['value', 'c']
@@ -244,10 +258,12 @@ const docs: {
     text: '[{"a":"b"}, {"c":"d"}]'
     , events:
       [['openarray', undefined]
-        , ["openobject", 'a']
+        , ["openobject", undefined],
+      ["key", "a"]
         , ['value', 'b']
         , ["closeobject", undefined]
-        , ["openobject", 'c']
+        , ["openobject", undefined],
+      ["key", "c"]
         , ['value', 'd']
         , ["closeobject", undefined]
         , ['closearray', undefined]
@@ -259,7 +275,8 @@ const docs: {
   {
     text: '{"a": "b", "c": "d"}'
     , events:
-      [["openobject", "a"]
+      [["openobject", undefined],
+      ["key", "a"]
         , ["value", "b"]
         , ["key", "c"]
         , ["value", "d"]
@@ -272,7 +289,8 @@ const docs: {
   {
     text: '{"foo": true, "bar": false, "baz": null}'
     , events:
-      [["openobject", "foo"]
+      [["openobject", undefined],
+      ["key", "foo"]
         , ["value", true]
         , ["key", "bar"]
         , ["value", false]
@@ -288,7 +306,8 @@ const docs: {
     text:
       '{"foo": "bar and all\\\"", "bar": "its \\\"nice\\\""}'
     , events:
-      [["openobject", "foo"]
+      [["openobject", undefined],
+      ["key", "foo"]
         , ["value", 'bar and all"']
         , ["key", "bar"]
         , ["value", 'its "nice"']
@@ -328,7 +347,8 @@ const docs: {
       ', "boolean, false": false' +
       ', "null": null }'
     , events:
-      [["openobject", "boolean, true"]
+      [["openobject", undefined],
+      ["key", "boolean, true"]
         , ["value", true]
         , ["key", "boolean, false"]
         , ["value", false]
@@ -395,7 +415,8 @@ const docs: {
       '"name":"LockerUploader","version":{"major":0,' +
       '"micro":1,"minor":0},"versionString":"0.0.1"}'
     , events:
-      [["openobject", "CoreletAPIVersion"]
+      [["openobject", undefined],
+      ["key", "CoreletAPIVersion"]
         , ["value", 2]
         , ["key", "CoreletType"]
         , ["value", "standalone"]
@@ -403,13 +424,15 @@ const docs: {
         , ["value", "A corelet that provides the capability to upload a folder’s contents into a user’s locker."]
         , ["key", "functions"]
         , ["openarray", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "Displays a dialog box that allows user to select a folder on the local system."]
         , ["key", "name"]
         , ["value", "ShowBrowseDialog"]
         , ["key", "parameters"]
         , ["openarray", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "The callback function for results."]
         , ["key", "name"]
         , ["value", "callback"]
@@ -420,13 +443,15 @@ const docs: {
         , ["closeobject", undefined]
         , ["closearray", undefined]
         , ["closeobject", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "Uploads all mp3 files in the folder provided."]
         , ["key", "name"]
         , ["value", "UploadFolder"]
         , ["key", "parameters"]
         , ["openarray", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "The path to upload mp3 files from."]
         , ["key", "name"]
         , ["value", "path"]
@@ -435,7 +460,8 @@ const docs: {
         , ["key", "type"]
         , ["value", "string"]
         , ["closeobject", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "The callback function for progress."]
         , ["key", "name"]
         , ["value", "callback"]
@@ -446,7 +472,8 @@ const docs: {
         , ["closeobject", undefined]
         , ["closearray", undefined]
         , ["closeobject", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "Returns the server name to the current locker service."]
         , ["key", "name"]
         , ["value", "GetLockerService"]
@@ -454,13 +481,15 @@ const docs: {
         , ["openarray", undefined]
         , ["closearray", undefined]
         , ["closeobject", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "Changes the name of the locker service."]
         , ["key", "name"]
         , ["value", "SetLockerService"]
         , ["key", "parameters"]
         , ["openarray", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "The value of the locker service to set active."]
         , ["key", "name"]
         , ["value", "LockerService"]
@@ -471,13 +500,15 @@ const docs: {
         , ["closeobject", undefined]
         , ["closearray", undefined]
         , ["closeobject", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "Downloads locker files to the suggested folder."]
         , ["key", "name"]
         , ["value", "DownloadFile"]
         , ["key", "parameters"]
         , ["openarray", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "The origin path of the locker file."]
         , ["key", "name"]
         , ["value", "path"]
@@ -486,7 +517,8 @@ const docs: {
         , ["key", "type"]
         , ["value", "string"]
         , ["closeobject", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "The Window destination path of the locker file."]
         , ["key", "name"]
         , ["value", "destination"]
@@ -495,7 +527,8 @@ const docs: {
         , ["key", "type"]
         , ["value", "integer"]
         , ["closeobject", undefined]
-        , ["openobject", "documentation"]
+        , ["openobject", undefined],
+      ["key", "documentation"]
         , ["value", "The callback function for progress."]
         , ["key", "name"]
         , ["value", "callback"]
@@ -510,7 +543,8 @@ const docs: {
         , ["key", "name"]
         , ["value", "LockerUploader"]
         , ["key", "version"]
-        , ["openobject", "major"]
+        , ["openobject", undefined],
+      ["key", "major"]
         , ["value", 0]
         , ["key", "micro"]
         , ["value", 1]
@@ -630,14 +664,16 @@ const docs: {
       '"number": "212 555-1234" }, { "type" : "fax", ' +
       '"number": "646 555-4567" } ] }'
     , events:
-      [["openobject", "firstName"]
+      [["openobject", undefined],
+      ["key", "firstName"]
         , ["value", "John"]
         , ["key", "lastName"]
         , ["value", "Smith"]
         , ["key", "age"]
         , ["value", 25]
         , ["key", "address"]
-        , ["openobject", "streetAddress"]
+        , ["openobject", undefined],
+      ["key", "streetAddress"]
         , ["value", "21 2nd Street"]
         , ["key", "city"]
         , ["value", "New York"]
@@ -648,12 +684,14 @@ const docs: {
         , ["closeobject", undefined]
         , ["key", "phoneNumber"]
         , ["openarray", undefined]
-        , ["openobject", "type"]
+        , ["openobject", undefined],
+      ["key", "type"]
         , ["value", "home"]
         , ["key", "number"]
         , ["value", "212 555-1234"]
         , ["closeobject", undefined]
-        , ["openobject", "type"]
+        , ["openobject", undefined],
+      ["key", "type"]
         , ["value", "fax"]
         , ["key", "number"]
         , ["value", "646 555-4567"]
@@ -680,7 +718,8 @@ const docs: {
   {
     text: '{"a":[],"c": {}, "b": true}'
     , events:
-      [["openobject", "a"]
+      [["openobject", undefined],
+      ["key", "a"]
         , ["openarray", undefined]
         , ["closearray", undefined]
         , ["key", "c"]
@@ -749,15 +788,20 @@ const docs: {
         '          }\r\n' +
         '      }\r\n')
     , events:
-      [["openobject", "glossary"]
-        , ["openobject", "title"]
+      [["openobject", undefined],
+      ["key", "glossary"]
+        , ["openobject", undefined],
+      ["key", "title"]
         , ['value', "example glossary"]
         , ["key", "GlossDiv"]
-        , ["openobject", "title"]
+        , ["openobject", undefined],
+      ["key", "title"]
         , ['value', "S"]
         , ["key", "GlossList"]
-        , ["openobject", "GlossEntry"]
-        , ["openobject", "ID"]
+        , ["openobject", undefined],
+      ["key", "GlossEntry"]
+        , ["openobject", undefined],
+      ["key", "ID"]
         , ['value', "SGML"]
         , ["key", "SortAs"]
         , ['value', "SGML"]
@@ -768,7 +812,8 @@ const docs: {
         , ["key", "Abbrev"]
         , ['value', 'ISO 8879:1986']
         , ["key", "GlossDef"]
-        , ["openobject", "para"]
+        , ["openobject", undefined],
+      ["key", "para"]
         , ['value', 'A meta-markup language, used to create markup languages such as DocBook.']
         , ["key", "GlossSeeAlso"]
         , ['openarray', undefined]
@@ -808,7 +853,6 @@ const docs: {
 
 export const EVENTS: AnyEvent[] =
   ["value"
-    , "string"
     , "key"
     , "openobject"
     , "closeobject"
@@ -821,7 +865,6 @@ export const EVENTS: AnyEvent[] =
 
 type Event =
   | "value"
-  | "string"
   | "key"
   | "openobject"
   | "closeobject"
@@ -849,11 +892,11 @@ function generic(key: any, prechunked: boolean, sep?: any) {
     const env = process && process.env ? process.env : window
     const record: [AnyEvent, string][] = []
 
-    _.each(events, function (event_pair) {
+    events.forEach(function (event_pair) {
       l.push(event_pair);
     });
-    _.each(EVENTS, function (event) {
-      function x(value: string) {
+    EVENTS.forEach(function (event) {
+      function x(value: any) {
         const temp_env: any = env
         if (temp_env.CRECORD) { // for really big json we dont want to type all
           record.push([event, value]);
@@ -870,19 +913,20 @@ function generic(key: any, prechunked: boolean, sep?: any) {
         }
       };
       switch (event) {
-        case "end": parser.onend = x; break
-        case "error": parser.onerror = x; break
-        case "key": parser.onkey = x; break
-        case "string": parser.onstring = x; break
-        case "value": parser.onvalue = x; break
-        case "ready": parser.onready = x; break
-        case "openarray": parser.onopenarray = x; break
-        case "closearray": parser.onclosearray = x; break
-        case "openobject": parser.onopenobject = x; break
-        case "closeobject": parser.oncloseobject = x; break
+        case "end": parser.onend.subscribe(x); break
+        case "error": parser.onerror.subscribe(x); break
+        case "key": parser.onkey.subscribe(x); break
+        case "value": parser.onvalue.subscribe(x); break
+        case "ready": parser.onready.subscribe(x); break
+        case "openarray": parser.onopenarray.subscribe(x); break
+        case "closearray": parser.onclosearray.subscribe(x); break
+        case "openobject": parser.onopenobject.subscribe(x); break
+        case "closeobject": parser.oncloseobject.subscribe(x); break
+        default:
+          assertUnreachable(event)
       }
     });
-    _.each(doc_chunks, function (chunk) {
+    doc_chunks.forEach(function (chunk) {
       parser.write(chunk);
     });
     parser.end();
