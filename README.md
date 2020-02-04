@@ -1,14 +1,16 @@
-# clarinet
+# bass-clarinet
 
-![NPM Downloads](http://img.shields.io/npm/dm/clarinet.svg?style=flat) ![NPM Version](http://img.shields.io/npm/v/clarinet.svg?style=flat) [![CDNJS](https://img.shields.io/cdnjs/v/clarinet.svg)](https://cdnjs.com/libraries/clarinet)
+![NPM Downloads](http://img.shields.io/npm/dm/bass-clarinet.svg?style=flat) ![NPM Version](http://img.shields.io/npm/v/bass-clarinet.svg?style=flat)
 
-`clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. `clarinet` is inspired (and forked) from [sax-js][saxjs]. just like you shouldn't use `sax` when you need `dom` you shouldn't use `clarinet` when you need `JSON.parse`. for a more detailed introduction and a performance study please refer to this [article][blog]. 
+`bass-clarinet` is a port from `clarinet` to typescript
+
+`clarinet/bass-clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. `clarinet` is inspired (and forked) from [sax-js][saxjs]. just like you shouldn't use `sax` when you need `dom` you shouldn't use `bass-clarinet` when you need `JSON.parse`. for a more detailed introduction and a performance study please refer to this [article][blog]. 
 
 # design goals
 
-`clarinet` is very much like [yajl] but written in javascript:
+`bass-clarinet` is very much like [yajl] but written in typescript:
 
-* written in javascript
+* written in typescript
 * portable
 * robust (~110 tests pass before even announcing the project)
 * data representation independent
@@ -21,62 +23,63 @@
 
 # motivation
 
-the reason behind this work was to create better full text support in node. creating indexes out of large (or many) json files doesn't require a full understanding of the json file, but it does require something like `clarinet`.
+the reason behind this work was to create better full text support in node. creating indexes out of large (or many) json files doesn't require a full understanding of the json file, but it does require something like `clarinet/bass-clarinet`.
 
 # installation
 
 ## node.js
 
 1. install [npm]
-2. `npm install clarinet`
-3. `var clarinet = require('clarinet');`
+2. `npm install bass-clarinet`
+3. `import * as bass_clarinet from "bass-clarinet"`
 
-## browser
+<!-- ## browser
 
 1. minimize clarinet.js
-2. load it into your webpage
+2. load it into your webpage -->
 
 # usage
 
 ## basics
 
-``` js
-var clarinet = require("clarinet")
-  , parser = clarinet.parser()
-  ;
+``` TypeScript
+import * as bass_clarinet from "bass-clarinet"
+const parser = bass_clarinet.parser()
 
 parser.onerror = function (e) {
   // an error happened. e is the error.
-};
+}
 parser.onvalue = function (v) {
   // got some value.  v is the value. can be string, double, bool, or null.
-};
+}
 parser.onopenobject = function (key) {
   // opened an object. key is the first key.
-};
+}
 parser.onkey = function (key) {
   // got a subsequent key in an object.
-};
+}
 parser.oncloseobject = function () {
   // closed an object.
-};
+}
 parser.onopenarray = function () {
   // opened an array.
-};
+}
 parser.onclosearray = function () {
   // closed an array.
-};
+}
 parser.onend = function () {
   // parser stream is done, and ready to have more stuff written to it.
-};
+}
 
 parser.write('{"foo": "bar"}').close();
 ```
 
-``` js
+``` TypeScript
 // stream usage
 // takes the same options as the parser
-var stream = require("clarinet").createStream(options);
+import * as bass_clarinet from "bass-clarinet"
+
+var stream = bass_clarinet.createStream(options);
 stream.on("error", function (e) {
   // unhandled errors will throw, since this is a proper node
   // event emitter.
@@ -179,7 +182,7 @@ check [issues]
 everyone is welcome to contribute. patches, bug-fixes, new features
 
 1. create an [issue][issues] so the community can comment on your idea
-2. fork `clarinet`
+2. fork `bass-clarinet`
 3. create a new branch `git checkout -b my_branch`
 4. create tests for the changes you made
 5. make sure you pass both existing and newly inserted tests
@@ -194,21 +197,21 @@ check `index.html`. there's two env vars you can set, `CRECORD` and `CDEBUG`.
 * `CRECORD` allows you to `record` the event sequence from a new json test so you don't have to write everything. 
 * `CDEBUG` can be set to `info` or `debug`. `info` will `console.log` all emits, `debug` will `console.log` what happens to each char. 
 
-in `test/clarinet.js` there's two lines you might want to change. `#8` where you define `seps`, if you are isolating a test you probably just want to run one sep, so change this array to `[undefined]`. `#718` which says `for (var key in docs) {` is where you can change the docs you want to run. e.g. to run `foobar` i would do something like `for (var key in {foobar:''}) {`.
+in `test/bass_clarinet.js` there's two lines you might want to change. `#8` where you define `seps`, if you are isolating a test you probably just want to run one sep, so change this array to `[undefined]`. `#718` which says `for (var key in docs) {` is where you can change the docs you want to run. e.g. to run `foobar` i would do something like `for (var key in {foobar:''}) {`.
 
 # meta
 
-* code: `git clone git://github.com/dscape/clarinet.git`
-* home: <http://github.com/dscape/clarinet>
-* bugs: <http://github.com/dscape/clarinet/issues>
-* build: [![build status](https://secure.travis-ci.org/dscape/clarinet.png)](http://travis-ci.org/dscape/clarinet)
+* code: `git clone git://github.com/corno/bass-clarinet.git`
+* home: <http://github.com/corno/bass-clarinet>
+* bugs: <http://github.com/corno/bass-clarinet/issues>
+* build: [![build status](https://secure.travis-ci.org/corno/bass-clarinet.png)](http://travis-ci.org/corno/bass-clarinet)
 
 `(oO)--',-` in [caos]
 
 [npm]: http://npmjs.org
-[issues]: http://github.com/dscape/clarinet/issues
+[issues]: http://github.com/corno/bass-clarinet/issues
 [caos]: http://caos.di.uminho.pt/
 [saxjs]: http://github.com/isaacs/sax-js
 [yajl]: https://github.com/lloyd/yajl
-[samples]: https://github.com/dscape/clarinet/tree/master/samples
+[samples]: https://github.com/corno/bass-clarinet/tree/master/samples
 [blog]: http://writings.nunojob.com/2011/12/clarinet-sax-based-evented-streaming-json-parser-in-javascript-for-the-browser-and-nodejs.html
