@@ -1,6 +1,6 @@
 {
   "name": "bass-clarinet",
-  "description": "SAX based evented streaming JSON parser in JavaScript (browser and node)",
+  "description": "SAX based evented streaming JSON parser in Typescript (browser and node)",
   "author": "corno",
   "contributors": [
     "Nuno Job <nunojobpinto@gmail.com> (http://nunojob.com/)",
