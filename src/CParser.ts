@@ -272,7 +272,7 @@ export class CParser {
     this.onerror.signal(error)
     return this
   }
-  write(chunk: string | null) {
+  public write(chunk: string | null) {
     if (this.error) throw this.error
     if (this.closed) return this.handleError(
       "Cannot write after close. Assign an onready handler.")
@@ -593,11 +593,13 @@ export class CParser {
       this.checkBufferLength()
     return this
   }
-  resume() {
+  public resume() {
     this.error = null
     return this
   }
-  close() { return this.write(null) }
+  public close() {
+    return this.write(null)
+  }
   private finishKeyword(value: false | true | null, nextState: OtherState) {
 
     this.onvalue.signal(value)
