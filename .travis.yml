@@ -1,8 +1,28 @@
-language: "node_js"
+language: node_js
+
 node_js:
-  - 6
-  - 8
-  - 10
+  - 'node'
+  - '10'
+  - '8'
+
+env:
+  - workerCount=3 timeout=600000
+
+matrix:
+  fast_finish: true
+
 branches:
   only:
-    - master
+  - master
+  - /^release-.*/
+
+install:
+  - npm uninstall typescript --no-save
+  - npm install
+
+cache:
+  directories:
+    - node_modules
+
+git:
+  depth: 1
