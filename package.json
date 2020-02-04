@@ -41,7 +41,7 @@
     "should": "13.2.x"
   },
   "scripts": {
-    "build": "mkdir .\\dist & rd /s /q .\\dist && tsc",
+    "build": "rd /s /q .\\dist & tsc",
     "lint": "",
     "buildLintAndTest": "npm run build && npm run lint && npm run test",
     "validatePublishReadiness": "git diff --exit-code && ncu -u --packageFile package.json && npm install && npm run buildLintAndTest",
