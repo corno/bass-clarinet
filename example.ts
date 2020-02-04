@@ -1,27 +1,27 @@
 import * as bass_clarinet from "bass-clarinet"
 
 var parser = bass_clarinet.parser();
-parser.onvalue = function (v: string) {
+parser.onvalue.subscribe((v: string) => {
   console.log("Value: " + v);
-};
-parser.onkey = function (key: string) {
+})
+parser.onkey.subscribe((key: string) => {
   console.log("Key: " + key);
-};
-parser.onopenobject = function (key: string) {
-  console.log("New Object, first key: " + key);
-}
-parser.oncloseobject = function () {
+})
+parser.onopenobject.subscribe(() => {
+  console.log("New Object");
+})
+parser.oncloseobject.subscribe(() => {
   console.log("Close Object");
-}
-parser.onopenarray = function () {
+})
+parser.onopenarray.subscribe(() => {
   console.log("New Array");
-}
-parser.onclosearray = function () {
+})
+parser.onclosearray.subscribe(() => {
   console.log("Close Array");
-}
-parser.onend = function () {
+})
+parser.onend.subscribe(() => {
   console.log('End');
-}
+})
 
 parser
   .write('{ "firstName": "John", "lastName": ')
