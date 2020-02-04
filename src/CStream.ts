@@ -27,17 +27,16 @@ type AnyEvent =
     | "end"
     | "error"
     | Event
+
 export function createStream(opt: any) { return new CStream(opt) }
 
 function assertUnreachable(_x: never) {
     throw new Error("unreachable")
 }
 
-
-
 export class CStream extends Stream {
 
-    _parser: CParser
+    parser: CParser
     writable = true
     readable = true
 
@@ -49,18 +48,18 @@ export class CStream extends Stream {
 
     constructor(opt: Options) {
         super()
-        this._parser = new CParser(opt)
+        this.parser = new CParser(opt)
 
         Stream.apply(this)
 
-        this._parser.subscribe("end", () => { this.emit("end") })
-        this._parser.subscribe("error", (er: any) => {
+        this.parser.subscribe("end", () => { this.emit("end") })
+        this.parser.subscribe("error", (er: any) => {
             this.emit("error", er)
-            this._parser.error = null
+            this.parser.error = null
         })
         const me = this
 
-        const parser: any = me._parser
+        const parser: any = me.parser
 
         const streamWraps: Event[] = ["value"
             , "key"
@@ -105,7 +104,7 @@ export class CStream extends Stream {
                 i = i + j - 1
 
                 // pass data to parser and move forward to parse rest of data
-                this._parser.write(this.string)
+                this.parser.write(this.string)
                 this.emit("data", this.string)
                 continue
             }
@@ -128,7 +127,7 @@ export class CStream extends Stream {
                     this.string = data.slice(i, (i + this.bytes_in_sequence)).toString()
                     i = i + this.bytes_in_sequence - 1
 
-                    this._parser.write(this.string)
+                    this.parser.write(this.string)
                     this.emit("data", this.string)
                     continue
                 }
@@ -139,7 +138,7 @@ export class CStream extends Stream {
                 if (data[p] >= 128) break
             }
             this.string = data.slice(i, p).toString()
-            this._parser.write(this.string)
+            this.parser.write(this.string)
             this.emit("data", this.string)
             i = p - 1
 
@@ -149,8 +148,8 @@ export class CStream extends Stream {
     }
 
     end(chunk?: string) {
-        if (chunk && chunk.length) this._parser.write(chunk.toString())
-        this._parser.end()
+        if (chunk && chunk.length) this.parser.write(chunk.toString())
+        this.parser.end()
         return true
     }
 
@@ -158,25 +157,25 @@ export class CStream extends Stream {
         const me = this
         switch (ev) {
             case "key":
-                this._parser.subscribe("key", (key: string) => { this.emit("key", key) })
+                this.parser.subscribe("key", (key: string) => { this.emit("key", key) })
                 break
             case "value":
-                this._parser.subscribe("value", (value: any) => { this.emit("value", value) })
+                this.parser.subscribe("value", (value: any) => { this.emit("value", value) })
                 break
             case "openarray":
-                this._parser.subscribe("openarray", () => { this.emit("openarray") })
+                this.parser.subscribe("openarray", () => { this.emit("openarray") })
                 break
             case "closearray":
-                this._parser.subscribe("closearray", () => { this.emit("closearray") })
+                this.parser.subscribe("closearray", () => { this.emit("closearray") })
                 break
             case "openobject":
-                this._parser.subscribe("openobject", (key: any) => { this.emit("openobject", key) })
+                this.parser.subscribe("openobject", (key: any) => { this.emit("openobject", key) })
                 break
             case "closeobject":
-                this._parser.subscribe("closeobject", () => { this.emit("closeobject") })
+                this.parser.subscribe("closeobject", () => { this.emit("closeobject") })
                 break
             case "ready":
-                this._parser.subscribe("ready", () => { this.emit("ready") })
+                this.parser.subscribe("ready", () => { this.emit("ready") })
                 break
             default: assertUnreachable(ev)
         }
