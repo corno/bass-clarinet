@@ -46,30 +46,31 @@ the reason behind this work was to create better full text support in node. crea
 import * as bass_clarinet from "bass-clarinet"
 const parser = bass_clarinet.parser()
 
-parser.onerror = function (e) {
+parser.onerror.subscribe((e) => {
   // an error happened. e is the error.
-}
-parser.onvalue = function (v) {
-  // got some value.  v is the value. can be string, double, bool, or null.
-}
-parser.onopenobject = function (key) {
-  // opened an object. key is the first key.
-}
+})
+parser.onvalue.subscribe((v: string | number | boolean | null) => {
+  // got some value. v is the value. can be string, number, boolean, or null.
+})
+parser.onopenobject = function () {
+  // opened an object.
+  // unlike clarinet, bass-clarinet does not handle the first key separately
+})
 parser.onkey = function (key) {
-  // got a subsequent key in an object.
-}
+  // got a key in an object.
+})
 parser.oncloseobject = function () {
   // closed an object.
-}
+})
 parser.onopenarray = function () {
   // opened an array.
-}
+})
 parser.onclosearray = function () {
   // closed an array.
-}
+})
 parser.onend = function () {
   // parser stream is done, and ready to have more stuff written to it.
-}
+})
 
 parser.write('{"foo": "bar"}').close();
 ```
