@@ -38,8 +38,7 @@
     ;
 
   clarinet.STATE =
-    { BEGIN                             : S++
-    , VALUE                             : S++ // general stuff
+    { VALUE                             : S++ // general stuff
     , OPEN_OBJECT                       : S++ // {
     , CLOSE_OBJECT                      : S++ // }
     , OPEN_ARRAY                        : S++ // [
@@ -169,7 +168,7 @@
     parser.opt      = opt || {};
     parser.closed   = parser.closedRoot = parser.sawRoot = false;
     parser.tag      = parser.error = null;
-    parser.state    = S.BEGIN;
+    parser.state    = S.VALUE;
     parser.stack    = new Array();
     // mostly just for error reporting
     parser.position = parser.column = 0;
@@ -407,14 +406,7 @@
         parser.column = 0;
       } else parser.column ++;
       switch (parser.state) {
-
-        case S.BEGIN:
-          if (c === Char.openBrace) parser.state = S.OPEN_OBJECT;
-          else if (c === Char.openBracket) parser.state = S.OPEN_ARRAY;
-          else if (!isWhitespace(c))
-            error(parser, "Non-whitespace before {[.");
-        continue;
-
+        
         case S.OPEN_KEY:
         case S.OPEN_OBJECT:
           if (isWhitespace(c)) continue;

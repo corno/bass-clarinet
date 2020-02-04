@@ -13,16 +13,22 @@ function assert(expr, msg) {
 var seps   = [undefined, /\t|\n|\r/, '']
   , sep
   , docs   =
-    { empty_array :
-      { text      : '[]'
+    { just_a_string :
+      { text      : '"a string"'
       , events    :
-        [ ['openarray'  , undefined]
-        , ['closearray' , undefined]
-        , ['end'        , undefined]
-        , ['ready'      , undefined]
+        [ ['value'  , "a string"]
         ]
       }
-    , just_slash :
+    , empty_array :
+    { text      : '[]'
+    , events    :
+      [ ['openarray'  , undefined]
+      , ['closearray' , undefined]
+      , ['end'        , undefined]
+      , ['ready'      , undefined]
+      ]
+    }
+  , just_slash :
       { text      : '["\\\\"]'
       , events    :
         [ ['openarray'  , undefined]
@@ -77,10 +83,10 @@ var seps   = [undefined, /\t|\n|\r/, '']
         ]
       }
     , four_byte_utf8 :
-      { text          : '{ "U+10ABCD": "í¯ªí¿" }'
+      { text          : '{ "U+10ABCD": "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½" }'
       , events        :
         [ ["openobject"  , "U+10ABCD"]
-        , ["value"       , "í¯ªí¿"]
+        , ["value"       , "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"]
         , ["closeobject" , undefined]
         , ['end'         , undefined]
         , ['ready'       , undefined]
