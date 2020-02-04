@@ -41,7 +41,13 @@
     "should": "1.0.x"
   },
   "scripts": {
-    "test": "node ./node_modules/mocha/bin/mocha dist/test/bass_clarinet.js",
+    "build": "mkdir .\\dist & rd /s /q .\\dist && tsc",
+    "lint": "",
+    "buildLintAndTest": "npm run build && npm run lint && npm run test",
+    "validatePublishReadiness": "git diff --exit-code && ncu -u --packageFile package.json && npm install && npm run buildLintAndTest",
+    "pubMin": "npm run validatePublishReadiness && npm version minor && git push && npm publish",
+    "pubPatch": "npm run validatePublishReadiness && npm version patch && git push && npm publish",
+    "test": "node ./node_modules/mocha/bin/mocha dist/test/bass_clarinet.js && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
     "testJSONTestSuite": "node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
     "test_": "mocha -r should -t 10000 -s 2000 test/parser.spec.js test/clarinet.js test/npm.js test/utf8-chunks.js test/position.js",
     "bench_": "cd benchmark && npm test",
@@ -56,6 +62,5 @@
     "test": "test"
   },
   "license": "BSD-2-Clause",
-  "dependencies": {
-  }
+  "dependencies": {}
 }
