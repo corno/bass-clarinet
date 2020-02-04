@@ -54,7 +54,7 @@
     "prebench_": "cd benchmark && test -e node_modules || npm i --ignore-scripts"
   },
   "engines": {
-    "node": ">=0.3.6",
+    "node": ">=8.0.0",
     "firefox": ">=0.8.0",
     "chrome": ">=16.0.912"
   },
