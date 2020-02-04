@@ -715,11 +715,7 @@ export class CParser {
       }]
     } else this.handleError("Bad value")
   }
-
-
 }
-
-
 
 function textopts(opt: Options, text: string) {
   if (text === undefined) {
@@ -729,8 +725,6 @@ function textopts(opt: Options, text: string) {
   if (opt.normalize) text = text.replace(/\s+/g, " ")
   return text
 }
-
-
 
 function isWhitespace(c: number) {
   return c === Char.carriageReturn || c === Char.lineFeed || c === Char.space || c === Char.tab
