@@ -37,8 +37,8 @@
   "devDependencies": {
     "@types/mocha": "^7.0.1",
     "@types/node": "^13.7.0",
-    "mocha": "^6.2.2",
-    "should": "1.0.x"
+    "mocha": "^7.0.1",
+    "should": "13.2.x"
   },
   "scripts": {
     "build": "mkdir .\\dist & rd /s /q .\\dist && tsc",
