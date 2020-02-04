@@ -1,5 +1,5 @@
 import { Stream } from "stream"
-import { clearBuffers, CParser, Options } from "./CParser"
+import { CParser, Options } from "./CParser"
 
 export const EVENTS: AnyEvent[] =
     ["value"
@@ -174,7 +174,7 @@ export class CStream extends Stream {
     };
 
     destroy() {
-        clearBuffers(this._parser);
+        this._parser.clearBuffers();
         this.emit("close");
     };
 

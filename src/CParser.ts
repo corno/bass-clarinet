@@ -12,39 +12,59 @@ export type Options = {
   normalize?: boolean
 }
 
-let S: any = 0
+enum S {
+  VALUE, // general stuff
+  OPEN_OBJECT, // {
+  CLOSE_OBJECT, // }
+  OPEN_ARRAY, // [
+  CLOSE_ARRAY, // ]
+  TEXT_ESCAPE, // \ stuff
+  STRING, // ""
+  BACKSLASH,
+  END, // No more stack
+  OPEN_KEY, // "a"
+  CLOSE_KEY, // :
+  TRUE, // r
+  TRUE2, // u
+  TRUE3, // e
+  FALSE, // a
+  FALSE2, // l
+  FALSE3, // s
+  FALSE4, // e
+  NULL, // u
+  NULL2, // l
+  NULL3, // l
+  NUMBER_DECIMAL_POINT, // .
+  NUMBER_DIGIT, // [0-9]
+}
 
-let STATE: any =
-{
-  VALUE: S++ // general stuff
-  , OPEN_OBJECT: S++ // {
-  , CLOSE_OBJECT: S++ // }
-  , OPEN_ARRAY: S++ // [
-  , CLOSE_ARRAY: S++ // ]
-  , TEXT_ESCAPE: S++ // \ stuff
-  , STRING: S++ // ""
-  , BACKSLASH: S++
-  , END: S++ // No more stack
-  , OPEN_KEY: S++ // , "a"
-  , CLOSE_KEY: S++ // :
-  , TRUE: S++ // r
-  , TRUE2: S++ // u
-  , TRUE3: S++ // e
-  , FALSE: S++ // a
-  , FALSE2: S++ // l
-  , FALSE3: S++ // s
-  , FALSE4: S++ // e
-  , NULL: S++ // u
-  , NULL2: S++ // l
-  , NULL3: S++ // l
-  , NUMBER_DECIMAL_POINT: S++ // .
-  , NUMBER_DIGIT: S++ // [0-9]
-};
-
-for (const s_ in STATE) STATE[STATE[s_]] = s_;
-
-// switcharoo
-S = STATE;
+function getStateDescription(s: S) {
+  switch (s) {
+    case S.VALUE: return "VALUE"
+    case S.OPEN_OBJECT: return "OPEN_OBJECT"
+    case S.CLOSE_OBJECT: return "CLOSE_OBJECT"
+    case S.OPEN_ARRAY: return "OPEN_ARRAY"
+    case S.CLOSE_ARRAY: return "CLOSE_ARRAY"
+    case S.TEXT_ESCAPE: return "TEXT_ESCAPE"
+    case S.STRING: return "STRING"
+    case S.BACKSLASH: return "BACKSLASH"
+    case S.END: return "END"
+    case S.OPEN_KEY: return "OPEN_KEY"
+    case S.CLOSE_KEY: return "CLOSE_KEY"
+    case S.TRUE: return "TRUE"
+    case S.TRUE2: return "TRUE2"
+    case S.TRUE3: return "TRUE3"
+    case S.FALSE: return "FALSE"
+    case S.FALSE2: return "FALSE2"
+    case S.FALSE3: return "FALSE3"
+    case S.FALSE4: return "FALSE4"
+    case S.NULL: return "NULL"
+    case S.NULL2: return "NULL2"
+    case S.NULL3: return "NULL3"
+    case S.NUMBER_DECIMAL_POINT: return "NUMBER_DECIMAL_POINT"
+    case S.NUMBER_DIGIT: return "NUMBER_DIGIT"
+  }
+}
 
 const Char = {
   tab: 0x09,     // \t
@@ -84,10 +104,6 @@ const Char = {
   closeBrace: 0x7D,     // }
 }
 
-export function clearBuffers(parser: CParser) {
-  parser.textNode = undefined
-  parser.numberNode = ""
-}
 
 const stringTokenPattern = /[\\"\n]/g;
 
@@ -132,7 +148,7 @@ export class CParser {
   constructor(opt?: Options) {
     this.opt = opt || {};
 
-    clearBuffers(this);
+    this.clearBuffers();
     this.emit("onready");
   }
   end() { this.endx(); }
@@ -169,7 +185,7 @@ export class CParser {
 
       if (!c) break;
 
-      if (DEBUG) console.log(i, c, STATE[this.state]);
+      if (DEBUG) console.log(i, c, getStateDescription(this.state));
       this.position++;
       if (c === Char.lineFeed) {
         this.line++;
@@ -274,7 +290,7 @@ export class CParser {
             ;
           STRING_BIGLOOP: while (true) {
             if (DEBUG)
-              console.log(i, c, STATE[this.state]
+              console.log(i, c, getStateDescription(this.state)
                 , slashed);
             // zero means "no unicode active". 1-4 mean "parse some more". end after 4.
             while (unicodeI > 0) {
@@ -448,7 +464,7 @@ export class CParser {
     const maxAllowed = Math.max(MAX_BUFFER_LENGTH, 10)
     let maxActual = 0
     const x = (buffer?: string) => {
-  
+
       const len = buffer === undefined ? 0 : buffer.length;
       if (len > maxAllowed) {
         switch (buffer) {
@@ -456,7 +472,7 @@ export class CParser {
             throw new Error("missing implementation for 'closeText'")
             //closeText(parser);
             break;
-  
+
           default:
             this.errorx("Max buffer length exceeded: " + buffer);
         }
@@ -473,7 +489,7 @@ export class CParser {
     const parser = this
     if (parser.state !== S.VALUE || parser.depth !== 0)
       this.errorx("Unexpected end");
-  
+
     this.closeValue();
     parser.c = 0;
     parser.closed = true;
@@ -481,27 +497,33 @@ export class CParser {
     //CParser.call(parser, parser.opt);
     //return parser;
   }
-  
 
-private emit(event: string, data?: any) {
-  if (INFO) console.log('-- emit', event, data);
-  const prsr: any = parser
-  if (prsr[event]) prsr[event](data);
-}
 
-private emitNode(event: string, data?: any) {
-  this.closeValue();
-  this.emit(event, data);
-}
-
-private closeValue(event?: any) {
-  const parser = this
-  parser.textNode = textopts(parser.opt, parser.textNode!);
-  if (parser.textNode !== undefined) {
-    this.emit((event ? event : "onvalue"), parser.textNode);
+  private emit(event: string, data?: any) {
+    if (INFO) console.log('-- emit', event, data);
+    const prsr: any = parser
+    if (prsr[event]) prsr[event](data);
   }
-  parser.textNode = undefined;
-}
+
+  private emitNode(event: string, data?: any) {
+    this.closeValue();
+    this.emit(event, data);
+  }
+
+  private closeValue(event?: any) {
+    const parser = this
+    parser.textNode = textopts(parser.opt, parser.textNode!);
+    if (parser.textNode !== undefined) {
+      this.emit((event ? event : "onvalue"), parser.textNode);
+    }
+    parser.textNode = undefined;
+  }
+
+  public clearBuffers() {
+    const parser =this
+    parser.textNode = undefined
+    parser.numberNode = ""
+  }
 }
 
 
