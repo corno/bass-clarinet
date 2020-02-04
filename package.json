@@ -62,5 +62,7 @@
     "test": "test"
   },
   "license": "BSD-2-Clause",
-  "dependencies": {}
+  "dependencies": {
+    "typescript": "^3.7.5"
+  }
 }
