@@ -1,11 +1,11 @@
 const env: any = (typeof process === 'object' && process.env)
   ? process.env
-  : self;
+  : self
 
-export function parser(opt?: Options) { return new CParser(opt); };
-export const MAX_BUFFER_LENGTH = 64 * 1024;
-export const DEBUG = (env.CDEBUG === 'debug');
-export const INFO = (env.CDEBUG === 'debug' || env.CDEBUG === 'info');
+export function parser(opt?: Options) { return new CParser(opt) }
+export const MAX_BUFFER_LENGTH = 64 * 1024
+export const DEBUG = (env.CDEBUG === 'debug')
+export const INFO = (env.CDEBUG === 'debug' || env.CDEBUG === 'info')
 
 function assertUnreachable(_x: never) {
   throw new Error("unreachable")
@@ -69,7 +69,7 @@ type GlobalState =
     nextState: OtherState
     unicodeI: number //= 0
     unicodeS: string //null
-    slashed: boolean // = false;
+    slashed: boolean // = false
   }]
   | [GlobalStateType.OTHER, OtherStateData]
 
@@ -184,20 +184,20 @@ type Event =
   | "value"
 
 
-const stringTokenPattern = /[\\"\n]/g;
+const stringTokenPattern = /[\\"\n]/g
 
 export class CParser {
 
-  bufferCheckPosition = MAX_BUFFER_LENGTH;
+  bufferCheckPosition = MAX_BUFFER_LENGTH
   q = ""
   c = 0
-  pChar: number = 0;
+  pChar: number = 0
   closed = false
   closedRoot = false
   readonly opt: Options
-  sawRoot = false;
+  sawRoot = false
   tag = null
-  error: null | Error = null;
+  error: null | Error = null
   state: GlobalState = [GlobalStateType.OTHER, {
     state: OtherState.EXPECTING_ROOTVALUE
   }]
@@ -205,8 +205,8 @@ export class CParser {
   readonly stack = new Array<ContextType>()
   // mostly just for error reporting
   position = 0
-  column = 0;
-  line = 1;
+  column = 0
+  line = 1
 
 
   onend = new Subscribers<void>()
@@ -222,9 +222,9 @@ export class CParser {
   currentContext = ContextType.ROOT
 
   constructor(opt?: Options) {
-    this.opt = opt || {};
-    if (INFO) console.log('-- emit', "onready");
-    this.onready.signal();
+    this.opt = opt || {}
+    if (INFO) console.log('-- emit', "onready")
+    this.onready.signal()
   }
 
   public subscribe(event: Event, subscriber: (data?: any) => void) {
@@ -266,39 +266,39 @@ export class CParser {
     Line: ${this.line}
     Column: ${this.column}
     Char: '${String.fromCharCode(this.c)}'
-    Char#: ${this.c}`;
-    const error = new Error(er);
-    this.error = error;
+    Char#: ${this.c}`
+    const error = new Error(er)
+    this.error = error
     this.onerror.signal(error)
-    return this;
+    return this
   }
   write(chunk: string | null) {
-    if (this.error) throw this.error;
+    if (this.error) throw this.error
     if (this.closed) return this.handleError(
-      "Cannot write after close. Assign an onready handler.");
-    if (chunk === null) return this.end();
+      "Cannot write after close. Assign an onready handler.")
+    if (chunk === null) return this.end()
     let i = 0
     let c = chunk.charCodeAt(0)
-    let p = this.pChar;
-    if (DEBUG) console.log('write -> [' + chunk + ']');
+    let p = this.pChar
+    if (DEBUG) console.log('write -> [' + chunk + ']')
     while (c) {
-      p = c;
-      this.c = c = chunk.charCodeAt(i++);
+      p = c
+      this.c = c = chunk.charCodeAt(i++)
       // if chunk doesnt have next, like streaming char by char
       // this way we need to check if previous is really previous
       // if not we need to reset to what the parser says is the previous
       // from buffer
-      if (p !== c) this.pChar = p;
-      else p = this.pChar;
+      if (p !== c) this.pChar = p
+      else p = this.pChar
 
-      if (!c) break;
+      if (!c) break
 
-      if (DEBUG) console.log(i, c, getStateDescription(this.state));
-      this.position++;
+      if (DEBUG) console.log(i, c, getStateDescription(this.state))
+      this.position++
       if (c === Char.lineFeed) {
-        this.line++;
-        this.column = 0;
-      } else this.column++;
+        this.line++
+        this.column = 0
+      } else this.column++
       const st = this.state
       switch (st[0]) {
         case GlobalStateType.NUMBER: {
@@ -311,66 +311,66 @@ export class CParser {
           }
 
           if (Char._0 <= c && c <= Char._9) {
-            $.numberNode += String.fromCharCode(c);
+            $.numberNode += String.fromCharCode(c)
           } else if (c === Char.period) {
             if ($.numberNode.indexOf('.') !== -1) {
-              this.handleError('Invalid number, has two dots');
+              this.handleError('Invalid number, has two dots')
             }
-            $.numberNode += ".";
+            $.numberNode += "."
           } else if (c === Char.e || c === Char.E) {
             if ($.numberNode.indexOf('e') !== -1 ||
               $.numberNode.indexOf('E') !== -1)
-              this.handleError('Invalid number has two exponential');
-            $.numberNode += "e";
+              this.handleError('Invalid number has two exponential')
+            $.numberNode += "e"
           } else if (c === Char.plus || c === Char.minus) {
             if (!(p === Char.e || p === Char.E))
-              this.handleError('Invalid symbol in number');
-            $.numberNode += String.fromCharCode(c);
+              this.handleError('Invalid symbol in number')
+            $.numberNode += String.fromCharCode(c)
           } else {
             if ($.numberNode)
-            this.onvalue.signal(parseFloat($.numberNode))
-            i--; // go back one
+              this.onvalue.signal(parseFloat($.numberNode))
+            i-- // go back one
             this.state = [GlobalStateType.OTHER, { state: $.nextState }]
           }
-          //   continue;
+          //   continue
           continue
         }
         case GlobalStateType.STRING: {
           const $ = st[1]
 
           if ($.textNode === undefined) {
-            $.textNode = "";
+            $.textNode = ""
           }
 
           // thanks thejh, this is an about 50% performance improvement.
           let starti = i - 1
             , slashed = $.slashed
             , unicodeI = $.unicodeI
-            ;
+
           STRING_BIGLOOP: while (true) {
             if (DEBUG)
               console.log(i, c, getStateDescription(this.state)
-                , slashed);
+                , slashed)
             // zero means "no unicode active". 1-4 mean "parse some more". end after 4.
             while (unicodeI > 0) {
-              $.unicodeS += String.fromCharCode(c);
-              c = chunk.charCodeAt(i++);
-              this.position++;
+              $.unicodeS += String.fromCharCode(c)
+              c = chunk.charCodeAt(i++)
+              this.position++
               if (unicodeI === 4) {
                 // TODO this might be slow? well, probably not used too often anyway
-                $.textNode += String.fromCharCode(parseInt($.unicodeS, 16));
-                unicodeI = 0;
-                starti = i - 1;
+                $.textNode += String.fromCharCode(parseInt($.unicodeS, 16))
+                unicodeI = 0
+                starti = i - 1
               } else {
-                unicodeI++;
+                unicodeI++
               }
               // we can just break here: no stuff we skipped that still has to be sliced out or so
-              if (!c) break STRING_BIGLOOP;
+              if (!c) break STRING_BIGLOOP
             }
             if (c === Char.doubleQuote && !slashed) {
-              $.textNode += chunk.substring(starti, i - 1);
+              $.textNode += chunk.substring(starti, i - 1)
 
-              const textNode = textopts(this.opt, $.textNode);
+              const textNode = textopts(this.opt, $.textNode)
               if ($.stringType === StringType.KEY) {
                 this.onkey.signal(textNode)
               } else {
@@ -380,114 +380,114 @@ export class CParser {
 
 
               this.state = [GlobalStateType.OTHER, { state: $.nextState }]
-              this.position += i - 1 - starti;
-              break;
+              this.position += i - 1 - starti
+              break
             }
             if (c === Char.backslash && !slashed) {
-              slashed = true;
-              $.textNode += chunk.substring(starti, i - 1);
-              this.position += i - 1 - starti;
-              c = chunk.charCodeAt(i++);
-              this.position++;
-              if (!c) break;
+              slashed = true
+              $.textNode += chunk.substring(starti, i - 1)
+              this.position += i - 1 - starti
+              c = chunk.charCodeAt(i++)
+              this.position++
+              if (!c) break
             }
             if (slashed) {
-              slashed = false;
-              if (c === Char.n) { $.textNode += '\n'; }
-              else if (c === Char.r) { $.textNode += '\r'; }
-              else if (c === Char.t) { $.textNode += '\t'; }
-              else if (c === Char.f) { $.textNode += '\f'; }
-              else if (c === Char.b) { $.textNode += '\b'; }
+              slashed = false
+              if (c === Char.n) { $.textNode += '\n' }
+              else if (c === Char.r) { $.textNode += '\r' }
+              else if (c === Char.t) { $.textNode += '\t' }
+              else if (c === Char.f) { $.textNode += '\f' }
+              else if (c === Char.b) { $.textNode += '\b' }
               else if (c === Char.u) {
                 // \uxxxx. meh!
-                unicodeI = 1;
-                $.unicodeS = '';
+                unicodeI = 1
+                $.unicodeS = ''
               } else {
-                $.textNode += String.fromCharCode(c);
+                $.textNode += String.fromCharCode(c)
               }
-              c = chunk.charCodeAt(i++);
-              this.position++;
-              starti = i - 1;
-              if (!c) break;
-              else continue;
+              c = chunk.charCodeAt(i++)
+              this.position++
+              starti = i - 1
+              if (!c) break
+              else continue
             }
 
-            stringTokenPattern.lastIndex = i;
-            const reResult = stringTokenPattern.exec(chunk);
+            stringTokenPattern.lastIndex = i
+            const reResult = stringTokenPattern.exec(chunk)
             if (reResult === null) {
-              i = chunk.length + 1;
-              $.textNode += chunk.substring(starti, i - 1);
-              this.position += i - 1 - starti;
-              break;
+              i = chunk.length + 1
+              $.textNode += chunk.substring(starti, i - 1)
+              this.position += i - 1 - starti
+              break
             }
-            i = reResult.index + 1;
-            c = chunk.charCodeAt(reResult.index);
+            i = reResult.index + 1
+            c = chunk.charCodeAt(reResult.index)
             if (!c) {
-              $.textNode += chunk.substring(starti, i - 1);
-              this.position += i - 1 - starti;
-              break;
+              $.textNode += chunk.substring(starti, i - 1)
+              this.position += i - 1 - starti
+              break
             }
           }
-          $.slashed = slashed;
-          $.unicodeI = unicodeI;
-          continue;
+          $.slashed = slashed
+          $.unicodeI = unicodeI
+          continue
         }
         case GlobalStateType.KEYWORD: {
           const $ = st[1]
           switch ($.state) {
 
             case LiteralState.TRUE:
-              if (c === Char.r) $.state = LiteralState.TRUE2;
-              else this.handleError('Invalid true started with t' + c);
-              continue;
+              if (c === Char.r) $.state = LiteralState.TRUE2
+              else this.handleError('Invalid true started with t' + c)
+              continue
 
             case LiteralState.TRUE2:
-              if (c === Char.u) $.state = LiteralState.TRUE3;
-              else this.handleError('Invalid true started with tr' + c);
-              continue;
+              if (c === Char.u) $.state = LiteralState.TRUE3
+              else this.handleError('Invalid true started with tr' + c)
+              continue
 
             case LiteralState.TRUE3:
               if (c === Char.e) {
                 this.finishKeyword(true, $.nextState)
-              } else this.handleError('Invalid true started with tru' + c);
-              continue;
+              } else this.handleError('Invalid true started with tru' + c)
+              continue
 
             case LiteralState.FALSE:
-              if (c === Char.a) $.state = LiteralState.FALSE2;
-              else this.handleError('Invalid false started with f' + c);
-              continue;
+              if (c === Char.a) $.state = LiteralState.FALSE2
+              else this.handleError('Invalid false started with f' + c)
+              continue
 
             case LiteralState.FALSE2:
-              if (c === Char.l) $.state = LiteralState.FALSE3;
-              else this.handleError('Invalid false started with fa' + c);
-              continue;
+              if (c === Char.l) $.state = LiteralState.FALSE3
+              else this.handleError('Invalid false started with fa' + c)
+              continue
 
             case LiteralState.FALSE3:
-              if (c === Char.s) $.state = LiteralState.FALSE4;
-              else this.handleError('Invalid false started with fal' + c);
-              continue;
+              if (c === Char.s) $.state = LiteralState.FALSE4
+              else this.handleError('Invalid false started with fal' + c)
+              continue
 
             case LiteralState.FALSE4:
               if (c === Char.e) {
                 this.finishKeyword(false, $.nextState)
-              } else this.handleError('Invalid false started with fals' + c);
-              continue;
+              } else this.handleError('Invalid false started with fals' + c)
+              continue
 
             case LiteralState.NULL:
-              if (c === Char.u) $.state = LiteralState.NULL2;
-              else this.handleError('Invalid null started with n' + c);
-              continue;
+              if (c === Char.u) $.state = LiteralState.NULL2
+              else this.handleError('Invalid null started with n' + c)
+              continue
 
             case LiteralState.NULL2:
-              if (c === Char.l) $.state = LiteralState.NULL3;
-              else this.handleError('Invalid null started with nu' + c);
-              continue;
+              if (c === Char.l) $.state = LiteralState.NULL3
+              else this.handleError('Invalid null started with nu' + c)
+              continue
 
             case LiteralState.NULL3:
               if (c === Char.l) {
                 this.finishKeyword(null, $.nextState)
-              } else this.handleError('Invalid null started with nul' + c);
-              continue;
+              } else this.handleError('Invalid null started with nul' + c)
+              continue
             default: assertUnreachable($.state)
               continue
           }
@@ -497,82 +497,82 @@ export class CParser {
           switch ($.state) {
 
             case OtherState.EXPECTING_KEY:
-              if (isWhitespace(c)) continue;
+              if (isWhitespace(c)) continue
               this.processKey(c)
-              continue;
+              continue
             case OtherState.EXPECTING_KEY_OR_OBJECT_END:
-              if (isWhitespace(c)) continue;
+              if (isWhitespace(c)) continue
 
               if (c === Char.closeBrace) {
                 this.oncloseobject.signal()
                 this.pop($)
-                continue;
+                continue
               } else {
                 this.processKey(c)
               }
-              continue;
+              continue
 
             case OtherState.EXPECTING_COLON:
-              if (isWhitespace(c)) continue;
-              //const event = (parser.state === S.CLOSE_KEY) ? 'key' : 'object';
+              if (isWhitespace(c)) continue
+              //const event = (parser.state === S.CLOSE_KEY) ? 'key' : 'object'
               if (c === Char.colon) {
-                $.state = OtherState.EXPECTING_OBJECTVALUE;
+                $.state = OtherState.EXPECTING_OBJECTVALUE
                 // } else if (c === Char.closeBrace) {
-                //   this.emitNode('oncloseobject');
-                //   this.depth--;
-                //   $.state = this.stack.pop() || State.END;
+                //   this.emitNode('oncloseobject')
+                //   this.depth--
+                //   $.state = this.stack.pop() || State.END
                 // } else if (c === Char.comma) {
-                //   $.state = State.OPEN_KEY;
-              } else this.handleError(`Expected colon, found ${String.fromCharCode(c)}`);
-              continue;
+                //   $.state = State.OPEN_KEY
+              } else this.handleError(`Expected colon, found ${String.fromCharCode(c)}`)
+              continue
             case OtherState.EXPECTING_COMMA_OR_OBJECT_END:
-              if (isWhitespace(c)) continue;
-              //const event = (parser.state === S.CLOSE_KEY) ? 'key' : 'object';
+              if (isWhitespace(c)) continue
+              //const event = (parser.state === S.CLOSE_KEY) ? 'key' : 'object'
               if (c === Char.closeBrace) {
                 this.oncloseobject.signal()
 
                 this.pop($)
               } else if (c === Char.comma) {
-                $.state = OtherState.EXPECTING_KEY;
-              } else this.handleError(`Expected ',' or '}', found ${String.fromCharCode(c)}`);
-              continue;
+                $.state = OtherState.EXPECTING_KEY
+              } else this.handleError(`Expected ',' or '}', found ${String.fromCharCode(c)}`)
+              continue
 
             case OtherState.EXPECTING_VALUE_OR_ARRAY_END: // after an array there always a value
-              if (isWhitespace(c)) continue;
+              if (isWhitespace(c)) continue
               if (c === Char.closeBracket) {
                 this.onclosearray.signal()
                 this.pop($)
-                continue;
+                continue
               } else {
                 this.processValue(c, OtherState.EXPECTING_COMMA_OR_ARRAY_END)
               }
-              continue;
+              continue
             case OtherState.EXPECTING_ROOTVALUE:
-              if (isWhitespace(c)) continue;
+              if (isWhitespace(c)) continue
               this.processValue(c, OtherState.END)
-              continue;
+              continue
             case OtherState.EXPECTING_OBJECTVALUE:
-              if (isWhitespace(c)) continue;
+              if (isWhitespace(c)) continue
               this.processValue(c, OtherState.EXPECTING_COMMA_OR_OBJECT_END)
-              continue;
+              continue
             case OtherState.EXPECTING_ARRAYVALUE:
-              if (isWhitespace(c)) continue;
+              if (isWhitespace(c)) continue
               this.processValue(c, OtherState.EXPECTING_COMMA_OR_ARRAY_END)
-              continue;
+              continue
             case OtherState.EXPECTING_COMMA_OR_ARRAY_END:
               if (isWhitespace(c)) {
                 continue
               }
               if (c === Char.comma) {
-                $.state = OtherState.EXPECTING_ARRAYVALUE;
+                $.state = OtherState.EXPECTING_ARRAYVALUE
               } else if (c === Char.closeBracket) {
                 this.onclosearray.signal()
                 this.pop($)
               }
               else {
-                this.handleError(`Bad array, expected ',' or ']'`);
+                this.handleError(`Bad array, expected ',' or ']'`)
               }
-              continue;
+              continue
 
             case OtherState.END: {
               if (isWhitespace(c)) {
@@ -590,11 +590,14 @@ export class CParser {
       }
     }
     if (this.position >= this.bufferCheckPosition)
-      this.checkBufferLength();
-    return this;
+      this.checkBufferLength()
+    return this
   }
-  resume() { this.error = null; return this; }
-  close() { return this.write(null); }
+  resume() {
+    this.error = null
+    return this
+  }
+  close() { return this.write(null) }
   private finishKeyword(value: false | true | null, nextState: OtherState) {
 
     this.onvalue.signal(value)
@@ -605,19 +608,19 @@ export class CParser {
     let maxActual = 0
     const x = (buffer?: string) => {
 
-      const len = buffer === undefined ? 0 : buffer.length;
+      const len = buffer === undefined ? 0 : buffer.length
       if (len > maxAllowed) {
         switch (buffer) {
           case "text":
             throw new Error("missing implementation for 'closeText'")
-            //closeText(parser);
-            break;
+            //closeText(parser)
+            break
 
           default:
-            this.handleError("Max buffer length exceeded: " + buffer);
+            this.handleError("Max buffer length exceeded: " + buffer)
         }
       }
-      maxActual = Math.max(maxActual, len);
+      maxActual = Math.max(maxActual, len)
     }
     switch (this.state[0]) {
       case GlobalStateType.NUMBER:
@@ -628,18 +631,18 @@ export class CParser {
         break
     }
     this.bufferCheckPosition = (MAX_BUFFER_LENGTH - maxActual)
-      + this.position;
+      + this.position
   }
   public end() {
     if (this.state[0] !== GlobalStateType.OTHER || this.state[1].state !== OtherState.END || this.stack.length !== 0)
-      this.handleError("Unexpected end");
+      this.handleError("Unexpected end")
 
-    this.c = 0;
-    this.closed = true;
+    this.c = 0
+    this.closed = true
     this.onend.signal()
 
-    //CParser.call(parser, parser.opt);
-    //return parser;
+    //CParser.call(parser, parser.opt)
+    //return parser
   }
   private initString(stringType: StringType, nextState: OtherState) {
     this.state = [GlobalStateType.STRING, {
@@ -673,7 +676,7 @@ export class CParser {
   private processKey(c: number) {
     if (c === Char.doubleQuote) {
       this.initString(StringType.KEY, OtherState.EXPECTING_COLON)
-    } else this.handleError(`Malformed object, key should start with '"'`);
+    } else this.handleError(`Malformed object, key should start with '"'`)
   }
   private processValue(c: number, nextState: OtherState) {
     if (c === Char.doubleQuote) {
@@ -708,7 +711,7 @@ export class CParser {
         nextState: nextState,
         expectingDecimalPoint: c === Char._0,
       }]
-    } else this.handleError("Bad value");
+    } else this.handleError("Bad value")
   }
 
 
@@ -718,16 +721,16 @@ export class CParser {
 
 function textopts(opt: Options, text: string) {
   if (text === undefined) {
-    return text;
+    return text
   }
-  if (opt.trim) text = text.trim();
-  if (opt.normalize) text = text.replace(/\s+/g, " ");
-  return text;
+  if (opt.trim) text = text.trim()
+  if (opt.normalize) text = text.replace(/\s+/g, " ")
+  return text
 }
 
 
 
 function isWhitespace(c: number) {
-  return c === Char.carriageReturn || c === Char.lineFeed || c === Char.space || c === Char.tab;
+  return c === Char.carriageReturn || c === Char.lineFeed || c === Char.space || c === Char.tab
 }
 
