@@ -1,9 +1,11 @@
+import { Options } from "../src"
+
 export type EventDefinition = [string, string | undefined | false | true | null | number, number?, number?]
 
 export type TestDefinition = {
     text: string,
     chunks?: string[],
-    allow_trailing_commas?: boolean
+    options?: Options
     events: EventDefinition[]
 }
 
@@ -34,7 +36,8 @@ export const tests: {
             ["value", "\\"],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     zero_byte: {
         text: '{"foo": "\\u0000"}',
@@ -44,7 +47,8 @@ export const tests: {
             ["value", "\u0000"],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     empty_value: {
         text: '{"foo": ""}',
@@ -67,7 +71,8 @@ export const tests: {
             ["value", "baz"],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     three_byte_utf8: {
         text: '{"matzue": "松江", "asakusa": "浅草"}',
@@ -79,7 +84,8 @@ export const tests: {
             ["value", "浅草"],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     four_byte_utf8: {
         text: '{ "U+10ABCD": "������" }',
@@ -89,7 +95,8 @@ export const tests: {
             ["value", "������"],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     bulgarian: {
         text: '["Да Му Еба Майката"]',
@@ -98,7 +105,8 @@ export const tests: {
             ["value", "Да Му Еба Майката"],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     codepoints_from_unicodes: {
         text: '["\\u004d\\u0430\\u4e8c\\ud800\\udf02"]',
@@ -107,7 +115,8 @@ export const tests: {
             ["value", "\u004d\u0430\u4e8c\ud800\udf02"],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     empty_object: {
         text: '{}',
@@ -115,7 +124,8 @@ export const tests: {
             ["openobject", undefined],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     foobar: {
         text: '{"foo": "bar"}',
@@ -125,7 +135,8 @@ export const tests: {
             ["value", "bar"],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     as_is: {
         text: "{\"foo\": \"its \\\"as is\\\", \\\"yeah\", \"bar\": false}",
@@ -137,7 +148,8 @@ export const tests: {
             ["value", false],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     array: {
         text: '["one", "two"]',
@@ -147,7 +159,8 @@ export const tests: {
             ["value", 'two'],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     array_fu: {
         text: '["foo", "bar", "baz",true,false,null,{"key":"value"},' + '[null,null,null,[]]," \\\\ "]',
@@ -173,7 +186,8 @@ export const tests: {
             ["value", " \\ "],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     simple_exp: {
         text: '[10e-01]',
@@ -182,7 +196,8 @@ export const tests: {
             ["value", 10e-01],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     trailing_comma_forbidden: {
         text: '[1,2,]',
@@ -196,14 +211,67 @@ export const tests: {
     },
     trailing_comma_allowed: {
         text: '[1,2,]',
-        allow_trailing_commas: true,
+        options: {
+            allow_trailing_commas: true,
+        },
         events: [
             ["openarray", undefined],
             ["value", 1],
             ["value", 2],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
+    },
+    single_line_comment_forbidden: {
+        text: '[1,2//a comment\r\n]',
+        events: [
+            ["openarray", undefined],
+            ["value", 1],
+            ["value", 2],
+            ["error", undefined],
+            ["error", undefined], //strange.. there should not be 2 errors
+            ["error", undefined], //strange.. there should not be 3 errors
+        ]
+    },
+    single_line_comment_allowed: {
+        text: '[1,2//a comment\r\n]',
+        options: {
+            allow_comments: true,
+        },
+        events: [
+            ["openarray", undefined],
+            ["value", 1],
+            ["value", 2],
+            ["closearray", undefined],
+            ["end", undefined],
+            ["ready", undefined],
+        ]
+    },
+    multi_line_comment_forbidden: {
+        text: '[1,2/*a comment\r\n*/]',
+        events: [
+            ["openarray", undefined],
+            ["value", 1],
+            ["value", 2],
+            ["error", undefined],
+            ["error", undefined], //strange.. there should not be 2 errors
+            ["error", undefined], //strange.. there should not be 3 errors
+        ]
+    },
+    multi_line_comment_allowed: {
+        text: '[1,2/*a comment\r\n*/]',
+        options: {
+            allow_comments: true,
+        },
+        events: [
+            ["openarray", undefined],
+            ["value", 1],
+            ["value", 2],
+            ["closearray", undefined],
+            ["end", undefined],
+            ["ready", undefined],
+        ]
     },
     nested: {
         text: '{"a":{"b":"c"}}',
@@ -216,7 +284,8 @@ export const tests: {
             ["closeobject", undefined],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     nested_array: {
         text: '{"a":["b", "c"]}',
@@ -229,7 +298,8 @@ export const tests: {
             ["closearray", undefined],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     array_of_objs: {
         text: '[{"a":"b"}, {"c":"d"}]',
@@ -245,7 +315,8 @@ export const tests: {
             ["closeobject", undefined],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     two_keys: {
         text: '{"a": "b", "c": "d"}',
@@ -257,7 +328,8 @@ export const tests: {
             ["value", "d"],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     key_true: {
         text: '{"foo": true, "bar": false, "baz": null}',
@@ -271,7 +343,8 @@ export const tests: {
             ["value", null],
             ["closeobject", undefined, 1, 40],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     obj_strange_strings: {
         text: '{"foo": "bar and all\\\"", "bar": "its \\\"nice\\\""}',
@@ -283,7 +356,8 @@ export const tests: {
             ["value", 'its "nice"'],
             ["closeobject", undefined, 1, 47],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     bad_foo_bar: {
         text: '["foo", "bar"',
@@ -303,7 +377,8 @@ export const tests: {
             ["value", 'and you can\'t escape this', 1, 28],
             ["closearray", undefined, 1, 29],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     nuts_and_bolts: {
         text: '{"boolean, true": true' + ', "boolean, false": false' + ', "null": null }',
@@ -317,7 +392,8 @@ export const tests: {
             ["value", null],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     frekin_string: {
         text: '["\\\\\\"\\"a\\""]',
@@ -326,7 +402,8 @@ export const tests: {
             ["value", '\\\"\"a\"'],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     array_of_string_insanity: {
         text: '["\\\"and this string has an escape at the beginning",' + '"and this string has no escapes"]',
@@ -336,7 +413,8 @@ export const tests: {
             ["value", "and this string has no escapes"],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     non_utf8: {
         text: '{"CoreletAPIVersion":2,"CoreletType":"standalone",' + '"documentation":"A corelet that provides the capability to upload' + ' a folder’s contents into a user’s locker.","functions":[' + '{"documentation":"Displays a dialog box that allows user to ' + 'select a folder on the local system.","name":' + '"ShowBrowseDialog","parameters":[{"documentation":"The ' + 'callback function for results.","name":"callback","required":' + 'true,"type":"callback"}]},{"documentation":"Uploads all mp3 files' + ' in the folder provided.","name":"UploadFolder","parameters":' + '[{"documentation":"The path to upload mp3 files from."' + ',"name":"path","required":true,"type":"string"},{"documentation":' + ' "The callback function for progress.","name":"callback",' + '"required":true,"type":"callback"}]},{"documentation":"Returns' + ' the server name to the current locker service.",' + '"name":"GetLockerService","parameters":[]},{"documentation":' + '"Changes the name of the locker service.","name":"SetLockerSer' + 'vice","parameters":[{"documentation":"The value of the locker' + ' service to set active.","name":"LockerService","required":true' + ',"type":"string"}]},{"documentation":"Downloads locker files to' + ' the suggested folder.","name":"DownloadFile","parameters":[{"' + 'documentation":"The origin path of the locker file.",' + '"name":"path","required":true,"type":"string"},{"documentation"' + ':"The Window destination path of the locker file.",' + '"name":"destination","required":true,"type":"integer"},{"docum' + 'entation":"The callback function for progress.","name":' + '"callback","required":true,"type":"callback"}]}],' + '"name":"LockerUploader","version":{"major":0,' + '"micro":1,"minor":0},"versionString":"0.0.1"}',
@@ -480,12 +558,9 @@ export const tests: {
             ["key", "versionString"],
             ["value", "0.0.1"],
             ["closeobject", undefined],
-            [
-                "end",
-                undefined],
-            [
-                "ready",
-                undefined]]
+            ["end", undefined],
+            ["ready", undefined]
+        ]
     },
     array_of_arrays: {
         text: '[[[["foo"]]]]',
@@ -500,7 +575,8 @@ export const tests: {
             ["closearray", undefined],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     low_overflow: {
         text: '[-9223372036854775808]',
@@ -512,7 +588,8 @@ export const tests: {
             ["value", -9223372036854775808],
             ["closearray", undefined, 1, 22],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     high_overflow: {
         text: '[9223372036854775808]',
@@ -521,7 +598,8 @@ export const tests: {
             ["value", 9223372036854775808],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     floats: {
         text: '[0.1e2, 1e1, 3.141569, 10000000000000e-10]',
@@ -533,7 +611,8 @@ export const tests: {
             ["value", 10000000000000e-10],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     numbers_game: {
         text: '[1,0,-1,-0.3,0.3,1343.32,3345,3.1e124,'
@@ -572,7 +651,8 @@ export const tests: {
             ["value", -2147483647],
             ["closearray", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     johnsmith: {
         text: '{ "firstName": "John", "lastName" : "Smith", "age" : ' + '25, "address" : { "streetAddress": "21 2nd Street", ' + '"city" : "New York", "state" : "NY", "postalCode" : ' + ' "10021" }, "phoneNumber": [ { "type" : "home", ' + '"number": "212 555-1234" }, { "type" : "fax", ' + '"number": "646 555-4567" } ] }',
@@ -648,7 +728,8 @@ export const tests: {
             ["value", true],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     incomplete_json_terminates_ending_in_number: {
         text: '[[1,2,3],[42,0',
@@ -661,7 +742,8 @@ export const tests: {
             ["closearray", undefined, 1, 8],
             ["openarray", undefined, 1, 10],
             ["value", 42, 1, 12],
-            ['error', undefined]]
+            ['error', undefined]
+        ]
     },
     incomplete_json_terminates_ending_in_comma: {
         text: '[[1,2,42],',
@@ -672,7 +754,8 @@ export const tests: {
             ["value", 2],
             ["value", 42],
             ["closearray", undefined],
-            ['error', undefined]]
+            ['error', undefined]
+        ]
     },
     json_org: {
         text: ('{\r\n' + '                    "glossary": {\n' + '                            "title": "example glossary",\n\r' + '            \t\t"GlossDiv": {\r\n' + '                                    "title": "S",\r\n' + '            \t\t\t"GlossList": {\r\n' + '                                            "GlossEntry": {\r\n' + '                                                    "ID": "SGML",\r\n' + '            \t\t\t\t\t"SortAs": "SGML",\r\n' + '            \t\t\t\t\t"GlossTerm": "Standard Generalized ' + 'Markup Language",\r\n' + '            \t\t\t\t\t"Acronym": "SGML",\r\n' + '            \t\t\t\t\t"Abbrev": "ISO 8879:1986",\r\n' + '            \t\t\t\t\t"GlossDef": {\r\n' + '                                                            "para": "A meta-markup language,' + ' used to create markup languages such as DocBook.",\r\n' + '            \t\t\t\t\t\t"GlossSeeAlso": ["GML", "XML"]\r\n' + '                                                    },\r\n' + '            \t\t\t\t\t"GlossSee": "markup"\r\n' + '                                            }\r\n' + '                                    }\r\n' + '                            }\r\n' + '                    }\r\n' + '            }\r\n'),
@@ -718,7 +801,8 @@ export const tests: {
             ["closeobject", undefined],
             ["closeobject", undefined],
             ["end", undefined],
-            ["ready", undefined]]
+            ["ready", undefined]
+        ]
     },
     string_chunk_span: {
         text: '["L\'OrÃ©al", "LÃ©\'Oral", "Ã©alL\'Or"]',

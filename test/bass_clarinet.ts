@@ -7,7 +7,7 @@ const DEBUG = false
 
 
 const selectedTests = Object.keys(tests)
-//const selectedTests = ['trailing_comma_forbidden']
+//const selectedTests = ['single_line_comment_allowed', "single_line_comment_forbidden"]
 
 // function assertUnreachable(_x: never) {
 //     throw new Error("unreachable")
@@ -28,8 +28,11 @@ type AnyEvent =
     | "error"
     | Event
 
-function createTestFunction(doc_chunks: string[], expectedEvents: EventDefinition[], opts: p.Options) {
+function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], opts?: p.Options) {
     return function () {
+        if (DEBUG) {
+            console.log("CHUNKS:", chunks)
+        }
         const parser = p.parser(opts)
         let currentExpectedEventIndex = 0
         //const env = process && process.env ? process.env : window
@@ -127,11 +130,10 @@ function createTestFunction(doc_chunks: string[], expectedEvents: EventDefinitio
             validateEventsEqual(ee, "ready")
         })
 
-        doc_chunks.forEach(function (chunk) {
+        chunks.forEach(function (chunk) {
             try {
-                if (parser.state[0] === p.GlobalStateType.ERROR) {
-                    assert.fail("error state: " + parser.state[1].error.message)
-                } else {
+                if (parser.state[0] !== p.GlobalStateType.ERROR) {
+                    //if in error state, don't write or we'll get an exception
                     parser.write(chunk);
                 }
             } catch (e) {
@@ -157,17 +159,8 @@ describe('bass-clarinet', function () {
     describe('#generic', function () {
         selectedTests.forEach(key => {
             const test = tests[key]
-            const seps = [undefined, /\t|\n|\r/, '']
-            // undefined means no split
-            // /\t|\n|\r| / means on whitespace
-            // '' means on every char
-            for (var i in seps) {
-                const sep = seps[i];
-                const opts = {
-                    allow_trailing_commas: test.allow_trailing_commas
-                }
-                it('[' + key + '] should be able to parse -> ' + sep, createTestFunction(sep === undefined ? [test.text] : test.text.split(sep), test.events.slice(0), opts));
-            }
+            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), test.options));
+            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), test.options));
         })
     });
 
@@ -177,11 +170,8 @@ describe('bass-clarinet', function () {
 
             if (!test.chunks) return;
 
-            const opts = {
-                allow_trailing_commas: test.allow_trailing_commas
-            }
 
-            it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test.events.slice(0), opts));
+            it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test.events.slice(0), test.options));
 
         })
     });
