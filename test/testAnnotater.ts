@@ -1,5 +1,5 @@
 import { tests } from "./ownTestset"
-import { createValuesAnnotater} from "./annotater"
+import { createValuesAnnotater} from "../examples/annotater"
 import { Parser } from "../src/Parser"
 import { subscribeStack } from "../src/subscribeStack"
 
