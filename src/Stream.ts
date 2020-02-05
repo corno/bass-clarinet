@@ -28,7 +28,7 @@ type AnyEvent =
     | "error"
     | Event
 
-export function createStream(opt: any) { return new CStream(opt) }
+export function createStream(opt?: Options) { return new CStream(opt) }
 
 function assertUnreachable(_x: never) {
     throw new Error("unreachable")
@@ -46,7 +46,7 @@ export class CStream extends Stream {
     temp_buffs = [, new Buffer(2), new Buffer(3), new Buffer(4)] // for rebuilding chars split before boundary is reached
     string = ''
 
-    constructor(opt: Options) {
+    constructor(opt?: Options) {
         super()
         this.parser = new Parser(opt)
 
