@@ -396,7 +396,6 @@ export class Parser {
                         break
                     case CommentState.LINE_COMMENT:
                         if (curChar === WhitespaceChar.lineFeed) {
-                            console.log("HIER???")
                             this.commentState = null
                         }
                         break
