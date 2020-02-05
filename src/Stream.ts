@@ -1,5 +1,5 @@
 import { Stream } from "stream"
-import { CParser, Options } from "./CParser"
+import { CParser, Options } from "./Parser"
 
 export const EVENTS: AnyEvent[] =
     ["value"

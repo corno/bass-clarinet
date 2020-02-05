@@ -1,13 +1,11 @@
-import * as p from "../src/CParser"
+import * as p from "../src/Parser"
 import { describe } from "mocha"
 import * as assert from "assert"
-import { EventDefinition, tests } from "./testset"
+import { EventDefinition, tests } from "./ownTestset"
 
-function assertUnreachable(_x: never) {
-    throw new Error("unreachable")
-}
-
-
+// function assertUnreachable(_x: never) {
+//     throw new Error("unreachable")
+// }
 
 type Event =
     | "value"
@@ -24,69 +22,91 @@ type AnyEvent =
     | "error"
     | Event
 
-
-export const EVENTS: AnyEvent[] =
-    [
-        "value"
-        , "key"
-        , "openobject"
-        , "closeobject"
-        , "openarray"
-        , "closearray"
-        , "error"
-        , "end"
-        , "ready"
-    ]
-
 function doTest(doc_chunks: string[], expectedEvents: EventDefinition[]) {
     return function () {
         const parser = p.parser()
         let currentExpectedEventIndex = 0
-        const env = process && process.env ? process.env : window
-        const record: [AnyEvent, string][] = []
-
-        EVENTS.forEach(function (event) {
-            function x(value: any) {
-                const temp_env: any = env
-                if (temp_env.CRECORD) { // for really big json we dont want to type all
-                    record.push([event, value]);
-                    if (event === "end") console.log(JSON.stringify(record, null, 2));
-                } else {
-                    const currentExpectedEvent = expectedEvents.shift();
-                    ++currentExpectedEventIndex;
-                    if (!(currentExpectedEvent && currentExpectedEvent[0])) {
-                        assert.fail("more events than expected")
-                    }
-                    if (event === "error" && currentExpectedEvent[0] !== "error") {
-                        assert.fail("unexpected error: " + value.message)
-                    }
-                    assert.ok(currentExpectedEvent[0] === event, 'event: ' + currentExpectedEventIndex + ', expected type: [' + currentExpectedEvent[0] + '] got: [' + event + ']');
-                    if (event !== 'error') {
-                        assert.ok(currentExpectedEvent[1] === value, 'event:' + currentExpectedEventIndex + ' expected value: [' + currentExpectedEvent[1] + '] got: [' + value + ']');
-                    } else {
-                        //assert1(currentExpectedEvent[1] === value.message, '[' + currentExpectedEventIndex + '] value: [' + currentExpectedEvent[1] + '] got: [' + value + ']');
-                    }
-                    if (currentExpectedEvent[3] !== undefined) {
-                        //check line numbers
-                        assert.ok(currentExpectedEvent[2] === parser.line, `expected linenumber ${currentExpectedEvent[2]} but found ${parser.line}`)
-                        assert.ok(currentExpectedEvent[3] === parser.column, `expected column ${currentExpectedEvent[3]} but found ${parser.column}`)
-                    }
-                }
-            };
-            switch (event) {
-                case "end": parser.onend.subscribe(x); break
-                case "error": parser.onerror.subscribe(x); break
-                case "key": parser.onkey.subscribe(x); break
-                case "value": parser.onvalue.subscribe(x); break
-                case "ready": parser.onready.subscribe(x); break
-                case "openarray": parser.onopenarray.subscribe(x); break
-                case "closearray": parser.onclosearray.subscribe(x); break
-                case "openobject": parser.onopenobject.subscribe(x); break
-                case "closeobject": parser.oncloseobject.subscribe(x); break
-                default:
-                    assertUnreachable(event)
+        //const env = process && process.env ? process.env : window
+        //const record: [AnyEvent, string][] = []
+        function validateEventsEqual(expectedEvent: EventDefinition, event: AnyEvent) {
+            assert.ok(expectedEvent[0] === event, 'event: ' + currentExpectedEventIndex + ', expected type: [' + expectedEvent[0] + '] got: [' + event + ']')
+        }
+        function checkLocation(expectedEvent: EventDefinition, location: p.Location) {
+            if (expectedEvent[3] !== undefined) {
+                assert.ok(expectedEvent[2] === location.line, `expected linenumber ${expectedEvent[2]} but found ${location.line}`)
+                assert.ok(expectedEvent[3] === location.column, `expected column ${expectedEvent[3]} but found ${location.column}`)
             }
-        });
+        }
+        function getExpectedEvent() {
+            // const temp_env: any = env
+            // if (temp_env.CRECORD) { // for really big json we dont want to type all
+            //     record.push([event, value]);
+            //     if (event === "end") console.log(JSON.stringify(record, null, 2));
+            // } else {
+            const currentExpectedEvent = expectedEvents.shift();
+            ++currentExpectedEventIndex;
+            if (currentExpectedEvent === undefined) {
+                assert.fail("more events than expected")
+            }
+            return currentExpectedEvent
+
+
+            // if (currentExpectedEvent[3] !== undefined) {
+            //     //check line numbers
+
+            // }
+            //}
+        }
+
+        parser.onerror.subscribe((e) => {
+            const ee = getExpectedEvent()
+            if (ee[0] !== "error") {
+                assert.fail("unexpected error: " + e.message)
+            }
+        })
+        parser.onkey.subscribe((k, range) => {
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "key")
+            assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+            checkLocation(ee, range.end)
+        })
+        parser.onvalue.subscribe((v, range) => {
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "value")
+
+            assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+            checkLocation(ee, range.end)
+        })
+        parser.onopenarray.subscribe(l => {
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "openarray")
+            checkLocation(ee, l)
+        })
+        parser.onclosearray.subscribe(l => {
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "closearray")
+            checkLocation(ee, l)
+        })
+        parser.onopenobject.subscribe(l => {
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "openobject")
+            checkLocation(ee, l)
+        })
+        parser.oncloseobject.subscribe(l => {
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "closeobject")
+            checkLocation(ee, l)
+        })
+        parser.onend.subscribe(() => {
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "end")
+
+        })
+        parser.onready.subscribe(() => {
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "ready")
+        })
+
         doc_chunks.forEach(function (chunk) {
             try {
                 if (parser.state[0] === p.GlobalStateType.ERROR) {

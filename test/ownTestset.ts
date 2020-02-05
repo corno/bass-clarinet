@@ -635,12 +635,12 @@ export const tests: {
         events: [
             ["openarray", undefined, 1, 1],
             ["openarray", undefined, 1, 2],
-            ["value", 1, 1, 4],
-            ["value", 2, 1, 6],
-            ["value", 3, 1, 8],
+            ["value", 1, 1, 3],
+            ["value", 2, 1, 5],
+            ["value", 3, 1, 7],
             ["closearray", undefined, 1, 8],
             ["openarray", undefined, 1, 10],
-            ["value", 4, 1, 12],
+            ["value", 4, 1, 11],
             ['error', undefined]]
     },
     incomplete_json_terminates_ending_in_comma: {

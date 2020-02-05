@@ -59,6 +59,7 @@ type GlobalState =
         error: Error
     }]
     | [GlobalStateType.NUMBER, {
+        start: Location
         numberNode: string
         nextState: OtherState
         foundExponent: boolean
@@ -69,6 +70,7 @@ type GlobalState =
         state: KeywordState
     }]
     | [GlobalStateType.STRING, {
+        start: Location
         textNode: string
         stringType: StringType
         nextState: OtherState
@@ -187,12 +189,43 @@ enum ContextType {
     ARRAY,
 }
 
-class Subscribers<T> {
+export type Location = {
+    position: number,
+    line: number,
+    column: number,
+}
+
+export type Range = {
+    start: Location
+    end: Location
+}
+
+class NoArgumentSubscribers {
+    subscribers = new Array<() => void>()
+    signal() {
+        this.subscribers.forEach(s => s())
+    }
+    subscribe(subscriber: () => void) {
+        this.subscribers.push(subscriber)
+    }
+}
+
+class OneArgumentSubscribers<T> {
     subscribers = new Array<(t: T) => void>()
     signal(t: T) {
         this.subscribers.forEach(s => s(t))
     }
     subscribe(subscriber: (t: T) => void) {
+        this.subscribers.push(subscriber)
+    }
+}
+
+class TwoArgumentsSubscribers<T, U> {
+    subscribers = new Array<(t: T, u: U) => void>()
+    signal(t: T, u: U) {
+        this.subscribers.forEach(s => s(t, u))
+    }
+    subscribe(subscriber: (t: T, u: U) => void) {
         this.subscribers.push(subscriber)
     }
 }
@@ -220,28 +253,30 @@ export class CParser {
     private curChar = 0
     closed = false
     readonly opt: Options
-    public state: GlobalState = [GlobalStateType.OTHER, {
-        state: OtherState.EXPECTING_ROOTVALUE
-    }]
 
     private readonly stack = new Array<ContextType>()
     // mostly just for error reporting
     public position = 0
     public column = 0
     public line = 1
+    
+    public state: GlobalState = [GlobalStateType.OTHER, {
+        state: OtherState.EXPECTING_ROOTVALUE
+    }]
 
 
-    onend = new Subscribers<void>()
-    onerror = new Subscribers<Error>()
-    onclosearray = new Subscribers<void>()
-    onopenarray = new Subscribers<void>()
-    oncloseobject = new Subscribers<void>()
-    onopenobject = new Subscribers<void>()
-    onkey = new Subscribers<string>()
-    onvalue = new Subscribers<string | boolean | null | number>()
-    onready = new Subscribers<void>()
+    onclosearray = new OneArgumentSubscribers<Location>()
+    onopenarray = new OneArgumentSubscribers<Location>()
+    oncloseobject = new OneArgumentSubscribers<Location>()
+    onopenobject = new OneArgumentSubscribers<Location>()
+    onkey = new TwoArgumentsSubscribers<string, Range>()
+    onvalue = new TwoArgumentsSubscribers<string | boolean | null | number, Range>()
 
-    private currentContext = ContextType.ROOT
+    onend = new NoArgumentSubscribers()
+    onerror = new OneArgumentSubscribers<Error>()
+    onready = new NoArgumentSubscribers()
+
+    private currentContextType = ContextType.ROOT
 
     constructor(opt?: Options) {
         this.opt = opt || {}
@@ -300,7 +335,7 @@ export class CParser {
                     if ($.numberNode.length > maxAllowed) {
                         this.raiseError("Max number buffer length exceeded: " + $.numberNode.length)
                     } else {
-                        this.bufferCheckPosition = this.position + MAX_BUFFER_LENGTH -$.numberNode.length
+                        this.bufferCheckPosition = this.position + MAX_BUFFER_LENGTH - $.numberNode.length
 
                     }
                     break
@@ -310,7 +345,7 @@ export class CParser {
                     if ($.textNode.length > maxAllowed) {
                         this.raiseError("Max string buffer length exceeded: " + $.textNode.length)
                     } else {
-                        this.bufferCheckPosition = this.position + MAX_BUFFER_LENGTH -$.textNode.length
+                        this.bufferCheckPosition = this.position + MAX_BUFFER_LENGTH - $.textNode.length
                     }
                     break
                 }
@@ -332,7 +367,7 @@ export class CParser {
         const next = () => {
 
             currentChunkIndex++
-            
+
             curChar = chunk.charCodeAt(currentChunkIndex)
             this.curChar = curChar
 
@@ -386,7 +421,14 @@ export class CParser {
                             && curChar !== NumberChar.minus
                             && !(NumberChar._0 <= curChar && curChar <= NumberChar._9)
                         ) {
-                            this.onvalue.signal(new Number(state[1].numberNode).valueOf())
+                            this.onvalue.signal(new Number(state[1].numberNode).valueOf(), {
+                                start: $.start,
+                                end: {
+                                    line: this.line,
+                                    position: this.position - 1,
+                                    column: this.column - 1
+                                }
+                            })
                             this.state = [GlobalStateType.OTHER, { state: state[1].nextState }]
                             //this character does not belong to the number so don't go to the next character
                             break
@@ -485,11 +527,14 @@ export class CParser {
                                      */
 
                                     flush()
-
+                                    const locationInfo = {
+                                        start: $.start,
+                                        end: this.getLocation()
+                                    }
                                     if ($.stringType === StringType.KEY) {
-                                        this.onkey.signal($.textNode)
+                                        this.onkey.signal($.textNode, locationInfo)
                                     } else {
-                                        this.onvalue.signal($.textNode)
+                                        this.onvalue.signal($.textNode, locationInfo)
                                     }
                                     this.state = [GlobalStateType.OTHER, { state: $.nextState }]
                                     next()
@@ -529,7 +574,7 @@ export class CParser {
 
                         case KeywordState.TRUE3:
                             if (curChar === KeywordChar.e) {
-                                this.finishKeyword(true, $.nextState)
+                                this.finishKeyword(true, $.nextState, "true".length)
                             } else {
                                 this.raiseError('Invalid true started with tru' + curChar)
                             }
@@ -558,7 +603,7 @@ export class CParser {
 
                         case KeywordState.FALSE4:
                             if (curChar === KeywordChar.e) {
-                                this.finishKeyword(false, $.nextState)
+                                this.finishKeyword(false, $.nextState, "false".length)
                             } else {
                                 this.raiseError('Invalid false started with fals' + curChar)
                             }
@@ -580,7 +625,7 @@ export class CParser {
 
                         case KeywordState.NULL3:
                             if (curChar === KeywordChar.l) {
-                                this.finishKeyword(null, $.nextState)
+                                this.finishKeyword(null, $.nextState, "null".length)
                             } else {
                                 this.raiseError('Invalid null started with nul' + curChar)
                             }
@@ -609,7 +654,7 @@ export class CParser {
                             break
                         case OtherState.EXPECTING_KEY_OR_OBJECT_END:
                             if (curChar === Char.closeBrace) {
-                                this.oncloseobject.signal()
+                                this.oncloseobject.signal(this.getLocation())
                                 this.pop($)
                             } else {
                                 this.processKey(curChar)
@@ -624,7 +669,7 @@ export class CParser {
                             break
                         case OtherState.EXPECTING_COMMA_OR_OBJECT_END:
                             if (curChar === Char.closeBrace) {
-                                this.oncloseobject.signal()
+                                this.oncloseobject.signal(this.getLocation())
                                 this.pop($)
                             } else if (curChar === Char.comma) {
                                 $.state = OtherState.EXPECTING_KEY
@@ -634,7 +679,7 @@ export class CParser {
                             break
                         case OtherState.EXPECTING_VALUE_OR_ARRAY_END:
                             if (curChar === Char.closeBracket) {
-                                this.onclosearray.signal()
+                                this.onclosearray.signal(this.getLocation())
                                 this.pop($)
                                 break
                             } else {
@@ -654,7 +699,7 @@ export class CParser {
                             if (curChar === Char.comma) {
                                 $.state = OtherState.EXPECTING_ARRAYVALUE
                             } else if (curChar === Char.closeBracket) {
-                                this.onclosearray.signal()
+                                this.onclosearray.signal(this.getLocation())
                                 this.pop($)
                             }
                             else {
@@ -690,6 +735,14 @@ export class CParser {
         return this.end()
     }
 
+    private getLocation(): Location {
+        return {
+            position: this.position,
+            line: this.line,
+            column: this.column,
+        }
+    }
+
     private raiseError(er: string) {
         er += `
         Line: ${this.line}
@@ -698,11 +751,18 @@ export class CParser {
         Char#: ${this.curChar}`
         const error = new Error(er)
         this.state = [GlobalStateType.ERROR, { error: error }]
-        this.onerror.signal(error)
+        this.onerror.signal(error, )
     }
-    private finishKeyword(value: false | true | null, nextState: OtherState) {
-
-        this.onvalue.signal(value)
+    private finishKeyword(value: false | true | null, nextState: OtherState, length: number) {
+        const curLoc = this.getLocation()
+        this.onvalue.signal(value, {
+            start: {
+                line: curLoc.line,
+                position: curLoc.position - length,
+                column: curLoc.column - length,
+            },
+            end: curLoc,
+        })
         this.state = [GlobalStateType.OTHER, { state: nextState }]
     }
     public end() {
@@ -721,6 +781,7 @@ export class CParser {
     }
     private initString(stringType: StringType, nextState: OtherState) {
         this.state = [GlobalStateType.STRING, {
+            start: this.getLocation(),
             textNode: "",
             stringType: stringType,
             nextState: nextState,
@@ -733,7 +794,7 @@ export class CParser {
         if (popped === undefined) {
             this.raiseError("unexpected end of stack")
         } else {
-            this.currentContext = popped
+            this.currentContextType = popped
             switch (popped) {
                 case ContextType.ARRAY:
                     st.state = OtherState.EXPECTING_COMMA_OR_ARRAY_END
@@ -758,16 +819,16 @@ export class CParser {
         }
         else if (c === Char.openBrace) {
             this.state = [GlobalStateType.OTHER, { state: OtherState.EXPECTING_KEY_OR_OBJECT_END }]
-            this.onopenobject.signal()
-            this.stack.push(this.currentContext)
-            this.currentContext = ContextType.OBJECT
+            this.onopenobject.signal(this.getLocation())
+            this.stack.push(this.currentContextType)
+            this.currentContextType = ContextType.OBJECT
 
         } else if (c === Char.openBracket) {
             this.state = [GlobalStateType.OTHER, { state: OtherState.EXPECTING_VALUE_OR_ARRAY_END }]
-            this.onopenarray.signal()
+            this.onopenarray.signal(this.getLocation())
 
-            this.stack.push(this.currentContext)
-            this.currentContext = ContextType.ARRAY
+            this.stack.push(this.currentContextType)
+            this.currentContextType = ContextType.ARRAY
 
         }
         else if (c === KeywordChar.t) this.state = [GlobalStateType.KEYWORD, { state: KeywordState.TRUE, nextState: nextState }]
@@ -775,6 +836,7 @@ export class CParser {
         else if (c === KeywordChar.n) this.state = [GlobalStateType.KEYWORD, { state: KeywordState.NULL, nextState: nextState }]
         else if (c === NumberChar.minus || NumberChar._0 <= c && c <= NumberChar._9) {
             this.state = [GlobalStateType.NUMBER, {
+                start: this.getLocation(),
                 numberNode: String.fromCharCode(c),
                 nextState: nextState,
                 foundExponent: false,
