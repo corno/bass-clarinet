@@ -7,7 +7,7 @@ Object.keys(tests).forEach(testName => {
     console.log(">", testName)
     const test = tests[testName]
     const parser = new Parser()
-    subscribeStack(parser, createValuesAnnotater("", console.log))
+    subscribeStack(parser, createValuesAnnotater("", console.log, true))
     parser.write(test.text)
     parser.end()
 })
