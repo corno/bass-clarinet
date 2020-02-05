@@ -3,15 +3,17 @@
 ![NPM Downloads](http://img.shields.io/npm/dm/bass-clarinet.svg?style=flat) ![NPM Version](http://img.shields.io/npm/v/bass-clarinet.svg?style=flat)
 
 `bass-clarinet` is a port from `clarinet` to TypeScript
+
 In addition to the port to TypeScript, the following changes have been made:
-* onopenobject no longer includes the first key
-* JSONTestSuite is added to the test set. All tests pass.
-* line and column information is improved
+* `onopenobject` no longer includes the first key
+* `JSONTestSuite` is added to the test set. All tests pass.
+* line and column information is fixed
 * the parser accepts multiple subscribers per event type
+* `trim` and `normalize` options have been dropped. This can be handled in the onvalue callback
 
 most credits go to the original author Nuno Job
 
-`clarinet/bass-clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. `clarinet` is inspired (and forked) from [sax-js][saxjs]. just like you shouldn't use `sax` when you need `dom` you shouldn't use `bass-clarinet` when you need `JSON.parse`. for a more detailed introduction and a performance study please refer to this [article][blog]. 
+`clarinet/bass-clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. `clarinet` was inspired (and forked) from [sax-js][saxjs]. just like you shouldn't use `sax` when you need `dom` you shouldn't use `bass-clarinet` when you need `JSON.parse`. for a more detailed introduction and a performance study please refer to this [article][blog]. 
 
 # design goals
 
@@ -110,13 +112,13 @@ fs.createReadStream("file.json")
 
 pass the following arguments to the parser function.  all are optional.
 
-`opt` - object bag of settings regarding string formatting.  all default to `false`.
+`opt` - object bag of settings regarding string formatting.
 
-settings supported:
+currently the only supported setting is:
 
-* `trim` - boolean. whether or not to trim text and comment nodes.
-* `normalize` - boolean. if true, then turn any whitespace into a single
-  space.
+* `spaces_per_tab` - number. needed for proper column info.
+
+(`normalize` and `trim` have been dropped as this can equally well be handled in the onvalue handler)
 
 ## methods
 
@@ -160,9 +162,9 @@ out on `parser.error`, and must be deleted before parsing can continue. by
 listening to this event, you can keep an eye on that kind of stuff. note:
 this happens *much* more in strict mode. argument: instance of `Error`.
 
-`value` - a json value. argument: value, can be a bool, null, string on number
+`value` - a json value. argument: value, can be a bool, null, string or number
 
-`openobject` - object was opened. argument: key, a string with the first key of the object (if any)
+`openobject` - object was opened. argument: none (this is different from `clarinet`)
 
 `key` - an object key: argument: key, a string with the current key. Not called for first key (use `openobject` for that).
 
