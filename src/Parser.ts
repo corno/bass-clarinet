@@ -16,6 +16,7 @@ function assertUnreachable<RT>(_x: never): RT {
 
 export type Options = {
     spaces_per_tab?: number
+    allow_trailing_commas?: boolean
 }
 
 export enum GlobalStateType {
@@ -232,7 +233,7 @@ export class Parser {
     public position = 0
     public column = 0
     public line = 1
-    
+
     public state: GlobalState = [GlobalStateType.OTHER, {
         state: OtherState.EXPECTING_ROOTVALUE
     }]
@@ -623,7 +624,17 @@ export class Parser {
                     const $ = state[1]
                     switch ($.state) {
                         case OtherState.EXPECTING_KEY:
-                            this.processKey(curChar)
+                            if (curChar === Char.closeBrace) {
+                                if (this.opt.allow_trailing_commas !== true) {
+                                    this.raiseError("trailing commas are not allowed")
+                                } else {
+                                    this.oncloseobject.signal(this.getLocation())
+                                    this.pop($)
+                                }
+                            } else {
+                                this.processKey(curChar)
+                            }
+
                             break
                         case OtherState.EXPECTING_KEY_OR_OBJECT_END:
                             if (curChar === Char.closeBrace) {
@@ -666,7 +677,16 @@ export class Parser {
                             this.processValue(curChar, OtherState.EXPECTING_COMMA_OR_OBJECT_END)
                             break
                         case OtherState.EXPECTING_ARRAYVALUE:
-                            this.processValue(curChar, OtherState.EXPECTING_COMMA_OR_ARRAY_END)
+                            if (curChar === Char.closeBracket) {
+                                if (this.opt.allow_trailing_commas !== true) {
+                                    this.raiseError("trailing commas are not allowed")
+                                } else {
+                                    this.onclosearray.signal(this.getLocation())
+                                    this.pop($)
+                                }
+                            } else {
+                                this.processValue(curChar, OtherState.EXPECTING_COMMA_OR_ARRAY_END)
+                            }
                             break
                         case OtherState.EXPECTING_COMMA_OR_ARRAY_END:
                             if (curChar === Char.comma) {
@@ -724,7 +744,7 @@ export class Parser {
         Char#: ${this.curChar}`
         const error = new Error(er)
         this.state = [GlobalStateType.ERROR, { error: error }]
-        this.onerror.signal(error, )
+        this.onerror.signal(error)
     }
     private finishKeyword(value: false | true | null, nextState: OtherState, length: number) {
         const curLoc = this.getLocation()

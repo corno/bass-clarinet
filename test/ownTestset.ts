@@ -3,6 +3,7 @@ export type EventDefinition = [string, string | undefined | false | true | null 
 export type TestDefinition = {
     text: string,
     chunks?: string[],
+    allow_trailing_commas?: boolean
     events: EventDefinition[]
 }
 
@@ -158,9 +159,7 @@ export const tests: {
             ["value", true],
             ["value", false],
             ["value", null],
-            [
-                "openobject",
-                undefined],
+            ["openobject", undefined],
             ["key", 'key'],
             ["value", "value"],
             ["closeobject", undefined],
@@ -181,6 +180,27 @@ export const tests: {
         events: [
             ["openarray", undefined],
             ["value", 10e-01],
+            ["closearray", undefined],
+            ["end", undefined],
+            ["ready", undefined]]
+    },
+    trailing_comma_forbidden: {
+        text: '[1,2,]',
+        events: [
+            ["openarray", undefined],
+            ["value", 1],
+            ["value", 2],
+            ["error", undefined],
+            ["error", undefined], //strange.. there should not be 2 errors
+        ]
+    },
+    trailing_comma_allowed: {
+        text: '[1,2,]',
+        allow_trailing_commas: true,
+        events: [
+            ["openarray", undefined],
+            ["value", 1],
+            ["value", 2],
             ["closearray", undefined],
             ["end", undefined],
             ["ready", undefined]]

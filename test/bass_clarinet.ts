@@ -3,6 +3,12 @@ import { describe } from "mocha"
 import * as assert from "assert"
 import { EventDefinition, tests } from "./ownTestset"
 
+const DEBUG = false
+
+
+const selectedTests = Object.keys(tests)
+//const selectedTests = ['trailing_comma_forbidden']
+
 // function assertUnreachable(_x: never) {
 //     throw new Error("unreachable")
 // }
@@ -22,9 +28,9 @@ type AnyEvent =
     | "error"
     | Event
 
-function createTestFunction(doc_chunks: string[], expectedEvents: EventDefinition[]) {
+function createTestFunction(doc_chunks: string[], expectedEvents: EventDefinition[], opts: p.Options) {
     return function () {
-        const parser = p.parser()
+        const parser = p.parser(opts)
         let currentExpectedEventIndex = 0
         //const env = process && process.env ? process.env : window
         //const record: [AnyEvent, string][] = []
@@ -46,7 +52,7 @@ function createTestFunction(doc_chunks: string[], expectedEvents: EventDefinitio
             const currentExpectedEvent = expectedEvents.shift();
             ++currentExpectedEventIndex;
             if (currentExpectedEvent === undefined) {
-                assert.fail("more events than expected")
+                assert.fail(`more events than expected, expected ${currentExpectedEventIndex - 1}`)
             }
             return currentExpectedEvent
 
@@ -59,18 +65,21 @@ function createTestFunction(doc_chunks: string[], expectedEvents: EventDefinitio
         }
 
         parser.onerror.subscribe((e) => {
+            if (DEBUG) console.log("found error")
             const ee = getExpectedEvent()
             if (ee[0] !== "error") {
                 assert.fail("unexpected error: " + e.message)
             }
         })
         parser.onkey.subscribe((k, range) => {
+            if (DEBUG) console.log("found key")
             const ee = getExpectedEvent()
             validateEventsEqual(ee, "key")
             assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
             checkLocation(ee, range.end)
         })
         parser.onvalue.subscribe((v, range) => {
+            if (DEBUG) console.log("found value")
             const ee = getExpectedEvent()
             validateEventsEqual(ee, "value")
 
@@ -78,31 +87,42 @@ function createTestFunction(doc_chunks: string[], expectedEvents: EventDefinitio
             checkLocation(ee, range.end)
         })
         parser.onopenarray.subscribe(l => {
+            if (DEBUG) console.log("found open array")
             const ee = getExpectedEvent()
             validateEventsEqual(ee, "openarray")
             checkLocation(ee, l)
         })
         parser.onclosearray.subscribe(l => {
+            if (DEBUG) console.log("found close array")
+
             const ee = getExpectedEvent()
             validateEventsEqual(ee, "closearray")
             checkLocation(ee, l)
         })
         parser.onopenobject.subscribe(l => {
+            if (DEBUG) console.log("found open object")
+
             const ee = getExpectedEvent()
             validateEventsEqual(ee, "openobject")
             checkLocation(ee, l)
         })
         parser.oncloseobject.subscribe(l => {
+            if (DEBUG) console.log("found close object")
+
             const ee = getExpectedEvent()
             validateEventsEqual(ee, "closeobject")
             checkLocation(ee, l)
         })
         parser.onend.subscribe(() => {
+            if (DEBUG) console.log("found end")
+
             const ee = getExpectedEvent()
             validateEventsEqual(ee, "end")
 
         })
         parser.onready.subscribe(() => {
+            if (DEBUG) console.log("found ready")
+
             const ee = getExpectedEvent()
             validateEventsEqual(ee, "ready")
         })
@@ -135,31 +155,34 @@ function createTestFunction(doc_chunks: string[], expectedEvents: EventDefinitio
 
 describe('bass-clarinet', function () {
     describe('#generic', function () {
-        for (var key in tests) {
-            if (tests.hasOwnProperty(key)) {
-
-                const seps = [undefined, /\t|\n|\r/, '']
-                // undefined means no split
-                // /\t|\n|\r| / means on whitespace
-                // '' means on every char
-                for (var i in seps) {
-                    const sep = seps[i];
-                    const doc = tests[key]
-                    it('[' + key + '] should be able to parse -> ' + sep, createTestFunction(sep === undefined ? [doc.text] : doc.text.split(sep), doc.events.slice(0)));
+        selectedTests.forEach(key => {
+            const test = tests[key]
+            const seps = [undefined, /\t|\n|\r/, '']
+            // undefined means no split
+            // /\t|\n|\r| / means on whitespace
+            // '' means on every char
+            for (var i in seps) {
+                const sep = seps[i];
+                const opts = {
+                    allow_trailing_commas: test.allow_trailing_commas
                 }
+                it('[' + key + '] should be able to parse -> ' + sep, createTestFunction(sep === undefined ? [test.text] : test.text.split(sep), test.events.slice(0), opts));
             }
-        }
+        })
     });
 
     describe('#pre-chunked', function () {
-        for (var key in tests) {
-            if (tests.hasOwnProperty(key)) {
-                const doc = tests[key]
+        selectedTests.forEach(key => {
+            const test = tests[key]
 
-                if (!doc.chunks) continue;
+            if (!test.chunks) return;
 
-                it('[' + key + '] should be able to parse pre-chunked', createTestFunction(doc.chunks, doc.events.slice(0)));
+            const opts = {
+                allow_trailing_commas: test.allow_trailing_commas
             }
-        }
+
+            it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test.events.slice(0), opts));
+
+        })
     });
 });
