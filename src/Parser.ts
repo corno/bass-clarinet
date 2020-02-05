@@ -1,8 +1,10 @@
+import * as s from "./subscription"
+
 const env: any = (typeof process === 'object' && process.env)
     ? process.env
     : self
 
-export function parser(opt?: Options) { return new CParser(opt) }
+export function parser(opt?: Options) { return new Parser(opt) }
 export const MAX_BUFFER_LENGTH = 64 * 1024
 const maxAllowed = Math.max(MAX_BUFFER_LENGTH, 10)
 export const DEBUG = (env.CDEBUG === 'debug')
@@ -190,9 +192,9 @@ enum ContextType {
 }
 
 export type Location = {
-    position: number,
-    line: number,
-    column: number,
+    readonly position: number,
+    readonly line: number,
+    readonly column: number,
 }
 
 export type Range = {
@@ -200,35 +202,6 @@ export type Range = {
     end: Location
 }
 
-class NoArgumentSubscribers {
-    subscribers = new Array<() => void>()
-    signal() {
-        this.subscribers.forEach(s => s())
-    }
-    subscribe(subscriber: () => void) {
-        this.subscribers.push(subscriber)
-    }
-}
-
-class OneArgumentSubscribers<T> {
-    subscribers = new Array<(t: T) => void>()
-    signal(t: T) {
-        this.subscribers.forEach(s => s(t))
-    }
-    subscribe(subscriber: (t: T) => void) {
-        this.subscribers.push(subscriber)
-    }
-}
-
-class TwoArgumentsSubscribers<T, U> {
-    subscribers = new Array<(t: T, u: U) => void>()
-    signal(t: T, u: U) {
-        this.subscribers.forEach(s => s(t, u))
-    }
-    subscribe(subscriber: (t: T, u: U) => void) {
-        this.subscribers.push(subscriber)
-    }
-}
 
 type Event =
     | "ready"
@@ -247,7 +220,7 @@ type Unicode = {
 }
 
 
-export class CParser {
+export class Parser {
 
     private bufferCheckPosition = MAX_BUFFER_LENGTH
     private curChar = 0
@@ -265,16 +238,16 @@ export class CParser {
     }]
 
 
-    onclosearray = new OneArgumentSubscribers<Location>()
-    onopenarray = new OneArgumentSubscribers<Location>()
-    oncloseobject = new OneArgumentSubscribers<Location>()
-    onopenobject = new OneArgumentSubscribers<Location>()
-    onkey = new TwoArgumentsSubscribers<string, Range>()
-    onvalue = new TwoArgumentsSubscribers<string | boolean | null | number, Range>()
+    onclosearray = new s.OneArgumentSubscribers<Location>()
+    onopenarray = new s.OneArgumentSubscribers<Location>()
+    oncloseobject = new s.OneArgumentSubscribers<Location>()
+    onopenobject = new s.OneArgumentSubscribers<Location>()
+    onkey = new s.TwoArgumentsSubscribers<string, Range>()
+    onvalue = new s.TwoArgumentsSubscribers<string | boolean | null | number, Range>()
 
-    onend = new NoArgumentSubscribers()
-    onerror = new OneArgumentSubscribers<Error>()
-    onready = new NoArgumentSubscribers()
+    onend = new s.NoArgumentSubscribers()
+    onerror = new s.OneArgumentSubscribers<Error>()
+    onready = new s.NoArgumentSubscribers()
 
     private currentContextType = ContextType.ROOT
 
@@ -318,7 +291,7 @@ export class CParser {
         }
     }
 
-    public write(chunk: string): CParser {
+    public write(chunk: string): Parser {
         if (this.state[0] === GlobalStateType.ERROR) {
             throw this.state[1].error
         }
@@ -758,8 +731,8 @@ export class CParser {
         this.onvalue.signal(value, {
             start: {
                 line: curLoc.line,
-                position: curLoc.position - length,
-                column: curLoc.column - length,
+                position: curLoc.position - length + 1, //plus 1 because a string of say 4 characters starting at 5 and ends at 8, not at 9 (5678)
+                column: curLoc.column - length + 1,
             },
             end: curLoc,
         })

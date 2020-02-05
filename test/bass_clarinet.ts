@@ -22,7 +22,7 @@ type AnyEvent =
     | "error"
     | Event
 
-function doTest(doc_chunks: string[], expectedEvents: EventDefinition[]) {
+function createTestFunction(doc_chunks: string[], expectedEvents: EventDefinition[]) {
     return function () {
         const parser = p.parser()
         let currentExpectedEventIndex = 0
@@ -145,7 +145,7 @@ describe('bass-clarinet', function () {
                 for (var i in seps) {
                     const sep = seps[i];
                     const doc = tests[key]
-                    it('[' + key + '] should be able to parse -> ' + sep, doTest(sep === undefined ? [doc.text] : doc.text.split(sep), doc.events.slice(0)));
+                    it('[' + key + '] should be able to parse -> ' + sep, createTestFunction(sep === undefined ? [doc.text] : doc.text.split(sep), doc.events.slice(0)));
                 }
             }
         }
@@ -158,7 +158,7 @@ describe('bass-clarinet', function () {
 
                 if (!doc.chunks) continue;
 
-                it('[' + key + '] should be able to parse pre-chunked', doTest(doc.chunks, doc.events.slice(0)));
+                it('[' + key + '] should be able to parse pre-chunked', createTestFunction(doc.chunks, doc.events.slice(0)));
             }
         }
     });

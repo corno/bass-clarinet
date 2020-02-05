@@ -1,5 +1,5 @@
 import { Stream } from "stream"
-import { CParser, Options } from "./Parser"
+import { Parser, Options } from "./Parser"
 
 export const EVENTS: AnyEvent[] =
     ["value"
@@ -36,7 +36,7 @@ function assertUnreachable(_x: never) {
 
 export class CStream extends Stream {
 
-    parser: CParser
+    parser: Parser
     writable = true
     readable = true
 
@@ -48,7 +48,7 @@ export class CStream extends Stream {
 
     constructor(opt: Options) {
         super()
-        this.parser = new CParser(opt)
+        this.parser = new Parser(opt)
 
         Stream.apply(this)
 

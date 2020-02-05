@@ -1,2 +1,2 @@
-export * from "./CStream"
-export * from "./CParser"
+export * from "./Stream"
+export * from "./Parser"

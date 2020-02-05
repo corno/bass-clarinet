@@ -631,7 +631,7 @@ export const tests: {
             ["ready", undefined]]
     },
     incomplete_json_terminates_ending_in_number: {
-        text: '[[1,2,3],[4,5',
+        text: '[[1,2,3],[42,0',
         events: [
             ["openarray", undefined, 1, 1],
             ["openarray", undefined, 1, 2],
@@ -640,17 +640,17 @@ export const tests: {
             ["value", 3, 1, 7],
             ["closearray", undefined, 1, 8],
             ["openarray", undefined, 1, 10],
-            ["value", 4, 1, 11],
+            ["value", 42, 1, 12],
             ['error', undefined]]
     },
     incomplete_json_terminates_ending_in_comma: {
-        text: '[[1,2,3],',
+        text: '[[1,2,42],',
         events: [
             ["openarray", undefined],
             ["openarray", undefined],
             ["value", 1],
             ["value", 2],
-            ["value", 3],
+            ["value", 42],
             ["closearray", undefined],
             ['error', undefined]]
     },
