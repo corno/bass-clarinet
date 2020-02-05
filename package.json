@@ -48,6 +48,7 @@
     "pubMin": "npm run validatePublishReadiness && npm version minor && git push && npm publish",
     "pubPatch": "npm run validatePublishReadiness && npm version patch && git push && npm publish",
     "test": "tsc && node ./node_modules/mocha/bin/mocha dist/test/bass_clarinet.js && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
+    "testOwnSuite": "node ./node_modules/mocha/bin/mocha dist/test/bass_clarinet.js",
     "testJSONTestSuite": "node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
     "test_": "mocha -r should -t 10000 -s 2000 test/parser.spec.js test/clarinet.js test/npm.js test/utf8-chunks.js test/position.js",
     "bench_": "cd benchmark && npm test",

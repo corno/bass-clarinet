@@ -20,7 +20,7 @@ describe('parsing', () => {
                             foundError = true
                         })
                         parser.write(data)
-                        parser.write(null)
+                        parser.close()
 
                         assert.ok(foundError, "no errors found")
                     } catch (e) {
@@ -37,7 +37,7 @@ describe('parsing', () => {
                             foundError = true
                         })
                         parser.write(data)
-                        parser.write(null)
+                        parser.close()
                         assert.ok(!foundError, "errors found")
                     } catch (e) {
                     }
@@ -50,7 +50,7 @@ describe('parsing', () => {
                         parser.subscribe("error", () => {
                         })
                         parser.write(data)
-                        parser.write(null)
+                        parser.close()
                     } catch (e) {
                     }
                     break
@@ -71,7 +71,7 @@ describe('transform', () => {
                 parser.subscribe("error", () => {
                 })
                 parser.write(data)
-                parser.write(null)
+                parser.close()
             } catch (e) {
             }
         })

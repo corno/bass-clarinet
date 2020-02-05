@@ -55,7 +55,7 @@ export class CStream extends Stream {
         this.parser.subscribe("end", () => { this.emit("end") })
         this.parser.subscribe("error", (er: any) => {
             this.emit("error", er)
-            this.parser.error = null
+            //this.parser.error = null
         })
         const me = this
 
