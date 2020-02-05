@@ -22,7 +22,7 @@ const docs: {
     just_a_string: {
         text: '"a string"',
         events: [
-            ["value", "a string"],
+            ["value", "a string", 1, 10],
             ["end", undefined],
             ["ready", undefined],
         ],
@@ -30,8 +30,8 @@ const docs: {
     empty_array: {
         text: '[]',
         events: [
-            ["openarray", undefined],
-            ["closearray", undefined],
+            ["openarray", undefined, 1, 1],
+            ["closearray", undefined, 1, 2],
             ["end", undefined],
             ["ready", undefined]
         ]
@@ -271,7 +271,7 @@ const docs: {
             ["value", 'bar and all"'],
             ["key", "bar"],
             ["value", 'its "nice"'],
-            ["closeobject", undefined, 1, 53],
+            ["closeobject", undefined, 1, 47],
             ["end", undefined],
             ["ready", undefined]]
     },
@@ -289,9 +289,9 @@ const docs: {
     string_invalid_escape: {
         text: '["and you can\'t escape thi\s"]',
         events: [
-            ["openarray", undefined],
-            ["value", 'and you can\'t escape this'],
-            ["closearray", undefined, 1, 31],
+            ["openarray", undefined, 1, 1],
+            ["value", 'and you can\'t escape this', 1, 28],
+            ["closearray", undefined, 1, 29],
             ["end", undefined],
             ["ready", undefined]]
     },
@@ -645,12 +645,12 @@ const docs: {
         events: [
             ["openarray", undefined, 1, 1],
             ["openarray", undefined, 1, 2],
-            ["value", 1, 1, 3],
-            ["value", 2, 1, 5],
-            ["value", 3, 1, 7],
+            ["value", 1, 1, 4],
+            ["value", 2, 1, 6],
+            ["value", 3, 1, 8],
             ["closearray", undefined, 1, 8],
             ["openarray", undefined, 1, 10],
-            ["value", 4, 1, 11],
+            ["value", 4, 1, 12],
             ['error', undefined]]
     },
     incomplete_json_terminates_ending_in_comma: {
@@ -788,8 +788,9 @@ function doTest(doc_chunks: string[], expectedEvents: EventDefinition[]) {
                         //assert1(currentExpectedEvent[1] === value.message, '[' + currentExpectedEventIndex + '] value: [' + currentExpectedEvent[1] + '] got: [' + value + ']');
                     }
                     if (currentExpectedEvent[3] !== undefined) {
-                        // assert(currentExpectedEvent[2] === parser.line, `expected linenumber ${currentExpectedEvent[2]} but found ${parser.line}`)
-                        // assert(currentExpectedEvent[3] === parser.column, `expected column ${currentExpectedEvent[3]} but found ${parser.column}`)
+                        //check line numbers
+                        assert.ok(currentExpectedEvent[2] === parser.line, `expected linenumber ${currentExpectedEvent[2]} but found ${parser.line}`)
+                        assert.ok(currentExpectedEvent[3] === parser.column, `expected column ${currentExpectedEvent[3]} but found ${parser.column}`)
                     }
                 }
             };

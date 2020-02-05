@@ -14,6 +14,7 @@ function assertUnreachable<RT>(_x: never): RT {
 export type Options = {
     trim?: boolean
     normalize?: boolean
+    tab?: number
 }
 
 export enum GlobalStateType {
@@ -217,7 +218,7 @@ type Unicode = {
 export class CParser {
 
     private bufferCheckPosition = MAX_BUFFER_LENGTH
-    private codeOfCurrentCharacter = 0
+    private curChar = 0
     closed = false
     readonly opt: Options
     public state: GlobalState = [GlobalStateType.OTHER, {
@@ -333,25 +334,44 @@ export class CParser {
     public writeImp(chunk: string): void {
 
         //initialize
-        let currentChunkIndex = -1 //start at the position just before the first character
-        let curChar: number = 0
-        const next = () => {
-            currentChunkIndex++
-            curChar = chunk.charCodeAt(currentChunkIndex)
-            this.position++
-            this.codeOfCurrentCharacter = curChar
 
-            if (curChar === WhitespaceChar.lineFeed) {
-                this.line++
-                this.column = 0
-            } else this.column++
+        //start at the position just before the first character
+        //because we are going to call next() once at the beginning
+        let currentChunkIndex = -1
+        let curChar: number = 0
+
+
+        const next = () => {
+
+            currentChunkIndex++
+            
+            curChar = chunk.charCodeAt(currentChunkIndex)
+            this.curChar = curChar
+
+            if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), getStateDescription(this.state), this.position, this.line, this.column)
+            if (!isNaN(curChar)) {
+                this.position++
+                switch (curChar) {
+                    case WhitespaceChar.lineFeed:
+                        this.line++
+                        this.column = 0
+                        break
+                    case WhitespaceChar.carriageReturn:
+                        break
+                    case WhitespaceChar.tab:
+                        const tab = (this.opt.tab) ? this.opt.tab : 4
+                        this.column += tab
+                        break
+                    default:
+                        this.column++
+                }
+            }
         }
         next()
         while (true) {
             if (isNaN(curChar)) {
                 return
             }
-            if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), getStateDescription(this.state))
 
             const st = this.state
 
@@ -368,7 +388,7 @@ export class CParser {
                         if (isNaN(curChar)) {
                             return
                         }
-                        if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'number loop')
+                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'number loop')
 
                         //first check if we are breaking out of a number. Can only be done by checking the character that comes directly after the number
                         if (curChar !== NumberChar.period
@@ -428,7 +448,7 @@ export class CParser {
                     }
 
                     STRING_BIGLOOP: while (true) {
-                        if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'string loop', $.slashed, $.textNode)
+                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'string loop', $.slashed, $.textNode)
 
                         if (isNaN(curChar)) {
                             //end of the chunk
@@ -457,8 +477,8 @@ export class CParser {
                                 else if (curChar === StringChar.u) {
                                     // \uxxxx. meh!
                                     $.unicode = {
-                                       charactersLeft: 4,
-                                       foundCharacters: ""
+                                        charactersLeft: 4,
+                                        foundCharacters: ""
                                     }
                                 }
                                 else {
@@ -697,8 +717,8 @@ export class CParser {
         er += `
         Line: ${this.line}
         Column: ${this.column}
-        Char: '${String.fromCharCode(this.codeOfCurrentCharacter)}'
-        Char#: ${this.codeOfCurrentCharacter}`
+        Char: '${String.fromCharCode(this.curChar)}'
+        Char#: ${this.curChar}`
         const error = new Error(er)
         this.state = [GlobalStateType.ERROR, { error: error }]
         this.onerror.signal(error)
@@ -714,7 +734,7 @@ export class CParser {
             return this
         }
 
-        this.codeOfCurrentCharacter = 0
+        this.curChar = 0
         this.state = [GlobalStateType.OTHER, { state: OtherState.EXPECTING_ROOTVALUE }]
         this.closed = true
         this.onend.signal()
