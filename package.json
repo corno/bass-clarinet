@@ -23,6 +23,8 @@
   "keywords": [
     "sax",
     "json",
+    "typescript",
+    "comments",
     "parser",
     "stream",
     "streaming",
