@@ -212,7 +212,7 @@ export const tests: {
     trailing_comma_allowed: {
         text: '[1,2,]',
         options: {
-            allow: {trailing_commas: true, }
+            allow: { trailing_commas: true, }
         },
         events: [
             ["openarray", undefined],
@@ -231,7 +231,6 @@ export const tests: {
             ["value", 2],
             ["error", undefined],
             ["error", undefined], //strange.. there should not be 2 errors
-            ["error", undefined], //strange.. there should not be 3 errors
         ]
     },
     single_line_comment_allowed: {
@@ -256,7 +255,6 @@ export const tests: {
             ["value", 2],
             ["error", undefined],
             ["error", undefined], //strange.. there should not be 2 errors
-            ["error", undefined], //strange.. there should not be 3 errors
         ]
     },
     multi_line_comment_allowed: {
@@ -280,19 +278,43 @@ export const tests: {
         events: [
             ["error", undefined],
             ["error", undefined],
-            ["error", undefined],
         ]
     },
     parens_instead_of_braces_allowed: {
         text: '( "a": "foo" )',
         options: {
-            allow: {parens_instead_of_braces: true }
+            allow: { parens_instead_of_braces: true }
         },
         events: [
             ["openobject", "("],
             ["key", "a"],
             ["value", "foo"],
             ["closeobject", ")"],
+            ["end", undefined],
+            ["ready", undefined],
+        ]
+    },
+    missing_comma_forbidden: {
+        text: '["foo""bar"]',
+        options: {
+        },
+        events: [
+            ["openarray", undefined],
+            ["value", "foo"],
+            ["error", undefined],
+            ["error", undefined],
+        ]
+    },
+    missing_comma_allowed: {
+        text: '["foo""bar"]',
+        options: {
+            allow: { missing_commas: true}
+        },
+        events: [
+            ["openarray", undefined],
+            ["value", "foo"],
+            ["value", "bar"],
+            ["closearray", undefined],
             ["end", undefined],
             ["ready", undefined],
         ]
@@ -304,13 +326,12 @@ export const tests: {
         events: [
             ["error", undefined],
             ["error", undefined],
-            ["error", undefined],
         ]
     },
     angle_brackets_instead_of_brackets_allowed: {
         text: '<"foo">',
         options: {
-            allow: {angle_brackets_instead_of_brackets: true }
+            allow: { angle_brackets_instead_of_brackets: true }
         },
         events: [
             ["openarray", "<"],

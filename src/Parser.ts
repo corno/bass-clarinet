@@ -10,11 +10,6 @@ const maxAllowed = Math.max(MAX_BUFFER_LENGTH, 10)
 export const DEBUG = (env.CDEBUG === 'debug')
 export const INFO = (env.CDEBUG === 'debug' || env.CDEBUG === 'info')
 
-export const lax: Allow = {
-    comments: true,
-    trailing_commas: true,
-    parens_instead_of_braces: true,
-}
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -25,6 +20,14 @@ export type Allow = {
     parens_instead_of_braces?: boolean
     angle_brackets_instead_of_brackets?: boolean
     comments?: boolean
+    missing_commas?: boolean
+}
+
+export const lax: Allow = {
+    comments: true,
+    trailing_commas: true,
+    parens_instead_of_braces: true,
+    missing_commas: true,
 }
 
 export type Options = {
@@ -279,6 +282,16 @@ enum CommentState {
     FOUND_ASTERISK,
     LINE_COMMENT,
     BLOCK_COMMENT
+}
+
+enum ValueType {
+    STRING,
+    FALSE,
+    TRUE,
+    NULL,
+    OBJECT,
+    ARRAY,
+    NUMBER,
 }
 
 
@@ -745,9 +758,22 @@ export class Parser {
                                         $.state = ArrayState.EXPECTING_ARRAYVALUE
                                     } else if (curChar === ArrayChar.closeBracket || curChar === ArrayChar.closeAngleBracket) {
                                         this.closeArray(curChar, $.context)
-                                    }
-                                    else {
-                                        this.raiseError(`Bad array, expected ',' or ']'`)
+                                    } else {
+                                        const closeCharacters = this.opt.allow?.angle_brackets_instead_of_brackets ? "']' or '>'" : "']'"
+
+                                        if (this.getValueType(curChar) !== null) {
+                                            if (this.opt.allow?.missing_commas) {
+                                                this.processValue(curChar)
+                                            } else {
+                                                this.raiseError(`Bad array, expected ',' or ${closeCharacters} (missing commas are not allowed)`)
+                                            }
+                                        } else {
+                                            if (this.opt.allow?.missing_commas) {
+                                                this.raiseError(`Bad array, expected ',' or ${closeCharacters} or a value`)
+                                            } else {
+                                                this.raiseError(`Bad array, expected ',' or '${closeCharacters}`)
+                                            }
+                                        }
                                     }
                                     break
 
@@ -806,7 +832,20 @@ export class Parser {
                                     } else if (curChar === ObjectChar.comma) {
                                         $.state = ObjectState.EXPECTING_KEY
                                     } else {
-                                        this.raiseError(`Expected ',' or '}', found ${String.fromCharCode(curChar)}`)
+                                        const closeCharacters = this.opt.allow?.parens_instead_of_braces ? "'}' or ')'" : "'}'"
+                                        if (this.getValueType(curChar) !== null) {
+                                            if (this.opt.allow?.missing_commas) {
+                                                this.processValue(curChar)
+                                            } else {
+                                                this.raiseError(`Bad object, expected ',' or ${closeCharacters} (missing commas are not allowed)`)
+                                            }
+                                        } else {
+                                            if (this.opt.allow?.missing_commas) {
+                                                this.raiseError(`Bad object, expected ',' or ${closeCharacters} or a value`)
+                                            } else {
+                                                this.raiseError(`Bad object, expected ',' or ${closeCharacters}`)
+                                            }
+                                        }
                                     }
                                     break
                                 case ObjectState.EXPECTING_OBJECTVALUE:
@@ -984,40 +1023,83 @@ export class Parser {
         } else this.raiseError(`Malformed object, key should start with '"'`)
     }
     private processValue(c: number) {
+        const vt = this.getValueType(c)
+        if (vt === null) {
+            this.raiseError("encountered a character that is not the start of a variable")
+        } else {
+            switch (vt) {
+                case ValueType.ARRAY: {
+                    if (c !== ArrayChar.openAngleBracket || this.opt.allow?.angle_brackets_instead_of_brackets) {
+                        this.stack.push(this.currentContext)
+                        const arrayContext = { openChar: c }
+                        this.currentContext = [ContextType.ARRAY, arrayContext]
+                        this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END, context: arrayContext }])
+                        this.onopenarray.signal(this.getLocation())
+                    } else {
+                        this.raiseError("angle brackets are not allowed")
+                    }
+                    break
+                }
+                case ValueType.FALSE: {
+                    this.setState([GlobalStateType.KEYWORD, { state: KeywordState.FALSE_EXPECTING_A }])
+                    break
+                }
+                case ValueType.NULL: {
+                    this.setState([GlobalStateType.KEYWORD, { state: KeywordState.NULL_EXPECTING_U }])
+                    break
+                }
+                case ValueType.NUMBER: {
+                    this.setState([GlobalStateType.NUMBER, {
+                        start: this.getLocation(),
+                        numberNode: String.fromCharCode(c),
+                        foundExponent: false,
+                        foundPeriod: false,
+                    }])
+                    break
+                }
+                case ValueType.OBJECT: {
+                    if (c !== ObjectChar.openParen || this.opt.allow?.parens_instead_of_braces) {
+                        this.stack.push(this.currentContext)
+                        const objectContext = { openChar: c }
+                        this.currentContext = [ContextType.OBJECT, objectContext]
+                        this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, context: objectContext }])
+                        this.onopenobject.signal(this.getLocation())
+                    } else {
+                        this.raiseError("parens are not allowed")
+                    }
+                    break
+                }
+                case ValueType.STRING: {
+                    this.initString([StringTypeEnum.VALUE, {}])
+                    break
+                }
+                case ValueType.TRUE: {
+                    this.setState([GlobalStateType.KEYWORD, { state: KeywordState.TRUE_EXPECTING_R }])
+                    break
+                }
+                default:
+                    return assertUnreachable(vt)
+            }
+        }
+    }
+    private getValueType(c: number): ValueType | null {
         if (c === StringChar.quotationMark) {
-            this.initString([StringTypeEnum.VALUE, {}])
+            return ValueType.STRING
         }
         else if (c === ObjectChar.openBrace || c === ObjectChar.openParen) {
-            if (c !== ObjectChar.openParen || this.opt.allow?.parens_instead_of_braces) {
-                this.stack.push(this.currentContext)
-                const objectContext = { openChar: c }
-                this.currentContext = [ContextType.OBJECT, objectContext]
-                this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, context: objectContext }])
-                this.onopenobject.signal(this.getLocation())
-            } else {
-                this.raiseError("parens are not allowed")
-            }
+            return ValueType.OBJECT
         } else if (c === ArrayChar.openBracket || c === ArrayChar.openAngleBracket) {
-            if (c !== ArrayChar.openAngleBracket || this.opt.allow?.angle_brackets_instead_of_brackets) {
-                this.stack.push(this.currentContext)
-                const arrayContext = { openChar: c }
-                this.currentContext = [ContextType.ARRAY, arrayContext]
-                this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END, context: arrayContext }])
-                this.onopenarray.signal(this.getLocation())
-            } else {
-                this.raiseError("angle brackets are not allowed")
-            }
+            return ValueType.ARRAY
+        } else if (c === KeywordChar.t) {
+            return ValueType.TRUE
+        } else if (c === KeywordChar.f) {
+            return ValueType.FALSE
+        } else if (c === KeywordChar.n) {
+            return ValueType.NULL
+        } else if (c === NumberChar.minus || NumberChar._0 <= c && c <= NumberChar._9) {
+            return ValueType.NUMBER
+        } else {
+            return null
         }
-        else if (c === KeywordChar.t) this.setState([GlobalStateType.KEYWORD, { state: KeywordState.TRUE_EXPECTING_R }])
-        else if (c === KeywordChar.f) this.setState([GlobalStateType.KEYWORD, { state: KeywordState.FALSE_EXPECTING_A }])
-        else if (c === KeywordChar.n) this.setState([GlobalStateType.KEYWORD, { state: KeywordState.NULL_EXPECTING_U }])
-        else if (c === NumberChar.minus || NumberChar._0 <= c && c <= NumberChar._9) {
-            this.setState([GlobalStateType.NUMBER, {
-                start: this.getLocation(),
-                numberNode: String.fromCharCode(c),
-                foundExponent: false,
-                foundPeriod: false,
-            }])
-        } else this.raiseError("encountered a character that is not the start of a variable")
     }
 }
