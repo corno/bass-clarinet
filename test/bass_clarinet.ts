@@ -192,12 +192,14 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
 }
 
 describe('bass-clarinet', function () {
-    describe('#generic', function () {
+    describe('#pureJSON', function () {
         selectedJSONTests.forEach(key => {
             const test = JSONTests[key]
             it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), test.options));
             it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), test.options));
         })
+    })
+    describe('#extensions', function () {
         selectedExtensionTests.forEach(key => {
             const test = extensionTests[key]
             it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), test.options));
