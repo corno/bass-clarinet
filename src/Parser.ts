@@ -21,6 +21,7 @@ export type Allow = {
     angle_brackets_instead_of_brackets?: boolean
     comments?: boolean
     missing_commas?: boolean
+    apostrophes_instead_of_quotation_marks?: boolean
 }
 
 export const lax: Allow = {
@@ -28,6 +29,7 @@ export const lax: Allow = {
     trailing_commas: true,
     parens_instead_of_braces: true,
     missing_commas: true,
+    apostrophes_instead_of_quotation_marks: true,
 }
 
 export type Options = {
@@ -96,6 +98,7 @@ type GlobalState =
         state: KeywordState
     }]
     | [GlobalStateType.STRING, {
+        startCharacter: number
         start: Location
         textNode: string
         stringType: StringType
@@ -207,6 +210,7 @@ const KeywordChar = {
 
 const StringChar = {
     quotationMark: 0x22,     // "
+    apostrophe: 0x27,     // '
     reverseSolidus: 0x5C,    // \
     solidus: 0x2F,           // /
 
@@ -577,6 +581,7 @@ export class Parser {
                             } else {
                                 if ($.slashed) {
                                     if (curChar === StringChar.quotationMark) { $.textNode += '\"' }
+                                    else if (curChar === StringChar.apostrophe) { $.textNode += '\'' } //deviation from the JSON standard
                                     else if (curChar === StringChar.reverseSolidus) { $.textNode += '\\' }
                                     else if (curChar === StringChar.solidus) { $.textNode += '\/' }
                                     else if (curChar === StringChar.b) { $.textNode += '\b' }
@@ -602,7 +607,7 @@ export class Parser {
                                     if (curChar === StringChar.reverseSolidus) {//backslash
                                         flush()
                                         $.slashed = true
-                                    } else if (curChar === StringChar.quotationMark) {
+                                    } else if (curChar === $.startCharacter) {
                                         /**
                                          * THE STRING IS FINISHED
                                          */
@@ -999,14 +1004,20 @@ export class Parser {
         }
         this.state = newState
     }
-    private initString(stringType: StringType) {
-        this.setState([GlobalStateType.STRING, {
-            start: this.getLocation(),
-            textNode: "",
-            stringType: stringType,
-            unicode: null,
-            slashed: false
-        }])
+    private initString(stringType: StringType, startCharacter: number) {
+        if (startCharacter === StringChar.apostrophe && !this.opt.allow?.apostrophes_instead_of_quotation_marks) {
+            this.raiseError(`Malformed string, should start with '"', apostrophes are not allowed`)
+        } else {
+
+            this.setState([GlobalStateType.STRING, {
+                startCharacter: startCharacter,
+                start: this.getLocation(),
+                textNode: "",
+                stringType: stringType,
+                unicode: null,
+                slashed: false
+            }])
+        }
     }
     private pop() {
         const popped = this.stack.pop()
@@ -1017,21 +1028,23 @@ export class Parser {
             this.setStateAfterValue()
         }
     }
-    private processKey(c: number, containingObject: ObjectContext) {
-        if (c === StringChar.quotationMark) {
-            this.initString([StringTypeEnum.KEY, { containingObject: containingObject }])
-        } else this.raiseError(`Malformed object, key should start with '"'`)
+    private processKey(curChar: number, containingObject: ObjectContext) {
+        if (curChar === StringChar.quotationMark || curChar === StringChar.apostrophe) {
+            this.initString([StringTypeEnum.KEY, { containingObject: containingObject }], curChar)
+        } else {
+            this.raiseError(`Malformed object, key should start with '"' ${this.opt.allow?.apostrophes_instead_of_quotation_marks ? "or '''": ""}`)
+        }
     }
-    private processValue(c: number) {
-        const vt = this.getValueType(c)
+    private processValue(curChar: number) {
+        const vt = this.getValueType(curChar)
         if (vt === null) {
             this.raiseError("encountered a character that is not the start of a variable")
         } else {
             switch (vt) {
                 case ValueType.ARRAY: {
-                    if (c !== ArrayChar.openAngleBracket || this.opt.allow?.angle_brackets_instead_of_brackets) {
+                    if (curChar !== ArrayChar.openAngleBracket || this.opt.allow?.angle_brackets_instead_of_brackets) {
                         this.stack.push(this.currentContext)
-                        const arrayContext = { openChar: c }
+                        const arrayContext = { openChar: curChar }
                         this.currentContext = [ContextType.ARRAY, arrayContext]
                         this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END, context: arrayContext }])
                         this.onopenarray.signal(this.getLocation())
@@ -1051,16 +1064,16 @@ export class Parser {
                 case ValueType.NUMBER: {
                     this.setState([GlobalStateType.NUMBER, {
                         start: this.getLocation(),
-                        numberNode: String.fromCharCode(c),
+                        numberNode: String.fromCharCode(curChar),
                         foundExponent: false,
                         foundPeriod: false,
                     }])
                     break
                 }
                 case ValueType.OBJECT: {
-                    if (c !== ObjectChar.openParen || this.opt.allow?.parens_instead_of_braces) {
+                    if (curChar !== ObjectChar.openParen || this.opt.allow?.parens_instead_of_braces) {
                         this.stack.push(this.currentContext)
-                        const objectContext = { openChar: c }
+                        const objectContext = { openChar: curChar }
                         this.currentContext = [ContextType.OBJECT, objectContext]
                         this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, context: objectContext }])
                         this.onopenobject.signal(this.getLocation())
@@ -1070,7 +1083,7 @@ export class Parser {
                     break
                 }
                 case ValueType.STRING: {
-                    this.initString([StringTypeEnum.VALUE, {}])
+                    this.initString([StringTypeEnum.VALUE, {}], curChar)
                     break
                 }
                 case ValueType.TRUE: {
@@ -1083,10 +1096,9 @@ export class Parser {
         }
     }
     private getValueType(c: number): ValueType | null {
-        if (c === StringChar.quotationMark) {
+        if (c === StringChar.quotationMark || c === StringChar.apostrophe) {
             return ValueType.STRING
-        }
-        else if (c === ObjectChar.openBrace || c === ObjectChar.openParen) {
+        } else if (c === ObjectChar.openBrace || c === ObjectChar.openParen) {
             return ValueType.OBJECT
         } else if (c === ArrayChar.openBracket || c === ArrayChar.openAngleBracket) {
             return ValueType.ARRAY

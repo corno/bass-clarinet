@@ -20,6 +20,24 @@ export const tests: {
             ["ready", undefined],
         ],
     },
+    apostrophe_string_forbidden: {
+        text: "'a string'",
+        events: [
+            ["error", undefined],
+            ["error", undefined],
+        ],
+    },
+    apostrophe_string_allowed: {
+        text: "'a string'",
+        options: {
+            allow: {apostrophes_instead_of_quotation_marks: true}
+        },
+        events: [
+            ["value", "a string", 1, 10],
+            ["end", undefined],
+            ["ready", undefined],
+        ],
+    },
     empty_array: {
         text: '[]',
         events: [
