@@ -23,6 +23,7 @@ function assertUnreachable<RT>(_x: never): RT {
 export type Allow = {
     trailing_commas?: boolean
     parens_instead_of_braces?: boolean
+    angle_brackets_instead_of_brackets?: boolean
     comments?: boolean
 }
 
@@ -100,7 +101,7 @@ type GlobalState =
     }]
     | [GlobalStateType.ROOT, { state: RootState }]
     | [GlobalStateType.OBJECT, { state: ObjectState, context: ObjectContext }]
-    | [GlobalStateType.ARRAY, { state: ArrayState }]
+    | [GlobalStateType.ARRAY, { state: ArrayState, context: ArrayContext }]
 
 function getStateDescription(s: GlobalState): string {
     switch (s[0]) {
@@ -214,23 +215,30 @@ const StringChar = {
     u: 0x75,                 // u
 }
 
-const Char = {
+const ArrayChar = {
     comma: 0x2C,             // ,
-    colon: 0x3A,             // :
     openBracket: 0x5B,       // [
     closeBracket: 0x5D,      // ]
+    openAngleBracket: 0x3C,  // <
+    closeAngleBracket: 0x3E  // >
+}
+
+const ObjectChar = {
+    comma: 0x2C,             // ,
+    colon: 0x3A,             // :
     openBrace: 0x7B,         // {
     closeBrace: 0x7D,        // }
     openParen: 0x28,         // )
-    closeParen: 0x29,         // )
+    closeParen: 0x29,        // )
 }
 
 type ObjectContext = { openChar: number }
+type ArrayContext = { openChar: number }
 
 type Context =
     | [ContextType.ROOT]
     | [ContextType.OBJECT, ObjectContext]
-    | [ContextType.ARRAY, {}]
+    | [ContextType.ARRAY, ArrayContext]
 
 enum ContextType {
     ROOT,
@@ -715,18 +723,16 @@ export class Parser {
                         } else {
                             switch ($.state) {
                                 case ArrayState.EXPECTING_VALUE_OR_ARRAY_END:
-                                    if (curChar === Char.closeBracket) {
-                                        this.onclosearray.signal(this.getLocation())
-                                        this.pop()
+                                    if (curChar === ArrayChar.closeBracket) {
+                                        this.closeArray(curChar, $.context)
                                     } else {
                                         this.processValue(curChar)
                                     }
                                     break
                                 case ArrayState.EXPECTING_ARRAYVALUE:
-                                    if (curChar === Char.closeBracket) {
+                                    if (curChar === ArrayChar.closeBracket) {
                                         if (this.opt.allow?.trailing_commas) {
-                                            this.onclosearray.signal(this.getLocation())
-                                            this.pop()
+                                            this.closeArray(curChar, $.context)
                                         } else {
                                             this.raiseError("trailing commas are not allowed")
                                         }
@@ -735,11 +741,10 @@ export class Parser {
                                     }
                                     break
                                 case ArrayState.EXPECTING_COMMA_OR_ARRAY_END:
-                                    if (curChar === Char.comma) {
+                                    if (curChar === ArrayChar.comma) {
                                         $.state = ArrayState.EXPECTING_ARRAYVALUE
-                                    } else if (curChar === Char.closeBracket) {
-                                        this.onclosearray.signal(this.getLocation())
-                                        this.pop()
+                                    } else if (curChar === ArrayChar.closeBracket || curChar === ArrayChar.closeAngleBracket) {
+                                        this.closeArray(curChar, $.context)
                                     }
                                     else {
                                         this.raiseError(`Bad array, expected ',' or ']'`)
@@ -770,7 +775,7 @@ export class Parser {
                             const $ = state[1]
                             switch ($.state) {
                                 case ObjectState.EXPECTING_KEY:
-                                    if (curChar === Char.closeBrace || curChar === Char.closeParen) {
+                                    if (curChar === ObjectChar.closeBrace || curChar === ObjectChar.closeParen) {
                                         if (this.opt.allow?.trailing_commas) {
                                             this.closeObject(curChar, $.context)
                                         } else {
@@ -782,23 +787,23 @@ export class Parser {
 
                                     break
                                 case ObjectState.EXPECTING_KEY_OR_OBJECT_END:
-                                    if (curChar === Char.closeBrace || curChar === Char.closeParen) {
+                                    if (curChar === ObjectChar.closeBrace || curChar === ObjectChar.closeParen) {
                                         this.closeObject(curChar, $.context)
                                     } else {
                                         this.processKey(curChar, $.context)
                                     }
                                     break
                                 case ObjectState.EXPECTING_COLON:
-                                    if (curChar === Char.colon) {
+                                    if (curChar === ObjectChar.colon) {
                                         $.state = ObjectState.EXPECTING_OBJECTVALUE
                                     } else {
                                         this.raiseError(`Expected colon, found ${String.fromCharCode(curChar)}`)
                                     }
                                     break
                                 case ObjectState.EXPECTING_COMMA_OR_OBJECT_END:
-                                    if (curChar === Char.closeBrace || curChar === Char.closeParen) {
+                                    if (curChar === ObjectChar.closeBrace || curChar === ObjectChar.closeParen) {
                                         this.closeObject(curChar, $.context)
-                                    } else if (curChar === Char.comma) {
+                                    } else if (curChar === ObjectChar.comma) {
                                         $.state = ObjectState.EXPECTING_KEY
                                     } else {
                                         this.raiseError(`Expected ',' or '}', found ${String.fromCharCode(curChar)}`)
@@ -872,7 +877,7 @@ export class Parser {
     private setStateAfterValue() {
         switch (this.currentContext[0]) {
             case ContextType.ARRAY:
-                this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_COMMA_OR_ARRAY_END }])
+                this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_COMMA_OR_ARRAY_END, context: this.currentContext[1] }])
                 break
             case ContextType.OBJECT:
                 this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COMMA_OR_OBJECT_END, context: this.currentContext[1] }])
@@ -884,12 +889,22 @@ export class Parser {
 
     }
     private closeObject(curChar: number, context: ObjectContext) {
-        if (context.openChar === Char.openParen && curChar !== Char.closeParen) {
+        if (context.openChar === ObjectChar.openParen && curChar !== ObjectChar.closeParen) {
             this.raiseError("must close object with ')'")
-        } else if (context.openChar === Char.openBrace && curChar !== Char.closeBrace) {
+        } else if (context.openChar === ObjectChar.openBrace && curChar !== ObjectChar.closeBrace) {
             this.raiseError("must close object with '}'")
         } else {
             this.oncloseobject.signal(this.getLocation())
+            this.pop()
+        }
+    }
+    private closeArray(curChar: number, context: ArrayContext) {
+        if (context.openChar === ArrayChar.openBracket && curChar !== ArrayChar.closeBracket) {
+            this.raiseError("must close array with ']'")
+        } else if (context.openChar === ArrayChar.openAngleBracket && curChar !== ArrayChar.closeAngleBracket) {
+            this.raiseError("must close object with '>'")
+        } else {
+            this.onclosearray.signal(this.getLocation())
             this.pop()
         }
     }
@@ -972,8 +987,8 @@ export class Parser {
         if (c === StringChar.quotationMark) {
             this.initString([StringTypeEnum.VALUE, {}])
         }
-        else if (c === Char.openBrace || c === Char.openParen) {
-            if (c !== Char.openParen || this.opt.allow?.parens_instead_of_braces) {
+        else if (c === ObjectChar.openBrace || c === ObjectChar.openParen) {
+            if (c !== ObjectChar.openParen || this.opt.allow?.parens_instead_of_braces) {
                 this.stack.push(this.currentContext)
                 const objectContext = { openChar: c }
                 this.currentContext = [ContextType.OBJECT, objectContext]
@@ -982,13 +997,16 @@ export class Parser {
             } else {
                 this.raiseError("parens are not allowed")
             }
-        } else if (c === Char.openBracket) {
-            this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
-            this.onopenarray.signal(this.getLocation())
-
-            this.stack.push(this.currentContext)
-            this.currentContext = [ContextType.ARRAY, {}]
-
+        } else if (c === ArrayChar.openBracket || c === ArrayChar.openAngleBracket) {
+            if (c !== ArrayChar.openAngleBracket || this.opt.allow?.angle_brackets_instead_of_brackets) {
+                this.stack.push(this.currentContext)
+                const arrayContext = { openChar: c }
+                this.currentContext = [ContextType.ARRAY, arrayContext]
+                this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END, context: arrayContext }])
+                this.onopenarray.signal(this.getLocation())
+            } else {
+                this.raiseError("angle brackets are not allowed")
+            }
         }
         else if (c === KeywordChar.t) this.setState([GlobalStateType.KEYWORD, { state: KeywordState.TRUE_EXPECTING_R }])
         else if (c === KeywordChar.f) this.setState([GlobalStateType.KEYWORD, { state: KeywordState.FALSE_EXPECTING_A }])

@@ -297,6 +297,29 @@ export const tests: {
             ["ready", undefined],
         ]
     },
+    angle_brackets_instead_of_brackets_forbidden: {
+        text: '<"foo">',
+        options: {
+        },
+        events: [
+            ["error", undefined],
+            ["error", undefined],
+            ["error", undefined],
+        ]
+    },
+    angle_brackets_instead_of_brackets_allowed: {
+        text: '<"foo">',
+        options: {
+            allow: {angle_brackets_instead_of_brackets: true }
+        },
+        events: [
+            ["openarray", "<"],
+            ["value", "foo"],
+            ["closearray", ">"],
+            ["end", undefined],
+            ["ready", undefined],
+        ]
+    },
     nested: {
         text: '{"a":{"b":"c"}}',
         events: [
