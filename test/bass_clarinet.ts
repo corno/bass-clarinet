@@ -7,7 +7,9 @@ const DEBUG = false
 
 
 const selectedTests = Object.keys(tests)
-//const selectedTests = ['single_line_comment_allowed', "single_line_comment_forbidden"]
+
+//const selectedTests = ['just_a_string']
+//const selectedTests = ['empty_array']
 
 // function assertUnreachable(_x: never) {
 //     throw new Error("unreachable")

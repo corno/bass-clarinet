@@ -212,7 +212,7 @@ export const tests: {
     trailing_comma_allowed: {
         text: '[1,2,]',
         options: {
-            allow_trailing_commas: true,
+            allow: {trailing_commas: true, }
         },
         events: [
             ["openarray", undefined],
@@ -237,7 +237,7 @@ export const tests: {
     single_line_comment_allowed: {
         text: '[1,2//a comment\r\n]',
         options: {
-            allow_comments: true,
+            allow: { comments: true, }
         },
         events: [
             ["openarray", undefined],
@@ -262,13 +262,37 @@ export const tests: {
     multi_line_comment_allowed: {
         text: '[1,2/*a comment\r\n*/]',
         options: {
-            allow_comments: true,
+            allow: { comments: true, }
         },
         events: [
             ["openarray", undefined],
             ["value", 1],
             ["value", 2],
             ["closearray", undefined],
+            ["end", undefined],
+            ["ready", undefined],
+        ]
+    },
+    parens_instead_of_braces_forbidden: {
+        text: '( a: "foo" )',
+        options: {
+        },
+        events: [
+            ["error", undefined],
+            ["error", undefined],
+            ["error", undefined],
+        ]
+    },
+    parens_instead_of_braces_allowed: {
+        text: '( "a": "foo" )',
+        options: {
+            allow: {parens_instead_of_braces: true }
+        },
+        events: [
+            ["openobject", "("],
+            ["key", "a"],
+            ["value", "foo"],
+            ["closeobject", ")"],
             ["end", undefined],
             ["ready", undefined],
         ]

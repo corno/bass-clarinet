@@ -1,4 +1,4 @@
-import { Parser } from "../src/Parser"
+import { Parser, lax } from "../src/Parser"
 import * as sp from "../src/subscribeStack"
 
 const test = `
@@ -90,7 +90,7 @@ export function createValuesPrettyPrinter(indentation: string, callback: (str: s
     }
 }
 
-const parser = new Parser({ allow_comments: true, allow_trailing_commas: true})
+const parser = new Parser({ allow: lax})
 sp.subscribeStack(parser, createValuesPrettyPrinter("\r\n", str => process.stdout.write(str)))
 parser.write(test)
 parser.end()
