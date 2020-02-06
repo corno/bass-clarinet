@@ -1,4 +1,33 @@
 import * as s from "./subscription"
+import {
+    Options,
+    GlobalStateType,
+    GlobalState,
+    KeywordState,
+    RootState,
+    ObjectState,
+    ArrayState,
+    Context,
+    ContextType,
+    WhitespaceChar,
+    CommentState,
+    CommentChar,
+    NumberChar,
+    StringChar,
+    StringTypeEnum,
+    KeywordChar,
+    ObjectChar,
+    ValueType,
+    ArrayChar,
+    ObjectContext,
+    ArrayContext,
+    Range,
+    Location,
+    StringType,
+    Allow,
+    TypedUnionChar,
+    TypedUnionState,
+} from "./parserTypes"
 
 const env: any = (typeof process === 'object' && process.env)
     ? process.env
@@ -15,99 +44,6 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-export type Allow = {
-    trailing_commas?: boolean
-    parens_instead_of_braces?: boolean
-    angle_brackets_instead_of_brackets?: boolean
-    comments?: boolean
-    missing_commas?: boolean
-    apostrophes_instead_of_quotation_marks?: boolean
-}
-
-export const lax: Allow = {
-    comments: true,
-    trailing_commas: true,
-    parens_instead_of_braces: true,
-    missing_commas: true,
-    apostrophes_instead_of_quotation_marks: true,
-}
-
-export type Options = {
-    spaces_per_tab?: number
-    allow?: Allow
-}
-
-export enum GlobalStateType {
-    ERROR,
-    COMMENT,
-    STRING,
-    NUMBER,
-    KEYWORD,
-    ROOT,
-    ARRAY,
-    OBJECT,
-}
-
-enum RootState {
-    EXPECTING_ROOTVALUE, // value at the root
-    EXPECTING_END, // no more input expected
-}
-
-enum ObjectState {
-
-    EXPECTING_OBJECTVALUE, // value in object
-    EXPECTING_KEY_OR_OBJECT_END,
-    EXPECTING_COMMA_OR_OBJECT_END, // , or }
-    EXPECTING_KEY, // "a"
-    EXPECTING_COLON, // :
-}
-
-enum ArrayState {
-
-    EXPECTING_ARRAYVALUE, // value in array
-    EXPECTING_VALUE_OR_ARRAY_END,
-    EXPECTING_COMMA_OR_ARRAY_END, // , or ]
-}
-
-enum KeywordState {
-    TRUE_EXPECTING_R, // r
-    TRUE_EXPECTING_U, // u
-    TRUE_EXPECTING_E, // e
-
-    FALSE_EXPECTING_A, // a
-    FALSE_EXPECTING_L, // l
-    FALSE_EXPECTING_S, // s
-    FALSE_EXPECTING_E, // e
-
-    NULL_EXPECTING_U, // u
-    NULL_EXPECTING_L1, // l
-    NULL_EXPECTING_L2, // l
-}
-
-type GlobalState =
-    | [GlobalStateType.ERROR, {
-        error: Error
-    }]
-    | [GlobalStateType.NUMBER, {
-        start: Location
-        numberNode: string
-        foundExponent: boolean
-        foundPeriod: boolean
-    }]
-    | [GlobalStateType.KEYWORD, {
-        state: KeywordState
-    }]
-    | [GlobalStateType.STRING, {
-        startCharacter: number
-        start: Location
-        textNode: string
-        stringType: StringType
-        unicode: null | Unicode
-        slashed: boolean // = false
-    }]
-    | [GlobalStateType.ROOT, { state: RootState }]
-    | [GlobalStateType.OBJECT, { state: ObjectState, context: ObjectContext }]
-    | [GlobalStateType.ARRAY, { state: ArrayState, context: ArrayContext }]
 
 function getStateDescription(s: GlobalState): string {
     switch (s[0]) {
@@ -158,146 +94,30 @@ function getStateDescription(s: GlobalState): string {
 
             }
         }
+        case GlobalStateType.TYPED_UNION: {
+
+            switch (s[1].state) {
+                case TypedUnionState.EXPECTING_OPTION: return "EXPECTING_STRING"
+                case TypedUnionState.EXPECTING_VALUE: return "EXPECTING_VALUE"
+                default: return assertUnreachable(s[1].state)
+
+            }
+        }
         default: return assertUnreachable(s[0])
 
     }
 }
 
-enum StringTypeEnum {
-    KEY,
-    VALUE,
+
+export const lax: Allow = {
+    comments: true,
+    trailing_commas: true,
+    parens_instead_of_braces: true,
+    missing_commas: true,
+    apostrophes_instead_of_quotation_marks: true,
+    angle_brackets_instead_of_brackets: true,
+    typed_unions: true,
 }
-
-type StringType =
-    | [StringTypeEnum.KEY, { containingObject: ObjectContext }]
-    | [StringTypeEnum.VALUE, {}]
-
-const CommentChar = {
-    solidus: 0x2F,           // /
-    asterisk: 0x2A,          // *
-}
-
-const WhitespaceChar = {
-    tab: 0x09,               // \t
-    lineFeed: 0x0A,          // \n
-    carriageReturn: 0x0D,    // \r
-    space: 0x20,             // " "
-}
-
-const NumberChar = {
-
-    plus: 0x2B,              // +
-    minus: 0x2D,             // -
-    period: 0x2E,            // .
-
-    _0: 0x30,                // 0
-    _9: 0x39,                // 9
-    e: 0x65,                 // e 
-    E: 0x45,                 // E
-}
-
-const KeywordChar = {
-    a: 0x61,                 // a
-    e: 0x65,                 // e 
-    f: 0x66,                 // f
-    l: 0x6C,                 // l
-    n: 0x6E,                 // n
-    r: 0x72,                 // r
-    s: 0x73,                 // s
-    t: 0x74,                 // t
-    u: 0x75,                 // u
-}
-
-const StringChar = {
-    quotationMark: 0x22,     // "
-    apostrophe: 0x27,     // '
-    reverseSolidus: 0x5C,    // \
-    solidus: 0x2F,           // /
-
-    b: 0x62,                 // b
-    f: 0x66,                 // f
-    n: 0x6E,                 // n
-    r: 0x72,                 // r
-    t: 0x74,                 // t
-    u: 0x75,                 // u
-}
-
-const ArrayChar = {
-    comma: 0x2C,             // ,
-    openBracket: 0x5B,       // [
-    closeBracket: 0x5D,      // ]
-    openAngleBracket: 0x3C,  // <
-    closeAngleBracket: 0x3E  // >
-}
-
-const ObjectChar = {
-    comma: 0x2C,             // ,
-    colon: 0x3A,             // :
-    openBrace: 0x7B,         // {
-    closeBrace: 0x7D,        // }
-    openParen: 0x28,         // )
-    closeParen: 0x29,        // )
-}
-
-type ObjectContext = { openChar: number }
-type ArrayContext = { openChar: number }
-
-type Context =
-    | [ContextType.ROOT]
-    | [ContextType.OBJECT, ObjectContext]
-    | [ContextType.ARRAY, ArrayContext]
-
-enum ContextType {
-    ROOT,
-    OBJECT,
-    ARRAY,
-}
-
-export type Location = {
-    readonly position: number,
-    readonly line: number,
-    readonly column: number,
-}
-
-export type Range = {
-    start: Location
-    end: Location
-}
-
-
-type Event =
-    | "ready"
-    | "end"
-    | "error"
-    | "openobject"
-    | "closeobject"
-    | "openarray"
-    | "closearray"
-    | "key"
-    | "value"
-
-type Unicode = {
-    charactersLeft: number
-    foundCharacters: ""
-}
-
-enum CommentState {
-    FOUND_SLASH,
-    FOUND_ASTERISK,
-    LINE_COMMENT,
-    BLOCK_COMMENT
-}
-
-enum ValueType {
-    STRING,
-    FALSE,
-    TRUE,
-    NULL,
-    OBJECT,
-    ARRAY,
-    NUMBER,
-}
-
 
 export class Parser {
 
@@ -321,8 +141,15 @@ export class Parser {
 
     onclosearray = new s.OneArgumentSubscribers<Location>()
     onopenarray = new s.OneArgumentSubscribers<Location>()
+
+    onopentypedunion = new s.OneArgumentSubscribers<Location>()
+    onclosetypedunion = new s.NoArgumentSubscribers()
+    onoption = new s.TwoArgumentsSubscribers<string, Range>()
+
+
     oncloseobject = new s.OneArgumentSubscribers<Location>()
     onopenobject = new s.OneArgumentSubscribers<Location>()
+
     onkey = new s.TwoArgumentsSubscribers<string, Range>()
     onvalue = new s.TwoArgumentsSubscribers<string | boolean | null | number, Range>()
 
@@ -336,40 +163,6 @@ export class Parser {
         this.opt = opt || {}
         if (INFO) console.log('-- emit', "onready")
         this.onready.signal()
-    }
-
-    public subscribe(event: Event, subscriber: (data?: any) => void) {
-        switch (event) {
-            case "closearray":
-                this.onclosearray.subscribers.push(subscriber)
-                break
-            case "openarray":
-                this.onopenarray.subscribers.push(subscriber)
-                break
-            case "closeobject":
-                this.oncloseobject.subscribers.push(subscriber)
-                break
-            case "openobject":
-                this.onopenobject.subscribers.push(subscriber)
-                break
-            case "end":
-                this.onend.subscribers.push(subscriber)
-                break
-            case "value":
-                this.onvalue.subscribers.push(subscriber)
-                break
-            case "ready":
-                this.onready.subscribers.push(subscriber)
-                break
-            case "error":
-                this.onerror.subscribers.push(subscriber)
-                break
-            case "key":
-                this.onkey.subscribers.push(subscriber)
-                break
-            default:
-                assertUnreachable(event)
-        }
     }
 
     public write(chunk: string): Parser {
@@ -617,12 +410,24 @@ export class Parser {
                                             start: $.start,
                                             end: this.getLocation()
                                         }
-                                        if ($.stringType[0] === StringTypeEnum.KEY) {
-                                            this.onkey.signal($.textNode, locationInfo)
-                                            this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COLON, context: $.stringType[1].containingObject }])
-                                        } else {
-                                            this.onvalue.signal($.textNode, locationInfo)
-                                            this.setStateAfterValue()
+                                        switch ($.stringType[0]) {
+                                            case StringTypeEnum.KEY: {
+                                                this.onkey.signal($.textNode, locationInfo)
+                                                this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COLON, context: $.stringType[1].containingObject }])
+                                                break
+                                            }
+                                            case StringTypeEnum.TYPED_UNION_STATE: {
+                                                this.onoption.signal($.textNode, locationInfo)
+                                                this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_VALUE }])
+                                                break
+                                            }
+                                            case StringTypeEnum.VALUE: {
+                                                this.onvalue.signal($.textNode, locationInfo)
+                                                this.setStateAfterValue()
+                                                break
+                                            }
+                                            default:
+                                                return assertUnreachable($.stringType[0])
                                         }
                                         next()
                                         break
@@ -898,6 +703,41 @@ export class Parser {
                         next()
                         break
                     }
+                    case GlobalStateType.TYPED_UNION: {
+                        while (curChar === WhitespaceChar.carriageReturn || curChar === WhitespaceChar.lineFeed || curChar === WhitespaceChar.space || curChar === WhitespaceChar.tab) {
+                            next()
+                            if (isNaN(curChar)) {
+                                return
+                            }
+                        }
+                        if (curChar === CommentChar.solidus) {
+                            if (this.opt.allow?.comments) {
+                                this.commentState = CommentState.FOUND_SLASH
+                            } else {
+                                this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
+                            }
+                        } else {
+                            const $ = state[1]
+                            switch ($.state) {
+                                case TypedUnionState.EXPECTING_OPTION:
+                                    if (curChar === StringChar.quotationMark || curChar === StringChar.apostrophe) {
+                                        this.initString([StringTypeEnum.TYPED_UNION_STATE, {}], curChar)
+                                    } else {
+                                        this.raiseError("missing typed union string")
+                                    }
+                                    break
+                                case TypedUnionState.EXPECTING_VALUE: {
+                                    this.processValue(curChar)
+                                    break
+                                }
+                                default:
+                                    return assertUnreachable($.state)
+                            }
+                        }
+
+                        next()
+                        break
+                    }
                     default: assertUnreachable(state[0])
                 }
             }
@@ -928,6 +768,10 @@ export class Parser {
                 break
             case ContextType.ROOT:
                 this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_END }])
+                break
+            case ContextType.TYPED_UNION:
+                this.onclosetypedunion.signal()
+                this.pop()
                 break
         }
 
@@ -985,6 +829,18 @@ export class Parser {
         this.setStateAfterValue()
     }
     public end() {
+        //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
+        if (this.state[0] === GlobalStateType.NUMBER) {
+            this.onvalue.signal(new Number(this.state[1].numberNode).valueOf(), {
+                start: this.state[1].start,
+                end: {
+                    line: this.line,
+                    position: this.position - 1,
+                    column: this.column - 1
+                }
+            })
+            this.setStateAfterValue()
+        }
         if (this.state[0] !== GlobalStateType.ROOT || this.state[1].state !== RootState.EXPECTING_END || this.stack.length !== 0) {
             this.raiseError("Unexpected end, " + getStateDescription(this.state))
             return this
@@ -1032,7 +888,7 @@ export class Parser {
         if (curChar === StringChar.quotationMark || curChar === StringChar.apostrophe) {
             this.initString([StringTypeEnum.KEY, { containingObject: containingObject }], curChar)
         } else {
-            this.raiseError(`Malformed object, key should start with '"' ${this.opt.allow?.apostrophes_instead_of_quotation_marks ? "or '''": ""}`)
+            this.raiseError(`Malformed object, key should start with '"' ${this.opt.allow?.apostrophes_instead_of_quotation_marks ? "or '''" : ""}`)
         }
     }
     private processValue(curChar: number) {
@@ -1090,6 +946,17 @@ export class Parser {
                     this.setState([GlobalStateType.KEYWORD, { state: KeywordState.TRUE_EXPECTING_R }])
                     break
                 }
+                case ValueType.TYPED_UNION: {
+                    if (this.opt.allow?.typed_unions) {
+                        this.stack.push(this.currentContext)
+                        this.currentContext = [ContextType.TYPED_UNION]
+                        this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_OPTION }])
+                        this.onopentypedunion.signal(this.getLocation())
+                    } else {
+                        this.raiseError("typed unions are not allowed")
+                    }
+                    break
+                }
                 default:
                     return assertUnreachable(vt)
             }
@@ -1108,6 +975,8 @@ export class Parser {
             return ValueType.FALSE
         } else if (c === KeywordChar.n) {
             return ValueType.NULL
+        } else if (c === TypedUnionChar.verticalLine) { //extension to strict JSON specifications
+            return ValueType.TYPED_UNION
         } else if (c === NumberChar.minus || NumberChar._0 <= c && c <= NumberChar._9) {
             return ValueType.NUMBER
         } else {

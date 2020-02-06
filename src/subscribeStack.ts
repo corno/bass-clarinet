@@ -1,4 +1,5 @@
-import { Parser, Range, Location } from "./Parser";
+import { Parser } from "./Parser";
+import { Range, Location } from "./parserTypes"
 
 /**
  * subscribeStack allows for capturing objects and arrays in a callback, so that the consumer does not have to match
@@ -11,13 +12,6 @@ export function subscribeStack(p: Parser, rootSubscribers: ValueSubscribers) {
     const stack: Array<ContextType> = []
     let currentContext: ContextType = ["root", { rootSubscribers: rootSubscribers }]
 
-    p.onkey.subscribe((key, range) => {
-        if (currentContext[0] !== "object") {
-            throw new Error("unexpected key")
-        }
-        currentContext[1].currentKey = key
-        currentContext[1].currentKeyRange = range
-    })
     p.onopenarray.subscribe(location => {
         const ac1: ArrayContext1 = {
             elementSubscribers: [],
@@ -53,6 +47,17 @@ export function subscribeStack(p: Parser, rootSubscribers: ValueSubscribers) {
         }
         currentContext = previous
     })
+
+    p.onopentypedunion.subscribe(() => {
+        throw new Error("IMPLEMENT ME")
+    })
+    p.onclosetypedunion.subscribe(() => {
+        throw new Error("IMPLEMENT ME")
+    })
+    p.onoption.subscribe(() => {
+        throw new Error("IMPLEMENT ME")
+    })
+    
     p.onopenobject.subscribe(location => {
         const oc1: ObjectContext1 = {
             propertySubscribers: [],
@@ -91,6 +96,14 @@ export function subscribeStack(p: Parser, rootSubscribers: ValueSubscribers) {
         }
         currentContext = previous
     })
+    p.onkey.subscribe((key, range) => {
+        if (currentContext[0] !== "object") {
+            throw new Error("unexpected key")
+        }
+        currentContext[1].currentKey = key
+        currentContext[1].currentKeyRange = range
+    })
+
     p.onvalue.subscribe((value, range) => {
         switch (currentContext[0]) {
             case "array": {

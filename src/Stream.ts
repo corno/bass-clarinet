@@ -1,5 +1,6 @@
 import { Stream } from "stream"
-import { Parser, Options } from "./Parser"
+import { Parser } from "./Parser"
+import { Options } from "./parserTypes"
 
 export const EVENTS: AnyEvent[] =
     ["value"
@@ -15,11 +16,18 @@ export const EVENTS: AnyEvent[] =
 
 type Event =
     | "value"
+
     | "key"
     | "openobject"
     | "closeobject"
+
+    | "option"
+    | "openuniontype"
+    | "closeuniontype"
+
     | "openarray"
     | "closearray"
+
     | "ready"
 
 
@@ -52,8 +60,8 @@ export class CStream extends Stream {
 
         Stream.apply(this)
 
-        this.parser.subscribe("end", () => { this.emit("end") })
-        this.parser.subscribe("error", (er: any) => {
+        this.parser.onend.subscribe(() => { this.emit("end") })
+        this.parser.onerror.subscribe((er: any) => {
             this.emit("error", er)
             //this.parser.error = null
         })
@@ -156,26 +164,39 @@ export class CStream extends Stream {
     on(ev: Event, handler: (...args: any[]) => void): this {
         const me = this
         switch (ev) {
-            case "key":
-                this.parser.subscribe("key", (key: string) => { this.emit("key", key) })
-                break
             case "value":
-                this.parser.subscribe("value", (value: any) => { this.emit("value", value) })
+                this.parser.onvalue.subscribe((value: any) => { this.emit("value", value) })
                 break
+
             case "openarray":
-                this.parser.subscribe("openarray", () => { this.emit("openarray") })
+                this.parser.onopenarray.subscribe(() => { this.emit("openarray") })
                 break
             case "closearray":
-                this.parser.subscribe("closearray", () => { this.emit("closearray") })
+                this.parser.onclosearray.subscribe(() => { this.emit("closearray") })
                 break
+
             case "openobject":
-                this.parser.subscribe("openobject", (key: any) => { this.emit("openobject", key) })
+                this.parser.onopenobject.subscribe((key: any) => { this.emit("openobject", key) })
                 break
             case "closeobject":
-                this.parser.subscribe("closeobject", () => { this.emit("closeobject") })
+                this.parser.oncloseobject.subscribe(() => { this.emit("closeobject") })
                 break
+            case "key":
+                this.parser.onkey.subscribe((key: string) => { this.emit("key", key) })
+                break
+
+            case "openuniontype":
+                this.parser.onopenobject.subscribe((key: any) => { this.emit("openuniontype", key) })
+                break
+            case "closeuniontype":
+                this.parser.oncloseobject.subscribe(() => { this.emit("closeuniontype") })
+                break
+            case "option":
+                this.parser.onkey.subscribe((key: string) => { this.emit("option", key) })
+                break
+
             case "ready":
-                this.parser.subscribe("ready", () => { this.emit("ready") })
+                this.parser.onready.subscribe(() => { this.emit("ready") })
                 break
             default: assertUnreachable(ev)
         }

@@ -1,4 +1,4 @@
-import { Options } from "../src"
+import { Options } from "../src/parserTypes"
 
 export type EventDefinition = [string, string | undefined | false | true | null | number, number?, number?]
 

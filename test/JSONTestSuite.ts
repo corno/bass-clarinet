@@ -16,7 +16,7 @@ describe('parsing', () => {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
                         const parser = p.parser({})
-                        parser.subscribe("error", () => {
+                        parser.onerror.subscribe( () => {
                             foundError = true
                         })
                         parser.write(data)
@@ -33,7 +33,7 @@ describe('parsing', () => {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
                         const parser = p.parser({})
-                        parser.subscribe("error", () => {
+                        parser.onerror.subscribe(() => {
                             foundError = true
                         })
                         parser.write(data)
@@ -47,7 +47,7 @@ describe('parsing', () => {
                     try {
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
                         const parser = p.parser({})
-                        parser.subscribe("error", () => {
+                        parser.onerror.subscribe(() => {
                         })
                         parser.write(data)
                         parser.close()
@@ -68,7 +68,7 @@ describe('transform', () => {
             try {
                 const data = fs.readFileSync(path.join(transformDir, file), { encoding: "utf-8" })
                 const parser = p.parser({})
-                parser.subscribe("error", () => {
+                parser.onerror.subscribe( () => {
                 })
                 parser.write(data)
                 parser.close()

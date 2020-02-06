@@ -96,4 +96,36 @@ export const extensionTests: TestDefinitions = {
             ["ready", undefined],
         ],
     },
+    typed_union: {
+        text: '| "foo" "x"',
+        options: {
+            allow: {
+                typed_unions: true,
+            }
+        },
+        events: [
+            ["opentypedunion", undefined],
+            ["option", "foo"],
+            ["value", "x"],
+            ["closetypedunion", undefined],
+            ["end", undefined],
+            ["ready", undefined],
+        ]
+    },
+    typed_union_with_number_at_end: {
+        text: '| "foo" 5',
+        options: {
+            allow: {
+                typed_unions: true,
+            }
+        },
+        events: [
+            ["opentypedunion", undefined],
+            ["option", "foo"],
+            ["value", 5],
+            ["closetypedunion", undefined],
+            ["end", undefined],
+            ["ready", undefined],
+        ]
+    },
 }

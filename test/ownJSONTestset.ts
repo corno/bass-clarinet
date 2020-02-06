@@ -10,6 +10,14 @@ export const JSONTests: TestDefinitions = {
             ["ready", undefined],
         ],
     },
+    just_a_number: {
+        text: '42',
+        events: [
+            ["value", 42],
+            ["end", undefined],
+            ["ready", undefined],
+        ],
+    },
     empty_array: {
         text: '[]',
         events: [
@@ -658,6 +666,7 @@ export const JSONTests: TestDefinitions = {
             ["closearray", undefined, 1, 8],
             ["openarray", undefined, 1, 10],
             ["value", 42, 1, 12],
+            ["value", 0],
             ['error', undefined]
         ]
     },
@@ -797,6 +806,13 @@ export const JSONTests: TestDefinitions = {
             ["openarray", undefined],
             ["value", 1],
             ["value", 2],
+            ["error", undefined],
+            ["error", undefined], //strange.. there should not be 2 errors
+        ]
+    },
+    forbidden_typed_union: {
+        text: '| "foo", {}',
+        events: [
             ["error", undefined],
             ["error", undefined], //strange.. there should not be 2 errors
         ]

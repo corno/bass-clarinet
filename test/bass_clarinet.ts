@@ -4,6 +4,7 @@ import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition } from "./testDefinition"
+import { Options, Location, GlobalStateType } from "../src/parserTypes"
 
 const DEBUG = false
 
@@ -20,11 +21,18 @@ const selectedExtensionTests = Object.keys(extensionTests)
 
 type Event =
     | "value"
-    | "key"
+
+    | "opentypedunion"
+    | "closetypedunion"
+    | "option"
+
     | "openobject"
     | "closeobject"
+    | "key"
+
     | "openarray"
     | "closearray"
+
     | "ready"
 
 
@@ -33,7 +41,7 @@ type AnyEvent =
     | "error"
     | Event
 
-function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], opts?: p.Options) {
+function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], opts?: Options) {
     return function () {
         if (DEBUG) {
             console.log("CHUNKS:", chunks)
@@ -45,7 +53,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         function validateEventsEqual(expectedEvent: EventDefinition, event: AnyEvent) {
             assert.ok(expectedEvent[0] === event, 'event: ' + currentExpectedEventIndex + ', expected type: [' + expectedEvent[0] + '] got: [' + event + ']')
         }
-        function checkLocation(expectedEvent: EventDefinition, location: p.Location) {
+        function checkLocation(expectedEvent: EventDefinition, location: Location) {
             if (expectedEvent[3] !== undefined) {
                 assert.ok(expectedEvent[2] === location.line, `expected linenumber ${expectedEvent[2]} but found ${location.line}`)
                 assert.ok(expectedEvent[3] === location.column, `expected column ${expectedEvent[3]} but found ${location.column}`)
@@ -79,13 +87,6 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 assert.fail("unexpected error: " + e.message)
             }
         })
-        parser.onkey.subscribe((k, range) => {
-            if (DEBUG) console.log("found key")
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "key")
-            assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
-            checkLocation(ee, range.end)
-        })
         parser.onvalue.subscribe((v, range) => {
             if (DEBUG) console.log("found value")
             const ee = getExpectedEvent()
@@ -94,6 +95,27 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
             checkLocation(ee, range.end)
         })
+
+        parser.onopentypedunion.subscribe(l => {
+            if (DEBUG) console.log("found open typed union")
+
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "opentypedunion")
+            checkLocation(ee, l)
+        })
+        parser.onclosetypedunion.subscribe(() => {
+            if (DEBUG) console.log("found close typed union")
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "closetypedunion")
+        })
+        parser.onoption.subscribe((k, range) => {
+            if (DEBUG) console.log("found option")
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "option")
+            assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+            checkLocation(ee, range.end)
+        })
+
         parser.onopenarray.subscribe(l => {
             if (DEBUG) console.log("found open array")
             const ee = getExpectedEvent()
@@ -107,6 +129,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             validateEventsEqual(ee, "closearray")
             checkLocation(ee, l)
         })
+
         parser.onopenobject.subscribe(l => {
             if (DEBUG) console.log("found open object")
 
@@ -121,6 +144,14 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             validateEventsEqual(ee, "closeobject")
             checkLocation(ee, l)
         })
+        parser.onkey.subscribe((k, range) => {
+            if (DEBUG) console.log("found key")
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "key")
+            assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+            checkLocation(ee, range.end)
+        })
+
         parser.onend.subscribe(() => {
             if (DEBUG) console.log("found end")
 
@@ -137,7 +168,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
 
         chunks.forEach(function (chunk) {
             try {
-                if (parser.state[0] !== p.GlobalStateType.ERROR) {
+                if (parser.state[0] !== GlobalStateType.ERROR) {
                     //if in error state, don't write or we'll get an exception
                     parser.write(chunk);
                 }

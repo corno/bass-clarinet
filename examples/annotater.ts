@@ -1,5 +1,5 @@
 import * as sp from "../src/subscribeStack"
-import { Location, Range } from "../src/Parser"
+import { Location, Range } from "../src/parserTypes"
 
 
 function printLoc(location: Location) {
