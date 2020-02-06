@@ -1,12 +1,15 @@
 import * as p from "../src/Parser"
 import { describe } from "mocha"
 import * as assert from "assert"
-import { EventDefinition, tests } from "./ownTestset"
+import { JSONTests } from "./ownJSONTestset"
+import { extensionTests } from "./JSONExtenstionsTestSet"
+import { EventDefinition } from "./testDefinition"
 
 const DEBUG = false
 
 
-const selectedTests = Object.keys(tests)
+const selectedJSONTests = Object.keys(JSONTests)
+const selectedExtensionTests = Object.keys(extensionTests)
 
 //const selectedTests = ['just_a_string']
 //const selectedTests = ['empty_array']
@@ -159,22 +162,23 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
 
 describe('bass-clarinet', function () {
     describe('#generic', function () {
-        selectedTests.forEach(key => {
-            const test = tests[key]
+        selectedJSONTests.forEach(key => {
+            const test = JSONTests[key]
+            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), test.options));
+            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), test.options));
+        })
+        selectedExtensionTests.forEach(key => {
+            const test = extensionTests[key]
             it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), test.options));
             it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), test.options));
         })
     });
 
     describe('#pre-chunked', function () {
-        selectedTests.forEach(key => {
-            const test = tests[key]
-
+        selectedJSONTests.forEach(key => {
+            const test = JSONTests[key]
             if (!test.chunks) return;
-
-
             it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test.events.slice(0), test.options));
-
         })
     });
 });

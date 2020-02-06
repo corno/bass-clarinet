@@ -1,37 +1,9 @@
-import { Options } from "../src"
+import { TestDefinitions } from "./testDefinition";
 
-export type EventDefinition = [string, string | undefined | false | true | null | number, number?, number?]
 
-export type TestDefinition = {
-    text: string,
-    chunks?: string[],
-    options?: Options
-    events: EventDefinition[]
-}
-
-export const tests: {
-    [key: string]: TestDefinition
-} = {
+export const JSONTests: TestDefinitions = {
     just_a_string: {
         text: '"a string"',
-        events: [
-            ["value", "a string", 1, 10],
-            ["end", undefined],
-            ["ready", undefined],
-        ],
-    },
-    apostrophe_string_forbidden: {
-        text: "'a string'",
-        events: [
-            ["error", undefined],
-            ["error", undefined],
-        ],
-    },
-    apostrophe_string_allowed: {
-        text: "'a string'",
-        options: {
-            allow: {apostrophes_instead_of_quotation_marks: true}
-        },
         events: [
             ["value", "a string", 1, 10],
             ["end", undefined],
@@ -215,148 +187,6 @@ export const tests: {
             ["closearray", undefined],
             ["end", undefined],
             ["ready", undefined]
-        ]
-    },
-    trailing_comma_forbidden: {
-        text: '[1,2,]',
-        events: [
-            ["openarray", undefined],
-            ["value", 1],
-            ["value", 2],
-            ["error", undefined],
-            ["error", undefined], //strange.. there should not be 2 errors
-        ]
-    },
-    trailing_comma_allowed: {
-        text: '[1,2,]',
-        options: {
-            allow: { trailing_commas: true, }
-        },
-        events: [
-            ["openarray", undefined],
-            ["value", 1],
-            ["value", 2],
-            ["closearray", undefined],
-            ["end", undefined],
-            ["ready", undefined]
-        ]
-    },
-    single_line_comment_forbidden: {
-        text: '[1,2//a comment\r\n]',
-        events: [
-            ["openarray", undefined],
-            ["value", 1],
-            ["value", 2],
-            ["error", undefined],
-            ["error", undefined], //strange.. there should not be 2 errors
-        ]
-    },
-    single_line_comment_allowed: {
-        text: '[1,2//a comment\r\n]',
-        options: {
-            allow: { comments: true, }
-        },
-        events: [
-            ["openarray", undefined],
-            ["value", 1],
-            ["value", 2],
-            ["closearray", undefined],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
-    },
-    multi_line_comment_forbidden: {
-        text: '[1,2/*a comment\r\n*/]',
-        events: [
-            ["openarray", undefined],
-            ["value", 1],
-            ["value", 2],
-            ["error", undefined],
-            ["error", undefined], //strange.. there should not be 2 errors
-        ]
-    },
-    multi_line_comment_allowed: {
-        text: '[1,2/*a comment\r\n*/]',
-        options: {
-            allow: { comments: true, }
-        },
-        events: [
-            ["openarray", undefined],
-            ["value", 1],
-            ["value", 2],
-            ["closearray", undefined],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
-    },
-    parens_instead_of_braces_forbidden: {
-        text: '( a: "foo" )',
-        options: {
-        },
-        events: [
-            ["error", undefined],
-            ["error", undefined],
-        ]
-    },
-    parens_instead_of_braces_allowed: {
-        text: '( "a": "foo" )',
-        options: {
-            allow: { parens_instead_of_braces: true }
-        },
-        events: [
-            ["openobject", "("],
-            ["key", "a"],
-            ["value", "foo"],
-            ["closeobject", ")"],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
-    },
-    missing_comma_forbidden: {
-        text: '["foo""bar"]',
-        options: {
-        },
-        events: [
-            ["openarray", undefined],
-            ["value", "foo"],
-            ["error", undefined],
-            ["error", undefined],
-        ]
-    },
-    missing_comma_allowed: {
-        text: '["foo""bar"]',
-        options: {
-            allow: { missing_commas: true}
-        },
-        events: [
-            ["openarray", undefined],
-            ["value", "foo"],
-            ["value", "bar"],
-            ["closearray", undefined],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
-    },
-    angle_brackets_instead_of_brackets_forbidden: {
-        text: '<"foo">',
-        options: {
-        },
-        events: [
-            ["error", undefined],
-            ["error", undefined],
-        ]
-    },
-    angle_brackets_instead_of_brackets_allowed: {
-        text: '<"foo">',
-        options: {
-            allow: { angle_brackets_instead_of_brackets: true }
-        },
-        events: [
-            ["openarray", "<"],
-            ["value", "foo"],
-            ["closearray", ">"],
-            ["end", undefined],
-            ["ready", undefined],
         ]
     },
     nested: {
@@ -904,5 +734,71 @@ export const tests: {
             ["end", undefined],
             ["ready", undefined],
         ]
-    }
+    },
+    forbidden_extension_apostrophe_string: {
+        text: "'a string'",
+        events: [
+            ["error", undefined],
+            ["error", undefined],
+        ],
+    },
+    forbidden_extension_trailing_comma: {
+        text: '[1,2,]',
+        events: [
+            ["openarray", undefined],
+            ["value", 1],
+            ["value", 2],
+            ["error", undefined],
+            ["error", undefined], //strange.. there should not be 2 errors
+        ]
+    },
+    forbidden_extension_multi_line_comment: {
+        text: '[1,2/*a comment\r\n*/]',
+        events: [
+            ["openarray", undefined],
+            ["value", 1],
+            ["value", 2],
+            ["error", undefined],
+            ["error", undefined], //strange.. there should not be 2 errors
+        ]
+    },
+    forbidden_extension_parens_instead_of_braces: {
+        text: '( a: "foo" )',
+        options: {
+        },
+        events: [
+            ["error", undefined],
+            ["error", undefined],
+        ]
+    },
+    forbidden_extension_missing_comma: {
+        text: '["foo""bar"]',
+        options: {
+        },
+        events: [
+            ["openarray", undefined],
+            ["value", "foo"],
+            ["error", undefined],
+            ["error", undefined],
+        ]
+    },
+    forbidden_extension_angle_brackets_instead_of_brackets: {
+        text: '<"foo">',
+        options: {
+        },
+        events: [
+            ["error", undefined],
+            ["error", undefined],
+        ]
+    },
+    forbidden_extension_single_line_comment: {
+        text: '[1,2//a comment\r\n]',
+        events: [
+            ["openarray", undefined],
+            ["value", 1],
+            ["value", 2],
+            ["error", undefined],
+            ["error", undefined], //strange.. there should not be 2 errors
+        ]
+    },
 }
