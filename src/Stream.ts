@@ -15,6 +15,8 @@ export const EVENTS: AnyEvent[] =
     ]
 
 type Event =
+    | "schemareference"
+
     | "value"
 
     | "key"
@@ -164,6 +166,10 @@ export class CStream extends Stream {
     on(ev: Event, handler: (...args: any[]) => void): this {
         const me = this
         switch (ev) {
+            case "schemareference":
+                this.parser.onschemareference.subscribe((key: string) => { this.emit("schemareference", key) })
+                break
+
             case "value":
                 this.parser.onvalue.subscribe((value: any) => { this.emit("value", value) })
                 break
@@ -184,7 +190,6 @@ export class CStream extends Stream {
             case "key":
                 this.parser.onkey.subscribe((key: string) => { this.emit("key", key) })
                 break
-
             case "openuniontype":
                 this.parser.onopenobject.subscribe((key: any) => { this.emit("openuniontype", key) })
                 break
@@ -192,9 +197,8 @@ export class CStream extends Stream {
                 this.parser.oncloseobject.subscribe(() => { this.emit("closeuniontype") })
                 break
             case "option":
-                this.parser.onkey.subscribe((key: string) => { this.emit("option", key) })
+                this.parser.onoption.subscribe((key: string) => { this.emit("option", key) })
                 break
-
             case "ready":
                 this.parser.onready.subscribe(() => { this.emit("ready") })
                 break

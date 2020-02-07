@@ -10,7 +10,15 @@ import { Range, Location } from "./parserTypes"
 
 export function subscribeStack(p: Parser, rootSubscribers: ValueSubscribers) {
     const stack: Array<ContextType> = []
-    let currentContext: ContextType = ["root", { rootSubscribers: rootSubscribers }]
+    let currentContext: ContextType = ["root", { rootSubscribers: rootSubscribers, schemaReference: null, schemaReferenceRange: null }]
+    
+    p.onschemareference.subscribe((key, range) => {
+        if (currentContext[0] !== "root") {
+            throw new Error("unexpected key")
+        }
+        currentContext[1].schemaReference = key
+        currentContext[1].schemaReferenceRange = range
+    })
 
     p.onopenarray.subscribe(location => {
         const ac1: ArrayContext1 = {
@@ -193,6 +201,9 @@ export type PropertySubscribers = {
 
 type RootContext1 = {
     rootSubscribers: ValueSubscribers
+    schemaReference: null | string
+    schemaReferenceRange: null | Range
+
 }
 
 type ContextType =

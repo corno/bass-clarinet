@@ -128,4 +128,49 @@ export const extensionTests: TestDefinitions = {
             ["ready", undefined],
         ]
     },
+    schema_optional: {
+        text: '!"a schema" 42',
+        options: {
+            allow: { schema_reference: true}
+        },
+        events: [
+            ["schemareference", "a schema"],
+            ["value", 42],
+            ["end", undefined],
+            ["ready", undefined],
+        ],
+    },
+    schema_optional_but_not_there: {
+        text: "42",
+        options: {
+            allow: { schema_reference: true}
+        },
+        events: [
+            ["value", 42],
+            ["end", undefined],
+            ["ready", undefined],
+        ],
+    },
+    schema_required_but_not_there: {
+        text: "42",
+        options: {
+            require_schema_reference:true
+        },
+        events: [
+            ["error", undefined],
+            ["error", undefined],
+        ],
+    },
+    schema_required: {
+        text: '! "a schema" 42',
+        options: {
+           require_schema_reference: true
+        },
+        events: [
+            ["schemareference", "a schema"],
+            ["value", 42],
+            ["end", undefined],
+            ["ready", undefined],
+        ],
+    },
 }

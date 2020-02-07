@@ -20,6 +20,8 @@ const selectedExtensionTests = Object.keys(extensionTests)
 // }
 
 type Event =
+    | "schemareference"
+    
     | "value"
 
     | "opentypedunion"
@@ -87,6 +89,15 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 assert.fail("unexpected error: " + e.message)
             }
         })
+
+        parser.onschemareference.subscribe((k, range) => {
+            if (DEBUG) console.log("found schema reference")
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "schemareference")
+            assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+            checkLocation(ee, range.end)
+        })
+
         parser.onvalue.subscribe((v, range) => {
             if (DEBUG) console.log("found value")
             const ee = getExpectedEvent()
