@@ -90,7 +90,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             }
         })
 
-        parser.onschemareference.subscribe((k, range) => {
+        parser.onschemareference.subscribe((k, _startLocation, range) => {
             if (DEBUG) console.log("found schema reference")
             const ee = getExpectedEvent()
             validateEventsEqual(ee, "schemareference")

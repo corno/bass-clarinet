@@ -100,9 +100,9 @@ export enum StringTypeEnum {
 
 export type StringType =
     | [StringTypeEnum.KEY, { containingObject: ObjectContext }]
-    | [StringTypeEnum.VALUE, {}]
+    | [StringTypeEnum.VALUE, { }]
     | [StringTypeEnum.TYPED_UNION_STATE, { }]
-    | [StringTypeEnum.SCHEMA_REFERENCE, { }]
+    | [StringTypeEnum.SCHEMA_REFERENCE, { startLocation: Location }]
 
 export enum TypedUnionState {
     EXPECTING_OPTION,

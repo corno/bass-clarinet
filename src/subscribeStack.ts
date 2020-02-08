@@ -8,209 +8,172 @@ import { Range, Location } from "./parserTypes"
  * 'onopenarray' with 'onclosearray'
  */
 
-export function subscribeStack(p: Parser, rootSubscribers: ValueSubscribers) {
-    const stack: Array<ContextType> = []
-    let currentContext: ContextType = ["root", { rootSubscribers: rootSubscribers, schemaReference: null, schemaReferenceRange: null }]
-    
-    p.onschemareference.subscribe((key, range) => {
-        if (currentContext[0] !== "root") {
-            throw new Error("unexpected key")
-        }
-        currentContext[1].schemaReference = key
-        currentContext[1].schemaReferenceRange = range
+export function subscribeStackWithSchema(p: Parser, onReference: (schemaReference: string, startLocation: Location, range: Range) => ValueHandler) {
+
+    let foundSchemaReference = false
+
+    p.onschemareference.subscribe((schemaReference, startLocation, range) => {
+        foundSchemaReference = true
+        const vh = onReference(schemaReference, startLocation, range)
+        subscribeStack(p, vh)
     })
+    p.onend.subscribe(() => {
+        if (!foundSchemaReference) {
+            throw new Error("no schema found")
+        }
+    })
+}
+
+export function subscribeStack(p: Parser, rootHandler: ValueHandler) {
+    const stack: Array<ContextType> = []
+
+    let currentContext: ContextType = ["root", { valueHandler: rootHandler }]
+
+    function pop() {
+        const previousContext = stack.pop()
+        if (previousContext === undefined) {
+            throw new Error("stack panic")
+        }
+        // switch (previousContext[0]) {
+        //     case "array": {
+        //         break
+        //     }
+        //     case "object": {
+        //         break
+        //     }
+        //     case "root": {
+        //         break
+        //     }
+        //     case "typedunion": {
+        //         break
+        //     }
+        //     default:
+        //         return assertUnreachable(previousContext[0])
+        // }
+        currentContext = previousContext
+    }
+    function getValueHandler(): ValueHandler {
+        switch (currentContext[0]) {
+            case "array": {
+                return currentContext[1].arrayHandler.element()
+            }
+            case "object": {
+                if (currentContext[1].valueHandler === null) {
+                    throw new Error("unexpected value in object")
+                }
+                return currentContext[1].valueHandler
+            }
+            case "root": {
+                return currentContext[1].valueHandler
+            }
+            case "typedunion": {
+                if (currentContext[1].valueHandler === null) {
+                    throw new Error("unexpected value in typed union")
+                }
+                return currentContext[1].valueHandler
+            }
+            default:
+                return assertUnreachable(currentContext[0])
+        }
+    }
 
     p.onopenarray.subscribe(location => {
-        const ac1: ArrayContext1 = {
-            elementSubscribers: [],
-            endSubscribers: []
-        }
-        const ac = new ArrayContext(ac1, location)
-        switch (currentContext[0]) {
-            case "array":
-                currentContext[1].elementSubscribers.forEach(s => { if (s.array) s.array(ac) })
-                break
-            case "object":
-                const $ = currentContext[1]
-                currentContext[1].propertySubscribers.forEach(s => { if (s.array) s.array($.currentKey, ac, $.currentKeyRange!) })
-                break
-            case "root":
-                if (currentContext[1].rootSubscribers.array) {
-                    currentContext[1].rootSubscribers.array(ac)
-                }
-                break
-            default: assertUnreachable(currentContext[0])
-        }
+        const arrayHandler = getValueHandler().array(location)
         stack.push(currentContext)
-        currentContext = ["array", ac1]
+        currentContext = ["array", { arrayHandler: arrayHandler}]
     })
     p.onclosearray.subscribe(location => {
         if (currentContext[0] !== "array") {
-            throw new Error("unexpected onclosearray")
+            throw new Error("unexpected end of array")
+        } else {
+            currentContext[1].arrayHandler.end(location)
         }
-        currentContext[1].endSubscribers.forEach(s => s(location))
-        const previous = stack.pop()
-        if (previous === undefined) {
-            throw new Error("stack panic")
-        }
-        currentContext = previous
+        pop()
     })
 
-    p.onopentypedunion.subscribe(() => {
-        throw new Error("IMPLEMENT ME")
-    })
-    p.onclosetypedunion.subscribe(() => {
-        throw new Error("IMPLEMENT ME")
-    })
-    p.onoption.subscribe(() => {
-        throw new Error("IMPLEMENT ME")
-    })
-    
-    p.onopenobject.subscribe(location => {
-        const oc1: ObjectContext1 = {
-            propertySubscribers: [],
-            endSubscribers: [],
-            currentKey: "",
-            currentKeyRange: null
-        }
-        const oc = new ObjectContext(oc1, location)
-        switch (currentContext[0]) {
-            case "array":
-                currentContext[1].elementSubscribers.forEach(s => { if (s.object) s.object(oc) })
-                break
-            case "object":
-                const $ = currentContext[1]
-                currentContext[1].propertySubscribers.forEach(s => { if (s.object) s.object($.currentKey, oc, $.currentKeyRange!) })
-                break
-            case "root":
-                if (currentContext[1].rootSubscribers.object) {
-                    currentContext[1].rootSubscribers.object(oc)
-                }
-                break
-            default: assertUnreachable(currentContext[0])
+    p.onopentypedunion.subscribe(location => {
+        if (getValueHandler() === null) {
+            throw new Error("unexpected value")
         }
         stack.push(currentContext)
-        currentContext = ["object", oc1]
+        currentContext = ["typedunion", { location: location, valueHandler: null }]
+    })
+    p.onclosetypedunion.subscribe(() => {
+        if (currentContext[0] !== "typedunion") {
+            throw new Error("unexpected end of typed union")
+        }
+        pop()
+    })
+    p.onoption.subscribe((option, range) => {
+        if (getValueHandler() === null) {
+            throw new Error("unexpected option")
+        }
+        if (currentContext[0] !== "typedunion") {
+            throw new Error("unexpected option")
+        }
+        currentContext[1].valueHandler = getValueHandler().typedunion(option, currentContext[1].location, range)
+    })
 
+    p.onopenobject.subscribe(location => {
+        if (getValueHandler() === null) {
+            throw new Error("unexpected value")
+        }
+        const objectHandler = getValueHandler().object(location)
+        stack.push(currentContext)
+        currentContext = ["object", {
+            objectHandler: objectHandler,
+            valueHandler: null
+        }]
     })
     p.oncloseobject.subscribe(location => {
         if (currentContext[0] !== "object") {
-            throw new Error("unexpected oncloseobject")
+            throw new Error("unexpected end of object")
         }
-        currentContext[1].endSubscribers.forEach(s => s(location))
-        const previous = stack.pop()
-        if (previous === undefined) {
-            throw new Error("stack panic")
-        }
-        currentContext = previous
+        currentContext[1].objectHandler.end(location)
+        pop()
     })
     p.onkey.subscribe((key, range) => {
         if (currentContext[0] !== "object") {
             throw new Error("unexpected key")
         }
-        currentContext[1].currentKey = key
-        currentContext[1].currentKeyRange = range
+        currentContext[1].valueHandler = currentContext[1].objectHandler.property(key, range)
     })
 
     p.onvalue.subscribe((value, range) => {
-        switch (currentContext[0]) {
-            case "array": {
-                const $ = currentContext[1]
-                $.elementSubscribers.forEach(s => {
-                    if (s.value) {
-                        s.value(value, range)
-                    }
-                })
-                break
-            }
-            case "object": {
-                const $ = currentContext[1]
-                $.propertySubscribers.forEach(s => {
-                    if (s.value) {
-                        s.value($.currentKey, value, range, $.currentKeyRange!)
-                    }
-                })
-                break
-            }
-            case "root": {
-                const $ = currentContext[1]
-                if ($.rootSubscribers.value) {
-                    $.rootSubscribers.value(value, range)
-                }
-                break
-            }
-            default: assertUnreachable(currentContext[0])
+        if (getValueHandler() === null) {
+            throw new Error("unexpected value")
         }
+        getValueHandler().value(value, range)
     })
 }
 
-type ObjectContext1 = {
-    propertySubscribers: Array<PropertySubscribers>
-    endSubscribers: Array<(end: Location) => void>
-    currentKey: string
-    currentKeyRange: null | Range
+export type ObjectHandler = {
+    property: (key: string, keyRange: Range) => ValueHandler
+    end: (endLocation: Location) => void
 }
 
-
-export class ObjectContext {
-    private oc: ObjectContext1
-    readonly start: Location
-    constructor(oc: ObjectContext1, start: Location) {
-        this.oc = oc
-        this.start = start
-    }
-    onProperty(propertySubscribers: PropertySubscribers): void {
-        this.oc.propertySubscribers.push(propertySubscribers)
-    }
-    onEnd(subscriber: (end: Location) => void): void {
-        this.oc.endSubscribers.push(subscriber)
-    }
+export type ArrayHandler = {
+    element: () => ValueHandler
+    end: (endLocation: Location) => void
 }
 
-type ArrayContext1 = {
-    elementSubscribers: Array<ValueSubscribers>
-    endSubscribers: Array<(end: Location) => void>
+export type TypedUnionHandler = {
+    data: () => ValueHandler
 }
 
-export class ArrayContext {
-    readonly start: Location
-    private readonly ac: ArrayContext1
-    constructor(ac: ArrayContext1, start: Location) {
-        this.ac = ac
-        this.start = start
-    }
-    onElement(subscribers: ValueSubscribers): void {
-        this.ac.elementSubscribers.push(subscribers)
-    }
-    onEnd(subscriber: (end: Location) => void): void {
-        this.ac.endSubscribers.push(subscriber)
-    }
-}
-
-export type ValueSubscribers = {
-    object?: (objectContext: ObjectContext) => void
-    array?: (arrayContext: ArrayContext) => void
-    value?: (value: number | string | boolean | null, range: Range) => void
-}
-
-export type PropertySubscribers = {
-    object?: (key: string, objectContext: ObjectContext, keyRange: Range) => void
-    array?: (key: string, arrayContext: ArrayContext, keyRange: Range) => void
-    value?: (key: string, value: number | string | boolean | null, range: Range, keyRange: Range) => void
-}
-
-type RootContext1 = {
-    rootSubscribers: ValueSubscribers
-    schemaReference: null | string
-    schemaReferenceRange: null | Range
-
+export interface ValueHandler {
+    object: (startLocation: Location) => ObjectHandler
+    array: (startLocation: Location) => ArrayHandler
+    value: (value: number | string | boolean | null, range: Range) => void
+    typedunion: (option: string, startLocation: Location, optionRange: Range) => ValueHandler
 }
 
 type ContextType =
-    | ["root", RootContext1]
-    | ["object", ObjectContext1]
-    | ["array", ArrayContext1]
+    | ["root", { valueHandler: ValueHandler }]
+    | ["object", { objectHandler: ObjectHandler, valueHandler: null | ValueHandler }]
+    | ["array", { arrayHandler : ArrayHandler }]
+    | ["typedunion", { location: Location, valueHandler: null | ValueHandler }]
 
-function assertUnreachable(_x: never) {
+function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }

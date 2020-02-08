@@ -11,53 +11,41 @@ function printRange(range: Range) {
 
 function format(value: number | string | boolean | null) {
     if (typeof value === "string") {
-        return `"${value}"`
+        return `"${JSON.stringify(value)}"`
     } else {
         return value
     }
 }
 
-export function createPropertiesAnnotater(indentation: string, callback: (str: string) => void): sp.PropertySubscribers {
+export function createValuesAnnotater(indentation: string, callback: (str: string) => void): sp.ValueHandler {
     return {
-        array: (key, ac, keyRange) => {
-            callback(`${indentation}"${key}": [ // ${printRange(keyRange)} ${printLoc(ac.start)}`)
-            ac.onElement(createValuesAnnotater(`${indentation}\t`, callback, false))
-            ac.onEnd(end => {
-                callback(`${indentation}], // "${key}" ${printLoc(end)}`)
-            })
+        array: (startLocation) => {
+            callback(`${indentation}[ // ${printLoc(startLocation)}`)
+            return {
+                element: () => createValuesAnnotater(`${indentation}\t`, callback),
+                end: (end => {
+                    callback(`${indentation}] // ${printLoc(end)}`)
+                })
+            }
         },
-        object: (key, oc, keyRange) => {
-            callback(`${indentation}"${key}": { // ${printRange(keyRange)} ${printLoc(oc.start)}`)
-            oc.onProperty(createPropertiesAnnotater(`${indentation}\t`, callback))
-            oc.onEnd(end => {
-                callback(`${indentation}}, // "${key}" ${printLoc(end)}`)
-            })
-        },
-        value: (key, value, range, keyRange) => {
-            callback(`${indentation}"${key}": ${format(value)}, //${printRange(keyRange)} ${printRange(range)}`)
-        },
-    }
-}
-
-export function createValuesAnnotater(indentation: string, callback: (str: string) => void, isRoot: boolean): sp.ValueSubscribers {
-    const suffix = isRoot ? "" : ","
-    return {
-        array: (ac) => {
-            callback(`${indentation}[ // ${printLoc(ac.start)}`)
-            ac.onElement(createValuesAnnotater(`${indentation}\t`, callback, false))
-            ac.onEnd(end => {
-                callback(`${indentation}]${suffix} // ${printLoc(end)}`)
-            })
-        },
-        object: (oc) => {
-            callback(`${indentation}{ // ${printLoc(oc.start)}`)
-            oc.onProperty(createPropertiesAnnotater(`${indentation}\t`, callback))
-            oc.onEnd(end => {
-                callback(`${indentation}}${suffix} // ${printLoc(end)}`)
-            })
+        object: (startLocation) => {
+            callback(`${indentation}{ // ${printLoc(startLocation)}`)
+            return {
+                property: (key, _keyRange) => {
+                    callback(`${indentation}"${key}": `)
+                    return createValuesAnnotater(`${indentation}\t`, callback)
+                },
+                end: (end) => {
+                    callback(`${indentation}} // ${printLoc(end)}`)
+                },
+            }
         },
         value: (value, range) => {
-            callback(`${indentation}${format(value)}${suffix} // ${printRange(range)}`)
+            callback(`${indentation}${format(value)} // ${printRange(range)}`)
+        },
+        typedunion: (option, startLocation, range) => {
+            callback(`| ${indentation}"${JSON.stringify(option)}" // ${printLoc(startLocation)} ${printRange(range)}`)
+            return createValuesAnnotater(`${indentation}\t`, callback)
         },
     }
 }

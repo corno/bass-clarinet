@@ -119,7 +119,7 @@ export class Parser {
 
     private bufferCheckPosition = MAX_BUFFER_LENGTH
     private curChar = 0
-    closed = false
+    ended = false
     readonly opt: Options
 
     private readonly stack = new Array<Context>()
@@ -132,8 +132,7 @@ export class Parser {
 
     commentState: CommentState | null = null
 
-    onschemareference = new s.TwoArgumentsSubscribers<string, Range>()
-
+    onschemareference = new s.ThreeArgumentsSubscribers<string, Location, Range>()
 
     onclosearray = new s.OneArgumentSubscribers<Location>()
     onopenarray = new s.OneArgumentSubscribers<Location>()
@@ -159,7 +158,7 @@ export class Parser {
         if (INFO) console.log('-- emit', "onready")
         this.onready.signal()
         if (this.opt.require_schema_reference) {
-            this.state =[GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }]
+            this.state = [GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }]
         } else if (this.opt.allow?.schema_reference) {
             this.state = [GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
         } else {
@@ -171,7 +170,7 @@ export class Parser {
         if (this.state[0] === GlobalStateType.ERROR) {
             throw this.state[1].error
         }
-        if (this.closed) {
+        if (this.ended) {
             this.raiseError("Cannot write after close. Assign an onready handler.")
             return this
         }
@@ -419,7 +418,7 @@ export class Parser {
                                                 break
                                             }
                                             case StringTypeEnum.SCHEMA_REFERENCE: {
-                                                this.onschemareference.signal($.textNode, locationInfo)
+                                                this.onschemareference.signal($.textNode, $.stringType[1].startLocation, locationInfo)
                                                 this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }])
                                                 break
                                             }
@@ -704,7 +703,7 @@ export class Parser {
                                     this.processValue(curChar)
                                     break
                                 case RootState.EXPECTING_SCHEMA_REFERENCE:
-                                    this.initString([StringTypeEnum.SCHEMA_REFERENCE, {}], curChar)
+                                    this.initString([StringTypeEnum.SCHEMA_REFERENCE, { startLocation: this.getLocation() }], curChar)
                                     break
                                 case RootState.EXPECTING_SCHEMA_START:
                                     if (curChar !== Char.Schema.exclamationMark) {
@@ -775,7 +774,7 @@ export class Parser {
         if (this.state[0] === GlobalStateType.ERROR) {
             throw this.state[1].error
         }
-        if (this.closed) {
+        if (this.ended) {
             this.raiseError("Already closed.")
         }
         return this.end()
@@ -878,7 +877,7 @@ export class Parser {
         } else {
             this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }])
         }
-        this.closed = true
+        this.ended = true
         this.onend.signal()
         this.onready.signal()
         //CParser.call(parser, parser.opt)
