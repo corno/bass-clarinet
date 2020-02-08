@@ -29,7 +29,7 @@ const env: any = (typeof process === 'object' && process.env)
 export function parser(opt?: Options) { return new Parser(opt) }
 export const MAX_BUFFER_LENGTH = 64 * 1024
 const maxAllowed = Math.max(MAX_BUFFER_LENGTH, 10)
-export const DEBUG = true //(env.CDEBUG === 'debug')
+export const DEBUG = (env.CDEBUG === 'debug')
 export const INFO = (env.CDEBUG === 'debug' || env.CDEBUG === 'info')
 
 
@@ -650,20 +650,18 @@ export class Parser {
                                         this.closeObject(curChar, $.context)
                                     } else if (curChar === Char.Object.comma) {
                                         $.state = ObjectState.EXPECTING_KEY
+                                    } else if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
+                                        if (this.opt.allow?.missing_commas) {
+                                            this.processKey(curChar, $.context)
+                                        } else {
+                                            this.raiseError(`Bad object, missing comma`)
+                                        }
                                     } else {
                                         const closeCharacters = this.opt.allow?.parens_instead_of_braces ? "'}' or ')'" : "'}'"
-                                        if (this.getValueType(curChar) !== null) {
-                                            if (this.opt.allow?.missing_commas) {
-                                                this.processValue(curChar)
-                                            } else {
-                                                this.raiseError(`Bad object, expected ',' or ${closeCharacters} (missing commas are not allowed)`)
-                                            }
+                                        if (this.opt.allow?.missing_commas) {
+                                            this.raiseError(`Bad object, expected ',' or ${closeCharacters} or a value`)
                                         } else {
-                                            if (this.opt.allow?.missing_commas) {
-                                                this.raiseError(`Bad object, expected ',' or ${closeCharacters} or a value`)
-                                            } else {
-                                                this.raiseError(`Bad object, expected ',' or ${closeCharacters}`)
-                                            }
+                                            this.raiseError(`Bad object, expected ',' or ${closeCharacters}`)
                                         }
                                     }
                                     break
