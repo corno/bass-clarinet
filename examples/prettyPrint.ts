@@ -13,7 +13,7 @@ const data = fs.readFileSync(path, {encoding: "utf-8"})
 
 function format(value: number | string | boolean | null) {
     if (typeof value === "string") {
-        return `"${JSON.stringify(value)}"`
+        return `${JSON.stringify(value)}`
     } else {
         return value
     }
@@ -21,46 +21,41 @@ function format(value: number | string | boolean | null) {
 
 
 export function createValuesPrettyPrinter(indentation: string, callback: (str: string) => void): sp.ValueHandler {
-    let suffix = ""
     return {
-        array: (_location) => {
-            callback(`${suffix}${indentation}[`)
+        array: (_location, openCharacter) => {
+            callback(openCharacter)
             return {
                 element: () => createValuesPrettyPrinter(`${indentation}\t`, callback),
-                end: (() => {
-                    callback(`${indentation}]`)
-                    suffix = ", "
+                end: ((_location, endCharacter) => {
+                    callback(`${indentation}${endCharacter}`)
                 })
             }
 
         },
-        object: (_location) => {
-            callback(`${suffix}${indentation}{`)
+        object: (_location, openCharacter) => {
+            callback(openCharacter)
             return {
                 property: (key, _keyRange) => {
-                    callback(`${suffix}${indentation}"${key}": `)
+                    callback(`${indentation}\t"${key}": `)
                     return createValuesPrettyPrinter(`${indentation}\t`, callback)
                 },
-                end: () => {
-                    callback(`${indentation}]`)
-                    suffix = ", "
+                end: (_location, endCharacter) => {
+                    callback(`${indentation}${endCharacter}`)
                 }
             }
         },
         value: (value) => {
-            callback(`${suffix}${indentation}${format(value)}`)
-            suffix = ", "
+            callback(`${format(value)}`)
         },
         typedunion: (option, _unionStart, _optionRange) => {
-            callback(`${suffix}${indentation}| "${option}"`)
-            suffix = ", "
+            callback(`| "${option}"`)
             return createValuesPrettyPrinter(`${indentation}\t`, callback)
         },
     }
 }
 
 const parser = new Parser({ allow: lax})
-sp.subscribeStack(parser, createValuesPrettyPrinter("\r\n", str => process.stdout.write(str)))
+sp.subscribeStack(parser, createValuesPrettyPrinter("\r\n", str => process.stdout.write(str)), err => { console.error("FOUND ERROR", err.message) })
 parser.write(data)
 parser.end()
 
