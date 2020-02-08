@@ -28,3 +28,13 @@ export class TwoArgumentsSubscribers<T, U> {
         this.subscribers.push(subscriber)
     }
 }
+
+export class ThreeArgumentsSubscribers<T, U, V> {
+    subscribers = new Array<(t: T, u: U, v: V) => void>()
+    signal(t: T, u: U, v: V) {
+        this.subscribers.forEach(s => s(t, u, v))
+    }
+    subscribe(subscriber: (t: T, u: U, v: V) => void) {
+        this.subscribers.push(subscriber)
+    }
+}
