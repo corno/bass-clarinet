@@ -29,7 +29,7 @@ const env: any = (typeof process === 'object' && process.env)
 export function parser(opt?: Options) { return new Parser(opt) }
 export const MAX_BUFFER_LENGTH = 64 * 1024
 const maxAllowed = Math.max(MAX_BUFFER_LENGTH, 10)
-export const DEBUG = (env.CDEBUG === 'debug')
+export const DEBUG = true //(env.CDEBUG === 'debug')
 export const INFO = (env.CDEBUG === 'debug' || env.CDEBUG === 'info')
 
 
@@ -134,15 +134,15 @@ export class Parser {
 
     onschemareference = new s.ThreeArgumentsSubscribers<string, Location, Range>()
 
-    onclosearray = new s.OneArgumentSubscribers<Location>()
-    onopenarray = new s.OneArgumentSubscribers<Location>()
+    onopenarray = new s.TwoArgumentsSubscribers<Location, string>()
+    onclosearray = new s.TwoArgumentsSubscribers<Location, string>()
 
     onopentypedunion = new s.OneArgumentSubscribers<Location>()
     onclosetypedunion = new s.NoArgumentSubscribers()
     onoption = new s.TwoArgumentsSubscribers<string, Range>()
 
-    oncloseobject = new s.OneArgumentSubscribers<Location>()
-    onopenobject = new s.OneArgumentSubscribers<Location>()
+    onopenobject = new s.TwoArgumentsSubscribers<Location, string>()
+    oncloseobject = new s.TwoArgumentsSubscribers<Location, string>()
     onkey = new s.TwoArgumentsSubscribers<string, Range>()
 
     onvalue = new s.TwoArgumentsSubscribers<string | boolean | null | number, Range>()
@@ -221,7 +221,10 @@ export class Parser {
 
             if (DEBUG) {
                 const stateInfo = (this.commentState !== null ? "*comment*" : getStateDescription(this.state))
-                console.log(stateInfo.padEnd(30, " "), currentChunkIndex, curChar, String.fromCharCode(curChar), this.position, this.line, this.column)
+                let char = (curChar === Char.Whitespace.tab) ? "\\t" : String.fromCharCode(curChar)
+
+
+                console.log(`${stateInfo.padEnd(35)}${char.padStart(2)} ${("(" + curChar + ")").padEnd(5)} ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`, currentChunkIndex)
             }
             if (!isNaN(curChar)) {
                 this.position++
@@ -805,7 +808,7 @@ export class Parser {
         } else if (context.openChar === Char.Object.openBrace && curChar !== Char.Object.closeBrace) {
             this.raiseError("must close object with '}'")
         } else {
-            this.oncloseobject.signal(this.getLocation())
+            this.oncloseobject.signal(this.getLocation(), String.fromCharCode(curChar))
             this.pop()
         }
     }
@@ -815,7 +818,7 @@ export class Parser {
         } else if (context.openChar === Char.Array.openAngleBracket && curChar !== Char.Array.closeAngleBracket) {
             this.raiseError("must close object with '>'")
         } else {
-            this.onclosearray.signal(this.getLocation())
+            this.onclosearray.signal(this.getLocation(), String.fromCharCode(curChar))
             this.pop()
         }
     }
@@ -829,11 +832,7 @@ export class Parser {
     }
 
     private raiseError(er: string) {
-        er += `
-        Line: ${this.line}
-        Column: ${this.column}
-        Char: '${String.fromCharCode(this.curChar)}'
-        Char#: ${this.curChar}`
+        er += ` @ ${this.line}:${this.column} '${String.fromCharCode(this.curChar)}' (${this.curChar})`
         const error = new Error(er)
         this.setState([GlobalStateType.ERROR, { error: error }])
         if (DEBUG) { console.log("error raised:", er) }
@@ -923,7 +922,7 @@ export class Parser {
                         const arrayContext = { openChar: curChar }
                         this.currentContext = [ContextType.ARRAY, arrayContext]
                         this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END, context: arrayContext }])
-                        this.onopenarray.signal(this.getLocation())
+                        this.onopenarray.signal(this.getLocation(), String.fromCharCode(curChar))
                     } else {
                         this.raiseError("angle brackets are not allowed")
                     }
@@ -952,7 +951,7 @@ export class Parser {
                         const objectContext = { openChar: curChar }
                         this.currentContext = [ContextType.OBJECT, objectContext]
                         this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, context: objectContext }])
-                        this.onopenobject.signal(this.getLocation())
+                        this.onopenobject.signal(this.getLocation(), String.fromCharCode(curChar))
                     } else {
                         this.raiseError("parens are not allowed")
                     }
