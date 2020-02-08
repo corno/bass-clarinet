@@ -144,7 +144,7 @@ export class Parser {
     oncloseobject = new s.OneArgumentSubscribers<Location>()
     onopenobject = new s.OneArgumentSubscribers<Location>()
     onkey = new s.TwoArgumentsSubscribers<string, Range>()
-    
+
     onvalue = new s.TwoArgumentsSubscribers<string | boolean | null | number, Range>()
 
     onend = new s.NoArgumentSubscribers()
@@ -866,22 +866,13 @@ export class Parser {
         }
         if (this.state[0] !== GlobalStateType.ROOT || this.state[1].state !== RootState.EXPECTING_END || this.stack.length !== 0) {
             this.raiseError("Unexpected end, " + getStateDescription(this.state))
-            return this
+            return
         }
 
-        this.curChar = 0
-        if (this.opt.require_schema_reference) {
-            this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }])
-        } else if (this.opt.allow?.schema_reference) {
-            this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }])
-        } else {
-            this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }])
-        }
         this.ended = true
         this.onend.signal()
         this.onready.signal()
         //CParser.call(parser, parser.opt)
-        return this
     }
     private setState(newState: GlobalState) {
         if (DEBUG) {
