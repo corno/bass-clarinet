@@ -48,8 +48,8 @@ export function createValuesPrettyPrinter(indentation: string, callback: (str: s
             callback(`${format(value)}`)
         },
         typedunion: (option, _unionStart, _optionRange) => {
-            callback(`| "${option}"`)
-            return createValuesPrettyPrinter(`${indentation}\t`, callback)
+            callback(`| "${option}" `)
+            return createValuesPrettyPrinter(`${indentation}`, callback)
         },
     }
 }
