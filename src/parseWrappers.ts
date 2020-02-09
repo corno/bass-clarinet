@@ -9,6 +9,49 @@ function printRange(range: Range) {
     return `${range.start.line}:${range.start.column}-${range.start.line === range.end.line ? "" : range.end.line + ":"}${range.end.column}`
 }
 
+
+export function expectText(callback: (value: string) => void): ValueHandler {
+    return {
+        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
+        object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
+        value: (value, range) => {
+            if (typeof value !== `string`) {
+                throw new Error(`value is not a string @ ${printRange(range)}`)
+            }
+            callback(value)
+        },
+        typedunion: (_option, location) => { throw new Error(`unexpected typed union @ ${printLocation(location)}`) },
+    }
+}
+
+export function expectNumber(callback: (value: number) => void): ValueHandler {
+    return {
+        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
+        object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
+        value: (value, range) => {
+            if (typeof value !== `number`) {
+                throw new Error(`value is not a number @ ${printRange(range)}`)
+            }
+            callback(value)
+        },
+        typedunion: (_option, location) => { throw new Error(`unexpected typed union @ ${printLocation(location)}`) },
+    }
+}
+
+export function expectBoolean(callback: (value: boolean) => void): ValueHandler {
+    return {
+        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
+        object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
+        value: (value, range) => {
+            if (typeof value !== `boolean`) {
+                throw new Error(`value is not a boolean @ ${printRange(range)}`)
+            }
+            callback(value)
+        },
+        typedunion: (_option, location) => { throw new Error(`unexpected typed union @ ${printLocation(location)}`) },
+    }
+}
+
 export function expectObject(onProperty: (key: string, range: Range) => ValueHandler, onEnd: (start: Location, end: Location) => void): ValueHandler {
     return {
         array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
@@ -53,48 +96,6 @@ export function expectMetaObject(expectedProperties: { [key: string]: ValueHandl
     )
 }
 
-export function expectText(callback: (value: string) => void): ValueHandler {
-    return {
-        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
-        object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
-        value: (value, range) => {
-            if (typeof value !== `string`) {
-                throw new Error(`value is not a string @ ${printRange(range)}`)
-            }
-            callback(value)
-        },
-        typedunion: (_option, location) => { throw new Error(`unexpected typed union @ ${printLocation(location)}`) },
-    }
-}
-
-export function expectNumber(callback: (value: number) => void): ValueHandler {
-    return {
-        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
-        object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
-        value: (value, range) => {
-            if (typeof value !== `number`) {
-                throw new Error(`value is not a number @ ${printRange(range)}`)
-            }
-            callback(value)
-        },
-        typedunion: (_option, location) => { throw new Error(`unexpected typed union @ ${printLocation(location)}`) },
-    }
-}
-
-export function expectBoolean(callback: (value: boolean) => void): ValueHandler {
-    return {
-        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
-        object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
-        value: (value, range) => {
-            if (typeof value !== `boolean`) {
-                throw new Error(`value is not a boolean @ ${printRange(range)}`)
-            }
-            callback(value)
-        },
-        typedunion: (_option, location) => { throw new Error(`unexpected typed union @ ${printLocation(location)}`) },
-    }
-}
-
 export function expectTypedUnion(callback: (option: string) => ValueHandler): ValueHandler {
     return {
         array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
@@ -119,7 +120,7 @@ export function expectTypedUnionOrArrayEquivalent(callback: (option: string) => 
                     return {
                         array: (startLocation, openCharacter) => {
                             if (dataHandler === null) {
-                                throw new Error(`unexected array @ ...`)
+                                throw new Error(`unexected array @ ${printLocation(startLocation)}`)
                             }
                             const dh = dataHandler
                             dataHandler = null
@@ -127,7 +128,7 @@ export function expectTypedUnionOrArrayEquivalent(callback: (option: string) => 
                         },
                         object: (startLocation, openCharacter) => { 
                             if (dataHandler === null) {
-                                throw new Error(`unexected object @ ...`)
+                                throw new Error(`unexected object @ ${printLocation(startLocation)}`)
                             }
                             const dh = dataHandler
                             dataHandler = null
@@ -136,7 +137,7 @@ export function expectTypedUnionOrArrayEquivalent(callback: (option: string) => 
                         value: (value, range) => {
                             if (dataHandler === null) {
                                 if (typeof value !== "string") {
-                                    throw new Error(`expected string @ ...`)
+                                    throw new Error(`expected string @ ${printRange(range)}`)
                                 }
                                 dataHandler = callback(value)
                             } else {
@@ -145,7 +146,7 @@ export function expectTypedUnionOrArrayEquivalent(callback: (option: string) => 
                         },
                         typedunion: (option, startLocation, optionRange) => {
                             if (dataHandler === null) {
-                                throw new Error(`unexected typed union @ ...`)
+                                throw new Error(`unexected typed union @ ${printLocation(startLocation)}`)
                             }
                             const dh = dataHandler
                             dataHandler = null
@@ -154,9 +155,9 @@ export function expectTypedUnionOrArrayEquivalent(callback: (option: string) => 
                         },
                     }
                 },
-                end: () => {
+                end: (endLocation) => {
                     if (dataHandler === null) {
-                        throw new Error(`missing option @ ...`)
+                        throw new Error(`missing option @ ${printLocation(endLocation)}`)
                     }
                 }
             }
