@@ -55,7 +55,7 @@ describe('parsing', () => {
                     }
                     break
                 default:
-                    console.log("unknown expected result: " + expected)
+                    throw new Error("unknown expected result: " + expected)
             }
         })
     })
