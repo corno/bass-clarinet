@@ -4,7 +4,9 @@ import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition } from "./testDefinition"
-import { Options, Location, GlobalStateType } from "../src/parserTypes"
+import { Options, GlobalStateType } from "../src/parserTypes"
+import { Location } from "../src/location"
+
 
 const DEBUG = false
 

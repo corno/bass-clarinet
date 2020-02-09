@@ -1,13 +1,7 @@
 import { ValueHandler } from "./subscribeStack"
-import { Location, Range } from "./parserTypes"
+import { Location, Range, printLocation, printRange } from "./location"
 
 
-function printLocation(location: Location) {
-    return `${location.line}:${location.column}`
-}
-function printRange(range: Range) {
-    return `${range.start.line}:${range.start.column}-${range.start.line === range.end.line ? "" : range.end.line + ":"}${range.end.column}`
-}
 
 
 export function expectText(callback: (value: string) => void): ValueHandler {
@@ -116,6 +110,7 @@ export function expectList(onElement: (startLocation: Location) => ValueHandler)
 
 export function expectMetaArray(expectedElements: ValueHandler[], onEnd: () => void) {
     let index = 0
+    console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     return expectArray(
         arrayStartLocation => {
             const ee = expectedElements[index]

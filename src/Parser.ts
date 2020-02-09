@@ -16,12 +16,11 @@ import {
     ValueType,
     ObjectContext,
     ArrayContext,
-    Range,
-    Location,
     StringType,
     Allow,
     TypedUnionState,
 } from "./parserTypes"
+import { Location, Range } from "./location"
 
 const env: any = (typeof process === 'object' && process.env)
     ? process.env

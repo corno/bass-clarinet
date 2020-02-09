@@ -1,3 +1,5 @@
+import { Location } from "./location"
+
 export type Allow = {
     trailing_commas?: boolean
     parens_instead_of_braces?: boolean
@@ -8,7 +10,6 @@ export type Allow = {
     typed_unions?: boolean
     schema_reference?: boolean
 }
-
 
 export type Options = {
     spaces_per_tab?: number
@@ -123,17 +124,6 @@ export enum ContextType {
     OBJECT,
     ARRAY,
     TYPED_UNION,
-}
-
-export type Location = {
-    readonly position: number,
-    readonly line: number,
-    readonly column: number,
-}
-
-export type Range = {
-    start: Location
-    end: Location
 }
 
 export type Unicode = {

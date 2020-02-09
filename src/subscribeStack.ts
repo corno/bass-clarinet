@@ -1,5 +1,5 @@
 import { Parser } from "./Parser";
-import { Range, Location } from "./parserTypes"
+import { Location, Range } from "./location"
 
 const DEBUG = false
 
