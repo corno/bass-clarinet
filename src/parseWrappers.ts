@@ -44,7 +44,7 @@ export function expectMetaObject(expectedProperties: { [key: string]: ValueHandl
         (startLocation) => {
             Object.keys(expectedProperties).forEach(ep => {
                 if (foundProperies.indexOf(ep) === -1) {
-                    throw new Error(`missing property: '${ep}' @ ${startLocation}`)//FIX print location properly
+                    throw new Error(`missing property: '${ep}' @ ${printLocation(startLocation)}`)//FIX print location properly
                 }
             })
             onEnd()
