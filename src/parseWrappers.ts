@@ -33,7 +33,7 @@ export function expectMetaObject(expectedProperties: { [key: string]: ValueHandl
     return expectObject(
         (key, range) => {
             if (foundProperies.indexOf(key) !== -1) {
-                throw new Error(`property already processed: '${key}' @ ${printRa(range)}`)//FIX print range properly
+                throw new Error(`property already processed: '${key}' @ ${printRange(range)}`)//FIX print range properly
             }
             const expected = expectedProperties[key]
             if (expected === undefined) {
