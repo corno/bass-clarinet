@@ -12,57 +12,57 @@ function printRange(range: Range) {
 
 export function expectText(callback: (value: string) => void): ValueHandler {
     return {
-        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
-        object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
+        array: (location) => { throw new Error(`expected text but found array  @ ${printLocation(location)}`) },
+        object: (location) => { throw new Error(`expected text but found object @ ${printLocation(location)}`) },
         value: (value, range) => {
             if (typeof value !== `string`) {
                 throw new Error(`value is not a string @ ${printRange(range)}`)
             }
             callback(value)
         },
-        typedunion: (_option, location) => { throw new Error(`unexpected typed union @ ${printLocation(location)}`) },
+        typedunion: (_option, location) => { throw new Error(`expected text but found typed union @ ${printLocation(location)}`) },
     }
 }
 
 export function expectNumber(callback: (value: number) => void): ValueHandler {
     return {
-        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
-        object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
+        array: (location) => { throw new Error(`expected number but found array  @ ${printLocation(location)}`) },
+        object: (location) => { throw new Error(`expected number but found object @ ${printLocation(location)}`) },
         value: (value, range) => {
             if (typeof value !== `number`) {
                 throw new Error(`value is not a number @ ${printRange(range)}`)
             }
             callback(value)
         },
-        typedunion: (_option, location) => { throw new Error(`unexpected typed union @ ${printLocation(location)}`) },
+        typedunion: (_option, location) => { throw new Error(`expected number but found typed union @ ${printLocation(location)}`) },
     }
 }
 
 export function expectBoolean(callback: (value: boolean) => void): ValueHandler {
     return {
-        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
-        object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
+        array: (location) => { throw new Error(`expected boolean but found array  @ ${printLocation(location)}`) },
+        object: (location) => { throw new Error(`expected boolean but found object @ ${printLocation(location)}`) },
         value: (value, range) => {
             if (typeof value !== `boolean`) {
                 throw new Error(`value is not a boolean @ ${printRange(range)}`)
             }
             callback(value)
         },
-        typedunion: (_option, location) => { throw new Error(`unexpected typed union @ ${printLocation(location)}`) },
+        typedunion: (_option, location) => { throw new Error(`expected boolean but found typed union @ ${printLocation(location)}`) },
     }
 }
 
 export function expectObject(onProperty: (key: string, range: Range) => ValueHandler, onEnd: (start: Location, end: Location) => void): ValueHandler {
     return {
-        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
+        array: (location) => { throw new Error(`expected object but found array  @ ${printLocation(location)}`) },
         object: (startLocation) => {
             return {
                 property: onProperty,
                 end: (endLocation) => onEnd(startLocation, endLocation),
             }
         },
-        value: (_value, range) => { throw new Error(`unexpected value  @ ${printRange(range)}`) },
-        typedunion: (_option, location) => { throw new Error(`unexpected typed union  @ ${printLocation(location)}`) },
+        value: (_value, range) => { throw new Error(`expected object but found value  @ ${printRange(range)}`) },
+        typedunion: (_option, location) => { throw new Error(`expected object but found typed union  @ ${printLocation(location)}`) },
     }
 }
 
@@ -104,9 +104,9 @@ export function expectArray(onElement: (startLocation: Location) => ValueHandler
                 end: (endLocation) => onEnd(startLocation, endLocation),
             }
         },
-        object: (location) => { throw new Error(`unexpected object  @ ${printLocation(location)}`) },
-        value: (_value, range) => { throw new Error(`unexpected value  @ ${printRange(range)}`) },
-        typedunion: (_option, location) => { throw new Error(`unexpected typed union  @ ${printLocation(location)}`) },
+        object: (location) => { throw new Error(`expected array but found object  @ ${printLocation(location)}`) },
+        value: (_value, range) => { throw new Error(`expected array but found value  @ ${printRange(range)}`) },
+        typedunion: (_option, location) => { throw new Error(`expected array but found typed union  @ ${printLocation(location)}`) },
     }
 }
 
@@ -119,10 +119,10 @@ export function expectMetaArray(expectedElements: ValueHandler[], onEnd: () => v
     return expectArray(
         arrayStartLocation => {
             const ee = expectedElements[index]
-            if (ee === undefined) {
-                throw new Error(`more elements than expected: @ ${printLocation(arrayStartLocation)}`)//FIX print range properly
-            }
             index++
+            if (ee === undefined) {
+                throw new Error(`found more than the expected ${expectedElements.length} element(s): @ ${printLocation(arrayStartLocation)}`)//FIX print range properly
+            }
             return ee
         },
         (endLocation) => {
@@ -137,9 +137,9 @@ export function expectMetaArray(expectedElements: ValueHandler[], onEnd: () => v
 
 export function expectTypedUnion(callback: (option: string) => ValueHandler): ValueHandler {
     return {
-        array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
-        object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
-        value: (_value, range) => { throw new Error(`unexpected value  @ ${printRange(range)}`) },
+        array: (location) => { throw new Error(`expected typed union but found array  @ ${printLocation(location)}`) },
+        object: (location) => { throw new Error(`expected typed union but found object @ ${printLocation(location)}`) },
+        value: (_value, range) => { throw new Error(`expected typed union but found value  @ ${printRange(range)}`) },
         typedunion: (option) => {
             return callback(option)
         },
@@ -201,8 +201,8 @@ export function expectTypedUnionOrArrayEquivalent(callback: (option: string) => 
                 }
             }
         },
-        object: (_location) => { throw new Error(`unexpected object @ ...`) },
-        value: (_value, _range) => { throw new Error(`unexpected value  ...`) },
+        object: (_location) => { throw new Error(`expected typed union but found object @ ...`) },
+        value: (_value, _range) => { throw new Error(`expected typed union but found value  ...`) },
         typedunion: (option) => {
             return callback(option)
         },
