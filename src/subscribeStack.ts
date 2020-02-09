@@ -34,24 +34,8 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
     function pop() {
         const previousContext = stack.pop()
         if (previousContext === undefined) {
-            throw new Error("stack panic")
+            throw new Error("stack panic; lost context")
         }
-        // switch (previousContext[0]) {
-        //     case "array": {
-        //         break
-        //     }
-        //     case "object": {
-        //         break
-        //     }
-        //     case "root": {
-        //         break
-        //     }
-        //     case "typedunion": {
-        //         break
-        //     }
-        //     default:
-        //         return assertUnreachable(previousContext[0])
-        // }
         currentContext = previousContext
     }
     function initValueHandler(location: Location): ValueHandler {
@@ -61,7 +45,7 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
             }
             case "object": {
                 if (currentContext[1].valueHandler === null) {
-                    throw new Error("unexpected value in object")
+                    throw new Error("stack panic; unexpected value in object")
                 }
                 return currentContext[1].valueHandler
             }
@@ -70,7 +54,7 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
             }
             case "typedunion": {
                 if (currentContext[1].valueHandler === null) {
-                    throw new Error("unexpected value in typed union")
+                    throw new Error("stack panic; unexpected value in typed union")
                 }
                 return currentContext[1].valueHandler
             }
@@ -87,7 +71,7 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
     })
     p.onclosearray.subscribe((location, endCharacter) => {
         if (currentContext[0] !== "array") {
-            throw new Error("unexpected end of array")
+            throw new Error("stack panic; unexpected end of array")
         } else {
             currentContext[1].arrayHandler.end(location, endCharacter)
         }
@@ -102,14 +86,14 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
     p.onoption.subscribe((option, range) => {
         if (DEBUG) { console.log("on option", option)}
         if (currentContext[0] !== "typedunion") {
-            throw new Error("unexpected option")
+            throw new Error("stack panic; unexpected option")
         }
         currentContext[1].valueHandler = currentContext[1].parentValueHandler.typedunion(option, currentContext[1].location, range)
     })
     p.onclosetypedunion.subscribe(() => {
         if (DEBUG) { console.log("on close typed union")}
         if (currentContext[0] !== "typedunion") {
-            throw new Error("unexpected end of typed union")
+            throw new Error("stack panic; unexpected end of typed union")
         }
         pop()
     })
@@ -118,7 +102,7 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
         if (DEBUG) { console.log("on open object")}
         const vh = initValueHandler(location)
         if (vh === null) {
-            throw new Error("unexpected value")
+            throw new Error("stack panic; unexpected value")
         }
         const objectHandler = vh.object(location, openCharacter)
         stack.push(currentContext)
@@ -130,7 +114,7 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
     p.oncloseobject.subscribe((location, endCharacter) => {
         if (DEBUG) { console.log("on close object")}
         if (currentContext[0] !== "object") {
-            throw new Error("unexpected end of object")
+            throw new Error("stack panic; unexpected end of object")
         }
         currentContext[1].objectHandler.end(location, endCharacter)
         pop()
@@ -138,7 +122,7 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
     p.onkey.subscribe((key, range) => {
         if (DEBUG) { console.log("on key", key)}
         if (currentContext[0] !== "object") {
-            throw new Error("unexpected key")
+            throw new Error("stack panic; unexpected key")
         }
         currentContext[1].valueHandler = currentContext[1].objectHandler.property(key, range)
     })
@@ -147,7 +131,7 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
         if (DEBUG) { console.log("on value", value)}
         const vh = initValueHandler(range.start)
         if (vh === null) {
-            throw new Error("unexpected value")
+            throw new Error("stack panic; unexpected value")
         }
         vh.value(value, range)
     })
