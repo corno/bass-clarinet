@@ -54,10 +54,10 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
         // }
         currentContext = previousContext
     }
-    function getValueHandler(): ValueHandler {
+    function initValueHandler(location: Location): ValueHandler {
         switch (currentContext[0]) {
             case "array": {
-                return currentContext[1].arrayHandler.element()
+                return currentContext[1].arrayHandler.element(location)
             }
             case "object": {
                 if (currentContext[1].valueHandler === null) {
@@ -81,7 +81,7 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
     p.onerror.subscribe(err => onError(err))
 
     p.onopenarray.subscribe((location, openCHaracter) => {
-        const arrayHandler = getValueHandler().array(location, openCHaracter)
+        const arrayHandler = initValueHandler(location).array(location, openCHaracter)
         stack.push(currentContext)
         currentContext = ["array", { arrayHandler: arrayHandler}]
     })
@@ -97,7 +97,7 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
     p.onopentypedunion.subscribe(location => {
         if (DEBUG) { console.log("on open typed union")}
         stack.push(currentContext)
-        currentContext = ["typedunion", { location: location, parentValueHandler: getValueHandler(), valueHandler: null }]
+        currentContext = ["typedunion", { location: location, parentValueHandler: initValueHandler(location), valueHandler: null }]
     })
     p.onoption.subscribe((option, range) => {
         if (DEBUG) { console.log("on option", option)}
@@ -116,10 +116,11 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
 
     p.onopenobject.subscribe((location, openCharacter) => {
         if (DEBUG) { console.log("on open object")}
-        if (getValueHandler() === null) {
+        const vh = initValueHandler(location)
+        if (vh === null) {
             throw new Error("unexpected value")
         }
-        const objectHandler = getValueHandler().object(location, openCharacter)
+        const objectHandler = vh.object(location, openCharacter)
         stack.push(currentContext)
         currentContext = ["object", {
             objectHandler: objectHandler,
@@ -144,10 +145,11 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
 
     p.onsimplevalue.subscribe((value, range) => {
         if (DEBUG) { console.log("on value", value)}
-        if (getValueHandler() === null) {
+        const vh = initValueHandler(range.start)
+        if (vh === null) {
             throw new Error("unexpected value")
         }
-        getValueHandler().value(value, range)
+        vh.value(value, range)
     })
 }
 
@@ -157,7 +159,7 @@ export type ObjectHandler = {
 }
 
 export type ArrayHandler = {
-    element: () => ValueHandler
+    element: (startLocation: Location) => ValueHandler
     end: (endLocation: Location, closeCharacter: string) => void
 }
 
