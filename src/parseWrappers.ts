@@ -35,6 +35,7 @@ export function expectMetaObject(expectedProperties: { [key: string]: ValueHandl
             if (foundProperies.indexOf(key) !== -1) {
                 throw new Error(`property already processed: '${key}' @ ${printRange(range)}`)//FIX print range properly
             }
+            foundProperies.push(key)
             const expected = expectedProperties[key]
             if (expected === undefined) {
                 throw new Error(`unexpected property: '${key}' @ ${printRange(range)}`)//FIX print range properly
@@ -99,6 +100,69 @@ export function expectTypedUnion(callback: (option: string) => ValueHandler): Va
         array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
         object: (location) => { throw new Error(`unexpected object @ ${printLocation(location)}`) },
         value: (_value, range) => { throw new Error(`unexpected value  @ ${printRange(range)}`) },
+        typedunion: (option) => {
+            return callback(option)
+        },
+    }
+}
+
+/**
+ * this parses values in the form of `| "option" <data value>` or `[ "option", <data value> ]`
+ * @param callback 
+ */
+export function expectTypedUnionOrArrayEquivalent(callback: (option: string) => ValueHandler): ValueHandler {
+    return {
+        array: () => {
+            let dataHandler: ValueHandler | null = null
+            return {
+                element: () => {
+                    return {
+                        array: (startLocation, openCharacter) => {
+                            if (dataHandler === null) {
+                                throw new Error(`unexected array @ ...`)
+                            }
+                            const dh = dataHandler
+                            dataHandler = null
+                            return dh.array(startLocation, openCharacter)
+                        },
+                        object: (startLocation, openCharacter) => { 
+                            if (dataHandler === null) {
+                                throw new Error(`unexected object @ ...`)
+                            }
+                            const dh = dataHandler
+                            dataHandler = null
+                            return dh.object(startLocation, openCharacter)
+                         },
+                        value: (value, range) => {
+                            if (dataHandler === null) {
+                                if (typeof value !== "string") {
+                                    throw new Error(`expected string @ ...`)
+                                }
+                                dataHandler = callback(value)
+                            } else {
+                                dataHandler.value(value, range)
+                            }
+                        },
+                        typedunion: (option, startLocation, optionRange) => {
+                            if (dataHandler === null) {
+                                throw new Error(`unexected typed union @ ...`)
+                            }
+                            const dh = dataHandler
+                            dataHandler = null
+                            return dh.typedunion(option, startLocation, optionRange)
+                            
+                        },
+                    }
+                },
+                end: () => {
+                    if (dataHandler === null) {
+                        throw new Error(`missing option @ ...`)
+                    }
+                }
+            }
+        },
+        object: (_location) => { throw new Error(`unexpected object @ ...`) },
+        value: (_value, _range) => { throw new Error(`unexpected value  ...`) },
         typedunion: (option) => {
             return callback(option)
         },
