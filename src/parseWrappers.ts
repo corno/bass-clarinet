@@ -96,6 +96,45 @@ export function expectMetaObject(expectedProperties: { [key: string]: ValueHandl
     )
 }
 
+export function expectArray(onElement: (startLocation: Location) => ValueHandler, onEnd: (start: Location, end: Location) => void): ValueHandler {
+    return {
+        array: (startLocation) => {
+            return {
+                element: () => onElement(startLocation),
+                end: (endLocation) => onEnd(startLocation, endLocation),
+            }
+        },
+        object: (location) => { throw new Error(`unexpected object  @ ${printLocation(location)}`) },
+        value: (_value, range) => { throw new Error(`unexpected value  @ ${printRange(range)}`) },
+        typedunion: (_option, location) => { throw new Error(`unexpected typed union  @ ${printLocation(location)}`) },
+    }
+}
+
+export function expectList(onElement: (startLocation: Location) => ValueHandler): ValueHandler {
+    return expectArray(onElement, () => {})
+}
+
+export function expectMetaArray(expectedElements: ValueHandler[], onEnd: () => void) {
+    let index = 0
+    return expectArray(
+        arrayStartLocation => {
+            const ee = expectedElements[index]
+            if (ee === undefined) {
+                throw new Error(`more elements than expected: @ ${printLocation(arrayStartLocation)}`)//FIX print range properly
+            }
+            index++
+            return ee
+        },
+        (endLocation) => {
+            const missing = expectedElements.length - index
+            if (missing > 0 ) {
+                throw new Error(`elements missing @ ${printLocation(endLocation)}`)
+            }
+            onEnd()
+        }
+    )
+}
+
 export function expectTypedUnion(callback: (option: string) => ValueHandler): ValueHandler {
     return {
         array: (location) => { throw new Error(`unexpected array  @ ${printLocation(location)}`) },
