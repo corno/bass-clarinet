@@ -192,7 +192,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         });
         parser.end()
         if (expectedEvents.length !== 0) {
-            console.log("expected events left")
+            console.log("expected more events")
             while (true) {
                 const ee = expectedEvents.pop()
                 if (ee === undefined) {
@@ -200,6 +200,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 }
                 console.log(ee)
             }
+            throw new Error("expected more events")
         }
     };
 }
