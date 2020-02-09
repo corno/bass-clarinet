@@ -7,7 +7,7 @@
     <script type="text/javascript" src="../clarinet.js"></script>
     <script type="text/javascript">
     var parser = exports.parser();
-    parser.onvalue = function (v) {
+    parser.onsimplevalue = function (v) {
       console.log("Value: " + v);
     };
     parser.onkey = function (key) {

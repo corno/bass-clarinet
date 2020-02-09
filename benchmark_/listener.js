@@ -34,7 +34,7 @@ class Listener {
       this.closeArray++;
     };
     
-    parser.onvalue = () => {
+    parser.onsimplevalue = () => {
       this.value++;
     };
     

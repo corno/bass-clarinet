@@ -38,7 +38,7 @@ class TestListener {
       this.closeContainer();
     };
 
-    parser.onvalue = (value) => {
+    parser.onsimplevalue = (value) => {
       this.pushOrSet(value);
     };
 

@@ -9,8 +9,8 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["openarray", undefined],
-            ["value", 1],
-            ["value", 2],
+            ["simplevalue", 1],
+            ["simplevalue", 2],
             ["closearray", undefined],
             ["end", undefined],
             ["ready", undefined]
@@ -23,8 +23,8 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["openarray", undefined],
-            ["value", 1],
-            ["value", 2],
+            ["simplevalue", 1],
+            ["simplevalue", 2],
             ["closearray", undefined],
             ["end", undefined],
             ["ready", undefined],
@@ -37,8 +37,8 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["openarray", undefined],
-            ["value", 1],
-            ["value", 2],
+            ["simplevalue", 1],
+            ["simplevalue", 2],
             ["closearray", undefined],
             ["end", undefined],
             ["ready", undefined],
@@ -52,7 +52,7 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["openobject", "("],
             ["key", "a"],
-            ["value", "foo"],
+            ["simplevalue", "foo"],
             ["closeobject", ")"],
             ["end", undefined],
             ["ready", undefined],
@@ -65,8 +65,8 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["openarray", undefined],
-            ["value", "foo"],
-            ["value", "bar"],
+            ["simplevalue", "foo"],
+            ["simplevalue", "bar"],
             ["closearray", undefined],
             ["end", undefined],
             ["ready", undefined],
@@ -79,7 +79,7 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["openarray", "<"],
-            ["value", "foo"],
+            ["simplevalue", "foo"],
             ["closearray", ">"],
             ["end", undefined],
             ["ready", undefined],
@@ -91,7 +91,7 @@ export const extensionTests: TestDefinitions = {
             allow: {apostrophes_instead_of_quotation_marks: true}
         },
         events: [
-            ["value", "a string", 1, 10],
+            ["simplevalue", "a string", 1, 10],
             ["end", undefined],
             ["ready", undefined],
         ],
@@ -106,7 +106,7 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["opentypedunion", undefined],
             ["option", "foo"],
-            ["value", "x"],
+            ["simplevalue", "x"],
             ["closetypedunion", undefined],
             ["end", undefined],
             ["ready", undefined],
@@ -122,7 +122,7 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["opentypedunion", undefined],
             ["option", "foo"],
-            ["value", 5],
+            ["simplevalue", 5],
             ["closetypedunion", undefined],
             ["end", undefined],
             ["ready", undefined],
@@ -135,7 +135,7 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["schemareference", "a schema"],
-            ["value", 42],
+            ["simplevalue", 42],
             ["end", undefined],
             ["ready", undefined],
         ],
@@ -146,7 +146,7 @@ export const extensionTests: TestDefinitions = {
             allow: { schema_reference: true}
         },
         events: [
-            ["value", 42],
+            ["simplevalue", 42],
             ["end", undefined],
             ["ready", undefined],
         ],
@@ -168,7 +168,7 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["schemareference", "a schema"],
-            ["value", 42],
+            ["simplevalue", 42],
             ["end", undefined],
             ["ready", undefined],
         ],

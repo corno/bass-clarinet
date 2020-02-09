@@ -3,21 +3,22 @@ import { Parser } from "./Parser"
 import { Options } from "./parserTypes"
 
 export const EVENTS: AnyEvent[] =
-    ["value"
-        , "key"
-        , "openobject"
-        , "closeobject"
-        , "openarray"
-        , "closearray"
-        , "error"
-        , "end"
-        , "ready"
+    [
+        "simplevalue",
+        "key",
+        "openobject",
+        "closeobject",
+        "openarray",
+        "closearray",
+        "error",
+        "end",
+        "ready",
     ]
 
 type Event =
     | "schemareference"
 
-    | "value"
+    | "simplevalue"
 
     | "key"
     | "openobject"
@@ -71,13 +72,14 @@ export class CStream extends Stream {
 
         const parser: any = me.parser
 
-        const streamWraps: Event[] = ["value"
-            , "key"
-            , "openobject"
-            , "closeobject"
-            , "openarray"
-            , "closearray"
-            , "ready"
+        const streamWraps: Event[] = [
+            "simplevalue",
+            "key",
+            "openobject",
+            "closeobject",
+            "openarray",
+            "closearray",
+            "ready",
         ]
         streamWraps.forEach(function (ev) {
             Object.defineProperty(me, "on" + ev,
@@ -170,8 +172,8 @@ export class CStream extends Stream {
                 this.parser.onschemareference.subscribe((key: string) => { this.emit("schemareference", key) })
                 break
 
-            case "value":
-                this.parser.onvalue.subscribe((value: any) => { this.emit("value", value) })
+            case "simplevalue":
+                this.parser.onsimplevalue.subscribe((value: any) => { this.emit("simplevalue", value) })
                 break
 
             case "openarray":

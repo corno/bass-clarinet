@@ -22,7 +22,7 @@ const selectedExtensionTests = Object.keys(extensionTests)
 type Event =
     | "schemareference"
     
-    | "value"
+    | "simplevalue"
 
     | "opentypedunion"
     | "closetypedunion"
@@ -98,10 +98,10 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             checkLocation(ee, range.end)
         })
 
-        parser.onvalue.subscribe((v, range) => {
+        parser.onsimplevalue.subscribe((v, range) => {
             if (DEBUG) console.log("found value")
             const ee = getExpectedEvent()
-            validateEventsEqual(ee, "value")
+            validateEventsEqual(ee, "simplevalue")
 
             assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
             checkLocation(ee, range.end)

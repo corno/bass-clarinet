@@ -142,7 +142,7 @@ export function subscribeStack(p: Parser, rootHandler: ValueHandler, onError: (e
         currentContext[1].valueHandler = currentContext[1].objectHandler.property(key, range)
     })
 
-    p.onvalue.subscribe((value, range) => {
+    p.onsimplevalue.subscribe((value, range) => {
         if (DEBUG) { console.log("on value", value)}
         if (getValueHandler() === null) {
             throw new Error("unexpected value")

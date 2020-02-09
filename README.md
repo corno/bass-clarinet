@@ -9,7 +9,7 @@ In addition to the port to TypeScript, the following changes have been made:
 * `JSONTestSuite` is added to the test set. All tests pass.
 * line and column information is fixed
 * the parser accepts multiple subscribers per event type
-* `trim` and `normalize` options have been dropped. This can be handled by the consumer in the `onvalue` callback
+* `trim` and `normalize` options have been dropped. This can be handled by the consumer in the `onsimplevalue` callback
 * `allow_comments` and `allow_trailing_commas` options have been added
 * there is a stack based wrapper named `subscribeStack` which pairs `onopenobject`/`oncloseobject` and `onopenarray`/`onclosearray` events in a callback
 
@@ -60,7 +60,7 @@ const parser = bass_clarinet.parser()
 parser.onerror.subscribe((e) => {
   // an error happened. e is the error.
 })
-parser.onvalue.subscribe((v: string | number | boolean | null) => {
+parser.onsimplevalue.subscribe((v: string | number | boolean | null) => {
   // got some value. v is the value. can be string, number, boolean, or null.
 })
 parser.onopenobject = function () {
@@ -123,7 +123,7 @@ currently the only supported setting is:
 * `allow_trailing_commas` - boolean. allows commas before the `}` or the `]` character. Be aware: This is a deviation from the pure JSON standard
 * `spaces_per_tab` - number. needed for proper column info.
 
-(`normalize` and `trim` have been dropped as this can equally well be handled in the onvalue handler)
+(`normalize` and `trim` have been dropped as this can equally well be handled in the onsimplevalue handler)
 
 ## methods
 
