@@ -2,7 +2,6 @@ import * as s from "./subscription"
 import * as Char from "./Characters"
 
 import {
-    Options,
     GlobalStateType,
     GlobalState,
     KeywordState,
@@ -17,10 +16,11 @@ import {
     ObjectContext,
     ArrayContext,
     StringType,
-    Allow,
     TypedUnionState,
-} from "./parserTypes"
+} from "./parserStateTypes"
 import { Location, Range } from "./location"
+import { Options, Allow } from "./configurationTypes"
+
 
 const env: any = (typeof process === 'object' && process.env)
     ? process.env
@@ -40,6 +40,7 @@ function assertUnreachable<RT>(_x: never): RT {
 
 function getStateDescription(s: GlobalState): string {
     switch (s[0]) {
+        case GlobalStateType.COMMENT: return "COMMENT"
         case GlobalStateType.ERROR: return "ERROR"
         case GlobalStateType.NUMBER: return "NUMBER"
         case GlobalStateType.STRING: return "STRING"
@@ -131,7 +132,6 @@ export class Parser {
 
     public state: GlobalState
 
-    commentState: CommentState | null = null
 
     onschemareference = new s.ThreeArgumentsSubscribers<string, Location, Range>()
 
@@ -159,11 +159,11 @@ export class Parser {
         if (INFO) console.log('-- emit', "onready")
         this.onready.signal()
         if (this.opt.require_schema_reference) {
-            this.state = [GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }]
+            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }])
         } else if (this.opt.allow?.schema_reference) {
-            this.state = [GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
+            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }])
         } else {
-            this.state = [GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }]
+            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }])
         }
     }
 
@@ -175,7 +175,7 @@ export class Parser {
             this.raiseError("Cannot write after close. Assign an onready handler.")
             return this
         }
-        if (DEBUG) console.log('write -> [\'' + chunk + '\']')
+        if (DEBUG) console.log(`write -> [${JSON.stringify(chunk)}]`)
         this.processChunk(chunk)
         if (this.position >= this.bufferCheckPosition) {
             switch (this.state[0]) {
@@ -221,14 +221,14 @@ export class Parser {
             this.curChar = curChar
 
             if (DEBUG) {
-                const stateInfo = (this.commentState !== null ? "*comment*" : getStateDescription(this.state))
+                const stateInfo = getStateDescription(this.state)
                 let char = (curChar === Char.Whitespace.tab) ? "\\t" : String.fromCharCode(curChar)
-
 
                 console.log(`${stateInfo.padEnd(35)}${char.padStart(2)} ${("(" + curChar + ")").padEnd(5)} ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`, currentChunkIndex)
             }
             if (!isNaN(curChar)) {
                 this.position++
+                //set the position
                 switch (curChar) {
                     case Char.Whitespace.lineFeed:
                         this.line++
@@ -251,549 +251,538 @@ export class Parser {
                 //end of chunk reached
                 return
             }
-
-            if (this.commentState !== null) {
-                switch (this.commentState) {
-                    case CommentState.BLOCK_COMMENT:
-                        if (curChar === Char.Comment.asterisk) {
-                            this.commentState = CommentState.FOUND_ASTERISK
-                        }
-                        break
-                    case CommentState.LINE_COMMENT:
-                        if (curChar === Char.Whitespace.lineFeed) {
-                            this.commentState = null
-                        }
-                        break
-                    case CommentState.FOUND_ASTERISK:
-                        if (curChar === Char.Comment.solidus) {
-                            this.commentState = null
-                        }
-                        break
-                    case CommentState.FOUND_SLASH:
-                        if (curChar === Char.Comment.solidus) {
-                            this.commentState = CommentState.LINE_COMMENT
-                        } else if (curChar === Char.Comment.asterisk) {
-                            this.commentState = CommentState.BLOCK_COMMENT
-                        }
-                        break
-                    default: assertUnreachable(this.commentState)
-                }
-                next()
-            } else {
-                const state = this.state
-                switch (state[0]) {
-                    case GlobalStateType.ERROR: {
-                        return
-                    }
-                    case GlobalStateType.NUMBER: {
-                        /**
-                         * NUMBER PROCESSING
-                         */
-                        const $ = state[1]
-                        while (true) {
-                            if (isNaN(curChar)) {
-                                return
+            const state = this.state
+            switch (state[0]) {
+                case GlobalStateType.COMMENT: {
+                    const $ = state[1]
+                    switch ($.state) {
+                        case CommentState.BLOCK_COMMENT:
+                            if (curChar === Char.Comment.asterisk) {
+                                $.state = CommentState.FOUND_ASTERISK
                             }
-                            //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'number loop')
-
-                            //first check if we are breaking out of a number. Can only be done by checking the character that comes directly after the number
-                            if (curChar !== Char.Number.period
-                                && curChar !== Char.Number.e
-                                && curChar !== Char.Number.E
-                                && curChar !== Char.Number.plus
-                                && curChar !== Char.Number.minus
-                                && !(Char.Number._0 <= curChar && curChar <= Char.Number._9)
-                            ) {
-                                this.onsimplevalue.signal(new Number(state[1].numberNode).valueOf(), {
-                                    start: $.start,
-                                    end: {
-                                        line: this.line,
-                                        position: this.position - 1,
-                                        column: this.column - 1
-                                    }
-                                })
-                                this.setStateAfterValue()
-                                //this character does not belong to the number so don't go to the next character
-                                break
-                            } else {
-                                if ($.numberNode === "-0" || $.numberNode === "0") {
-                                    if (curChar !== Char.Number.period
-                                        && curChar !== Char.Number.e
-                                        && curChar !== Char.Number.E
-                                    ) {
-                                        this.raiseError(`Leading zero not followed by '.', 'e', 'E', ',' ']', '}' or whitespace`)
-                                    }
-                                }
-                                if (curChar === Char.Number.period) {
-                                    if ($.foundPeriod) {
-                                        this.raiseError('Invalid number, has two dots')
-                                    }
-                                    $.foundPeriod = true
-                                } else if (curChar === Char.Number.e || curChar === Char.Number.E) {
-                                    if ($.foundExponent) {
-                                        this.raiseError('Invalid number, has two exponential')
-                                    }
-                                    $.foundExponent = true
-                                } else if (curChar === Char.Number.plus || curChar === Char.Number.minus) {
-                                    if ($.numberNode[$.numberNode.length - 1] !== "e" && $.numberNode[$.numberNode.length - 1] !== "E") {
-                                        this.raiseError('Invalid symbol in number')
-                                    }
-                                }
-                                $.numberNode += String.fromCharCode(curChar)
-                                next()
+                            break
+                        case CommentState.LINE_COMMENT:
+                            if (curChar === Char.Whitespace.lineFeed) {
+                                //end of line comment
+                                this.setState($.previousState)
                             }
-                        }
-
-                        break
-                    }
-                    case GlobalStateType.STRING: {
-                        /**
-                         * STRING PROCESSING
-                         */
-                        const $ = state[1]
-
-                        let snippetStart: null | number = null
-                        function flush() {
-                            if (snippetStart !== null) {
-                                $.textNode += chunk.substring(snippetStart, currentChunkIndex)
+                            break
+                        case CommentState.FOUND_ASTERISK:
+                            if (curChar === Char.Comment.solidus) {
+                                //end of block comment
+                                this.setState($.previousState)
                             }
-                            snippetStart = null
-                        }
-
-                        while (true) {
-                            //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'string loop', $.slashed, $.textNode)
-
-                            if (isNaN(curChar)) {
-                                //end of the chunk
-                                //store it and wait for more input
-                                flush()
-                                return
-                            }
-                            if ($.unicode !== null) {
-                                $.unicode.foundCharacters += String.fromCharCode(curChar)
-                                $.unicode.charactersLeft--
-                                if ($.unicode.charactersLeft === 0) {
-                                    $.textNode += String.fromCharCode(parseInt($.unicode.foundCharacters, 16))
-                                    $.unicode = null
-                                }
-                            } else {
-                                if ($.slashed) {
-                                    if (curChar === Char.String.quotationMark) { $.textNode += '\"' }
-                                    else if (curChar === Char.String.apostrophe) { $.textNode += '\'' } //deviation from the JSON standard
-                                    else if (curChar === Char.String.reverseSolidus) { $.textNode += '\\' }
-                                    else if (curChar === Char.String.solidus) { $.textNode += '\/' }
-                                    else if (curChar === Char.String.b) { $.textNode += '\b' }
-                                    else if (curChar === Char.String.f) { $.textNode += '\f' }
-                                    else if (curChar === Char.String.n) { $.textNode += '\n' }
-                                    else if (curChar === Char.String.r) { $.textNode += '\r' }
-                                    else if (curChar === Char.String.t) { $.textNode += '\t' }
-                                    else if (curChar === Char.String.u) {
-                                        // \uxxxx. meh!
-                                        $.unicode = {
-                                            charactersLeft: 4,
-                                            foundCharacters: ""
-                                        }
-                                    }
-                                    else {
-                                        //no special character
-                                        this.raiseError("expected special character after escape slash")
-                                    }
-                                    $.slashed = false
+                            break
+                        case CommentState.FOUND_SOLIDUS:
+                            if (curChar === Char.Comment.solidus) {
+                                if (this.opt.allow?.comments) {
+                                    console.log("XXXXX")
+                                    $.state = CommentState.LINE_COMMENT
                                 } else {
+                                    this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
+                                }
+                            } else if (curChar === Char.Comment.asterisk) {
+                                if (this.opt.allow?.comments) {
+                                    $.state = CommentState.BLOCK_COMMENT
+                                } else {
+                                    this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
+                                }
+                            } else {
+                                this.raiseError("found dangling slash")
+                            }
+                            break
+                        default: assertUnreachable($.state)
+                    }
+                    next()
+                    break
+                }
+                case GlobalStateType.ERROR: {
+                    return
+                }
+                case GlobalStateType.NUMBER: {
+                    /**
+                     * NUMBER PROCESSING
+                     */
+                    const $ = state[1]
+                    while (true) {
+                        if (isNaN(curChar)) {
+                            return
+                        }
+                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'number loop')
 
-                                    //not slashed, not unicode
-                                    if (curChar === Char.String.reverseSolidus) {//backslash
-                                        flush()
-                                        $.slashed = true
-                                    } else if (curChar === $.startCharacter) {
-                                        /**
-                                         * THE STRING IS FINISHED
-                                         */
-
-                                        flush()
-                                        const locationInfo = {
-                                            start: $.start,
-                                            end: this.getLocation()
-                                        }
-                                        switch ($.stringType[0]) {
-                                            case StringTypeEnum.KEY: {
-                                                this.onkey.signal($.textNode, locationInfo)
-                                                this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COLON, context: $.stringType[1].containingObject }])
-                                                break
-                                            }
-                                            case StringTypeEnum.SCHEMA_REFERENCE: {
-                                                this.onschemareference.signal($.textNode, $.stringType[1].startLocation, locationInfo)
-                                                this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }])
-                                                break
-                                            }
-                                            case StringTypeEnum.TYPED_UNION_STATE: {
-                                                this.onoption.signal($.textNode, locationInfo)
-                                                this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_VALUE }])
-                                                break
-                                            }
-                                            case StringTypeEnum.VALUE: {
-                                                this.onsimplevalue.signal($.textNode, locationInfo)
-                                                this.setStateAfterValue()
-                                                break
-                                            }
-                                            default:
-                                                return assertUnreachable($.stringType[0])
-                                        }
-                                        next()
-                                        break
-                                    } else {
-                                        //normal character
-                                        //don't flush
-                                        if (snippetStart === null) {
-                                            snippetStart = currentChunkIndex
-                                        }
-                                    }
+                        //first check if we are breaking out of a number. Can only be done by checking the character that comes directly after the number
+                        if (curChar !== Char.Number.period
+                            && curChar !== Char.Number.e
+                            && curChar !== Char.Number.E
+                            && curChar !== Char.Number.plus
+                            && curChar !== Char.Number.minus
+                            && !(Char.Number._0 <= curChar && curChar <= Char.Number._9)
+                        ) {
+                            this.wrapUpNumber()
+                            //this character does not belong to the number so don't go to the next character
+                            break
+                        } else {
+                            if ($.numberNode === "-0" || $.numberNode === "0") {
+                                if (curChar !== Char.Number.period
+                                    && curChar !== Char.Number.e
+                                    && curChar !== Char.Number.E
+                                ) {
+                                    this.raiseError(`Leading zero not followed by '.', 'e', 'E', ',' ']', '}' or whitespace`)
                                 }
                             }
+                            if (curChar === Char.Number.period) {
+                                if ($.foundPeriod) {
+                                    this.raiseError('Invalid number, has two dots')
+                                }
+                                $.foundPeriod = true
+                            } else if (curChar === Char.Number.e || curChar === Char.Number.E) {
+                                if ($.foundExponent) {
+                                    this.raiseError('Invalid number, has two exponential')
+                                }
+                                $.foundExponent = true
+                            } else if (curChar === Char.Number.plus || curChar === Char.Number.minus) {
+                                if ($.numberNode[$.numberNode.length - 1] !== "e" && $.numberNode[$.numberNode.length - 1] !== "E") {
+                                    this.raiseError('Invalid symbol in number')
+                                }
+                            }
+                            $.numberNode += String.fromCharCode(curChar)
                             next()
                         }
-                        break
                     }
-                    case GlobalStateType.KEYWORD: {
-                        /**
-                         * KEYWORD PROCESSING (null, true, false)
-                         */
+
+                    break
+                }
+                case GlobalStateType.STRING: {
+                    /**
+                     * STRING PROCESSING
+                     */
+                    const $ = state[1]
+
+                    let snippetStart: null | number = null
+                    function flush() {
+                        if (snippetStart !== null) {
+                            $.textNode += chunk.substring(snippetStart, currentChunkIndex)
+                        }
+                        snippetStart = null
+                    }
+
+                    while (true) {
+                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'string loop', $.slashed, $.textNode)
+
+                        if (isNaN(curChar)) {
+                            //end of the chunk
+                            //store it and wait for more input
+                            flush()
+                            return
+                        }
+                        if ($.unicode !== null) {
+                            $.unicode.foundCharacters += String.fromCharCode(curChar)
+                            $.unicode.charactersLeft--
+                            if ($.unicode.charactersLeft === 0) {
+                                $.textNode += String.fromCharCode(parseInt($.unicode.foundCharacters, 16))
+                                $.unicode = null
+                            }
+                        } else {
+                            if ($.slashed) {
+                                if (curChar === Char.String.quotationMark) { $.textNode += '\"' }
+                                else if (curChar === Char.String.apostrophe) { $.textNode += '\'' } //deviation from the JSON standard
+                                else if (curChar === Char.String.reverseSolidus) { $.textNode += '\\' }
+                                else if (curChar === Char.String.solidus) { $.textNode += '\/' }
+                                else if (curChar === Char.String.b) { $.textNode += '\b' }
+                                else if (curChar === Char.String.f) { $.textNode += '\f' }
+                                else if (curChar === Char.String.n) { $.textNode += '\n' }
+                                else if (curChar === Char.String.r) { $.textNode += '\r' }
+                                else if (curChar === Char.String.t) { $.textNode += '\t' }
+                                else if (curChar === Char.String.u) {
+                                    // \uxxxx. meh!
+                                    $.unicode = {
+                                        charactersLeft: 4,
+                                        foundCharacters: ""
+                                    }
+                                }
+                                else {
+                                    //no special character
+                                    this.raiseError("expected special character after escape slash")
+                                }
+                                $.slashed = false
+                            } else {
+
+                                //not slashed, not unicode
+                                if (curChar === Char.String.reverseSolidus) {//backslash
+                                    flush()
+                                    $.slashed = true
+                                } else if (curChar === $.startCharacter) {
+                                    /**
+                                     * THE STRING IS FINISHED
+                                     */
+
+                                    flush()
+                                    const locationInfo = {
+                                        start: $.start,
+                                        end: this.getLocation()
+                                    }
+                                    switch ($.stringType[0]) {
+                                        case StringTypeEnum.KEY: {
+                                            this.onkey.signal($.textNode, locationInfo)
+                                            this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COLON, context: $.stringType[1].containingObject }])
+                                            break
+                                        }
+                                        case StringTypeEnum.SCHEMA_REFERENCE: {
+                                            this.onschemareference.signal($.textNode, $.stringType[1].startLocation, locationInfo)
+                                            this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }])
+                                            break
+                                        }
+                                        case StringTypeEnum.TYPED_UNION_STATE: {
+                                            this.onoption.signal($.textNode, locationInfo)
+                                            this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_VALUE }])
+                                            break
+                                        }
+                                        case StringTypeEnum.VALUE: {
+                                            this.onsimplevalue.signal($.textNode, locationInfo)
+                                            this.setStateAfterValue()
+                                            break
+                                        }
+                                        default:
+                                            return assertUnreachable($.stringType[0])
+                                    }
+                                    next()
+                                    break
+                                } else {
+                                    //normal character
+                                    //don't flush
+                                    if (snippetStart === null) {
+                                        snippetStart = currentChunkIndex
+                                    }
+                                }
+                            }
+                        }
+                        next()
+                    }
+                    break
+                }
+                case GlobalStateType.KEYWORD: {
+                    /**
+                     * KEYWORD PROCESSING (null, true, false)
+                     */
+                    const $ = state[1]
+                    switch ($.state) {
+
+                        case KeywordState.TRUE_EXPECTING_R:
+                            if (curChar === Char.Keyword.r) $.state = KeywordState.TRUE_EXPECTING_U
+                            else {
+                                this.raiseError('Invalid true started with t' + curChar)
+                            }
+                            break
+                        case KeywordState.TRUE_EXPECTING_U:
+                            if (curChar === Char.Keyword.u) $.state = KeywordState.TRUE_EXPECTING_E
+                            else {
+                                this.raiseError('Invalid true started with tr' + curChar)
+                            }
+                            break
+
+                        case KeywordState.TRUE_EXPECTING_E:
+                            if (curChar === Char.Keyword.e) {
+                                this.finishKeyword(true, "true".length)
+                            } else {
+                                this.raiseError('Invalid true started with tru' + curChar)
+                            }
+                            break
+
+                        case KeywordState.FALSE_EXPECTING_A:
+                            if (curChar === Char.Keyword.a) $.state = KeywordState.FALSE_EXPECTING_L
+                            else {
+                                this.raiseError('Invalid false started with f' + curChar)
+                            }
+                            break
+
+                        case KeywordState.FALSE_EXPECTING_L:
+                            if (curChar === Char.Keyword.l) $.state = KeywordState.FALSE_EXPECTING_S
+                            else {
+                                this.raiseError('Invalid false started with fa' + curChar)
+                            }
+                            break
+
+                        case KeywordState.FALSE_EXPECTING_S:
+                            if (curChar === Char.Keyword.s) $.state = KeywordState.FALSE_EXPECTING_E
+                            else {
+                                this.raiseError('Invalid false started with fal' + curChar)
+                            }
+                            break
+
+                        case KeywordState.FALSE_EXPECTING_E:
+                            if (curChar === Char.Keyword.e) {
+                                this.finishKeyword(false, "false".length)
+                            } else {
+                                this.raiseError('Invalid false started with fals' + curChar)
+                            }
+                            break
+
+                        case KeywordState.NULL_EXPECTING_U:
+                            if (curChar === Char.Keyword.u) $.state = KeywordState.NULL_EXPECTING_L1
+                            else {
+                                this.raiseError('Invalid null started with n' + curChar)
+                            }
+                            break
+
+                        case KeywordState.NULL_EXPECTING_L1:
+                            if (curChar === Char.Keyword.l) $.state = KeywordState.NULL_EXPECTING_L2
+                            else {
+                                this.raiseError('Invalid null started with nu' + curChar)
+                            }
+                            break
+
+                        case KeywordState.NULL_EXPECTING_L2:
+                            if (curChar === Char.Keyword.l) {
+                                this.finishKeyword(null, "null".length)
+                            } else {
+                                this.raiseError('Invalid null started with nul' + curChar)
+                            }
+                            break
+                        default:
+                            return assertUnreachable($.state)
+
+                    }
+                    next()
+                    break
+                }
+                case GlobalStateType.ARRAY: {
+                    const $ = state[1]
+                    while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
+                        next()
+                        if (isNaN(curChar)) {
+                            return
+                        }
+                    }
+                    if (curChar === Char.Comment.solidus) {
+                        this.onFoundSolidus()
+                    } else {
+                        switch ($.state) {
+                            case ArrayState.EXPECTING_VALUE_OR_ARRAY_END:
+                                if (curChar === Char.Array.closeBracket) {
+                                    this.closeArray(curChar, $.context)
+                                } else {
+                                    const vt = this.getValueType(curChar)
+                                    if (vt !== null) {
+                                        this.processValue(vt, curChar)
+                                    } else {
+                                        this.raiseError("expected value or array end")
+                                    }
+                                }
+                                break
+                            case ArrayState.EXPECTING_ARRAYVALUE:
+                                if (curChar === Char.Array.closeBracket) {
+                                    if (this.opt.allow?.trailing_commas) {
+                                        this.closeArray(curChar, $.context)
+                                    } else {
+                                        this.raiseError("trailing commas are not allowed")
+                                    }
+                                } else {
+
+                                    const vt = this.getValueType(curChar)
+                                    if (vt === null) {
+                                        this.raiseError("expected a value after a comma")
+                                    } else {
+                                        this.processValue(vt, curChar)
+                                    }
+                                }
+                                break
+                            case ArrayState.EXPECTING_COMMA_OR_ARRAY_END:
+                                if (curChar === Char.Array.comma) {
+                                    $.state = ArrayState.EXPECTING_ARRAYVALUE
+                                } else if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
+                                    this.closeArray(curChar, $.context)
+                                } else {
+                                    const closeCharacters = this.opt.allow?.angle_brackets_instead_of_brackets ? "']' or '>'" : "']'"
+                                    const vt = this.getValueType(curChar)
+                                    if (vt !== null) {
+                                        if (this.opt.allow?.missing_commas) {
+                                            this.processValue(vt, curChar)
+                                        } else {
+                                            this.raiseError(`Bad array, expected ',' or ${closeCharacters} (missing commas are not allowed)`)
+                                        }
+                                    } else {
+                                        if (this.opt.allow?.missing_commas) {
+                                            this.raiseError(`Bad array, expected ',' or ${closeCharacters} or a value`)
+                                        } else {
+                                            this.raiseError(`Bad array, expected ',' or '${closeCharacters}`)
+                                        }
+                                    }
+                                }
+                                break
+
+                            default:
+                                return assertUnreachable($.state)
+                        }
+                    }
+                    next()
+                    break
+                }
+                case GlobalStateType.OBJECT: {
+                    while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
+                        next()
+                        if (isNaN(curChar)) {
+                            return
+                        }
+                    }
+                    if (curChar === Char.Comment.solidus) {
+                        this.onFoundSolidus()
+                    } else {
                         const $ = state[1]
                         switch ($.state) {
-
-                            case KeywordState.TRUE_EXPECTING_R:
-                                if (curChar === Char.Keyword.r) $.state = KeywordState.TRUE_EXPECTING_U
-                                else {
-                                    this.raiseError('Invalid true started with t' + curChar)
-                                }
-                                break
-                            case KeywordState.TRUE_EXPECTING_U:
-                                if (curChar === Char.Keyword.u) $.state = KeywordState.TRUE_EXPECTING_E
-                                else {
-                                    this.raiseError('Invalid true started with tr' + curChar)
-                                }
-                                break
-
-                            case KeywordState.TRUE_EXPECTING_E:
-                                if (curChar === Char.Keyword.e) {
-                                    this.finishKeyword(true, "true".length)
+                            case ObjectState.EXPECTING_KEY:
+                                if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
+                                    if (this.opt.allow?.trailing_commas) {
+                                        this.closeObject(curChar, $.context)
+                                    } else {
+                                        this.raiseError("trailing commas are not allowed")
+                                    }
                                 } else {
-                                    this.raiseError('Invalid true started with tru' + curChar)
+                                    this.processKey(curChar, $.context)
                                 }
-                                break
 
-                            case KeywordState.FALSE_EXPECTING_A:
-                                if (curChar === Char.Keyword.a) $.state = KeywordState.FALSE_EXPECTING_L
-                                else {
-                                    this.raiseError('Invalid false started with f' + curChar)
-                                }
                                 break
-
-                            case KeywordState.FALSE_EXPECTING_L:
-                                if (curChar === Char.Keyword.l) $.state = KeywordState.FALSE_EXPECTING_S
-                                else {
-                                    this.raiseError('Invalid false started with fa' + curChar)
-                                }
-                                break
-
-                            case KeywordState.FALSE_EXPECTING_S:
-                                if (curChar === Char.Keyword.s) $.state = KeywordState.FALSE_EXPECTING_E
-                                else {
-                                    this.raiseError('Invalid false started with fal' + curChar)
-                                }
-                                break
-
-                            case KeywordState.FALSE_EXPECTING_E:
-                                if (curChar === Char.Keyword.e) {
-                                    this.finishKeyword(false, "false".length)
+                            case ObjectState.EXPECTING_KEY_OR_OBJECT_END:
+                                if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
+                                    this.closeObject(curChar, $.context)
                                 } else {
-                                    this.raiseError('Invalid false started with fals' + curChar)
+                                    this.processKey(curChar, $.context)
                                 }
                                 break
-
-                            case KeywordState.NULL_EXPECTING_U:
-                                if (curChar === Char.Keyword.u) $.state = KeywordState.NULL_EXPECTING_L1
-                                else {
-                                    this.raiseError('Invalid null started with n' + curChar)
-                                }
-                                break
-
-                            case KeywordState.NULL_EXPECTING_L1:
-                                if (curChar === Char.Keyword.l) $.state = KeywordState.NULL_EXPECTING_L2
-                                else {
-                                    this.raiseError('Invalid null started with nu' + curChar)
-                                }
-                                break
-
-                            case KeywordState.NULL_EXPECTING_L2:
-                                if (curChar === Char.Keyword.l) {
-                                    this.finishKeyword(null, "null".length)
+                            case ObjectState.EXPECTING_COLON:
+                                if (curChar === Char.Object.colon) {
+                                    $.state = ObjectState.EXPECTING_OBJECTVALUE
                                 } else {
-                                    this.raiseError('Invalid null started with nul' + curChar)
+                                    this.raiseError(`Expected colon, found ${String.fromCharCode(curChar)}`)
+                                }
+                                break
+                            case ObjectState.EXPECTING_COMMA_OR_OBJECT_END:
+                                if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
+                                    this.closeObject(curChar, $.context)
+                                } else if (curChar === Char.Object.comma) {
+                                    $.state = ObjectState.EXPECTING_KEY
+                                } else if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
+                                    if (this.opt.allow?.missing_commas) {
+                                        this.processKey(curChar, $.context)
+                                    } else {
+                                        this.raiseError(`Bad object, missing comma`)
+                                    }
+                                } else {
+                                    const closeCharacters = this.opt.allow?.parens_instead_of_braces ? "'}' or ')'" : "'}'"
+                                    if (this.opt.allow?.missing_commas) {
+                                        this.raiseError(`Bad object, expected ',' or ${closeCharacters} or a value`)
+                                    } else {
+                                        this.raiseError(`Bad object, expected ',' or ${closeCharacters}`)
+                                    }
+                                }
+                                break
+                            case ObjectState.EXPECTING_OBJECTVALUE:
+                                const vt = this.getValueType(curChar)
+                                if (vt === null) {
+                                    this.raiseError("expected a value after a ':'")
+                                } else {
+                                    this.processValue(vt, curChar)
                                 }
                                 break
                             default:
                                 return assertUnreachable($.state)
-
                         }
-                        next()
-                        break
                     }
-                    case GlobalStateType.ARRAY: {
-                        const $ = state[1]
-                        while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
-                            next()
-                            if (isNaN(curChar)) {
-                                return
-                            }
-                        }
-                        if (curChar === Char.Comment.solidus) {
-                            if (this.opt.allow?.comments) {
-                                this.commentState = CommentState.FOUND_SLASH
-                            } else {
-                                this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
-                            }
-                        } else {
-                            switch ($.state) {
-                                case ArrayState.EXPECTING_VALUE_OR_ARRAY_END:
-                                    if (curChar === Char.Array.closeBracket) {
-                                        this.closeArray(curChar, $.context)
-                                    } else {
-                                        const vt = this.getValueType(curChar)
-                                        if (vt !== null) {
-                                            this.processValue(vt, curChar)
-                                        } else {
-                                            this.raiseError("expected value or array end")
-                                        }
-                                    }
-                                    break
-                                case ArrayState.EXPECTING_ARRAYVALUE:
-                                    if (curChar === Char.Array.closeBracket) {
-                                        if (this.opt.allow?.trailing_commas) {
-                                            this.closeArray(curChar, $.context)
-                                        } else {
-                                            this.raiseError("trailing commas are not allowed")
-                                        }
-                                    } else {
-
-                                        const vt = this.getValueType(curChar)
-                                        if (vt === null) {
-                                            this.raiseError("expected a value after a comma")
-                                        } else {
-                                            this.processValue(vt, curChar)
-                                        }
-                                    }
-                                    break
-                                case ArrayState.EXPECTING_COMMA_OR_ARRAY_END:
-                                    if (curChar === Char.Array.comma) {
-                                        $.state = ArrayState.EXPECTING_ARRAYVALUE
-                                    } else if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
-                                        this.closeArray(curChar, $.context)
-                                    } else {
-                                        const closeCharacters = this.opt.allow?.angle_brackets_instead_of_brackets ? "']' or '>'" : "']'"
-                                        const vt = this.getValueType(curChar)
-                                        if (vt !== null) {
-                                            if (this.opt.allow?.missing_commas) {
-                                                this.processValue(vt, curChar)
-                                            } else {
-                                                this.raiseError(`Bad array, expected ',' or ${closeCharacters} (missing commas are not allowed)`)
-                                            }
-                                        } else {
-                                            if (this.opt.allow?.missing_commas) {
-                                                this.raiseError(`Bad array, expected ',' or ${closeCharacters} or a value`)
-                                            } else {
-                                                this.raiseError(`Bad array, expected ',' or '${closeCharacters}`)
-                                            }
-                                        }
-                                    }
-                                    break
-
-                                default:
-                                    return assertUnreachable($.state)
-                            }
-                        }
-                        next()
-                        break
-                    }
-                    case GlobalStateType.OBJECT: {
-                        while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
-                            next()
-                            if (isNaN(curChar)) {
-                                return
-                            }
-                        }
-                        if (curChar === Char.Comment.solidus) {
-                            if (this.opt.allow?.comments) {
-                                this.commentState = CommentState.FOUND_SLASH
-                            } else {
-                                this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
-                            }
-                        } else {
-                            const $ = state[1]
-                            switch ($.state) {
-                                case ObjectState.EXPECTING_KEY:
-                                    if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
-                                        if (this.opt.allow?.trailing_commas) {
-                                            this.closeObject(curChar, $.context)
-                                        } else {
-                                            this.raiseError("trailing commas are not allowed")
-                                        }
-                                    } else {
-                                        this.processKey(curChar, $.context)
-                                    }
-
-                                    break
-                                case ObjectState.EXPECTING_KEY_OR_OBJECT_END:
-                                    if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
-                                        this.closeObject(curChar, $.context)
-                                    } else {
-                                        this.processKey(curChar, $.context)
-                                    }
-                                    break
-                                case ObjectState.EXPECTING_COLON:
-                                    if (curChar === Char.Object.colon) {
-                                        $.state = ObjectState.EXPECTING_OBJECTVALUE
-                                    } else {
-                                        this.raiseError(`Expected colon, found ${String.fromCharCode(curChar)}`)
-                                    }
-                                    break
-                                case ObjectState.EXPECTING_COMMA_OR_OBJECT_END:
-                                    if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
-                                        this.closeObject(curChar, $.context)
-                                    } else if (curChar === Char.Object.comma) {
-                                        $.state = ObjectState.EXPECTING_KEY
-                                    } else if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
-                                        if (this.opt.allow?.missing_commas) {
-                                            this.processKey(curChar, $.context)
-                                        } else {
-                                            this.raiseError(`Bad object, missing comma`)
-                                        }
-                                    } else {
-                                        const closeCharacters = this.opt.allow?.parens_instead_of_braces ? "'}' or ')'" : "'}'"
-                                        if (this.opt.allow?.missing_commas) {
-                                            this.raiseError(`Bad object, expected ',' or ${closeCharacters} or a value`)
-                                        } else {
-                                            this.raiseError(`Bad object, expected ',' or ${closeCharacters}`)
-                                        }
-                                    }
-                                    break
-                                case ObjectState.EXPECTING_OBJECTVALUE:
-                                    const vt = this.getValueType(curChar)
-                                    if (vt === null) {
-                                        this.raiseError("expected a value after a ':'")
-                                    } else {
-                                        this.processValue(vt, curChar)
-                                    }
-                                    break
-                                default:
-                                    return assertUnreachable($.state)
-                            }
-                        }
-                        next()
-                        break
-                    }
-                    case GlobalStateType.ROOT: {
-                        /**
-                         * ROOT PROCESSING
-                         */
-                        while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
-                            next()
-                            if (isNaN(curChar)) {
-                                return
-                            }
-                        }
-                        if (curChar === Char.Comment.solidus) {
-                            if (this.opt.allow?.comments) {
-                                this.commentState = CommentState.FOUND_SLASH
-                            } else {
-                                this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
-                            }
-                        } else {
-                            const $ = state[1]
-                            switch ($.state) {
-                                case RootState.EXPECTING_END: {
-                                    this.raiseError(`Unexpected data after end`)
-                                    break
-                                }
-                                case RootState.EXPECTING_ROOTVALUE:
-                                    const vt = this.getValueType(curChar)
-                                    if (vt === null) {
-                                        this.raiseError("expected the root value")
-                                    } else {
-                                        this.processValue(vt, curChar)
-                                    }
-                                    break
-                                case RootState.EXPECTING_SCHEMA_REFERENCE:
-                                    this.initString([StringTypeEnum.SCHEMA_REFERENCE, { startLocation: this.getLocation() }], curChar)
-                                    break
-                                case RootState.EXPECTING_SCHEMA_START:
-                                    if (curChar !== Char.Schema.exclamationMark) {
-                                        this.raiseError("expected schema start (!)")
-                                    } else {
-                                        $.state = RootState.EXPECTING_SCHEMA_REFERENCE
-                                    }
-                                    break
-                                case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                                    if (curChar === Char.Schema.exclamationMark) {
-                                        $.state = RootState.EXPECTING_SCHEMA_REFERENCE
-                                    } else {
-                                        const vt = this.getValueType(curChar)
-                                        if (vt === null) {
-                                            this.raiseError("expected an '!' (to specify a schema reference) or a value")
-                                        } else {
-                                            this.processValue(vt, curChar)
-                                        }
-                                    }
-                                    break
-                                default:
-                                    return assertUnreachable($.state)
-                            }
-                        }
-                        next()
-                        break
-                    }
-                    case GlobalStateType.TYPED_UNION: {
-                        while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
-                            next()
-                            if (isNaN(curChar)) {
-                                return
-                            }
-                        }
-                        if (curChar === Char.Comment.solidus) {
-                            if (this.opt.allow?.comments) {
-                                this.commentState = CommentState.FOUND_SLASH
-                            } else {
-                                this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
-                            }
-                        } else {
-                            const $ = state[1]
-                            switch ($.state) {
-                                case TypedUnionState.EXPECTING_OPTION:
-                                    if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
-                                        this.initString([StringTypeEnum.TYPED_UNION_STATE, {}], curChar)
-                                    } else {
-                                        this.raiseError("missing typed union string")
-                                    }
-                                    break
-                                case TypedUnionState.EXPECTING_VALUE: {
-                                    const vt = this.getValueType(curChar)
-                                    if (vt === null) {
-                                        this.raiseError("expected the data of the union type")
-                                    } else {
-                                        this.processValue(vt, curChar)
-                                    }
-                                    break
-                                }
-                                default:
-                                    return assertUnreachable($.state)
-                            }
-                        }
-
-                        next()
-                        break
-                    }
-                    default: assertUnreachable(state[0])
+                    next()
+                    break
                 }
+                case GlobalStateType.ROOT: {
+                    /**
+                     * ROOT PROCESSING
+                     */
+                    while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
+                        next()
+                        if (isNaN(curChar)) {
+                            return
+                        }
+                    }
+                    if (curChar === Char.Comment.solidus) {
+                        this.onFoundSolidus()
+                    } else {
+                        const $ = state[1]
+                        switch ($.state) {
+                            case RootState.EXPECTING_END: {
+                                this.raiseError(`Unexpected data after end`)
+                                break
+                            }
+                            case RootState.EXPECTING_ROOTVALUE:
+                                const vt = this.getValueType(curChar)
+                                if (vt === null) {
+                                    this.raiseError("expected the root value")
+                                } else {
+                                    this.processValue(vt, curChar)
+                                }
+                                break
+                            case RootState.EXPECTING_SCHEMA_REFERENCE:
+                                this.initString([StringTypeEnum.SCHEMA_REFERENCE, { startLocation: this.getLocation() }], curChar)
+                                break
+                            case RootState.EXPECTING_SCHEMA_START:
+                                if (curChar !== Char.Schema.exclamationMark) {
+                                    this.raiseError("expected schema start (!)")
+                                } else {
+                                    $.state = RootState.EXPECTING_SCHEMA_REFERENCE
+                                }
+                                break
+                            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                                if (curChar === Char.Schema.exclamationMark) {
+                                    $.state = RootState.EXPECTING_SCHEMA_REFERENCE
+                                } else {
+                                    const vt = this.getValueType(curChar)
+                                    if (vt === null) {
+                                        this.raiseError("expected an '!' (to specify a schema reference) or a value")
+                                    } else {
+                                        this.processValue(vt, curChar)
+                                    }
+                                }
+                                break
+                            default:
+                                return assertUnreachable($.state)
+                        }
+                    }
+                    next()
+                    break
+                }
+                case GlobalStateType.TYPED_UNION: {
+                    while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
+                        next()
+                        if (isNaN(curChar)) {
+                            return
+                        }
+                    }
+                    if (curChar === Char.Comment.solidus) {
+                        this.onFoundSolidus()
+                    } else {
+                        const $ = state[1]
+                        switch ($.state) {
+                            case TypedUnionState.EXPECTING_OPTION:
+                                if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
+                                    this.initString([StringTypeEnum.TYPED_UNION_STATE, {}], curChar)
+                                } else {
+                                    this.raiseError("missing typed union string")
+                                }
+                                break
+                            case TypedUnionState.EXPECTING_VALUE: {
+                                const vt = this.getValueType(curChar)
+                                if (vt === null) {
+                                    this.raiseError("expected the data of the union type")
+                                } else {
+                                    this.processValue(vt, curChar)
+                                }
+                                break
+                            }
+                            default:
+                                return assertUnreachable($.state)
+                        }
+                    }
+
+                    next()
+                    break
+                }
+                default: assertUnreachable(state[0])
             }
         }
     }
@@ -811,7 +800,20 @@ export class Parser {
         return this.end()
     }
 
-
+    private wrapUpNumber() {
+        if (this.state[0] === GlobalStateType.NUMBER) {
+            //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
+            this.onsimplevalue.signal(new Number(this.state[1].numberNode).valueOf(), {
+                start: this.state[1].start,
+                end: {
+                    line: this.line,
+                    position: this.position - 1,
+                    column: this.column - 1
+                }
+            })
+            this.setStateAfterValue()
+        }
+    }
     private setStateAfterValue() {
         switch (this.currentContext[0]) {
             case ContextType.ARRAY:
@@ -879,18 +881,7 @@ export class Parser {
         this.setStateAfterValue()
     }
     public end() {
-        //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
-        if (this.state[0] === GlobalStateType.NUMBER) {
-            this.onsimplevalue.signal(new Number(this.state[1].numberNode).valueOf(), {
-                start: this.state[1].start,
-                end: {
-                    line: this.line,
-                    position: this.position - 1,
-                    column: this.column - 1
-                }
-            })
-            this.setStateAfterValue()
-        }
+        this.wrapUpNumber()
         if (this.state[0] !== GlobalStateType.ROOT || this.state[1].state !== RootState.EXPECTING_END || this.stack.length !== 0) {
             this.raiseError("Unexpected end, " + getStateDescription(this.state))
             return
@@ -899,7 +890,11 @@ export class Parser {
         this.ended = true
         this.onend.signal()
         this.onready.signal()
-        //CParser.call(parser, parser.opt)
+    }
+    private onFoundSolidus() {
+        this.wrapUpNumber()
+        const previousState = this.state
+        this.setState([GlobalStateType.COMMENT, { state: CommentState.FOUND_SOLIDUS, previousState: previousState }])
     }
     private setState(newState: GlobalState) {
         if (DEBUG) {

@@ -24,15 +24,17 @@ function createDummyObjectHandler(): ObjectHandler {
     }
 }
 
+export type ErrorHandler = (message: string, location: Location) => void
+
 export class ErrorContext {
-    private errorHandler: null | ((message: string, location: Location) => void)
+    private errorHandler: null | ErrorHandler
     /**
      * 
      * @param errorHandler if provided (not null), the errors are reported to this handler
      * and no errors are thrown
      * if not provided (null), this Context will throw errors
      */
-    constructor(errorHandler: null | ((message: string, location: Location) => void)) {
+    constructor(errorHandler: null | ErrorHandler) {
         this.errorHandler = errorHandler
     }
     public raiseObjectError(message: string, location: Location): ObjectHandler {

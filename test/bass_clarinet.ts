@@ -4,8 +4,10 @@ import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition } from "./testDefinition"
-import { Options, GlobalStateType } from "../src/parserTypes"
+import { GlobalStateType } from "../src/parserStateTypes"
 import { Location } from "../src/location"
+import { Options } from "../src/configurationTypes"
+
 
 
 const DEBUG = false
@@ -14,8 +16,11 @@ const DEBUG = false
 const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
 
-//const selectedTests = ['just_a_string']
-//const selectedTests = ['empty_array']
+// const selectedJSONTests: string[] = []
+// //const selectedTests = ['just_a_string']
+// //const selectedTests = ['empty_array']
+// const selectedExtensionTests = ["single_line_comment"]
+
 
 // function assertUnreachable(_x: never) {
 //     throw new Error("unreachable")
@@ -23,7 +28,7 @@ const selectedExtensionTests = Object.keys(extensionTests)
 
 type Event =
     | "schemareference"
-    
+
     | "simplevalue"
 
     | "opentypedunion"

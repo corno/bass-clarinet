@@ -17,28 +17,28 @@ export const extensionTests: TestDefinitions = {
         ]
     },
     single_line_comment: {
-        text: '[1,2//a comment\r\n]',
+        text: '[1,"a"//a comment\r\n]',
         options: {
             allow: { comments: true, }
         },
         events: [
             ["openarray", undefined],
             ["simplevalue", 1],
-            ["simplevalue", 2],
+            ["simplevalue", "a"],
             ["closearray", undefined],
             ["end", undefined],
             ["ready", undefined],
         ]
     },
     multi_line_comment: {
-        text: '[1,2/*a comment\r\n*/]',
+        text: '[1,"a"/*a comment\r\n*/]',
         options: {
             allow: { comments: true, }
         },
         events: [
             ["openarray", undefined],
             ["simplevalue", 1],
-            ["simplevalue", 2],
+            ["simplevalue", "a"],
             ["closearray", undefined],
             ["end", undefined],
             ["ready", undefined],

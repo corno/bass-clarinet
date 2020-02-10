@@ -1,22 +1,5 @@
 import { Location } from "./location"
 
-export type Allow = {
-    trailing_commas?: boolean
-    parens_instead_of_braces?: boolean
-    angle_brackets_instead_of_brackets?: boolean
-    comments?: boolean
-    missing_commas?: boolean
-    apostrophes_instead_of_quotation_marks?: boolean
-    typed_unions?: boolean
-    schema_reference?: boolean
-}
-
-export type Options = {
-    spaces_per_tab?: number
-    allow?: Allow
-    require_schema_reference?: boolean
-}
-
 export enum RootState {
     EXPECTING_SCHEMA_START,
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
@@ -67,6 +50,10 @@ export enum GlobalStateType {
 }
 
 export type GlobalState =
+    | [GlobalStateType.COMMENT, {
+        previousState: GlobalState
+        state: CommentState
+    }]
     | [GlobalStateType.ERROR, {
         error: Error
     }]
@@ -101,8 +88,8 @@ export enum StringTypeEnum {
 
 export type StringType =
     | [StringTypeEnum.KEY, { containingObject: ObjectContext }]
-    | [StringTypeEnum.VALUE, { }]
-    | [StringTypeEnum.TYPED_UNION_STATE, { }]
+    | [StringTypeEnum.VALUE, {}]
+    | [StringTypeEnum.TYPED_UNION_STATE, {}]
     | [StringTypeEnum.SCHEMA_REFERENCE, { startLocation: Location }]
 
 export enum TypedUnionState {
@@ -132,7 +119,7 @@ export type Unicode = {
 }
 
 export enum CommentState {
-    FOUND_SLASH,
+    FOUND_SOLIDUS,
     FOUND_ASTERISK,
     LINE_COMMENT,
     BLOCK_COMMENT

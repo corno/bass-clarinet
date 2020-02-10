@@ -1,6 +1,6 @@
 export * from "./Stream"
 export * from "./Parser"
-export { Options, Allow } from "./parserTypes"
+export * from "./configurationTypes"
 export * from "./subscribeStack"
 export * from "./parseWrappers"
 export * from "./location"

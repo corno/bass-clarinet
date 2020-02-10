@@ -1,6 +1,6 @@
 import { Stream } from "stream"
 import { Parser } from "./Parser"
-import { Options } from "./parserTypes"
+import { Options } from "./configurationTypes"
 
 export const EVENTS: AnyEvent[] =
     [
