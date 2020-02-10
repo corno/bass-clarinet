@@ -1,6 +1,6 @@
 import { Options } from "../src/configurationTypes"
 
-export type EventDefinition = [string, string | undefined | false | true | null | number, number?, number?]
+export type EventDefinition = [AnyEvent, string | undefined | false | true | null | number, number?, number?]
 
 export type TestDefinition = {
     text: string,
@@ -12,3 +12,29 @@ export type TestDefinition = {
 export type TestDefinitions = {
     [key: string]: TestDefinition
 }
+
+export type AnyEvent =
+    | "end"
+    | "error"
+    | Event
+
+export type Event =
+    | "schemareference"
+
+    | "blockcomment"
+    | "linecomment"
+
+    | "simplevalue"
+
+    | "opentypedunion"
+    | "closetypedunion"
+    | "option"
+
+    | "openobject"
+    | "closeobject"
+    | "key"
+
+    | "openarray"
+    | "closearray"
+
+    | "ready"

@@ -20,42 +20,49 @@ function format(value: number | string | boolean | null) {
 }
 
 
-export function createValuesPrettyPrinter(indentation: string, callback: (str: string) => void): sp.ValueHandler {
+export function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): sp.ValueHandler {
     return {
         array: (_location, openCharacter) => {
-            callback(openCharacter)
+            writer(openCharacter)
             return {
-                element: () => createValuesPrettyPrinter(`${indentation}\t`, callback),
+                element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
                 end: ((_location, endCharacter) => {
-                    callback(`${indentation}${endCharacter}`)
+                    writer(`${indentation}${endCharacter}`)
                 })
             }
 
         },
         object: (_location, openCharacter) => {
-            callback(openCharacter)
+            writer(openCharacter)
             return {
                 property: (key, _keyRange) => {
-                    callback(`${indentation}\t"${key}": `)
-                    return createValuesPrettyPrinter(`${indentation}\t`, callback)
+                    writer(`${indentation}\t"${key}": `)
+                    return createValuesPrettyPrinter(`${indentation}\t`, writer)
                 },
                 end: (_location, endCharacter) => {
-                    callback(`${indentation}${endCharacter}`)
+                    writer(`${indentation}${endCharacter}`)
                 }
             }
         },
         value: (value) => {
-            callback(`${format(value)}`)
+            writer(`${format(value)}`)
         },
         typedunion: (option, _unionStart, _optionRange) => {
-            callback(`| "${option}" `)
-            return createValuesPrettyPrinter(`${indentation}`, callback)
+            writer(`| "${option}" `)
+            return createValuesPrettyPrinter(`${indentation}`, writer)
         },
     }
 }
 
+function createPrettyPrinter(indentation: string, writer: (str: string) => void): sp.RootHandler {
+    return {
+        value: createValuesPrettyPrinter(indentation, writer),
+        endComments: () => {}
+    }
+}
+
 const parser = new Parser({ allow: lax})
-sp.subscribeStack(parser, createValuesPrettyPrinter("\r\n", str => process.stdout.write(str)), err => { console.error("FOUND ERROR", err.message) })
+sp.subscribeStack(parser, createPrettyPrinter("\r\n", str => process.stdout.write(str)), err => { console.error("FOUND ERROR", err.message) })
 parser.write(data)
 parser.end()
 

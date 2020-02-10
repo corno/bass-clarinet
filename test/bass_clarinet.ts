@@ -3,7 +3,7 @@ import { describe } from "mocha"
 import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
-import { EventDefinition } from "./testDefinition"
+import { EventDefinition, AnyEvent } from "./testDefinition"
 import { Location } from "../src/location"
 import { Options } from "../src/configurationTypes"
 
@@ -25,32 +25,6 @@ const selectedExtensionTests = Object.keys(extensionTests)
 //     throw new Error("unreachable")
 // }
 
-type Event =
-    | "schemareference"
-
-    | "blockcomment"
-    | "linecomment"
-
-    | "simplevalue"
-
-    | "opentypedunion"
-    | "closetypedunion"
-    | "option"
-
-    | "openobject"
-    | "closeobject"
-    | "key"
-
-    | "openarray"
-    | "closearray"
-
-    | "ready"
-
-
-type AnyEvent =
-    | "end"
-    | "error"
-    | Event
 
 function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], opts?: Options) {
     return function () {

@@ -40,7 +40,7 @@ export const extensionTests: TestDefinitions = {
             ["openarray", undefined],
             ["simplevalue", 1],
             ["simplevalue", "a"],
-            ["blockcomment", "a comment\r\n*"],
+            ["blockcomment", "a comment\r\n"],
             ["closearray", undefined],
             ["end", undefined],
             ["ready", undefined],

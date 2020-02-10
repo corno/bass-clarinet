@@ -751,6 +751,16 @@ export const JSONTests: TestDefinitions = {
             ["error", undefined],
         ],
     },
+    multiline_string: {
+        text: '["a\nstring"]',
+        events: [
+            ["openarray", undefined],
+            ["simplevalue", "a\nstring"],
+            ["closearray", undefined],
+            ["end", undefined],
+            ["ready", undefined],
+        ],
+    },
     forbidden_extension_trailing_comma: {
         text: '[1,2,]',
         events: [

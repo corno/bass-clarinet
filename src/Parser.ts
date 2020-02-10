@@ -322,7 +322,8 @@ export class Parser {
                                     //end of block comment
                                     this.setState($.previousState)
                                     flush()
-                                    this.onblockcomment.signal($.commentNode, this.indent, { start: $.start, end: this.getLocation() })
+                                    const comment = $.commentNode.substring(0, $.commentNode.length - 1) //strip the found asterisk '*'
+                                    this.onblockcomment.signal(comment, this.indent, { start: $.start, end: this.getLocation() })
                                     next()
                                     break commentLoop
                                 } else {

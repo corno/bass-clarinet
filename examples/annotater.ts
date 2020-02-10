@@ -17,35 +17,42 @@ function format(value: number | string | boolean | null) {
     }
 }
 
-export function createValuesAnnotater(indentation: string, callback: (str: string) => void): sp.ValueHandler {
+export function createValuesAnnotater(indentation: string, writer: (str: string) => void): sp.ValueHandler {
     return {
         array: (startLocation) => {
-            callback(`${indentation}[ // ${printLoc(startLocation)}`)
+            writer(`${indentation}[ // ${printLoc(startLocation)}`)
             return {
-                element: () => createValuesAnnotater(`${indentation}\t`, callback),
+                element: () => createValuesAnnotater(`${indentation}\t`, writer),
                 end: (end => {
-                    callback(`${indentation}] // ${printLoc(end)}`)
+                    writer(`${indentation}] // ${printLoc(end)}`)
                 })
             }
         },
         object: (startLocation) => {
-            callback(`${indentation}{ // ${printLoc(startLocation)}`)
+            writer(`${indentation}{ // ${printLoc(startLocation)}`)
             return {
                 property: (key, _keyRange) => {
-                    callback(`${indentation}"${key}": `)
-                    return createValuesAnnotater(`${indentation}\t`, callback)
+                    writer(`${indentation}"${key}": `)
+                    return createValuesAnnotater(`${indentation}\t`, writer)
                 },
                 end: (end) => {
-                    callback(`${indentation}} // ${printLoc(end)}`)
+                    writer(`${indentation}} // ${printLoc(end)}`)
                 },
             }
         },
         value: (value, range) => {
-            callback(`${indentation}${format(value)} // ${printRange(range)}`)
+            writer(`${indentation}${format(value)} // ${printRange(range)}`)
         },
         typedunion: (option, startLocation, range) => {
-            callback(`| ${indentation}"${JSON.stringify(option)}" // ${printLoc(startLocation)} ${printRange(range)}`)
-            return createValuesAnnotater(`${indentation}\t`, callback)
+            writer(`| ${indentation}"${JSON.stringify(option)}" // ${printLoc(startLocation)} ${printRange(range)}`)
+            return createValuesAnnotater(`${indentation}\t`, writer)
         },
+    }
+}
+
+export function createRootAnnotator(indentation: string, writer: (str: string) => void): sp.RootHandler {
+    return {
+        value: createValuesAnnotater(indentation, writer),
+        endComments: () => {}
     }
 }

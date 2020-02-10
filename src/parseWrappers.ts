@@ -212,39 +212,39 @@ export class ErrorContext {
                 return {
                     element: () => {
                         return {
-                            array: (startLocation, openCharacter) => {
+                            array: (startLocation, openCharacter, comments) => {
                                 if (dataHandler === null) {
                                     return this.raiseArrayError(`unexected array`, startLocation)
                                 }
                                 const dh = dataHandler
                                 dataHandler = null
-                                return dh.array(startLocation, openCharacter)
+                                return dh.array(startLocation, openCharacter, comments)
                             },
-                            object: (startLocation, openCharacter) => {
+                            object: (startLocation, openCharacter, comments) => {
                                 if (dataHandler === null) {
                                     return this.raiseObjectError(`unexected object`, startLocation)
                                 }
                                 const dh = dataHandler
                                 dataHandler = null
-                                return dh.object(startLocation, openCharacter)
+                                return dh.object(startLocation, openCharacter, comments)
                             },
-                            value: (value, range) => {
+                            value: (value, range, comments) => {
                                 if (dataHandler === null) {
                                     if (typeof value !== "string") {
                                         return this.raiseError(`expected string`, range.start)
                                     }
                                     dataHandler = callback(value)
                                 } else {
-                                    dataHandler.value(value, range)
+                                    dataHandler.value(value, range, comments)
                                 }
                             },
-                            typedunion: (option, startLocation, optionRange) => {
+                            typedunion: (option, startLocation, optionRange, comments) => {
                                 if (dataHandler === null) {
                                     return this.raiseValueError(`unexected typed union`, startLocation)
                                 }
                                 const dh = dataHandler
                                 dataHandler = null
-                                return dh.typedunion(option, startLocation, optionRange)
+                                return dh.typedunion(option, startLocation, optionRange, comments)
 
                             },
                         }
