@@ -18,7 +18,7 @@ const selectedExtensionTests = Object.keys(extensionTests)
 // const selectedJSONTests: string[] = []
 // //const selectedTests = ['just_a_string']
 // //const selectedTests = ['empty_array']
-// const selectedExtensionTests = ["single_line_comment"]
+// const selectedExtensionTests = ["single_line_comment", "multi_line_comment"]
 
 
 // function assertUnreachable(_x: never) {
@@ -27,6 +27,9 @@ const selectedExtensionTests = Object.keys(extensionTests)
 
 type Event =
     | "schemareference"
+
+    | "blockcomment"
+    | "linecomment"
 
     | "simplevalue"
 
@@ -104,6 +107,22 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             checkLocation(ee, range.end)
         })
 
+        parser.onlinecomment.subscribe((v, range) => {
+            if (DEBUG) console.log("found line comment")
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "linecomment")
+
+            assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+            checkLocation(ee, range.end)
+        })
+        parser.onblockcomment.subscribe((v, _indent, range) => {
+            if (DEBUG) console.log("found block comment")
+            const ee = getExpectedEvent()
+            validateEventsEqual(ee, "blockcomment")
+
+            assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+            checkLocation(ee, range.end)
+        })
         parser.onsimplevalue.subscribe((v, range) => {
             if (DEBUG) console.log("found value")
             const ee = getExpectedEvent()
@@ -196,7 +215,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         });
         parser.end()
         if (expectedEvents.length !== 0) {
-            console.log("expected more events")
+            console.log("expected more events.")
             while (true) {
                 const ee = expectedEvents.pop()
                 if (ee === undefined) {
@@ -204,7 +223,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 }
                 console.log(ee)
             }
-            throw new Error("expected more events")
+            throw new Error("expected more events.")
         }
     };
 }

@@ -57,6 +57,8 @@ export type GlobalState =
     | [GlobalStateType.COMMENT, {
         previousState: GlobalState
         state: CommentState
+        commentNode: string
+        start: Location
     }]
     | [GlobalStateType.NUMBER, {
         start: Location
@@ -73,7 +75,7 @@ export type GlobalState =
         textNode: string
         stringType: StringType
         unicode: null | Unicode
-        slashed: boolean // = false
+        slashed: boolean
     }]
     | [GlobalStateType.ROOT, { state: RootState }]
     | [GlobalStateType.OBJECT, { state: ObjectState, context: ObjectContext }]

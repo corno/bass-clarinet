@@ -132,6 +132,13 @@ export class Parser {
     public state: GlobalState
     public error: Error | null = null
 
+    /**
+     * the indent property keeps track of the whitespace characters after a newline.
+     * when a block comment is reported, this indent will be sent along so that the
+     * leading whitespace of the full block can be stripped
+     */
+    private indent: string | null = null
+
 
     onschemareference = new s.ThreeArgumentsSubscribers<string, Location, Range>()
 
@@ -147,6 +154,9 @@ export class Parser {
     onkey = new s.TwoArgumentsSubscribers<string, Range>()
 
     onsimplevalue = new s.TwoArgumentsSubscribers<string | boolean | null | number, Range>()
+
+    onblockcomment = new s.ThreeArgumentsSubscribers<string, string | null, Range>()
+    onlinecomment = new s.TwoArgumentsSubscribers<string, Range>()
 
     onend = new s.NoArgumentSubscribers()
     onerror = new s.OneArgumentSubscribers<Error>()
@@ -224,7 +234,7 @@ export class Parser {
                 const stateInfo = getStateDescription(this.state)
                 let char = (curChar === Char.Whitespace.tab) ? "\\t" : String.fromCharCode(curChar)
 
-                console.log(`${stateInfo.padEnd(35)}${char.padStart(2)} ${("(" + curChar + ")").padEnd(5)} ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`, currentChunkIndex)
+                console.log(`${stateInfo.padEnd(35)}${JSON.stringify(char).padStart(4)} ${("(" + curChar + ")").padEnd(5)} ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`, currentChunkIndex)
             }
             if (!isNaN(curChar)) {
                 this.position++
@@ -233,6 +243,7 @@ export class Parser {
                     case Char.Whitespace.lineFeed:
                         this.line++
                         this.column = 0
+                        this.indent = ""
                         break
                     case Char.Whitespace.carriageReturn:
                         break
@@ -257,46 +268,90 @@ export class Parser {
             const state = this.state
             switch (state[0]) {
                 case GlobalStateType.COMMENT: {
+                    /**
+                     * COMMENT
+                     */
                     const $ = state[1]
-                    switch ($.state) {
-                        case CommentState.BLOCK_COMMENT:
-                            if (curChar === Char.Comment.asterisk) {
-                                $.state = CommentState.FOUND_ASTERISK
-                            }
-                            break
-                        case CommentState.LINE_COMMENT:
-                            if (curChar === Char.Whitespace.lineFeed) {
-                                //end of line comment
-                                this.setState($.previousState)
-                            }
-                            break
-                        case CommentState.FOUND_ASTERISK:
-                            if (curChar === Char.Comment.solidus) {
-                                //end of block comment
-                                this.setState($.previousState)
-                            }
-                            break
-                        case CommentState.FOUND_SOLIDUS:
-                            if (curChar === Char.Comment.solidus) {
-                                if (this.opt.allow?.comments) {
-                                    console.log("XXXXX")
-                                    $.state = CommentState.LINE_COMMENT
-                                } else {
-                                    this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
-                                }
-                            } else if (curChar === Char.Comment.asterisk) {
-                                if (this.opt.allow?.comments) {
-                                    $.state = CommentState.BLOCK_COMMENT
-                                } else {
-                                    this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
-                                }
-                            } else {
-                                this.raiseError("found dangling slash")
-                            }
-                            break
-                        default: assertUnreachable($.state)
+
+                    let snippetStart: null | number = null
+                    function flush() {
+                        if (snippetStart !== null) {
+                            $.commentNode += chunk.substring(snippetStart, currentChunkIndex)
+                        } else {
+                        }
+                        snippetStart = null
                     }
-                    next()
+
+                    commentLoop: while (true) {
+                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'string loop', $.slashed, $.textNode)
+
+                        if (this.error !== null) {
+                            return
+                        }
+                        if (isNaN(curChar)) {
+                            //end of the chunk
+                            //store it and wait for more input
+                            flush()
+                            return
+                        }
+                        switch ($.state) {
+                            case CommentState.BLOCK_COMMENT:
+                                if (snippetStart === null) {
+                                    snippetStart = currentChunkIndex
+                                }
+                                if (curChar === Char.Comment.asterisk) {
+                                    $.state = CommentState.FOUND_ASTERISK
+                                }
+                                break
+                            case CommentState.LINE_COMMENT:
+                                if (curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.carriageReturn) {
+                                    //end of line comment
+                                    this.setState($.previousState)
+                                    flush()
+                                    this.onlinecomment.signal($.commentNode, { start: $.start, end: this.getLocation() })
+                                    next()
+                                    break commentLoop
+                                } else {
+                                    if (snippetStart === null) {
+                                        snippetStart = currentChunkIndex
+                                    }
+                                }
+                                break
+                            case CommentState.FOUND_ASTERISK:
+                                if (curChar === Char.Comment.solidus) {
+                                    //end of block comment
+                                    this.setState($.previousState)
+                                    flush()
+                                    this.onblockcomment.signal($.commentNode, this.indent, { start: $.start, end: this.getLocation() })
+                                    next()
+                                    break commentLoop
+                                } else {
+                                    if (snippetStart === null) {
+                                        snippetStart = currentChunkIndex
+                                    }
+                                }
+                                break
+                            case CommentState.FOUND_SOLIDUS:
+                                if (curChar === Char.Comment.solidus) {
+                                    if (this.opt.allow?.comments) {
+                                        $.state = CommentState.LINE_COMMENT
+                                    } else {
+                                        this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
+                                    }
+                                } else if (curChar === Char.Comment.asterisk) {
+                                    if (this.opt.allow?.comments) {
+                                        $.state = CommentState.BLOCK_COMMENT
+                                    } else {
+                                        this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
+                                    }
+                                } else {
+                                    this.raiseError("found dangling slash")
+                                }
+                                break
+                            default: assertUnreachable($.state)
+                        }
+                        next()
+                    }
                     break
                 }
                 case GlobalStateType.NUMBER: {
@@ -305,6 +360,9 @@ export class Parser {
                      */
                     const $ = state[1]
                     while (true) {
+                        if (this.error !== null) {
+                            return
+                        }
                         if (isNaN(curChar)) {
                             return
                         }
@@ -368,7 +426,9 @@ export class Parser {
 
                     while (true) {
                         //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'string loop', $.slashed, $.textNode)
-
+                        if (this.error !== null) {
+                            return
+                        }
                         if (isNaN(curChar)) {
                             //end of the chunk
                             //store it and wait for more input
@@ -547,12 +607,13 @@ export class Parser {
                 }
                 case GlobalStateType.ARRAY: {
                     const $ = state[1]
-                    while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
+                    while (isWhiteSpace(curChar)) {
                         next()
                         if (isNaN(curChar)) {
                             return
                         }
                     }
+                    this.indent = null
                     if (curChar === Char.Comment.solidus) {
                         this.onFoundSolidus()
                     } else {
@@ -618,12 +679,14 @@ export class Parser {
                     break
                 }
                 case GlobalStateType.OBJECT: {
-                    while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
+                    while (isWhiteSpace(curChar)) {
                         next()
                         if (isNaN(curChar)) {
                             return
                         }
                     }
+                    this.indent = null
+
                     if (curChar === Char.Comment.solidus) {
                         this.onFoundSolidus()
                     } else {
@@ -694,12 +757,14 @@ export class Parser {
                     /**
                      * ROOT PROCESSING
                      */
-                    while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
+                    while (isWhiteSpace(curChar)) {
                         next()
                         if (isNaN(curChar)) {
                             return
                         }
                     }
+                    this.indent = null
+
                     if (curChar === Char.Comment.solidus) {
                         this.onFoundSolidus()
                     } else {
@@ -747,12 +812,14 @@ export class Parser {
                     break
                 }
                 case GlobalStateType.TYPED_UNION: {
-                    while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
+                    while (isWhiteSpace(curChar)) {
                         next()
                         if (isNaN(curChar)) {
                             return
                         }
                     }
+                    this.indent = null
+
                     if (curChar === Char.Comment.solidus) {
                         this.onFoundSolidus()
                     } else {
@@ -894,7 +961,12 @@ export class Parser {
     private onFoundSolidus() {
         this.wrapUpNumber()
         const previousState = this.state
-        this.setState([GlobalStateType.COMMENT, { state: CommentState.FOUND_SOLIDUS, previousState: previousState }])
+        this.setState([GlobalStateType.COMMENT, {
+            state: CommentState.FOUND_SOLIDUS,
+            previousState: previousState,
+            commentNode: "",
+            start: this.getLocation()
+        }])
     }
     private setState(newState: GlobalState) {
         if (DEBUG) {
@@ -1020,4 +1092,8 @@ export class Parser {
             return null
         }
     }
+}
+
+function isWhiteSpace(curChar: number) {
+    return curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab
 }
