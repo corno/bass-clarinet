@@ -41,7 +41,6 @@ function assertUnreachable<RT>(_x: never): RT {
 function getStateDescription(s: GlobalState): string {
     switch (s[0]) {
         case GlobalStateType.COMMENT: return "COMMENT"
-        case GlobalStateType.ERROR: return "ERROR"
         case GlobalStateType.NUMBER: return "NUMBER"
         case GlobalStateType.STRING: return "STRING"
         case GlobalStateType.KEYWORD: {
@@ -131,6 +130,7 @@ export class Parser {
     public line = 1
 
     public state: GlobalState
+    public error: Error | null = null
 
 
     onschemareference = new s.ThreeArgumentsSubscribers<string, Location, Range>()
@@ -168,8 +168,8 @@ export class Parser {
     }
 
     public write(chunk: string): Parser {
-        if (this.state[0] === GlobalStateType.ERROR) {
-            throw this.state[1].error
+        if (this.error !== null) {
+            throw this.error
         }
         if (this.ended) {
             this.raiseError("Cannot write after close. Assign an onready handler.")
@@ -247,6 +247,9 @@ export class Parser {
         }
         next()
         while (true) {
+            if (this.error !== null) {
+                return
+            }
             if (isNaN(curChar)) {
                 //end of chunk reached
                 return
@@ -295,9 +298,6 @@ export class Parser {
                     }
                     next()
                     break
-                }
-                case GlobalStateType.ERROR: {
-                    return
                 }
                 case GlobalStateType.NUMBER: {
                     /**
@@ -791,8 +791,8 @@ export class Parser {
     //     return this
     // }
     public close() {
-        if (this.state[0] === GlobalStateType.ERROR) {
-            throw this.state[1].error
+        if (this.error !== null) {
+            throw this.error
         }
         if (this.ended) {
             this.raiseError("Already closed.")
@@ -864,7 +864,7 @@ export class Parser {
     private raiseError(er: string) {
         er += ` @ ${this.line}:${this.column} '${String.fromCharCode(this.curChar)}' (${this.curChar})`
         const error = new Error(er)
-        this.setState([GlobalStateType.ERROR, { error: error }])
+        this.error = error
         if (DEBUG) { console.log("error raised:", er) }
         this.onerror.signal(error)
     }

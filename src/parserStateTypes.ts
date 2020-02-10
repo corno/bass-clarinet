@@ -37,8 +37,12 @@ export enum KeywordState {
     NULL_EXPECTING_L2, // l
 }
 
+export enum TypedUnionState {
+    EXPECTING_OPTION,
+    EXPECTING_VALUE,
+}
+
 export enum GlobalStateType {
-    ERROR,
     COMMENT,
     STRING,
     NUMBER,
@@ -53,9 +57,6 @@ export type GlobalState =
     | [GlobalStateType.COMMENT, {
         previousState: GlobalState
         state: CommentState
-    }]
-    | [GlobalStateType.ERROR, {
-        error: Error
     }]
     | [GlobalStateType.NUMBER, {
         start: Location
@@ -91,11 +92,6 @@ export type StringType =
     | [StringTypeEnum.VALUE, {}]
     | [StringTypeEnum.TYPED_UNION_STATE, {}]
     | [StringTypeEnum.SCHEMA_REFERENCE, { startLocation: Location }]
-
-export enum TypedUnionState {
-    EXPECTING_OPTION,
-    EXPECTING_VALUE,
-}
 
 export type ObjectContext = { openChar: number }
 export type ArrayContext = { openChar: number }

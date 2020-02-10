@@ -4,7 +4,6 @@ import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition } from "./testDefinition"
-import { GlobalStateType } from "../src/parserStateTypes"
 import { Location } from "../src/location"
 import { Options } from "../src/configurationTypes"
 
@@ -186,7 +185,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
 
         chunks.forEach(function (chunk) {
             try {
-                if (parser.state[0] !== GlobalStateType.ERROR) {
+                if (parser.error === null) {
                     //if in error state, don't write or we'll get an exception
                     parser.write(chunk);
                 }
