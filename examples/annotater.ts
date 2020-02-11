@@ -40,10 +40,13 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
                 },
             }
         },
-        value: (value, range) => {
+        simpleValue: (value, range) => {
             writer(`${indentation}${format(value)} // ${printRange(range)}`)
         },
-        typedunion: (option, startLocation, range) => {
+        null: (range) => {
+            writer(`${indentation}null // ${printRange(range)}`)
+        },
+        typedUnion: (option, startLocation, range) => {
             writer(`| ${indentation}"${JSON.stringify(option)}" // ${printLoc(startLocation)} ${printRange(range)}`)
             return createValuesAnnotater(`${indentation}\t`, writer)
         },

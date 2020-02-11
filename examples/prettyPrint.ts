@@ -44,10 +44,13 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
                 }
             }
         },
-        value: (value) => {
+        simpleValue: (value) => {
             writer(`${format(value)}`)
         },
-        typedunion: (option, _unionStart, _optionRange) => {
+        null: () => {
+            writer(`null`)
+        },
+        typedUnion: (option, _unionStart, _optionRange) => {
             writer(`| "${option}" `)
             return createValuesPrettyPrinter(`${indentation}`, writer)
         },

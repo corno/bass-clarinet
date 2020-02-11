@@ -129,7 +129,7 @@ export function subscribeStack(p: Parser, rootHandler: RootHandler, onError: (er
         if (currentContext[0] !== "typedunion") {
             throw new Error("stack panic; unexpected option")
         }
-        currentContext[1].valueHandler = currentContext[1].parentValueHandler.typedunion(option, currentContext[1].location, range, flushComments())
+        currentContext[1].valueHandler = currentContext[1].parentValueHandler.typedUnion(option, currentContext[1].location, range, flushComments())
     })
     p.onclosetypedunion.subscribe(() => {
         if (DEBUG) { console.log("on close typed union") }
@@ -174,7 +174,11 @@ export function subscribeStack(p: Parser, rootHandler: RootHandler, onError: (er
         if (vh === null) {
             throw new Error("stack panic; unexpected value")
         }
-        vh.value(value, range, flushComments())
+        if (value === null) {
+            vh.null(range, flushComments())
+        } else {
+            vh.simpleValue(value, range, flushComments())
+        }
     })
 }
 
@@ -191,8 +195,9 @@ export type ArrayHandler = {
 export interface ValueHandler {
     object: (startLocation: Location, openCharacter: string, comments: Comment[]) => ObjectHandler
     array: (startLocation: Location, openCharacter: string, comments: Comment[]) => ArrayHandler
-    value: (value: number | string | boolean | null, range: Range, comments: Comment[]) => void
-    typedunion: (option: string, startLocation: Location, optionRange: Range, comments: Comment[]) => ValueHandler
+    simpleValue: (value: number | string | boolean, range: Range, comments: Comment[]) => void
+    null: (range: Range, comments: Comment[]) => void
+    typedUnion: (option: string, startLocation: Location, optionRange: Range, comments: Comment[]) => ValueHandler
 }
 
 export interface RootHandler {
