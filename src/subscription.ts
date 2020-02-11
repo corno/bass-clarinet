@@ -7,6 +7,12 @@ export class NoArgumentSubscribers {
     subscribe(subscriber: () => void) {
         this.subscribers.push(subscriber)
     }
+    unsubscribe(subscriber: () => void) {
+        const index = this.subscribers.indexOf(subscriber)
+        if (index !== -1) {
+            this.subscribers.splice(index, 1)
+        }
+    }
 }
 
 export class OneArgumentSubscribers<T> {
@@ -16,6 +22,12 @@ export class OneArgumentSubscribers<T> {
     }
     subscribe(subscriber: (t: T) => void) {
         this.subscribers.push(subscriber)
+    }
+    unsubscribe(subscriber: () => void) {
+        const index = this.subscribers.indexOf(subscriber)
+        if (index !== -1) {
+            this.subscribers.splice(index, 1)
+        }
     }
 }
 
@@ -27,6 +39,12 @@ export class TwoArgumentsSubscribers<T, U> {
     subscribe(subscriber: (t: T, u: U) => void) {
         this.subscribers.push(subscriber)
     }
+    unsubscribe(subscriber: () => void) {
+        const index = this.subscribers.indexOf(subscriber)
+        if (index !== -1) {
+            this.subscribers.splice(index, 1)
+        }
+    }
 }
 
 export class ThreeArgumentsSubscribers<T, U, V> {
@@ -36,5 +54,11 @@ export class ThreeArgumentsSubscribers<T, U, V> {
     }
     subscribe(subscriber: (t: T, u: U, v: V) => void) {
         this.subscribers.push(subscriber)
+    }
+    unsubscribe(subscriber: () => void) {
+        const index = this.subscribers.indexOf(subscriber)
+        if (index !== -1) {
+            this.subscribers.splice(index, 1)
+        }
     }
 }
