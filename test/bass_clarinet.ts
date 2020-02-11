@@ -81,86 +81,90 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             checkLocation(ee, range.end)
         })
 
-        parser.onlinecomment.subscribe((v, range) => {
-            if (DEBUG) console.log("found line comment")
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "linecomment")
+        parser.ondata.subscribe({
+            onlinecomment: (v, range) => {
+                if (DEBUG) console.log("found line comment")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "linecomment")
 
-            assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
-            checkLocation(ee, range.end)
-        })
-        parser.onblockcomment.subscribe((v, _indent, range) => {
-            if (DEBUG) console.log("found block comment")
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "blockcomment")
+                assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+                checkLocation(ee, range.end)
+            },
+            onblockcomment: (v, _indent, range) => {
+                if (DEBUG) console.log("found block comment")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "blockcomment")
 
-            assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
-            checkLocation(ee, range.end)
-        })
-        parser.onsimplevalue.subscribe((v, range) => {
-            if (DEBUG) console.log("found value")
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "simplevalue")
+                assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+                checkLocation(ee, range.end)
+            },
+            onsimplevalue: (v, range) => {
+                if (DEBUG) console.log("found value")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "simplevalue")
 
-            assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
-            checkLocation(ee, range.end)
+                assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+                checkLocation(ee, range.end)
+            },
+
+            onopentypedunion: l => {
+                if (DEBUG) console.log("found open typed union")
+
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "opentypedunion")
+                checkLocation(ee, l)
+            },
+            onclosetypedunion: () => {
+                if (DEBUG) console.log("found close typed union")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "closetypedunion")
+            },
+            onoption: (k, range) => {
+                if (DEBUG) console.log("found option")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "option")
+                assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+                checkLocation(ee, range.end)
+            },
+
+            onopenarray: l => {
+                if (DEBUG) console.log("found open array")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "openarray")
+                checkLocation(ee, l)
+            },
+            onclosearray: l => {
+                if (DEBUG) console.log("found close array")
+
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "closearray")
+                checkLocation(ee, l)
+            },
+
+            onopenobject: l => {
+                if (DEBUG) console.log("found open object")
+
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "openobject")
+                checkLocation(ee, l)
+            },
+            oncloseobject: l => {
+                if (DEBUG) console.log("found close object")
+
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "closeobject")
+                checkLocation(ee, l)
+            },
+            onkey: (k, range) => {
+                if (DEBUG) console.log("found key")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "key")
+                assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+                checkLocation(ee, range.end)
+            }
         })
 
-        parser.onopentypedunion.subscribe(l => {
-            if (DEBUG) console.log("found open typed union")
 
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "opentypedunion")
-            checkLocation(ee, l)
-        })
-        parser.onclosetypedunion.subscribe(() => {
-            if (DEBUG) console.log("found close typed union")
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "closetypedunion")
-        })
-        parser.onoption.subscribe((k, range) => {
-            if (DEBUG) console.log("found option")
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "option")
-            assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
-            checkLocation(ee, range.end)
-        })
-
-        parser.onopenarray.subscribe(l => {
-            if (DEBUG) console.log("found open array")
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "openarray")
-            checkLocation(ee, l)
-        })
-        parser.onclosearray.subscribe(l => {
-            if (DEBUG) console.log("found close array")
-
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "closearray")
-            checkLocation(ee, l)
-        })
-
-        parser.onopenobject.subscribe(l => {
-            if (DEBUG) console.log("found open object")
-
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "openobject")
-            checkLocation(ee, l)
-        })
-        parser.oncloseobject.subscribe(l => {
-            if (DEBUG) console.log("found close object")
-
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "closeobject")
-            checkLocation(ee, l)
-        })
-        parser.onkey.subscribe((k, range) => {
-            if (DEBUG) console.log("found key")
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "key")
-            assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
-            checkLocation(ee, range.end)
-        })
 
         parser.onend.subscribe(() => {
             if (DEBUG) console.log("found end")
