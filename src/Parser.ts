@@ -114,7 +114,7 @@ export const lax: Allow = {
     angle_brackets_instead_of_brackets: true,
     typed_unions: true,
     schema_reference: true,
-    compact: true;
+    compact: true,
 }
 
 export type Error = {
@@ -126,6 +126,24 @@ export type Error = {
 function printError(error: Error) {
     return `${error.message} @ ${printLocation(error.location)} '${String.fromCharCode(error.character)}' (${error.character})`
 
+}
+
+export interface DataSubscriber {
+    onopenarray(location: Location, openCharacter: string): void
+    onclosearray(location: Location, closeCharacter: string): void
+
+    onopentypedunion(location: Location): void
+    onclosetypedunion(): void
+    onoption(option: string, range: Range): void
+
+    onopenobject(location: Location, openCharacter: string): void
+    oncloseobject(location: Location, closeCharacter: string): void
+    onkey(key: string, range: Range): void
+
+    onsimplevalue(value: string | boolean | null | number, range: Range): void
+
+    onblockcomment(comment: string, indent: string | null, range: Range): void
+    onlinecomment(comment: string, range: Range): void
 }
 
 export class Parser {
@@ -155,21 +173,7 @@ export class Parser {
     onschemareference = new s.ThreeArgumentsSubscribers<string, Location, Range>()
     oncompact = new s.TwoArgumentsSubscribers<boolean, Location>()
 
-    onopenarray = new s.TwoArgumentsSubscribers<Location, string>()
-    onclosearray = new s.TwoArgumentsSubscribers<Location, string>()
-
-    onopentypedunion = new s.OneArgumentSubscribers<Location>()
-    onclosetypedunion = new s.NoArgumentSubscribers()
-    onoption = new s.TwoArgumentsSubscribers<string, Range>()
-
-    onopenobject = new s.TwoArgumentsSubscribers<Location, string>()
-    oncloseobject = new s.TwoArgumentsSubscribers<Location, string>()
-    onkey = new s.TwoArgumentsSubscribers<string, Range>()
-
-    onsimplevalue = new s.TwoArgumentsSubscribers<string | boolean | null | number, Range>()
-
-    onblockcomment = new s.ThreeArgumentsSubscribers<string, string | null, Range>()
-    onlinecomment = new s.TwoArgumentsSubscribers<string, Range>()
+    ondata = new s.Subscribers<DataSubscriber>()
 
     onend = new s.NoArgumentSubscribers()
     onerror = new s.OneArgumentSubscribers<Error>()
@@ -321,7 +325,7 @@ export class Parser {
                                     //end of line comment
                                     this.setState($.previousState)
                                     flush()
-                                    this.onlinecomment.signal($.commentNode, { start: $.start, end: this.getLocation() })
+                                    this.ondata.signal(s => s.onlinecomment($.commentNode, { start: $.start, end: this.getLocation() }))
                                     next()
                                     break commentLoop
                                 } else {
@@ -336,7 +340,7 @@ export class Parser {
                                     this.setState($.previousState)
                                     flush()
                                     const comment = $.commentNode.substring(0, $.commentNode.length - 1) //strip the found asterisk '*'
-                                    this.onblockcomment.signal(comment, this.indent, { start: $.start, end: this.getLocation() })
+                                    this.ondata.signal(s => s.onblockcomment(comment, this.indent, { start: $.start, end: this.getLocation() }))
                                     next()
                                     break commentLoop
                                 } else {
@@ -847,7 +851,7 @@ export class Parser {
                             case TypedUnionState.EXPECTING_OPTION:
                                 if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
                                     this.initString(curChar, (textNode, range) => {
-                                        this.onoption.signal(textNode, range)
+                                        this.ondata.signal(s => s.onoption(textNode, range))
                                         this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_VALUE }])
                                     })
                                 } else {
@@ -892,14 +896,15 @@ export class Parser {
     private wrapUpNumber() {
         if (this.state[0] === GlobalStateType.NUMBER) {
             //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
-            this.onsimplevalue.signal(new Number(this.state[1].numberNode).valueOf(), {
-                start: this.state[1].start,
+            const numberState = this.state[1]
+            this.ondata.signal(s => s.onsimplevalue(new Number(numberState.numberNode).valueOf(), {
+                start: numberState.start,
                 end: {
                     line: this.line,
                     position: this.position - 1,
                     column: this.column - 1
                 }
-            })
+            }))
             this.setStateAfterValue()
         }
     }
@@ -915,7 +920,7 @@ export class Parser {
                 this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_END }])
                 break
             case ContextType.TYPED_UNION:
-                this.onclosetypedunion.signal()
+                this.ondata.signal(s => s.onclosetypedunion())
                 this.pop()
                 break
         }
@@ -927,7 +932,7 @@ export class Parser {
         } else if (context.openChar === Char.Object.openBrace && curChar !== Char.Object.closeBrace) {
             this.raiseError("must close object with '}'")
         } else {
-            this.oncloseobject.signal(this.getLocation(), String.fromCharCode(curChar))
+            this.ondata.signal(s => s.oncloseobject(this.getLocation(), String.fromCharCode(curChar)))
             this.pop()
         }
     }
@@ -937,7 +942,7 @@ export class Parser {
         } else if (context.openChar === Char.Array.openAngleBracket && curChar !== Char.Array.closeAngleBracket) {
             this.raiseError("must close object with '>'")
         } else {
-            this.onclosearray.signal(this.getLocation(), String.fromCharCode(curChar))
+            this.ondata.signal(s => s.onclosearray(this.getLocation(), String.fromCharCode(curChar)))
             this.pop()
         }
     }
@@ -962,14 +967,14 @@ export class Parser {
     }
     private finishKeyword(value: false | true | null, length: number) {
         const curLoc = this.getLocation()
-        this.onsimplevalue.signal(value, {
+        this.ondata.signal(s => s.onsimplevalue(value, {
             start: {
                 line: curLoc.line,
                 position: curLoc.position - length + 1, //plus 1 because a string of say 4 characters starting at 5 and ends at 8, not at 9 (5678)
                 column: curLoc.column - length + 1,
             },
             end: curLoc,
-        })
+        }))
         this.setStateAfterValue()
     }
     public end() {
@@ -1026,7 +1031,7 @@ export class Parser {
     private processKey(curChar: number, containingObject: ObjectContext) {
         if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
             this.initString(curChar, (textNode, range) => {
-                this.onkey.signal(textNode, range)
+                this.ondata.signal(s => s.onkey(textNode, range))
                 this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COLON, context: containingObject }])
             })
         } else {
@@ -1041,7 +1046,7 @@ export class Parser {
                     const arrayContext = { openChar: curChar }
                     this.currentContext = [ContextType.ARRAY, arrayContext]
                     this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END, context: arrayContext }])
-                    this.onopenarray.signal(this.getLocation(), String.fromCharCode(curChar))
+                    this.ondata.signal(s => s.onopenarray(this.getLocation(), String.fromCharCode(curChar)))
                 } else {
                     this.raiseError("angle brackets are not allowed")
                 }
@@ -1070,7 +1075,7 @@ export class Parser {
                     const objectContext = { openChar: curChar }
                     this.currentContext = [ContextType.OBJECT, objectContext]
                     this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, context: objectContext }])
-                    this.onopenobject.signal(this.getLocation(), String.fromCharCode(curChar))
+                    this.ondata.signal(s => s.onopenobject(this.getLocation(), String.fromCharCode(curChar)))
                 } else {
                     this.raiseError("parens are not allowed")
                 }
@@ -1078,7 +1083,7 @@ export class Parser {
             }
             case ValueType.STRING: {
                 this.initString(curChar, (textNode, range) => {
-                    this.onsimplevalue.signal(textNode, range)
+                    this.ondata.signal(s => s.onsimplevalue(textNode, range))
                     this.setStateAfterValue()
                 })
                 break
@@ -1092,7 +1097,7 @@ export class Parser {
                     this.stack.push(this.currentContext)
                     this.currentContext = [ContextType.TYPED_UNION]
                     this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_OPTION }])
-                    this.onopentypedunion.signal(this.getLocation())
+                    this.ondata.signal(s => s.onopentypedunion(this.getLocation()))
                 } else {
                     this.raiseError("typed unions are not allowed")
                 }

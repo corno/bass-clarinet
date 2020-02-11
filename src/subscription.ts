@@ -1,4 +1,20 @@
 
+export class Subscribers<T> {
+    subscribers = new Array<T>()
+    signal(callback: (t: T) => void) {
+        this.subscribers.forEach(s => callback(s))
+    }
+    subscribe(subscriber: T) {
+        this.subscribers.push(subscriber)
+    }
+    unsubscribe(subscriber: T) {
+        const index = this.subscribers.indexOf(subscriber)
+        if (index !== -1) {
+            this.subscribers.splice(index, 1)
+        }
+    }
+}
+
 export class NoArgumentSubscribers {
     subscribers = new Array<() => void>()
     signal() {
