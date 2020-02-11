@@ -68,5 +68,3 @@ const parser = new Parser({ allow: lax})
 sp.subscribeStack(parser, createPrettyPrinter("\r\n", str => process.stdout.write(str)), err => { console.error("FOUND ERROR", err.message) })
 parser.write(data)
 parser.end()
-
-
