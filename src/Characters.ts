@@ -1,6 +1,7 @@
 
 export const Schema = {
     exclamationMark: 0x21,   // !
+    hash: 0x23,              // #
 }
 
 export const TypedUnion = {

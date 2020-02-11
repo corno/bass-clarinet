@@ -11,12 +11,11 @@ import {
     Context,
     ContextType,
     CommentState,
-    StringTypeEnum,
     ValueType,
     ObjectContext,
     ArrayContext,
-    StringType,
     TypedUnionState,
+    OnStringFinished,
 } from "./parserStateTypes"
 import { Location, Range, printLocation } from "./location"
 import { Options, Allow } from "./configurationTypes"
@@ -63,6 +62,7 @@ function getStateDescription(s: GlobalState): string {
             switch (s[1].state) {
                 case RootState.EXPECTING_END: return "EXPECTING_END"
                 case RootState.EXPECTING_ROOTVALUE: return "EXPECTING_ROOTVALUE"
+                case RootState.EXPECTING_ROOTVALUE_OR_HASH: return "EXPECTING_ROOTVALUE_OR_HASH"
                 case RootState.EXPECTING_SCHEMA_START: return "EXPECTING_SCHEMA_START"
                 case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: return "EXPECTING_SCHEMA_START_OR_ROOT_VALUE"
                 case RootState.EXPECTING_SCHEMA_REFERENCE: return "EXPECTING_SCHEMA_REFERENCE"
@@ -114,6 +114,7 @@ export const lax: Allow = {
     angle_brackets_instead_of_brackets: true,
     typed_unions: true,
     schema_reference: true,
+    compact: true;
 }
 
 export type Error = {
@@ -123,7 +124,7 @@ export type Error = {
 }
 
 function printError(error: Error) {
-   return `${error.message} @ ${printLocation(error.location)} '${String.fromCharCode(error.character)}' (${error.character})`
+    return `${error.message} @ ${printLocation(error.location)} '${String.fromCharCode(error.character)}' (${error.character})`
 
 }
 
@@ -152,6 +153,7 @@ export class Parser {
 
 
     onschemareference = new s.ThreeArgumentsSubscribers<string, Location, Range>()
+    oncompact = new s.TwoArgumentsSubscribers<boolean, Location>()
 
     onopenarray = new s.TwoArgumentsSubscribers<Location, string>()
     onclosearray = new s.TwoArgumentsSubscribers<Location, string>()
@@ -493,30 +495,7 @@ export class Parser {
                                         start: $.start,
                                         end: this.getLocation()
                                     }
-                                    switch ($.stringType[0]) {
-                                        case StringTypeEnum.KEY: {
-                                            this.onkey.signal($.textNode, locationInfo)
-                                            this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COLON, context: $.stringType[1].containingObject }])
-                                            break
-                                        }
-                                        case StringTypeEnum.SCHEMA_REFERENCE: {
-                                            this.onschemareference.signal($.textNode, $.stringType[1].startLocation, locationInfo)
-                                            this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }])
-                                            break
-                                        }
-                                        case StringTypeEnum.TYPED_UNION_STATE: {
-                                            this.onoption.signal($.textNode, locationInfo)
-                                            this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_VALUE }])
-                                            break
-                                        }
-                                        case StringTypeEnum.VALUE: {
-                                            this.onsimplevalue.signal($.textNode, locationInfo)
-                                            this.setStateAfterValue()
-                                            break
-                                        }
-                                        default:
-                                            return assertUnreachable($.stringType[0])
-                                    }
+                                    $.onFinished($.textNode, locationInfo)
                                     next()
                                     break
                                 } else {
@@ -786,7 +765,27 @@ export class Parser {
                                 this.raiseError(`Unexpected data after end`)
                                 break
                             }
-                            case RootState.EXPECTING_ROOTVALUE:
+                            case RootState.EXPECTING_ROOTVALUE_OR_HASH: {
+                                if (curChar === Char.Schema.hash) {
+                                    
+                                    if (!this.opt.allow?.compact) {
+                                        this.raiseError("compact not allowed")
+                                    } else {
+                                        this.oncompact.signal(true, this.getLocation())
+                                        $.state = RootState.EXPECTING_ROOTVALUE
+                                    }
+                                } else {
+                                    this.oncompact.signal(false, this.getLocation())
+                                    const vt = this.getValueType(curChar)
+                                    if (vt === null) {
+                                        this.raiseError("expected a hash ('#') or the root value")
+                                    } else {
+                                        this.processValue(vt, curChar)
+                                    }
+                                }
+                                break
+                            }
+                            case RootState.EXPECTING_ROOTVALUE: {
                                 const vt = this.getValueType(curChar)
                                 if (vt === null) {
                                     this.raiseError("expected the root value")
@@ -794,8 +793,16 @@ export class Parser {
                                     this.processValue(vt, curChar)
                                 }
                                 break
+                            }
                             case RootState.EXPECTING_SCHEMA_REFERENCE:
-                                this.initString([StringTypeEnum.SCHEMA_REFERENCE, { startLocation: this.getLocation() }], curChar)
+                                this.initString(curChar, (textNode, range) => {
+                                    
+                                    this.onschemareference.signal(textNode, this.getLocation(), range)
+                                    if (this.opt.allow?.compact) {
+
+                                    }
+                                    this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE_OR_HASH }])
+                                })
                                 break
                             case RootState.EXPECTING_SCHEMA_START:
                                 if (curChar !== Char.Schema.exclamationMark) {
@@ -839,7 +846,10 @@ export class Parser {
                         switch ($.state) {
                             case TypedUnionState.EXPECTING_OPTION:
                                 if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
-                                    this.initString([StringTypeEnum.TYPED_UNION_STATE, {}], curChar)
+                                    this.initString(curChar, (textNode, range) => {
+                                        this.onoption.signal(textNode, range)
+                                        this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_VALUE }])
+                                    })
                                 } else {
                                     this.raiseError("missing typed union string")
                                 }
@@ -989,7 +999,7 @@ export class Parser {
         }
         this.state = newState
     }
-    private initString(stringType: StringType, startCharacter: number) {
+    private initString(startCharacter: number, onFinished: OnStringFinished) {
         if (startCharacter === Char.String.apostrophe && !this.opt.allow?.apostrophes_instead_of_quotation_marks) {
             this.raiseError(`Malformed string, should start with '"', apostrophes are not allowed`)
         } else {
@@ -998,7 +1008,7 @@ export class Parser {
                 startCharacter: startCharacter,
                 start: this.getLocation(),
                 textNode: "",
-                stringType: stringType,
+                onFinished: onFinished,
                 unicode: null,
                 slashed: false
             }])
@@ -1015,7 +1025,10 @@ export class Parser {
     }
     private processKey(curChar: number, containingObject: ObjectContext) {
         if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
-            this.initString([StringTypeEnum.KEY, { containingObject: containingObject }], curChar)
+            this.initString(curChar, (textNode, range) => {
+                this.onkey.signal(textNode, range)
+                this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COLON, context: containingObject }])
+            })
         } else {
             this.raiseError(`Malformed object, key should start with '"' ${this.opt.allow?.apostrophes_instead_of_quotation_marks ? "or '''" : ""}`)
         }
@@ -1064,7 +1077,10 @@ export class Parser {
                 break
             }
             case ValueType.STRING: {
-                this.initString([StringTypeEnum.VALUE, {}], curChar)
+                this.initString(curChar, (textNode, range) => {
+                    this.onsimplevalue.signal(textNode, range)
+                    this.setStateAfterValue()
+                })
                 break
             }
             case ValueType.TRUE: {

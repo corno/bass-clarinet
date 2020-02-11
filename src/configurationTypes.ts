@@ -8,6 +8,7 @@ export type Allow = {
     apostrophes_instead_of_quotation_marks?: boolean
     typed_unions?: boolean
     schema_reference?: boolean
+    compact?: boolean
 }
 
 export type Options = {

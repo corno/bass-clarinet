@@ -1,10 +1,11 @@
-import { Location } from "./location"
+import { Location, Range } from "./location"
 
 export enum RootState {
     EXPECTING_SCHEMA_START,
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
     EXPECTING_SCHEMA_REFERENCE,
-    EXPECTING_ROOTVALUE, // value at the root
+    EXPECTING_ROOTVALUE_OR_HASH,
+    EXPECTING_ROOTVALUE,
     EXPECTING_END, // no more input expected
 }
 
@@ -53,6 +54,8 @@ export enum GlobalStateType {
     TYPED_UNION,
 }
 
+export type OnStringFinished =  (text: string, range: Range) => void
+
 export type GlobalState =
     | [GlobalStateType.COMMENT, {
         previousState: GlobalState
@@ -73,7 +76,7 @@ export type GlobalState =
         startCharacter: number
         start: Location
         textNode: string
-        stringType: StringType
+        onFinished: OnStringFinished
         unicode: null | Unicode
         slashed: boolean
     }]
@@ -88,12 +91,6 @@ export enum StringTypeEnum {
     TYPED_UNION_STATE,
     SCHEMA_REFERENCE,
 }
-
-export type StringType =
-    | [StringTypeEnum.KEY, { containingObject: ObjectContext }]
-    | [StringTypeEnum.VALUE, {}]
-    | [StringTypeEnum.TYPED_UNION_STATE, {}]
-    | [StringTypeEnum.SCHEMA_REFERENCE, { startLocation: Location }]
 
 export type ObjectContext = { openChar: number }
 export type ArrayContext = { openChar: number }
