@@ -122,7 +122,7 @@ export class ErrorContext {
 
     public expectCollection(onProperty: (key: string, range: Range) => ValueHandler, onEnd: (start: Location, end: Location) => void, onNull?: NullHandler): ValueHandler {
         return {
-            array: (location) => this.raiseArrayError(`expected object but found array`, location),
+            array: (location) => this.raiseArrayError(`expected collection but found array`, location),
             object: (startLocation, openCharacter) => {
 
                 if (openCharacter !== "{") {
@@ -139,9 +139,9 @@ export class ErrorContext {
                     },
                 }
             },
-            simpleValue: (_value, range) => this.raiseError(`expected object but found value `, range.start),
-            null: onNull ? onNull : (range) => this.raiseValueError(`expected object but found null`, range.start),
-            typedUnion: (_option, location) => this.raiseValueError(`expected object but found typed union`, location),
+            simpleValue: (_value, range) => this.raiseError(`expected collection but found value `, range.start),
+            null: onNull ? onNull : (range) => this.raiseValueError(`expected collection but found null`, range.start),
+            typedUnion: (_option, location) => this.raiseValueError(`expected collection but found typed union`, location),
         }
     }
 
