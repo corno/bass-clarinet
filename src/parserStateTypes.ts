@@ -43,76 +43,80 @@ export enum TypedUnionState {
     EXPECTING_VALUE,
 }
 
-export enum GlobalStateType {
-    COMMENT,
-    STRING,
-    NUMBER,
-    KEYWORD,
-    ROOT,
-    ARRAY,
-    OBJECT,
-    TYPED_UNION,
-}
-
-export type OnStringFinished =  (text: string, range: Range) => void
+export type OnStringFinished = (text: string, range: Range) => void
 
 export type GlobalState =
-    | [GlobalStateType.COMMENT, {
-        previousState: GlobalState
-        state: CommentState
-        commentNode: string
-        start: Location
-    }]
-    | [GlobalStateType.NUMBER, {
-        start: Location
-        numberNode: string
-        foundExponent: boolean
-        foundPeriod: boolean
-    }]
-    | [GlobalStateType.KEYWORD, {
-        state: KeywordState
-    }]
-    | [GlobalStateType.STRING, {
-        startCharacter: number
-        start: Location
-        textNode: string
-        onFinished: OnStringFinished
-        unicode: null | Unicode
-        slashed: boolean
-    }]
-    | [GlobalStateType.ROOT, { state: RootState, context: RootContext }]
-    | [GlobalStateType.OBJECT, { state: ObjectState, context: ObjectContext }]
-    | [GlobalStateType.ARRAY, { state: ArrayState, context: ArrayContext }]
-    | [GlobalStateType.TYPED_UNION, { state: TypedUnionState }]
-
-export enum StringTypeEnum {
-    KEY,
-    VALUE,
-    TYPED_UNION_STATE,
-    SCHEMA_REFERENCE,
-}
-
-export type RootContext = {}
-export type ObjectContext = { openChar: number }
-export type ArrayContext = { openChar: number }
+    | [ContextType.ARRAY, ArrayContext]
+    | [ContextType.COMMENT, CommentContext]
+    | [ContextType.KEYWORD, KeywordContext]
+    | [ContextType.NUMBER, NumberContext]
+    | [ContextType.OBJECT, ObjectContext]
+    | [ContextType.ROOT, RootContext]
+    | [ContextType.STRING, StringContext]
+    | [ContextType.TYPED_UNION, TypedUnionContext]
 
 export type Context =
-    | [ContextType.ROOT]
-    | [ContextType.OBJECT, ObjectContext]
     | [ContextType.ARRAY, ArrayContext]
-    | [ContextType.TYPED_UNION]
+    | [ContextType.COMMENT, CommentContext]
+    | [ContextType.KEYWORD, KeywordContext]
+    | [ContextType.NUMBER, NumberContext]
+    | [ContextType.OBJECT, ObjectContext]
+    | [ContextType.ROOT, RootContext]
+    | [ContextType.STRING, StringContext]
+    | [ContextType.TYPED_UNION, TypedUnionContext]
 
 export enum ContextType {
-    ROOT,
-    OBJECT,
-    SCHEMA,
     ARRAY,
+    COMMENT,
+    KEYWORD,
+    OBJECT,
+    NUMBER,
+    ROOT,
+    STRING,
     TYPED_UNION,
 }
 
 export type Unicode = {
     charactersLeft: number
     foundCharacters: ""
+}
+
+export type ArrayContext = { state: ArrayState, openChar: number }
+
+export type CommentContext = {
+    previousState: GlobalState
+    state: CommentState
+    commentNode: string
+    start: Location
+}
+
+export type KeywordContext = {
+    state: KeywordState
+}
+
+export type NumberContext = {
+    start: Location
+    numberNode: string
+    foundExponent: boolean
+    foundPeriod: boolean
+}
+
+export type ObjectContext = { state: ObjectState, openChar: number }
+
+export type RootContext = {
+    state: RootState
+}
+export type StringContext = {
+    startCharacter: number
+    start: Location
+    textNode: string
+    onFinished: OnStringFinished
+    unicode: null | Unicode
+    slashed: boolean
+}
+
+export type TypedUnionContext = {
+    state: TypedUnionState
 }
 
 export enum CommentState {

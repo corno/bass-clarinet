@@ -2,14 +2,13 @@ import * as s from "./subscription"
 import * as Char from "./Characters"
 
 import {
-    GlobalStateType,
+    ContextType,
     GlobalState,
     KeywordState,
     RootState,
     ObjectState,
     ArrayState,
     Context,
-    ContextType,
     CommentState,
     ValueType,
     ObjectContext,
@@ -39,8 +38,12 @@ function assertUnreachable<RT>(_x: never): RT {
 function getContextDescription(c: Context) {
     switch (c[0]) {
         case ContextType.ARRAY: return "ARRAY"
+        case ContextType.COMMENT: return "COMMENT"
+        case ContextType.KEYWORD: return "KEYWORD"
+        case ContextType.NUMBER: return "NUMBER"
         case ContextType.OBJECT: return "OBJECT"
         case ContextType.ROOT: return "ROOT"
+        case ContextType.STRING: return "STRING"
         case ContextType.TYPED_UNION: return "TYPED_UNION"
         default:
             return assertUnreachable(c[0])
@@ -49,10 +52,10 @@ function getContextDescription(c: Context) {
 
 function getStateDescription(s: GlobalState): string {
     switch (s[0]) {
-        case GlobalStateType.COMMENT: return "COMMENT"
-        case GlobalStateType.NUMBER: return "NUMBER"
-        case GlobalStateType.STRING: return "STRING"
-        case GlobalStateType.KEYWORD: {
+        case ContextType.COMMENT: return "COMMENT"
+        case ContextType.NUMBER: return "NUMBER"
+        case ContextType.STRING: return "STRING"
+        case ContextType.KEYWORD: {
             switch (s[1].state) {
                 case KeywordState.TRUE_EXPECTING_R: return "TRUE"
                 case KeywordState.TRUE_EXPECTING_U: return "TRUE2"
@@ -67,7 +70,7 @@ function getStateDescription(s: GlobalState): string {
                 default: return assertUnreachable(s[1].state)
             }
         }
-        case GlobalStateType.ROOT: {
+        case ContextType.ROOT: {
 
             switch (s[1].state) {
                 case RootState.EXPECTING_END: return "EXPECTING_END"
@@ -79,7 +82,7 @@ function getStateDescription(s: GlobalState): string {
                 default: return assertUnreachable(s[1].state)
             }
         }
-        case GlobalStateType.OBJECT: {
+        case ContextType.OBJECT: {
 
             switch (s[1].state) {
                 case ObjectState.EXPECTING_OBJECTVALUE: return "EXPECTING_OBJECTVALUE"
@@ -90,7 +93,7 @@ function getStateDescription(s: GlobalState): string {
                 default: return assertUnreachable(s[1].state)
             }
         }
-        case GlobalStateType.ARRAY: {
+        case ContextType.ARRAY: {
 
             switch (s[1].state) {
                 case ArrayState.EXPECTING_ARRAYVALUE: return "EXPECTING_ARRAYVALUE"
@@ -100,8 +103,7 @@ function getStateDescription(s: GlobalState): string {
 
             }
         }
-        case GlobalStateType.TYPED_UNION: {
-
+        case ContextType.TYPED_UNION: {
             switch (s[1].state) {
                 case TypedUnionState.EXPECTING_OPTION: return "EXPECTING_STRING"
                 case TypedUnionState.EXPECTING_VALUE: return "EXPECTING_VALUE"
@@ -170,7 +172,7 @@ export class Parser {
     readonly opt: Options
 
     private readonly stack = new Array<Context>()
-    private currentContext: Context = [ContextType.ROOT]
+    private currentContext: Context
 
     // mostly just for error reporting
     public position = 0
@@ -198,13 +200,15 @@ export class Parser {
         this.opt = opt || {}
         if (INFO) console.log('-- emit', "onready")
         this.onready.signal()
-        const rootContext = {}
         if (this.opt.require_schema_reference) {
-            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START, context: rootContext }])
+            this.state = ([ContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }])
+            this.currentContext = this.state
         } else if (this.opt.allow?.schema_reference) {
-            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE, context: rootContext }])
+            this.state = ([ContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }])
+            this.currentContext = this.state
         } else {
-            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE, context: rootContext }])
+            this.state = ([ContextType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }])
+            this.currentContext = this.state
         }
     }
 
@@ -220,7 +224,7 @@ export class Parser {
         this.processChunk(chunk)
         if (this.position >= this.bufferCheckPosition) {
             switch (this.state[0]) {
-                case GlobalStateType.NUMBER: {
+                case ContextType.NUMBER: {
                     const $ = this.state[1]
                     if ($.numberNode.length > maxAllowed) {
                         this.raiseError("Max number buffer length exceeded: " + $.numberNode.length)
@@ -230,7 +234,7 @@ export class Parser {
                     }
                     break
                 }
-                case GlobalStateType.STRING: {
+                case ContextType.STRING: {
                     const $ = this.state[1]
                     if ($.textNode.length > maxAllowed) {
                         this.raiseError("Max string buffer length exceeded: " + $.textNode.length)
@@ -298,7 +302,7 @@ export class Parser {
             }
             const state = this.state
             switch (state[0]) {
-                case GlobalStateType.ARRAY: {
+                case ContextType.ARRAY: {
                     const $ = state[1]
                     while (isWhiteSpace(curChar)) {
                         next()
@@ -313,7 +317,7 @@ export class Parser {
                         switch ($.state) {
                             case ArrayState.EXPECTING_VALUE_OR_ARRAY_END:
                                 if (curChar === Char.Array.closeBracket) {
-                                    this.closeArray(curChar, $.context)
+                                    this.closeArray(curChar, $)
                                 } else {
                                     const vt = this.getValueType(curChar)
                                     if (vt !== null) {
@@ -326,7 +330,7 @@ export class Parser {
                             case ArrayState.EXPECTING_ARRAYVALUE:
                                 if (curChar === Char.Array.closeBracket) {
                                     if (this.opt.allow?.trailing_commas) {
-                                        this.closeArray(curChar, $.context)
+                                        this.closeArray(curChar, $)
                                     } else {
                                         this.raiseError("trailing commas are not allowed")
                                     }
@@ -344,7 +348,7 @@ export class Parser {
                                 if (curChar === Char.Array.comma) {
                                     $.state = ArrayState.EXPECTING_ARRAYVALUE
                                 } else if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
-                                    this.closeArray(curChar, $.context)
+                                    this.closeArray(curChar, $)
                                 } else {
                                     const closeCharacters = this.opt.allow?.angle_brackets_instead_of_brackets ? "']' or '>'" : "']'"
                                     const vt = this.getValueType(curChar)
@@ -371,7 +375,7 @@ export class Parser {
                     next()
                     break
                 }
-                case GlobalStateType.COMMENT: {
+                case ContextType.COMMENT: {
                     /**
                      * COMMENT
                      */
@@ -459,7 +463,7 @@ export class Parser {
                     }
                     break
                 }
-                case GlobalStateType.KEYWORD: {
+                case ContextType.KEYWORD: {
                     /**
                      * KEYWORD PROCESSING (null, true, false)
                      */
@@ -544,7 +548,7 @@ export class Parser {
                     next()
                     break
                 }
-                case GlobalStateType.NUMBER: {
+                case ContextType.NUMBER: {
                     /**
                      * NUMBER PROCESSING
                      */
@@ -600,7 +604,7 @@ export class Parser {
 
                     break
                 }
-                case GlobalStateType.OBJECT: {
+                case ContextType.OBJECT: {
                     while (isWhiteSpace(curChar)) {
                         next()
                         if (isNaN(curChar)) {
@@ -617,20 +621,20 @@ export class Parser {
                             case ObjectState.EXPECTING_KEY:
                                 if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
                                     if (this.opt.allow?.trailing_commas) {
-                                        this.closeObject(curChar, $.context)
+                                        this.closeObject(curChar, $)
                                     } else {
                                         this.raiseError("trailing commas are not allowed")
                                     }
                                 } else {
-                                    this.processKey(curChar, $.context)
+                                    this.processKey(curChar, $)
                                 }
 
                                 break
                             case ObjectState.EXPECTING_KEY_OR_OBJECT_END:
                                 if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
-                                    this.closeObject(curChar, $.context)
+                                    this.closeObject(curChar, $)
                                 } else {
-                                    this.processKey(curChar, $.context)
+                                    this.processKey(curChar, $)
                                 }
                                 break
                             case ObjectState.EXPECTING_COLON:
@@ -642,12 +646,12 @@ export class Parser {
                                 break
                             case ObjectState.EXPECTING_COMMA_OR_OBJECT_END:
                                 if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
-                                    this.closeObject(curChar, $.context)
+                                    this.closeObject(curChar, $)
                                 } else if (curChar === Char.Object.comma) {
                                     $.state = ObjectState.EXPECTING_KEY
                                 } else if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
                                     if (this.opt.allow?.missing_commas) {
-                                        this.processKey(curChar, $.context)
+                                        this.processKey(curChar, $)
                                     } else {
                                         this.raiseError(`Bad object, missing comma`)
                                     }
@@ -675,7 +679,7 @@ export class Parser {
                     next()
                     break
                 }
-                case GlobalStateType.ROOT: {
+                case ContextType.ROOT: {
                     /**
                      * ROOT PROCESSING
                      */
@@ -761,7 +765,7 @@ export class Parser {
                     next()
                     break
                 }
-                case GlobalStateType.STRING: {
+                case ContextType.STRING: {
                     /**
                      * STRING PROCESSING
                      */
@@ -848,7 +852,7 @@ export class Parser {
                     }
                     break
                 }
-                case GlobalStateType.TYPED_UNION: {
+                case ContextType.TYPED_UNION: {
                     while (isWhiteSpace(curChar)) {
                         next()
                         if (isNaN(curChar)) {
@@ -866,7 +870,7 @@ export class Parser {
                                 if (this.isStringStart(curChar)) {
                                     this.initString(curChar, (textNode, range) => {
                                         this.ondata.signal(s => s.onoption(textNode, range))
-                                        this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_VALUE }])
+                                        this.setState([ContextType.TYPED_UNION, { state: TypedUnionState.EXPECTING_VALUE }])
                                     })
                                 } else {
                                     this.raiseError("missing typed union string")
@@ -908,7 +912,7 @@ export class Parser {
     }
 
     private wrapUpNumber() {
-        if (this.state[0] === GlobalStateType.NUMBER) {
+        if (this.state[0] === ContextType.NUMBER) {
             //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
             const numberState = this.state[1]
             this.ondata.signal(s => s.onsimplevalue(new Number(numberState.numberNode).valueOf(), {
@@ -975,7 +979,7 @@ export class Parser {
     }
     public end() {
         this.wrapUpNumber()
-        if (this.state[0] !== GlobalStateType.ROOT || this.state[1].state !== RootState.EXPECTING_END || this.stack.length !== 0) {
+        if (this.state[0] !== ContextType.ROOT || this.state[1].state !== RootState.EXPECTING_END || this.stack.length !== 0) {
             this.raiseError("unexpected end, " + getStateDescription(this.state))
             return
         }
@@ -987,7 +991,7 @@ export class Parser {
     private onFoundSolidus() {
         this.wrapUpNumber()
         const previousState = this.state
-        this.setState([GlobalStateType.COMMENT, {
+        this.setState([ContextType.COMMENT, {
             state: CommentState.FOUND_SOLIDUS,
             previousState: previousState,
             commentNode: "",
@@ -1008,7 +1012,7 @@ export class Parser {
             this.raiseError(`Malformed string, should start with '"', apostrophes are not allowed`)
         } else {
 
-            this.setState([GlobalStateType.STRING, {
+            this.setState([ContextType.STRING, {
                 startCharacter: startCharacter,
                 start: this.getLocation(),
                 textNode: "",
@@ -1040,18 +1044,28 @@ export class Parser {
         const currentContext = this.getCurrentContext()
         switch (currentContext[0]) {
             case ContextType.ARRAY:
-                this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_COMMA_OR_ARRAY_END, context: currentContext[1] }])
+                currentContext[1].state = ArrayState.EXPECTING_COMMA_OR_ARRAY_END
+                this.setState([ContextType.ARRAY, currentContext[1]])
                 break
+            case ContextType.COMMENT:
+                throw new Error("UNEXPECTED")
+            case ContextType.KEYWORD:
+                throw new Error("UNEXPECTED")
+            case ContextType.NUMBER:
+                throw new Error("UNEXPECTED")
             case ContextType.OBJECT:
-                this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COMMA_OR_OBJECT_END, context: currentContext[1] }])
+                currentContext[1].state = ObjectState.EXPECTING_COMMA_OR_OBJECT_END
+                this.setState([ContextType.OBJECT, currentContext[1]])
                 break
             case ContextType.ROOT:
-                this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_END, context: {} }])
+                this.setState([ContextType.ROOT, { state: RootState.EXPECTING_END }])
                 break
             // case ContextType.SCHEMA:
             //     this.onheaderdata.signal(s => s.onschemaend())
             //     this.popContext()
             //     break
+            case ContextType.STRING:
+                throw new Error("UNEXPECTED")
             case ContextType.TYPED_UNION:
                 this.ondata.signal(s => s.onclosetypedunion())
                 this.popContext()
@@ -1065,7 +1079,8 @@ export class Parser {
         if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
             this.initString(curChar, (textNode, range) => {
                 this.ondata.signal(s => s.onkey(textNode, range))
-                this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COLON, context: containingObject }])
+                containingObject.state = ObjectState.EXPECTING_COLON
+                this.setState([ContextType.OBJECT, containingObject])
             })
         } else {
             this.raiseError(`Malformed object, key should start with '"' ${this.opt.allow?.apostrophes_instead_of_quotation_marks ? "or '''" : ""}`)
@@ -1075,9 +1090,9 @@ export class Parser {
         switch (vt) {
             case ValueType.ARRAY: {
                 if (curChar !== Char.Array.openAngleBracket || this.opt.allow?.angle_brackets_instead_of_brackets) {
-                    const arrayContext = { openChar: curChar }
+                    const arrayContext = { openChar: curChar, state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }
                     this.pushContext([ContextType.ARRAY, arrayContext])
-                    this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END, context: arrayContext }])
+                    this.setState([ContextType.ARRAY, arrayContext])
                     this.ondata.signal(s => s.onopenarray(this.getLocation(), String.fromCharCode(curChar)))
                 } else {
                     this.raiseError("angle brackets are not allowed")
@@ -1085,15 +1100,15 @@ export class Parser {
                 break
             }
             case ValueType.FALSE: {
-                this.setState([GlobalStateType.KEYWORD, { state: KeywordState.FALSE_EXPECTING_A }])
+                this.setState([ContextType.KEYWORD, { state: KeywordState.FALSE_EXPECTING_A }])
                 break
             }
             case ValueType.NULL: {
-                this.setState([GlobalStateType.KEYWORD, { state: KeywordState.NULL_EXPECTING_U }])
+                this.setState([ContextType.KEYWORD, { state: KeywordState.NULL_EXPECTING_U }])
                 break
             }
             case ValueType.NUMBER: {
-                this.setState([GlobalStateType.NUMBER, {
+                this.setState([ContextType.NUMBER, {
                     start: this.getLocation(),
                     numberNode: String.fromCharCode(curChar),
                     foundExponent: false,
@@ -1103,9 +1118,9 @@ export class Parser {
             }
             case ValueType.OBJECT: {
                 if (curChar !== Char.Object.openParen || this.opt.allow?.parens_instead_of_braces) {
-                    const objectContext = { openChar: curChar }
+                    const objectContext = { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, openChar: curChar }
                     this.pushContext([ContextType.OBJECT, objectContext])
-                    this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, context: objectContext }])
+                    this.setState([ContextType.OBJECT, objectContext])
                     this.ondata.signal(s => s.onopenobject(this.getLocation(), String.fromCharCode(curChar)))
                 } else {
                     this.raiseError("parens are not allowed")
@@ -1120,13 +1135,13 @@ export class Parser {
                 break
             }
             case ValueType.TRUE: {
-                this.setState([GlobalStateType.KEYWORD, { state: KeywordState.TRUE_EXPECTING_R }])
+                this.setState([ContextType.KEYWORD, { state: KeywordState.TRUE_EXPECTING_R }])
                 break
             }
             case ValueType.TYPED_UNION: {
                 if (this.opt.allow?.typed_unions) {
-                    this.pushContext([ContextType.TYPED_UNION])
-                    this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_OPTION }])
+                    this.pushContext([ContextType.TYPED_UNION, { state: TypedUnionState.EXPECTING_OPTION }])
+                    this.setState([ContextType.TYPED_UNION, { state: TypedUnionState.EXPECTING_OPTION }])
                     this.ondata.signal(s => s.onopentypedunion(this.getLocation()))
                 } else {
                     this.raiseError("typed unions are not allowed")
