@@ -124,14 +124,12 @@ export class ErrorContext {
         return {
             array: (location) => this.raiseArrayError(`expected collection but found array`, location),
             object: (startLocation, openCharacter) => {
-
                 if (openCharacter !== "{") {
                     this.raiseWarning(`expected '<' but found '${openCharacter}'`, startLocation)
                 }
                 return {
                     property: onProperty,
                     end: (endLocation, closeCharacter) => {
-
                         if (closeCharacter !== "}") {
                             this.raiseWarning(`expected '}' but found '${closeCharacter}'`, endLocation)
                         }
@@ -146,7 +144,6 @@ export class ErrorContext {
     }
 
     private createMetaObjectHandler(startLocation: Location, openCharacter: string, expectedProperties: { [key: string]: ValueHandler }, onEnd: () => void): ObjectHandler {
-
         if (openCharacter !== "(") {
             this.raiseWarning(`expected '(' but found '${openCharacter}'`, startLocation)
         }
@@ -350,5 +347,4 @@ export class ErrorContext {
             },
         }
     }
-
 }
