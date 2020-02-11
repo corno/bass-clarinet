@@ -1,4 +1,3 @@
-export * from "./Stream"
 export * from "./Parser"
 export * from "./configurationTypes"
 export * from "./subscribeStack"
