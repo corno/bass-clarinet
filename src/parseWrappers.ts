@@ -235,7 +235,7 @@ export class ErrorContext {
         }
     }
 
-    public expectMetaArray(expectedElements: ValueHandler[], onEnd: () => void, onNull: NullHandler): ValueHandler {
+    public expectMetaArray(expectedElements: ValueHandler[], onEnd: () => void, onNull?: NullHandler): ValueHandler {
         return {
             array: (startLocation, openCharacter) => {
                 return this.createMetaArrayHandler(startLocation, openCharacter, expectedElements, onEnd)
