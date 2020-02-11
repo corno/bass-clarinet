@@ -18,7 +18,7 @@ import {
     StringType,
     TypedUnionState,
 } from "./parserStateTypes"
-import { Location, Range } from "./location"
+import { Location, Range, printLocation } from "./location"
 import { Options, Allow } from "./configurationTypes"
 
 
@@ -116,6 +116,17 @@ export const lax: Allow = {
     schema_reference: true,
 }
 
+export type Error = {
+    message: string,
+    location: Location,
+    character: number,
+}
+
+function printError(error: Error) {
+   return `${error.message} @ ${printLocation(error.location)} '${String.fromCharCode(error.character)}' (${error.character})`
+
+}
+
 export class Parser {
 
     private bufferCheckPosition = MAX_BUFFER_LENGTH
@@ -179,7 +190,7 @@ export class Parser {
 
     public write(chunk: string): Parser {
         if (this.error !== null) {
-            throw this.error
+            throw new SyntaxError(printError(this.error))
         }
         if (this.ended) {
             this.raiseError("Cannot write after close. Assign an onready handler.")
@@ -860,7 +871,7 @@ export class Parser {
     // }
     public close() {
         if (this.error !== null) {
-            throw this.error
+            throw new SyntaxError(printError(this.error))
         }
         if (this.ended) {
             this.raiseError("Already closed.")
@@ -929,11 +940,14 @@ export class Parser {
         }
     }
 
-    private raiseError(er: string) {
-        er += ` @ ${this.line}:${this.column} '${String.fromCharCode(this.curChar)}' (${this.curChar})`
-        const error = new Error(er)
+    private raiseError(message: string) {
+        const error = {
+            message: message,
+            location: this.getLocation(),
+            character: this.curChar
+        }
         this.error = error
-        if (DEBUG) { console.log("error raised:", er) }
+        if (DEBUG) { console.log("error raised:", printError(error)) }
         this.onerror.signal(error)
     }
     private finishKeyword(value: false | true | null, length: number) {
@@ -951,7 +965,7 @@ export class Parser {
     public end() {
         this.wrapUpNumber()
         if (this.state[0] !== GlobalStateType.ROOT || this.state[1].state !== RootState.EXPECTING_END || this.stack.length !== 0) {
-            this.raiseError("Unexpected end, " + getStateDescription(this.state))
+            this.raiseError("unexpected end, " + getStateDescription(this.state))
             return
         }
 

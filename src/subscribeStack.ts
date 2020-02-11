@@ -1,4 +1,4 @@
-import { Parser } from "./Parser";
+import { Parser, Error } from "./Parser";
 import { Location, Range } from "./location"
 
 const DEBUG = false
