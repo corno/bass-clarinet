@@ -146,6 +146,11 @@ export interface DataSubscriber {
     onlinecomment(comment: string, range: Range): void
 }
 
+export interface HeaderSubscriber {
+    onschemareference(schemaReference: string, schemaCharacterLocation: Location, referenceRange: Range): void
+    oncompact(isCompact: boolean, location: Location): void
+}
+
 export class Parser {
 
     private bufferCheckPosition = MAX_BUFFER_LENGTH
@@ -169,11 +174,8 @@ export class Parser {
      */
     private indent: string | null = null
 
-
-    onschemareference = new s.ThreeArgumentsSubscribers<string, Location, Range>()
-    oncompact = new s.TwoArgumentsSubscribers<boolean, Location>()
-
     ondata = new s.Subscribers<DataSubscriber>()
+    onheaderdata = new s.Subscribers<HeaderSubscriber>()
 
     onend = new s.NoArgumentSubscribers()
     onerror = new s.OneArgumentSubscribers<Error>()
@@ -770,16 +772,16 @@ export class Parser {
                                 break
                             }
                             case RootState.EXPECTING_ROOTVALUE_OR_HASH: {
-                                if (curChar === Char.Schema.hash) {
-                                    
+                                if (curChar === Char.Header.hash) {
+
                                     if (!this.opt.allow?.compact) {
                                         this.raiseError("compact not allowed")
                                     } else {
-                                        this.oncompact.signal(true, this.getLocation())
+                                        this.onheaderdata.signal(s => s.oncompact(true, this.getLocation()))
                                         $.state = RootState.EXPECTING_ROOTVALUE
                                     }
                                 } else {
-                                    this.oncompact.signal(false, this.getLocation())
+                                    this.onheaderdata.signal(s => s.oncompact(false, this.getLocation()))
                                     const vt = this.getValueType(curChar)
                                     if (vt === null) {
                                         this.raiseError("expected a hash ('#') or the root value")
@@ -800,23 +802,20 @@ export class Parser {
                             }
                             case RootState.EXPECTING_SCHEMA_REFERENCE:
                                 this.initString(curChar, (textNode, range) => {
-                                    
-                                    this.onschemareference.signal(textNode, this.getLocation(), range)
-                                    if (this.opt.allow?.compact) {
 
-                                    }
+                                    this.onheaderdata.signal(s => s.onschemareference(textNode, this.getLocation(), range))
                                     this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE_OR_HASH }])
                                 })
                                 break
                             case RootState.EXPECTING_SCHEMA_START:
-                                if (curChar !== Char.Schema.exclamationMark) {
+                                if (curChar !== Char.Header.exclamationMark) {
                                     this.raiseError("expected schema start (!)")
                                 } else {
                                     $.state = RootState.EXPECTING_SCHEMA_REFERENCE
                                 }
                                 break
                             case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                                if (curChar === Char.Schema.exclamationMark) {
+                                if (curChar === Char.Header.exclamationMark) {
                                     $.state = RootState.EXPECTING_SCHEMA_REFERENCE
                                 } else {
                                     const vt = this.getValueType(curChar)

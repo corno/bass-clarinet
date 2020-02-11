@@ -1,5 +1,5 @@
 
-export const Schema = {
+export const Header = {
     exclamationMark: 0x21,   // !
     hash: 0x23,              // #
 }

@@ -18,11 +18,15 @@ export function subscribeStackWithSchema(
 
     let foundSchemaReference = false
 
-    p.onschemareference.subscribe((schemaReference, startLocation, range) => {
-        foundSchemaReference = true
-        const vh = onReference(schemaReference, startLocation, range)
-        subscribeStack(p, vh, onError)
+    p.onheaderdata.subscribe({
+        onschemareference: (schemaReference, startLocation, range) => {
+            foundSchemaReference = true
+            const vh = onReference(schemaReference, startLocation, range)
+            subscribeStack(p, vh, onError)
+        },
+        oncompact: () => { }
     })
+
     p.onend.subscribe(() => {
         if (!foundSchemaReference) {
             throw new Error("no schema found")

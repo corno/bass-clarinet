@@ -73,12 +73,15 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             }
         })
 
-        parser.onschemareference.subscribe((k, _startLocation, range) => {
-            if (DEBUG) console.log("found schema reference")
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "schemareference")
-            assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
-            checkLocation(ee, range.end)
+        parser.onheaderdata.subscribe({
+            onschemareference: (k, _startLocation, range) => {
+                if (DEBUG) console.log("found schema reference")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "schemareference")
+                assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+                checkLocation(ee, range.end)
+            },
+            oncompact: () => { },
         })
 
         parser.ondata.subscribe({
