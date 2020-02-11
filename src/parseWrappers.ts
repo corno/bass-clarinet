@@ -120,7 +120,7 @@ export class ErrorContext {
         }
     }
 
-    public expectCollection(onProperty: (key: string, range: Range) => ValueHandler, onEnd: (start: Location, end: Location) => void, onNull?: NullHandler): ValueHandler {
+    public expectCollection(onProperty: (key: string, range: Range) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
             array: (location) => this.raiseArrayError(`expected collection but found array`, location),
             object: (startLocation, openCharacter) => {
@@ -133,7 +133,6 @@ export class ErrorContext {
                         if (closeCharacter !== "}") {
                             this.raiseWarning(`expected '}' but found '${closeCharacter}'`, endLocation)
                         }
-                        onEnd(startLocation, endLocation)
                     },
                 }
             },
@@ -187,7 +186,7 @@ export class ErrorContext {
         }
     }
 
-    public expectList(onElement: (startLocation: Location) => ValueHandler, onEnd: (start: Location, end: Location) => void, onNull?: NullHandler): ValueHandler {
+    public expectList(onElement: (startLocation: Location) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
             array: (startLocation, openCharacter) => {
                 if (openCharacter !== "[") {
@@ -199,7 +198,6 @@ export class ErrorContext {
                         if (closeCharacter !== "]") {
                             this.raiseWarning(`expected ']' but found '${closeCharacter}'`, endLocation)
                         }
-                        onEnd(startLocation, endLocation)
                     },
                 }
             },
