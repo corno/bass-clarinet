@@ -3,7 +3,7 @@ import { Location, Range } from "./location"
 export enum RootState {
     EXPECTING_SCHEMA_START,
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
-    EXPECTING_SCHEMA_REFERENCE,
+    EXPECTING_SCHEMA,
     EXPECTING_ROOTVALUE_OR_HASH,
     EXPECTING_ROOTVALUE,
     EXPECTING_END, // no more input expected
@@ -80,7 +80,7 @@ export type GlobalState =
         unicode: null | Unicode
         slashed: boolean
     }]
-    | [GlobalStateType.ROOT, { state: RootState }]
+    | [GlobalStateType.ROOT, { state: RootState, context: RootContext }]
     | [GlobalStateType.OBJECT, { state: ObjectState, context: ObjectContext }]
     | [GlobalStateType.ARRAY, { state: ArrayState, context: ArrayContext }]
     | [GlobalStateType.TYPED_UNION, { state: TypedUnionState }]
@@ -92,6 +92,7 @@ export enum StringTypeEnum {
     SCHEMA_REFERENCE,
 }
 
+export type RootContext = {}
 export type ObjectContext = { openChar: number }
 export type ArrayContext = { openChar: number }
 
@@ -104,6 +105,7 @@ export type Context =
 export enum ContextType {
     ROOT,
     OBJECT,
+    SCHEMA,
     ARRAY,
     TYPED_UNION,
 }

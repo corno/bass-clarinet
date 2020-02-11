@@ -16,10 +16,14 @@ export type TestDefinitions = {
 export type AnyEvent =
     | "end"
     | "error"
-    | Event
+    | HeaderEvent
+    | DataEvent
 
-export type Event =
-    | "schemareference"
+export type HeaderEvent =
+    | "schemastart"
+    | "schemaend"
+
+export type DataEvent =
 
     | "blockcomment"
     | "linecomment"

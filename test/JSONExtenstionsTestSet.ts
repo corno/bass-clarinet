@@ -136,7 +136,9 @@ export const extensionTests: TestDefinitions = {
             allow: { schema_reference: true}
         },
         events: [
-            ["schemareference", "a schema"],
+            ["schemastart", undefined],
+            ["simplevalue", "a schema"],
+            ["schemaend", undefined],
             ["simplevalue", 42],
             ["end", undefined],
             ["ready", undefined],
@@ -169,7 +171,9 @@ export const extensionTests: TestDefinitions = {
            require_schema_reference: true
         },
         events: [
-            ["schemareference", "a schema"],
+            ["schemastart", undefined],
+            ["simplevalue", "a schema"],
+            ["schemaend", undefined],
             ["simplevalue", 42],
             ["end", undefined],
             ["ready", undefined],

@@ -36,6 +36,16 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
+function getContextDescription(c: Context) {
+    switch (c[0]) {
+        case ContextType.ARRAY: return "ARRAY"
+        case ContextType.OBJECT: return "OBJECT"
+        case ContextType.ROOT: return "ROOT"
+        case ContextType.TYPED_UNION: return "TYPED_UNION"
+        default:
+            return assertUnreachable(c[0])
+    }
+}
 
 function getStateDescription(s: GlobalState): string {
     switch (s[0]) {
@@ -65,7 +75,7 @@ function getStateDescription(s: GlobalState): string {
                 case RootState.EXPECTING_ROOTVALUE_OR_HASH: return "EXPECTING_ROOTVALUE_OR_HASH"
                 case RootState.EXPECTING_SCHEMA_START: return "EXPECTING_SCHEMA_START"
                 case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: return "EXPECTING_SCHEMA_START_OR_ROOT_VALUE"
-                case RootState.EXPECTING_SCHEMA_REFERENCE: return "EXPECTING_SCHEMA_REFERENCE"
+                case RootState.EXPECTING_SCHEMA: return "EXPECTING_SCHEMA"
                 default: return assertUnreachable(s[1].state)
             }
         }
@@ -147,7 +157,8 @@ export interface DataSubscriber {
 }
 
 export interface HeaderSubscriber {
-    onschemareference(schemaReference: string, schemaCharacterLocation: Location, referenceRange: Range): void
+    onschemastart(location: Location): void
+    onschemaend(): void
     oncompact(isCompact: boolean, location: Location): void
 }
 
@@ -159,6 +170,8 @@ export class Parser {
     readonly opt: Options
 
     private readonly stack = new Array<Context>()
+    private currentContext: Context = [ContextType.ROOT]
+
     // mostly just for error reporting
     public position = 0
     public column = 0
@@ -181,18 +194,17 @@ export class Parser {
     onerror = new s.OneArgumentSubscribers<Error>()
     onready = new s.NoArgumentSubscribers()
 
-    private currentContext: Context = [ContextType.ROOT]
-
     constructor(opt?: Options) {
         this.opt = opt || {}
         if (INFO) console.log('-- emit', "onready")
         this.onready.signal()
+        const rootContext = {}
         if (this.opt.require_schema_reference) {
-            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }])
+            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START, context: rootContext }])
         } else if (this.opt.allow?.schema_reference) {
-            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }])
+            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE, context: rootContext }])
         } else {
-            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }])
+            this.state = ([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE, context: rootContext }])
         }
     }
 
@@ -286,6 +298,79 @@ export class Parser {
             }
             const state = this.state
             switch (state[0]) {
+                case GlobalStateType.ARRAY: {
+                    const $ = state[1]
+                    while (isWhiteSpace(curChar)) {
+                        next()
+                        if (isNaN(curChar)) {
+                            return
+                        }
+                    }
+                    this.indent = null
+                    if (curChar === Char.Comment.solidus) {
+                        this.onFoundSolidus()
+                    } else {
+                        switch ($.state) {
+                            case ArrayState.EXPECTING_VALUE_OR_ARRAY_END:
+                                if (curChar === Char.Array.closeBracket) {
+                                    this.closeArray(curChar, $.context)
+                                } else {
+                                    const vt = this.getValueType(curChar)
+                                    if (vt !== null) {
+                                        this.processValue(vt, curChar)
+                                    } else {
+                                        this.raiseError("expected value or array end")
+                                    }
+                                }
+                                break
+                            case ArrayState.EXPECTING_ARRAYVALUE:
+                                if (curChar === Char.Array.closeBracket) {
+                                    if (this.opt.allow?.trailing_commas) {
+                                        this.closeArray(curChar, $.context)
+                                    } else {
+                                        this.raiseError("trailing commas are not allowed")
+                                    }
+                                } else {
+
+                                    const vt = this.getValueType(curChar)
+                                    if (vt === null) {
+                                        this.raiseError("expected a value after a comma")
+                                    } else {
+                                        this.processValue(vt, curChar)
+                                    }
+                                }
+                                break
+                            case ArrayState.EXPECTING_COMMA_OR_ARRAY_END:
+                                if (curChar === Char.Array.comma) {
+                                    $.state = ArrayState.EXPECTING_ARRAYVALUE
+                                } else if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
+                                    this.closeArray(curChar, $.context)
+                                } else {
+                                    const closeCharacters = this.opt.allow?.angle_brackets_instead_of_brackets ? "']' or '>'" : "']'"
+                                    const vt = this.getValueType(curChar)
+                                    if (vt !== null) {
+                                        if (this.opt.allow?.missing_commas) {
+                                            this.processValue(vt, curChar)
+                                        } else {
+                                            this.raiseError(`Bad array, expected ',' or ${closeCharacters} (missing commas are not allowed)`)
+                                        }
+                                    } else {
+                                        if (this.opt.allow?.missing_commas) {
+                                            this.raiseError(`Bad array, expected ',' or ${closeCharacters} or a value`)
+                                        } else {
+                                            this.raiseError(`Bad array, expected ',' or '${closeCharacters}`)
+                                        }
+                                    }
+                                }
+                                break
+
+                            default:
+                                return assertUnreachable($.state)
+                        }
+                    }
+                    next()
+                    break
+                }
                 case GlobalStateType.COMMENT: {
                     /**
                      * COMMENT
@@ -369,149 +454,6 @@ export class Parser {
                                 }
                                 break
                             default: assertUnreachable($.state)
-                        }
-                        next()
-                    }
-                    break
-                }
-                case GlobalStateType.NUMBER: {
-                    /**
-                     * NUMBER PROCESSING
-                     */
-                    const $ = state[1]
-                    while (true) {
-                        if (this.error !== null) {
-                            return
-                        }
-                        if (isNaN(curChar)) {
-                            return
-                        }
-                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'number loop')
-
-                        //first check if we are breaking out of a number. Can only be done by checking the character that comes directly after the number
-                        if (curChar !== Char.Number.period
-                            && curChar !== Char.Number.e
-                            && curChar !== Char.Number.E
-                            && curChar !== Char.Number.plus
-                            && curChar !== Char.Number.minus
-                            && !(Char.Number._0 <= curChar && curChar <= Char.Number._9)
-                        ) {
-                            this.wrapUpNumber()
-                            //this character does not belong to the number so don't go to the next character
-                            break
-                        } else {
-                            if ($.numberNode === "-0" || $.numberNode === "0") {
-                                if (curChar !== Char.Number.period
-                                    && curChar !== Char.Number.e
-                                    && curChar !== Char.Number.E
-                                ) {
-                                    this.raiseError(`Leading zero not followed by '.', 'e', 'E', ',' ']', '}' or whitespace`)
-                                }
-                            }
-                            if (curChar === Char.Number.period) {
-                                if ($.foundPeriod) {
-                                    this.raiseError('Invalid number, has two dots')
-                                }
-                                $.foundPeriod = true
-                            } else if (curChar === Char.Number.e || curChar === Char.Number.E) {
-                                if ($.foundExponent) {
-                                    this.raiseError('Invalid number, has two exponential')
-                                }
-                                $.foundExponent = true
-                            } else if (curChar === Char.Number.plus || curChar === Char.Number.minus) {
-                                if ($.numberNode[$.numberNode.length - 1] !== "e" && $.numberNode[$.numberNode.length - 1] !== "E") {
-                                    this.raiseError('Invalid symbol in number')
-                                }
-                            }
-                            $.numberNode += String.fromCharCode(curChar)
-                            next()
-                        }
-                    }
-
-                    break
-                }
-                case GlobalStateType.STRING: {
-                    /**
-                     * STRING PROCESSING
-                     */
-                    const $ = state[1]
-
-                    let snippetStart: null | number = null
-                    function flush() {
-                        if (snippetStart !== null) {
-                            $.textNode += chunk.substring(snippetStart, currentChunkIndex)
-                        }
-                        snippetStart = null
-                    }
-
-                    while (true) {
-                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'string loop', $.slashed, $.textNode)
-                        if (this.error !== null) {
-                            return
-                        }
-                        if (isNaN(curChar)) {
-                            //end of the chunk
-                            //store it and wait for more input
-                            flush()
-                            return
-                        }
-                        if ($.unicode !== null) {
-                            $.unicode.foundCharacters += String.fromCharCode(curChar)
-                            $.unicode.charactersLeft--
-                            if ($.unicode.charactersLeft === 0) {
-                                $.textNode += String.fromCharCode(parseInt($.unicode.foundCharacters, 16))
-                                $.unicode = null
-                            }
-                        } else {
-                            if ($.slashed) {
-                                if (curChar === Char.String.quotationMark) { $.textNode += '\"' }
-                                else if (curChar === Char.String.apostrophe) { $.textNode += '\'' } //deviation from the JSON standard
-                                else if (curChar === Char.String.reverseSolidus) { $.textNode += '\\' }
-                                else if (curChar === Char.String.solidus) { $.textNode += '\/' }
-                                else if (curChar === Char.String.b) { $.textNode += '\b' }
-                                else if (curChar === Char.String.f) { $.textNode += '\f' }
-                                else if (curChar === Char.String.n) { $.textNode += '\n' }
-                                else if (curChar === Char.String.r) { $.textNode += '\r' }
-                                else if (curChar === Char.String.t) { $.textNode += '\t' }
-                                else if (curChar === Char.String.u) {
-                                    // \uxxxx. meh!
-                                    $.unicode = {
-                                        charactersLeft: 4,
-                                        foundCharacters: ""
-                                    }
-                                }
-                                else {
-                                    //no special character
-                                    this.raiseError("expected special character after escape slash")
-                                }
-                                $.slashed = false
-                            } else {
-
-                                //not slashed, not unicode
-                                if (curChar === Char.String.reverseSolidus) {//backslash
-                                    flush()
-                                    $.slashed = true
-                                } else if (curChar === $.startCharacter) {
-                                    /**
-                                     * THE STRING IS FINISHED
-                                     */
-
-                                    flush()
-                                    const locationInfo = {
-                                        start: $.start,
-                                        end: this.getLocation()
-                                    }
-                                    $.onFinished($.textNode, locationInfo)
-                                    next()
-                                    break
-                                } else {
-                                    //normal character
-                                    //don't flush
-                                    if (snippetStart === null) {
-                                        snippetStart = currentChunkIndex
-                                    }
-                                }
-                            }
                         }
                         next()
                     }
@@ -602,77 +544,60 @@ export class Parser {
                     next()
                     break
                 }
-                case GlobalStateType.ARRAY: {
+                case GlobalStateType.NUMBER: {
+                    /**
+                     * NUMBER PROCESSING
+                     */
                     const $ = state[1]
-                    while (isWhiteSpace(curChar)) {
-                        next()
+                    while (true) {
+                        if (this.error !== null) {
+                            return
+                        }
                         if (isNaN(curChar)) {
                             return
                         }
-                    }
-                    this.indent = null
-                    if (curChar === Char.Comment.solidus) {
-                        this.onFoundSolidus()
-                    } else {
-                        switch ($.state) {
-                            case ArrayState.EXPECTING_VALUE_OR_ARRAY_END:
-                                if (curChar === Char.Array.closeBracket) {
-                                    this.closeArray(curChar, $.context)
-                                } else {
-                                    const vt = this.getValueType(curChar)
-                                    if (vt !== null) {
-                                        this.processValue(vt, curChar)
-                                    } else {
-                                        this.raiseError("expected value or array end")
-                                    }
-                                }
-                                break
-                            case ArrayState.EXPECTING_ARRAYVALUE:
-                                if (curChar === Char.Array.closeBracket) {
-                                    if (this.opt.allow?.trailing_commas) {
-                                        this.closeArray(curChar, $.context)
-                                    } else {
-                                        this.raiseError("trailing commas are not allowed")
-                                    }
-                                } else {
+                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'number loop')
 
-                                    const vt = this.getValueType(curChar)
-                                    if (vt === null) {
-                                        this.raiseError("expected a value after a comma")
-                                    } else {
-                                        this.processValue(vt, curChar)
-                                    }
+                        //first check if we are breaking out of a number. Can only be done by checking the character that comes directly after the number
+                        if (curChar !== Char.Number.period
+                            && curChar !== Char.Number.e
+                            && curChar !== Char.Number.E
+                            && curChar !== Char.Number.plus
+                            && curChar !== Char.Number.minus
+                            && !(Char.Number._0 <= curChar && curChar <= Char.Number._9)
+                        ) {
+                            this.wrapUpNumber()
+                            //this character does not belong to the number so don't go to the next character
+                            break
+                        } else {
+                            if ($.numberNode === "-0" || $.numberNode === "0") {
+                                if (curChar !== Char.Number.period
+                                    && curChar !== Char.Number.e
+                                    && curChar !== Char.Number.E
+                                ) {
+                                    this.raiseError(`Leading zero not followed by '.', 'e', 'E', ',' ']', '}' or whitespace`)
                                 }
-                                break
-                            case ArrayState.EXPECTING_COMMA_OR_ARRAY_END:
-                                if (curChar === Char.Array.comma) {
-                                    $.state = ArrayState.EXPECTING_ARRAYVALUE
-                                } else if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
-                                    this.closeArray(curChar, $.context)
-                                } else {
-                                    const closeCharacters = this.opt.allow?.angle_brackets_instead_of_brackets ? "']' or '>'" : "']'"
-                                    const vt = this.getValueType(curChar)
-                                    if (vt !== null) {
-                                        if (this.opt.allow?.missing_commas) {
-                                            this.processValue(vt, curChar)
-                                        } else {
-                                            this.raiseError(`Bad array, expected ',' or ${closeCharacters} (missing commas are not allowed)`)
-                                        }
-                                    } else {
-                                        if (this.opt.allow?.missing_commas) {
-                                            this.raiseError(`Bad array, expected ',' or ${closeCharacters} or a value`)
-                                        } else {
-                                            this.raiseError(`Bad array, expected ',' or '${closeCharacters}`)
-                                        }
-                                    }
+                            }
+                            if (curChar === Char.Number.period) {
+                                if ($.foundPeriod) {
+                                    this.raiseError('Invalid number, has two dots')
                                 }
-                                break
-
-                            default:
-                                return assertUnreachable($.state)
+                                $.foundPeriod = true
+                            } else if (curChar === Char.Number.e || curChar === Char.Number.E) {
+                                if ($.foundExponent) {
+                                    this.raiseError('Invalid number, has two exponential')
+                                }
+                                $.foundExponent = true
+                            } else if (curChar === Char.Number.plus || curChar === Char.Number.minus) {
+                                if ($.numberNode[$.numberNode.length - 1] !== "e" && $.numberNode[$.numberNode.length - 1] !== "E") {
+                                    this.raiseError('Invalid symbol in number')
+                                }
+                            }
+                            $.numberNode += String.fromCharCode(curChar)
+                            next()
                         }
                     }
-                    next()
+
                     break
                 }
                 case GlobalStateType.OBJECT: {
@@ -791,6 +716,15 @@ export class Parser {
                                 }
                                 break
                             }
+                            case RootState.EXPECTING_SCHEMA: {
+                                const vt = this.getValueType(curChar)
+                                if (vt === null) {
+                                    this.raiseError("expected the schema")
+                                } else {
+                                    this.processValue(vt, curChar)
+                                }
+                                break
+                            }
                             case RootState.EXPECTING_ROOTVALUE: {
                                 const vt = this.getValueType(curChar)
                                 if (vt === null) {
@@ -800,23 +734,17 @@ export class Parser {
                                 }
                                 break
                             }
-                            case RootState.EXPECTING_SCHEMA_REFERENCE:
-                                this.initString(curChar, (textNode, range) => {
-
-                                    this.onheaderdata.signal(s => s.onschemareference(textNode, this.getLocation(), range))
-                                    this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_ROOTVALUE_OR_HASH }])
-                                })
-                                break
                             case RootState.EXPECTING_SCHEMA_START:
                                 if (curChar !== Char.Header.exclamationMark) {
                                     this.raiseError("expected schema start (!)")
                                 } else {
-                                    $.state = RootState.EXPECTING_SCHEMA_REFERENCE
+                                    this.onheaderdata.signal(s => s.onschemastart(this.getLocation()))
+                                    $.state = RootState.EXPECTING_SCHEMA
                                 }
                                 break
                             case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                                 if (curChar === Char.Header.exclamationMark) {
-                                    $.state = RootState.EXPECTING_SCHEMA_REFERENCE
+                                    $.state = RootState.EXPECTING_SCHEMA
                                 } else {
                                     const vt = this.getValueType(curChar)
                                     if (vt === null) {
@@ -831,6 +759,93 @@ export class Parser {
                         }
                     }
                     next()
+                    break
+                }
+                case GlobalStateType.STRING: {
+                    /**
+                     * STRING PROCESSING
+                     */
+                    const $ = state[1]
+
+                    let snippetStart: null | number = null
+                    function flush() {
+                        if (snippetStart !== null) {
+                            $.textNode += chunk.substring(snippetStart, currentChunkIndex)
+                        }
+                        snippetStart = null
+                    }
+
+                    while (true) {
+                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'string loop', $.slashed, $.textNode)
+                        if (this.error !== null) {
+                            return
+                        }
+                        if (isNaN(curChar)) {
+                            //end of the chunk
+                            //store it and wait for more input
+                            flush()
+                            return
+                        }
+                        if ($.unicode !== null) {
+                            $.unicode.foundCharacters += String.fromCharCode(curChar)
+                            $.unicode.charactersLeft--
+                            if ($.unicode.charactersLeft === 0) {
+                                $.textNode += String.fromCharCode(parseInt($.unicode.foundCharacters, 16))
+                                $.unicode = null
+                            }
+                        } else {
+                            if ($.slashed) {
+                                if (curChar === Char.String.quotationMark) { $.textNode += '\"' }
+                                else if (curChar === Char.String.apostrophe) { $.textNode += '\'' } //deviation from the JSON standard
+                                else if (curChar === Char.String.reverseSolidus) { $.textNode += '\\' }
+                                else if (curChar === Char.String.solidus) { $.textNode += '\/' }
+                                else if (curChar === Char.String.b) { $.textNode += '\b' }
+                                else if (curChar === Char.String.f) { $.textNode += '\f' }
+                                else if (curChar === Char.String.n) { $.textNode += '\n' }
+                                else if (curChar === Char.String.r) { $.textNode += '\r' }
+                                else if (curChar === Char.String.t) { $.textNode += '\t' }
+                                else if (curChar === Char.String.u) {
+                                    // \uxxxx. meh!
+                                    $.unicode = {
+                                        charactersLeft: 4,
+                                        foundCharacters: ""
+                                    }
+                                }
+                                else {
+                                    //no special character
+                                    this.raiseError("expected special character after escape slash")
+                                }
+                                $.slashed = false
+                            } else {
+
+                                //not slashed, not unicode
+                                if (curChar === Char.String.reverseSolidus) {//backslash
+                                    flush()
+                                    $.slashed = true
+                                } else if (curChar === $.startCharacter) {
+                                    /**
+                                     * THE STRING IS FINISHED
+                                     */
+
+                                    flush()
+                                    const locationInfo = {
+                                        start: $.start,
+                                        end: this.getLocation()
+                                    }
+                                    $.onFinished($.textNode, locationInfo)
+                                    next()
+                                    break
+                                } else {
+                                    //normal character
+                                    //don't flush
+                                    if (snippetStart === null) {
+                                        snippetStart = currentChunkIndex
+                                    }
+                                }
+                            }
+                        }
+                        next()
+                    }
                     break
                 }
                 case GlobalStateType.TYPED_UNION: {
@@ -848,7 +863,7 @@ export class Parser {
                         const $ = state[1]
                         switch ($.state) {
                             case TypedUnionState.EXPECTING_OPTION:
-                                if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
+                                if (this.isStringStart(curChar)) {
                                     this.initString(curChar, (textNode, range) => {
                                         this.ondata.signal(s => s.onoption(textNode, range))
                                         this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_VALUE }])
@@ -907,24 +922,6 @@ export class Parser {
             this.setStateAfterValue()
         }
     }
-    private setStateAfterValue() {
-        switch (this.currentContext[0]) {
-            case ContextType.ARRAY:
-                this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_COMMA_OR_ARRAY_END, context: this.currentContext[1] }])
-                break
-            case ContextType.OBJECT:
-                this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COMMA_OR_OBJECT_END, context: this.currentContext[1] }])
-                break
-            case ContextType.ROOT:
-                this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_END }])
-                break
-            case ContextType.TYPED_UNION:
-                this.ondata.signal(s => s.onclosetypedunion())
-                this.pop()
-                break
-        }
-
-    }
     private closeObject(curChar: number, context: ObjectContext) {
         if (context.openChar === Char.Object.openParen && curChar !== Char.Object.closeParen) {
             this.raiseError("must close object with ')'")
@@ -932,7 +929,7 @@ export class Parser {
             this.raiseError("must close object with '}'")
         } else {
             this.ondata.signal(s => s.oncloseobject(this.getLocation(), String.fromCharCode(curChar)))
-            this.pop()
+            this.popContext()
         }
     }
     private closeArray(curChar: number, context: ArrayContext) {
@@ -942,7 +939,7 @@ export class Parser {
             this.raiseError("must close object with '>'")
         } else {
             this.ondata.signal(s => s.onclosearray(this.getLocation(), String.fromCharCode(curChar)))
-            this.pop()
+            this.popContext()
         }
     }
 
@@ -1003,6 +1000,9 @@ export class Parser {
         }
         this.state = newState
     }
+    private isStringStart(curChar: number) {
+        return curChar === Char.String.quotationMark || curChar === Char.String.apostrophe
+    }
     private initString(startCharacter: number, onFinished: OnStringFinished) {
         if (startCharacter === Char.String.apostrophe && !this.opt.allow?.apostrophes_instead_of_quotation_marks) {
             this.raiseError(`Malformed string, should start with '"', apostrophes are not allowed`)
@@ -1018,14 +1018,48 @@ export class Parser {
             }])
         }
     }
-    private pop() {
+    private pushContext(context: Context) {
+        this.stack.push(this.currentContext)
+        if (DEBUG) console.log(`pushed context ${getContextDescription(this.currentContext)}>${getContextDescription(context)}`)
+        this.currentContext = context
+    }
+    private popContext() {
         const popped = this.stack.pop()
         if (popped === undefined) {
-            this.raiseError("unexpected end of stack")
+            throw new Error("unexpected end of stack")
         } else {
+            if (DEBUG) console.log(`popped context ${getContextDescription(popped)}<${getContextDescription(this.currentContext)}`)
             this.currentContext = popped
             this.setStateAfterValue()
         }
+    }
+    private getCurrentContext(): Context {
+        return this.currentContext
+    }
+    private setStateAfterValue() {
+        const currentContext = this.getCurrentContext()
+        switch (currentContext[0]) {
+            case ContextType.ARRAY:
+                this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_COMMA_OR_ARRAY_END, context: currentContext[1] }])
+                break
+            case ContextType.OBJECT:
+                this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_COMMA_OR_OBJECT_END, context: currentContext[1] }])
+                break
+            case ContextType.ROOT:
+                this.setState([GlobalStateType.ROOT, { state: RootState.EXPECTING_END, context: {} }])
+                break
+            // case ContextType.SCHEMA:
+            //     this.onheaderdata.signal(s => s.onschemaend())
+            //     this.popContext()
+            //     break
+            case ContextType.TYPED_UNION:
+                this.ondata.signal(s => s.onclosetypedunion())
+                this.popContext()
+                break
+            default:
+                assertUnreachable(currentContext[0])
+        }
+
     }
     private processKey(curChar: number, containingObject: ObjectContext) {
         if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
@@ -1041,9 +1075,8 @@ export class Parser {
         switch (vt) {
             case ValueType.ARRAY: {
                 if (curChar !== Char.Array.openAngleBracket || this.opt.allow?.angle_brackets_instead_of_brackets) {
-                    this.stack.push(this.currentContext)
                     const arrayContext = { openChar: curChar }
-                    this.currentContext = [ContextType.ARRAY, arrayContext]
+                    this.pushContext([ContextType.ARRAY, arrayContext])
                     this.setState([GlobalStateType.ARRAY, { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END, context: arrayContext }])
                     this.ondata.signal(s => s.onopenarray(this.getLocation(), String.fromCharCode(curChar)))
                 } else {
@@ -1070,9 +1103,8 @@ export class Parser {
             }
             case ValueType.OBJECT: {
                 if (curChar !== Char.Object.openParen || this.opt.allow?.parens_instead_of_braces) {
-                    this.stack.push(this.currentContext)
                     const objectContext = { openChar: curChar }
-                    this.currentContext = [ContextType.OBJECT, objectContext]
+                    this.pushContext([ContextType.OBJECT, objectContext])
                     this.setState([GlobalStateType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, context: objectContext }])
                     this.ondata.signal(s => s.onopenobject(this.getLocation(), String.fromCharCode(curChar)))
                 } else {
@@ -1093,8 +1125,7 @@ export class Parser {
             }
             case ValueType.TYPED_UNION: {
                 if (this.opt.allow?.typed_unions) {
-                    this.stack.push(this.currentContext)
-                    this.currentContext = [ContextType.TYPED_UNION]
+                    this.pushContext([ContextType.TYPED_UNION])
                     this.setState([GlobalStateType.TYPED_UNION, { state: TypedUnionState.EXPECTING_OPTION }])
                     this.ondata.signal(s => s.onopentypedunion(this.getLocation()))
                 } else {

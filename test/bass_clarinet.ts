@@ -16,9 +16,9 @@ const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
 
 // const selectedJSONTests: string[] = []
-// //const selectedTests = ['just_a_string']
-// //const selectedTests = ['empty_array']
-// const selectedExtensionTests = ["single_line_comment", "multi_line_comment"]
+// // //const selectedTests = ['just_a_string']
+// // //const selectedTests = ['empty_array']
+// const selectedExtensionTests = ["schema_required"]
 
 
 // function assertUnreachable(_x: never) {
@@ -74,13 +74,25 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         })
 
         parser.onheaderdata.subscribe({
-            onschemareference: (k, _startLocation, range) => {
-                if (DEBUG) console.log("found schema reference")
+            onschemastart: (location) => {
+                console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+                if (DEBUG) console.log("found schema start")
                 const ee = getExpectedEvent()
-                validateEventsEqual(ee, "schemareference")
-                assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
-                checkLocation(ee, range.end)
+                validateEventsEqual(ee, "schemastart")
+                checkLocation(ee, location)
+
             },
+            onschemaend: () => {
+                if (DEBUG) console.log("found schema end")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "schemaend")
+             },
+            // onschemareference: (k, _startLocation, range) => {
+            //     const ee = getExpectedEvent()
+            //     validateEventsEqual(ee, "schemareference")
+            //     assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+            //     checkLocation(ee, range.end)
+            // },
             oncompact: () => { },
         })
 

@@ -12,18 +12,22 @@ const DEBUG = false
 
 export function subscribeStackWithSchema(
     p: Parser,
-    onReference: (schemaReference: string, startLocation: Location, range: Range) => RootHandler,
-    onError: (err: Error) => void
+    _onReference: (schemaReference: string, startLocation: Location, range: Range) => RootHandler,
+    _onError: (err: Error) => void
 ) {
 
     let foundSchemaReference = false
 
     p.onheaderdata.subscribe({
-        onschemareference: (schemaReference, startLocation, range) => {
-            foundSchemaReference = true
-            const vh = onReference(schemaReference, startLocation, range)
-            subscribeStack(p, vh, onError)
+        onschemastart: () => {},
+        onschemaend: () => {
+            //foo
         },
+        // onschemareference: (schemaReference, startLocation, range) => {
+        //     foundSchemaReference = true
+        //     const vh = onReference(schemaReference, startLocation, range)
+        //     subscribeStack(p, vh, onError)
+        // },
         oncompact: () => { }
     })
 
