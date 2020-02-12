@@ -40,6 +40,7 @@ Clear reasons to use `bass-clarinet` over  the build in `JSON.parse`:
 
 * written in TypeScript
 * portable
+* no runtime dependency on other modules
 * robust (around 400 tests)
 * data representation independent
 * fast
@@ -49,17 +50,13 @@ Clear reasons to use `bass-clarinet` over  the build in `JSON.parse`:
 * simple to use
 * tiny
 
-# motivation
-
-the reason behind this work was to create better full text support in node. creating indexes out of large (or many) json files doesn't require a full understanding of the json file, but it does require something like `clarinet/bass-clarinet`.
-
 # installation
 
 ## node.js
 
 1. install [npm]
 2. `npm install bass-clarinet`
-3. `import * as bass_clarinet from "bass-clarinet"`
+3. add this to your `.ts` file: `import * as bass_clarinet from "bass-clarinet"`
 
 # usage
 
@@ -193,7 +190,7 @@ parser.end()
 
 pass the following arguments to the parser function.  all are optional.
 
-`opt` - object bag of settings regarding string formatting.
+`opt` - object bag of settings.
 
 the supported options are:
 * `spaces_per_tab` - number. needed for proper column info.: Rationale: without knowing how many spaces per tab `base-clarinet` is not able to determine the colomn of a character. Default is `4` (ofcourse)
@@ -212,41 +209,40 @@ the supported options are:
 
 ## methods
 
-`write` - write bytes onto the stream. you don't have to do this all at
+`write` - write bytes to the parser. you don't have to do this all at
 once. you can keep writing as much as you want.
 
 `end` - ends the stream. once ended, no more data may be written, it signals the  `onend` event.
 
 ## events
 
-`error` - indication that something bad happened. the error will be hanging
+`onerror` - indication that something bad happened. the error will be hanging
 out on `parser.error`, and must be deleted before parsing can continue. by
 listening to this event, you can keep an eye on that kind of stuff. note:
 this happens *much* more in strict mode. argument: instance of `Error`.
 
-`simplevalue` - a simple json value.
+`onsimplevalue` - a simple json value.
 
-`openobject` - object was opened. this is different from `clarinet` as the first key is not treated separately
+`onopenobject` - object was opened. this is different from `clarinet` as the first key is not treated separately
 
-`key` - an object key: argument: key, a string with the current key. (Also called for the first key, unlike the behaviour of `clarinet`)
+`onkey` - an object key: argument: key, a string with the current key. (Also called for the first key, unlike the behaviour of `clarinet`)
 
-`closeobject` - indication that an object was closed
+`oncloseobject` - indication that an object was closed
 
-`openarray` - indication that an array was opened
+`onopenarray` - indication that an array was opened
 
-`closearray` - indication that an array was closed
+`onclosearray` - indication that an array was closed
 
 
-`opentaggedunion` - indication that a tagged union was opened
+`onopentaggedunion` - indication that a tagged union was opened
 
-`option` - the value of the option (string)
+`onoption` - the value of the option (string)
 
-`closetaggedunion` - indication that a tagged union was closed
+`onclosetaggedunion` - indication that a tagged union was closed
 
-`end` - indication that the closed stream has ended.
+`onend` - indication that the closed stream has ended.
 
-`ready` - indication that the stream has reset, and is ready to be written
-to.
+`onready` - indication that the stream has reset.
 
 # roadmap
 
