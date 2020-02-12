@@ -11,8 +11,12 @@ export type Allow = {
     tagged_unions?: boolean
 }
 
+export type Require = {
+    schema?: boolean
+}
+
 export type Options = {
     allow?: Allow
     spaces_per_tab?: number
-    require_schema?: boolean
+    require?: Require
 }

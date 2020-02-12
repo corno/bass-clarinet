@@ -183,7 +183,7 @@ export class Parser {
         this.opt = opt || {}
         if (INFO) console.log('-- emit', "onready")
         this.onready.signal()
-        if (this.opt.require_schema) {
+        if (this.opt.require?.schema) {
             this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }]
             this.state = [ContextType.STACK]
         } else if (this.opt.allow?.schema) {
