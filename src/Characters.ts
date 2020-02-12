@@ -5,7 +5,7 @@ export const Header = {
 }
 
 export const TaggedUnion = {
-    verticalLine:  0x7C,     // |
+    verticalLine: 0x7C,      // |
 }
 
 export const Comment = {
@@ -28,13 +28,13 @@ export const Number = {
 
     _0: 0x30,                // 0
     _9: 0x39,                // 9
-    e: 0x65,                 // e 
+    e: 0x65,                 // e
     E: 0x45,                 // E
 }
 
 export const Keyword = {
     a: 0x61,                 // a
-    e: 0x65,                 // e 
+    e: 0x65,                 // e
     f: 0x66,                 // f
     l: 0x6C,                 // l
     n: 0x6E,                 // n
@@ -64,7 +64,7 @@ export const Array = {
     openBracket: 0x5B,       // [
     closeBracket: 0x5D,      // ]
     openAngleBracket: 0x3C,  // <
-    closeAngleBracket: 0x3E  // >
+    closeAngleBracket: 0x3E, // >
 }
 
 export const Object = {

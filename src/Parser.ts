@@ -1,4 +1,12 @@
-import * as s from "./subscription"
+/* eslint
+    @typescript-eslint/camelcase: "off",
+    camelcase:"off",
+    complexity:"off",
+    no-console:"off",
+    no-underscore-dangle: "off",
+*/
+
+import * as subscr from "./subscription"
 import * as Char from "./Characters"
 
 import {
@@ -19,78 +27,68 @@ import {
 import { Location, Range, printLocation } from "./location"
 import { Options, Allow } from "./configurationTypes"
 
-
-const env: any = (typeof process === 'object' && process.env)
-    ? process.env
-    : self
-
 export function parser(opt?: Options) { return new Parser(opt) }
 export const MAX_BUFFER_LENGTH = 64 * 1024
 const maxAllowed = Math.max(MAX_BUFFER_LENGTH, 10)
-export const DEBUG = (env.CDEBUG === 'debug')
-export const INFO = (env.CDEBUG === 'debug' || env.CDEBUG === 'info')
+export const DEBUG = false
+export const INFO = false
 
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-function getContextDescription(s: StackContext) {
-    switch (s[0]) {
+function getContextDescription(stackContext: StackContext) {
+    switch (stackContext[0]) {
         case StackContextType.ROOT: {
-
-            switch (s[1].state) {
+            switch (stackContext[1].state) {
                 case RootState.EXPECTING_END: return "EXPECTING_END"
                 case RootState.EXPECTING_ROOTVALUE: return "EXPECTING_ROOTVALUE"
                 case RootState.EXPECTING_HASH_OR_ROOTVALUE: return "EXPECTING_ROOTVALUE_OR_HASH"
                 case RootState.EXPECTING_SCHEMA_START: return "EXPECTING_SCHEMA_START"
                 case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: return "EXPECTING_SCHEMA_START_OR_ROOT_VALUE"
                 case RootState.EXPECTING_SCHEMA: return "EXPECTING_SCHEMA"
-                default: return assertUnreachable(s[1].state)
+                default: return assertUnreachable(stackContext[1].state)
             }
         }
         case StackContextType.OBJECT: {
-
-            switch (s[1].state) {
+            switch (stackContext[1].state) {
                 case ObjectState.EXPECTING_OBJECTVALUE: return "EXPECTING_OBJECTVALUE"
                 case ObjectState.EXPECTING_KEY_OR_OBJECT_END: return "EXPECTING_KEY_OR_OBJECT_END"
                 case ObjectState.EXPECTING_COMMA_OR_OBJECT_END: return "EXPECTING_COMMA_OR_OBJECT_END"
                 case ObjectState.EXPECTING_KEY: return "EXPECTING_KEY"
                 case ObjectState.EXPECTING_COLON: return "EXPECTING_COLON"
-                default: return assertUnreachable(s[1].state)
+                default: return assertUnreachable(stackContext[1].state)
             }
         }
         case StackContextType.ARRAY: {
-
-            switch (s[1].state) {
+            switch (stackContext[1].state) {
                 case ArrayState.EXPECTING_ARRAYVALUE: return "EXPECTING_ARRAYVALUE"
                 case ArrayState.EXPECTING_VALUE_OR_ARRAY_END: return "EXPECTING_VALUE_OR_ARRAY_END"
                 case ArrayState.EXPECTING_COMMA_OR_ARRAY_END: return "EXPECTING_COMMA_OR_ARRAY_END"
-                default: return assertUnreachable(s[1].state)
-
+                default: return assertUnreachable(stackContext[1].state)
             }
         }
-        case StackContextType.tagged_union: {
-            switch (s[1].state) {
+        case StackContextType.TAGGED_UNION: {
+            switch (stackContext[1].state) {
                 case TaggedUnionState.EXPECTING_OPTION: return "EXPECTING_STRING"
                 case TaggedUnionState.EXPECTING_VALUE: return "EXPECTING_VALUE"
-                default: return assertUnreachable(s[1].state)
-
+                default: return assertUnreachable(stackContext[1].state)
             }
         }
         default:
-            return assertUnreachable(s[0])
+            return assertUnreachable(stackContext[0])
     }
 }
 
-function getStateDescription(s: Context): string {
-    switch (s[0]) {
+function getStateDescription(stackContext: Context): string {
+    switch (stackContext[0]) {
         case ContextType.COMMENT: return "COMMENT"
         case ContextType.KEYWORD: return "KEYWORD"
         case ContextType.NUMBER: return "NUMBER"
         case ContextType.STACK: return "STACK"
         case ContextType.STRING: return "STRING"
-        default: return assertUnreachable(s[0])
+        default: return assertUnreachable(stackContext[0])
 
     }
 }
@@ -109,9 +107,9 @@ export const lax: Allow = {
 }
 
 export type Error = {
-    message: string,
-    location: Location,
-    character: number,
+    message: string
+    location: Location
+    character: number
 }
 
 function printError(error: Error) {
@@ -138,7 +136,7 @@ export interface DataSubscriber {
     onend(): void
 }
 
-export type DataSubscription = s.Subscribers<DataSubscriber>
+export type DataSubscription = subscr.Subscribers<DataSubscriber>
 
 export interface HeaderSubscriber {
     onschemastart(location: Location): void
@@ -151,7 +149,7 @@ export class Parser {
     private bufferCheckPosition = MAX_BUFFER_LENGTH
     private curChar = 0
     private ended = false
-    private opt: Options
+    private readonly opt: Options
 
     private readonly stack = new Array<StackContext>()
     private currentContext: StackContext
@@ -171,13 +169,13 @@ export class Parser {
      */
     private indent: string | null = null
 
-    readonly onschemadata = new s.Subscribers<DataSubscriber>()
-    readonly ondata = new s.Subscribers<DataSubscriber>()
-    private oncurrentdata: s.Subscribers<DataSubscriber>
-    readonly onheaderdata = new s.Subscribers<HeaderSubscriber>()
+    readonly onschemadata = new subscr.Subscribers<DataSubscriber>()
+    readonly ondata = new subscr.Subscribers<DataSubscriber>()
+    private oncurrentdata: subscr.Subscribers<DataSubscriber>
+    readonly onheaderdata = new subscr.Subscribers<HeaderSubscriber>()
 
-    readonly onerror = new s.OneArgumentSubscribers<Error>()
-    readonly onready = new s.NoArgumentSubscribers()
+    readonly onerror = new subscr.OneArgumentSubscribers<Error>()
+    readonly onready = new subscr.NoArgumentSubscribers()
 
     constructor(opt?: Options) {
         this.opt = opt || {}
@@ -237,13 +235,12 @@ export class Parser {
     }
 
     private processChunk(chunk: string): void {
-
         //initialize
 
         //start at the position just before the first character
         //because we are going to call next() once at the beginning
         let currentChunkIndex = -1
-        let curChar: number = 0
+        let curChar = 0
 
 
         const next = () => {
@@ -255,9 +252,13 @@ export class Parser {
 
             if (DEBUG) {
                 const stateInfo = getStateDescription(this.state) + ' ' + getContextDescription(this.currentContext)
-                let char = (curChar === Char.Whitespace.tab) ? "\\t" : String.fromCharCode(curChar)
+                const char = (curChar === Char.Whitespace.tab) ? "\\t" : String.fromCharCode(curChar)
 
-                console.log(`${stateInfo.padEnd(35)}${JSON.stringify(char).padStart(4)} ${("(" + curChar + ")").padEnd(5)} ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`, currentChunkIndex)
+                console.log(
+                    `${stateInfo.padEnd(35)}${JSON.stringify(char).padStart(4)} ${("(" + curChar + ")").padEnd(5)}` +
+                    ` ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`,
+                    currentChunkIndex
+                )
             }
             if (!isNaN(curChar)) {
                 this.position++
@@ -300,7 +301,6 @@ export class Parser {
                     function flush() {
                         if (snippetStart !== null) {
                             $.commentNode += chunk.substring(snippetStart, currentChunkIndex)
-                        } else {
                         }
                         snippetStart = null
                     }
@@ -474,7 +474,7 @@ export class Parser {
                                 }
                                 $.foundExponent = true
                             } else if (curChar === Char.Number.plus || curChar === Char.Number.minus) {
-                                if ($.numberNode[$.numberNode.length - 1] !== "e" && $.numberNode[$.numberNode.length - 1] !== "E") {
+                                if (!$.numberNode.endsWith("e") && !$.numberNode.endsWith("E")) {
                                     this.raiseError('Invalid symbol in number')
                                 }
                             }
@@ -744,7 +744,7 @@ export class Parser {
                             next()
                             break
                         }
-                        case StackContextType.tagged_union: {
+                        case StackContextType.TAGGED_UNION: {
                             const $$ = $[1]
 
                             while (isWhiteSpace(curChar)) {
@@ -839,7 +839,7 @@ export class Parser {
                                     // \uxxxx. meh!
                                     $.unicode = {
                                         charactersLeft: 4,
-                                        foundCharacters: ""
+                                        foundCharacters: "",
                                     }
                                 }
                                 else {
@@ -861,7 +861,7 @@ export class Parser {
                                     flush()
                                     const locationInfo = {
                                         start: $.start,
-                                        end: this.getLocation()
+                                        end: this.getLocation(),
                                     }
                                     this.setState([ContextType.STACK])
                                     $.onFinished($.textNode, locationInfo)
@@ -915,7 +915,7 @@ export class Parser {
                 const end = {
                     line: this.line,
                     position: this.position - 1,
-                    column: this.column - 1
+                    column: this.column - 1,
                 }
                 switch (this.state[1].keywordNode) {
                     case "true": {
@@ -943,13 +943,14 @@ export class Parser {
             case ContextType.NUMBER: {
                 //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
                 const numberState = this.state[1]
+                // eslint-disable-next-line
                 this.oncurrentdata.signal(s => s.onsimplevalue(new Number(numberState.numberNode).valueOf(), {
                     start: numberState.start,
                     end: {
                         line: this.line,
                         position: this.position - 1,
-                        column: this.column - 1
-                    }
+                        column: this.column - 1,
+                    },
                 }))
                 this.setStateAfterValue()
                 break
@@ -989,7 +990,7 @@ export class Parser {
         const error = {
             message: message,
             location: this.getLocation(),
-            character: this.curChar
+            character: this.curChar,
         }
         this.error = error
         if (DEBUG) { console.log("error raised:", printError(error)) }
@@ -1008,7 +1009,7 @@ export class Parser {
         }
 
         this.ended = true
-        this.oncurrentdata.signal(s =>s.onend())
+        this.oncurrentdata.signal(s => s.onend())
         this.onready.signal()
     }
     private onFoundSolidus() {
@@ -1016,7 +1017,7 @@ export class Parser {
         this.setState([ContextType.COMMENT, {
             state: CommentState.FOUND_SOLIDUS,
             commentNode: "",
-            start: this.getLocation()
+            start: this.getLocation(),
         }])
     }
     private setState(newState: Context) {
@@ -1038,7 +1039,7 @@ export class Parser {
                 textNode: "",
                 onFinished: onFinished,
                 unicode: null,
-                slashed: false
+                slashed: false,
             }])
         }
     }
@@ -1068,7 +1069,7 @@ export class Parser {
                 break
             case StackContextType.ROOT:
                 break
-            case StackContextType.tagged_union:
+            case StackContextType.TAGGED_UNION:
                 this.oncurrentdata.signal(s => s.onclosetaggedunion())
                 this.popContext()
                 break
@@ -1127,9 +1128,9 @@ export class Parser {
                 })
                 break
             }
-            case ValueType.tagged_union: {
+            case ValueType.TAGGED_UNION: {
                 if (this.opt.allow?.tagged_unions) {
-                    this.pushContext([StackContextType.tagged_union, { state: TaggedUnionState.EXPECTING_OPTION }])
+                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
                     this.oncurrentdata.signal(s => s.onopentaggedunion(this.getLocation()))
                 } else {
                     this.raiseError("tagged unions are not allowed")
@@ -1148,7 +1149,7 @@ export class Parser {
         } else if (curChar === Char.Array.openBracket || curChar === Char.Array.openAngleBracket) {
             return ValueType.ARRAY
         } else if (curChar === Char.TaggedUnion.verticalLine) { //extension to strict JSON specifications
-            return ValueType.tagged_union
+            return ValueType.TAGGED_UNION
         } else if (curChar === Char.Number.minus || Char.Number._0 <= curChar && curChar <= Char.Number._9) {
             return ValueType.NUMBER
         } else if (curChar === Char.Keyword.t) {

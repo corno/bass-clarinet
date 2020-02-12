@@ -1,8 +1,8 @@
 
 export type Location = {
-    readonly position: number,
-    readonly line: number,
-    readonly column: number,
+    readonly position: number
+    readonly line: number
+    readonly column: number
 }
 
 export type Range = {

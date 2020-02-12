@@ -5,8 +5,12 @@ function createDummyValueHandler(): ValueHandler {
     return {
         array: () => createDummyArrayHandler(),
         object: () => createDummyObjectHandler(),
-        simpleValue: () => { },
-        null: () => { },
+        simpleValue: () => {
+            //do nothing
+        },
+        null: () => {
+            //do nothing
+        },
         taggedUnion: () => createDummyValueHandler(),
     }
 }
@@ -14,14 +18,18 @@ function createDummyValueHandler(): ValueHandler {
 function createDummyArrayHandler(): ArrayHandler {
     return {
         element: () => createDummyValueHandler(),
-        end: () => { },
+        end: () => {
+            //do nothing
+        },
     }
 }
 
 function createDummyObjectHandler(): ObjectHandler {
     return {
         property: () => createDummyValueHandler(),
-        end: () => { },
+        end: () => {
+            //do nothing
+        },
     }
 }
 
@@ -30,10 +38,10 @@ export type IssueHandler = (message: string, location: Location) => void
 type NullHandler = (range: Range) => void
 
 export class ErrorContext {
-    private errorHandler: null | IssueHandler
-    private warningHandler: null | IssueHandler
+    private readonly errorHandler: null | IssueHandler
+    private readonly warningHandler: null | IssueHandler
     /**
-     * 
+     *
      * @param errorHandler if provided (not null), the errors are reported to this handler
      * and no errors are thrown
      * if not provided (null), this Context will throw errors
@@ -90,16 +98,16 @@ export class ErrorContext {
             }
         }
     }
-    
+
     public createTypeHandler(expectedProperties: { [key: string]: ValueHandler }, onEnd: () => void): OnObject {
         return (startLocation, openCharacter) => {
             if (openCharacter !== "(") {
                 this.raiseWarning(`expected '(' but found '${openCharacter}'`, startLocation)
             }
-            const foundProperies: Array<string> = []
+            const foundProperies: string[] = []
             return {
                 property: (key, range) => {
-                    if (foundProperies.indexOf(key) !== -1) {
+                    if (foundProperies.includes(key)) {
                         return this.raiseValueError(`property already processed: '${key}'`, range.start)//FIX print range properly
                     }
                     foundProperies.push(key)
@@ -115,16 +123,16 @@ export class ErrorContext {
                         this.raiseWarning(`expected '<' but found '${closeCharacter}'`, endLocation)
                     }
                     Object.keys(expectedProperties).forEach(ep => {
-                        if (foundProperies.indexOf(ep) === -1) {
+                        if (foundProperies.includes(ep)) {
                             this.raiseError(`missing property: '${ep}'`, startLocation)//FIX print location properly
                         }
                     })
                     onEnd()
-                }
+                },
             }
         }
     }
-    
+
     public createArrayTypeHandler(expectedElements: ValueHandler[], onEnd: () => void): OnArray {
         return (startLocation, openCharacter) => {
             if (openCharacter !== "<") {
@@ -205,16 +213,16 @@ export class ErrorContext {
                         },
                     }
                 },
-                end: (endLocation) => {
+                end: endLocation => {
                     if (dataHandler === null) {
                         this.raiseError(`missing option`, endLocation)
                     }
-                }
+                },
             }
         }
     }
 
-    public createListHandler(onElement: (startLocation: Location) => ValueHandler) : OnArray {
+    public createListHandler(onElement: (startLocation: Location) => ValueHandler): OnArray {
         return (startLocation, openCharacter) => {
             if (openCharacter !== "[") {
                 this.raiseWarning(`expected '[' but found '${openCharacter}'`, startLocation)
@@ -234,16 +242,16 @@ export class ErrorContext {
         return (_value, range) => this.raiseError(`expected '${expected}' but found 'value' `, range.start)
     }
     public createUnexpectedNullHandler(expected: string): OnNull {
-        return (range) => this.raiseError(`expected '${expected}' but found 'null' `, range.start)
+        return range => this.raiseError(`expected '${expected}' but found 'null' `, range.start)
     }
     public createUnexpectedTaggedUnionHandler(expected: string): OnTaggedUnion {
         return (_option, location) => this.raiseValueError(`expected '${expected}' but found 'tagged union' `, location)
     }
     public createUnexpectedObjectHandler(expected: string): OnObject {
-        return (startLocation) => this.raiseObjectError(`expected '${expected}' but found 'object' `, startLocation)
+        return startLocation => this.raiseObjectError(`expected '${expected}' but found 'object' `, startLocation)
     }
     public createUnexpectedArrayHandler(expected: string): OnArray {
-        return (startLocation) => this.raiseArrayError(`expected '${expected}' but found 'array' `, startLocation)
+        return startLocation => this.raiseArrayError(`expected '${expected}' but found 'array' `, startLocation)
     }
 
     public expectString(callback: (value: string, range: Range) => void, onNull?: NullHandler): ValueHandler {
@@ -256,7 +264,7 @@ export class ErrorContext {
                 }
                 callback(value, range)
             },
-            null: onNull ? onNull: this.createUnexpectedNullHandler("string"),
+            null: onNull ? onNull : this.createUnexpectedNullHandler("string"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("string"),
         }
     }
@@ -271,7 +279,7 @@ export class ErrorContext {
                 }
                 callback(value)
             },
-            null: onNull ? onNull: this.createUnexpectedNullHandler("number"),
+            null: onNull ? onNull : this.createUnexpectedNullHandler("number"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("number"),
         }
     }
@@ -286,7 +294,7 @@ export class ErrorContext {
                 }
                 callback(value)
             },
-            null: onNull ? onNull: this.createUnexpectedNullHandler("booelan"),
+            null: onNull ? onNull : this.createUnexpectedNullHandler("booelan"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("boolean"),
         }
     }
@@ -296,7 +304,7 @@ export class ErrorContext {
             array: this.createUnexpectedArrayHandler("dictionary"),
             object: this.createDictionaryHandler(onProperty),
             simpleValue: this.createUnexpectedSimpleValueHandler("dictionary"),
-            null: onNull ? onNull: this.createUnexpectedNullHandler("dictionary"),
+            null: onNull ? onNull : this.createUnexpectedNullHandler("dictionary"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("dictionary"),
         }
     }
@@ -307,7 +315,7 @@ export class ErrorContext {
             array: this.createUnexpectedArrayHandler("meta object"),
             object: this.createTypeHandler(expectedProperties, onEnd),
             simpleValue: this.createUnexpectedSimpleValueHandler("object"),
-            null: onNull ? onNull: this.createUnexpectedNullHandler("object"),
+            null: onNull ? onNull : this.createUnexpectedNullHandler("object"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("object"),
         }
     }
@@ -317,7 +325,7 @@ export class ErrorContext {
             array: this.createListHandler(onElement),
             object: this.createUnexpectedObjectHandler("list"),
             simpleValue: this.createUnexpectedSimpleValueHandler("list"),
-            null: onNull ? onNull: this.createUnexpectedNullHandler("list"),
+            null: onNull ? onNull : this.createUnexpectedNullHandler("list"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("list"),
         }
     }
@@ -327,7 +335,7 @@ export class ErrorContext {
             array: this.createArrayTypeHandler(expectedElements, onEnd),
             object: this.createUnexpectedObjectHandler("meta array"),
             simpleValue: this.createUnexpectedSimpleValueHandler("meta array"),
-            null: onNull ? onNull: this.createUnexpectedNullHandler("meta array"),
+            null: onNull ? onNull : this.createUnexpectedNullHandler("meta array"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("meta array"),
         }
     }
@@ -338,7 +346,7 @@ export class ErrorContext {
             array: this.createArrayTypeHandler(expectedElements, onEnd),
             object: this.createTypeHandler(expectedProperties, onEnd),
             simpleValue: this.createUnexpectedSimpleValueHandler("meta object or meta array"),
-            null: onNull ? onNull: this.createUnexpectedNullHandler("meta object or meta array"),
+            null: onNull ? onNull : this.createUnexpectedNullHandler("meta object or meta array"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("meta object or meta array"),
         }
     }
@@ -348,14 +356,14 @@ export class ErrorContext {
             array: this.createUnexpectedArrayHandler("tagged union"),
             object: this.createUnexpectedObjectHandler("tagged union"),
             simpleValue: this.createUnexpectedSimpleValueHandler("tagged union"),
-            null: onNull ? onNull: this.createUnexpectedNullHandler("tagged union"),
-            taggedUnion: (option) => callback(option)
+            null: onNull ? onNull : this.createUnexpectedNullHandler("tagged union"),
+            taggedUnion: option => callback(option),
         }
     }
 
     /**
      * this parses values in the form of `| "option" <data value>` or `[ "option", <data value> ]`
-     * @param callback 
+     * @param callback
      */
     public expectTaggedUnionOrArraySurrogate(callback: (option: string) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
@@ -363,7 +371,7 @@ export class ErrorContext {
             object: this.createUnexpectedObjectHandler("tagged union"),
             simpleValue: this.createUnexpectedSimpleValueHandler("tagged union"),
             null: onNull ? onNull : this.createUnexpectedNullHandler("tagged union"),
-            taggedUnion: (option) => callback(option),
+            taggedUnion: option => callback(option),
         }
     }
 }

@@ -1,3 +1,6 @@
+/* eslint
+    camelcase:"off",
+*/
 
 export type Allow = {
     angle_brackets_instead_of_brackets?: boolean

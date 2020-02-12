@@ -1,3 +1,6 @@
+/* eslint
+    max-classes-per-file: "off",
+*/
 
 export class Subscribers<T> {
     subscribers = new Array<T>()

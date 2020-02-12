@@ -56,7 +56,7 @@ export enum ValueType {
     OBJECT,
     ARRAY,
     NUMBER,
-    tagged_union,
+    TAGGED_UNION,
 }
 
 
@@ -66,7 +66,7 @@ export type StackContext =
     | [StackContextType.ROOT, RootContext]
     | [StackContextType.ARRAY, ArrayContext]
     | [StackContextType.OBJECT, ObjectContext]
-    | [StackContextType.tagged_union, TaggedUnionContext]
+    | [StackContextType.TAGGED_UNION, TaggedUnionContext]
 
 export type Context =
     | [ContextType.STACK]
@@ -79,7 +79,7 @@ export enum StackContextType {
     ARRAY,
     OBJECT,
     ROOT,
-    tagged_union,
+    TAGGED_UNION,
 }
 
 export enum ContextType {
@@ -95,39 +95,42 @@ export type Unicode = {
     foundCharacters: ""
 }
 
-export type ArrayContext = { state: ArrayState, openChar: number }
+export type ArrayContext = {
+    state: ArrayState
+    readonly openChar: number
+}
 
 export type CommentContext = {
     state: CommentState
     commentNode: string
-    start: Location
+    readonly start: Location
 }
 
 export type KeywordContext = {
     keywordNode: string
-    start: Location
+    readonly start: Location
 }
 
 export type NumberContext = {
-    start: Location
+    readonly start: Location
     numberNode: string
     foundExponent: boolean
     foundPeriod: boolean
 }
 
 export type ObjectContext = {
-    state: ObjectState,
-    openChar: number
+    state: ObjectState
+    readonly openChar: number
 }
 
 export type RootContext = {
     state: RootState
 }
 export type StringContext = {
-    startCharacter: number
-    start: Location
+    readonly startCharacter: number
+    readonly start: Location
     textNode: string
-    onFinished: OnStringFinished
+    readonly onFinished: OnStringFinished
     unicode: null | Unicode
     slashed: boolean
 }

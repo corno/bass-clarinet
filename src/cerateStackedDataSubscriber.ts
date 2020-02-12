@@ -1,3 +1,6 @@
+/* eslint
+    no-console:"off",
+*/
 import { DataSubscriber } from "./Parser";
 import { Location, Range } from "./location"
 
@@ -11,7 +14,7 @@ const DEBUG = false
  */
 
 export function createStackedDataSubscriber(valueHandler: ValueHandler, endComments: (comments: Comment[]) => void): DataSubscriber {
-    const stack: Array<ContextType> = []
+    const stack: ContextType[] = []
     let comments: Comment[] = []
 
     let currentContext: ContextType = ["root", { valueHandler: valueHandler }]
@@ -60,7 +63,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, endComme
                 text: comment,
                 type: "line",
                 indent: null,
-                range: range
+                range: range,
             })
         },
         onblockcomment: (comment, range, indent) => {
@@ -68,7 +71,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, endComme
                 text: comment,
                 type: "line",
                 indent: indent,
-                range: range
+                range: range,
             })
         },
         onopenarray: (location, openCHaracter) => {
@@ -113,7 +116,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, endComme
             stack.push(currentContext)
             currentContext = ["object", {
                 objectHandler: objectHandler,
-                valueHandler: null
+                valueHandler: null,
             }]
         },
         oncloseobject: (location, endCharacter) => {
@@ -145,7 +148,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, endComme
         },
         onend: () => {
             endComments(flushComments())
-        }
+        },
     }
 }
 
@@ -174,10 +177,21 @@ export interface ValueHandler {
 }
 
 type ContextType =
-    | ["root", { valueHandler: ValueHandler }]
-    | ["object", { objectHandler: ObjectHandler, valueHandler: null | ValueHandler }]
-    | ["array", { arrayHandler: ArrayHandler }]
-    | ["taggedunion", { location: Location, parentValueHandler: ValueHandler, valueHandler: null | ValueHandler }]
+    | ["root", {
+        readonly valueHandler: ValueHandler
+    }]
+    | ["object", {
+        readonly objectHandler: ObjectHandler
+        valueHandler: null | ValueHandler
+    }]
+    | ["array", {
+        readonly arrayHandler: ArrayHandler
+    }]
+    | ["taggedunion", {
+        readonly location: Location
+        readonly parentValueHandler: ValueHandler
+        valueHandler: null | ValueHandler
+    }]
 
 type Comment = {
     text: string

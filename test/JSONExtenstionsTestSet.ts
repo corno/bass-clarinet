@@ -2,180 +2,186 @@ import { TestDefinitions } from "./testDefinition";
 
 
 export const extensionTests: TestDefinitions = {
-    trailing_comma: {
+    "trailing comma": {
         text: '[1,2,]',
         options: {
-            allow: { trailing_commas: true, }
+            allow: { trailing_commas: true },
         },
         events: [
-            ["openarray", undefined],
+            ["openarray"],
             ["simplevalue", 1],
             ["simplevalue", 2],
-            ["closearray", undefined],
-            ["end", undefined],
-            ["ready", undefined]
-        ]
+            ["closearray"],
+            ["end"],
+            ["ready"],
+        ],
     },
-    single_line_comment: {
+    "single_line_comment": {
         text: '[1,"a"//a comment\r\n]',
         options: {
-            allow: { comments: true, }
+            allow: { comments: true },
         },
         events: [
-            ["openarray", undefined],
+            ["openarray"],
             ["simplevalue", 1],
             ["simplevalue", "a"],
             ["linecomment", "a comment"],
-            ["closearray", undefined],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
+            ["closearray"],
+            ["end"],
+            ["ready"],
+        ],
     },
-    multi_line_comment: {
+    "multi_line_comment": {
         text: '[1,"a"/*a comment\r\n*/]',
         options: {
-            allow: { comments: true, }
+            allow: {
+                comments: true,
+            },
         },
         events: [
-            ["openarray", undefined],
+            ["openarray"],
             ["simplevalue", 1],
             ["simplevalue", "a"],
             ["blockcomment", "a comment\r\n"],
-            ["closearray", undefined],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
+            ["closearray"],
+            ["end"],
+            ["ready"],
+        ],
     },
-    parens_instead_of_braces: {
+    "parens_instead_of_braces": {
         text: '( "a": "foo" )',
         options: {
-            allow: { parens_instead_of_braces: true }
+            allow: { parens_instead_of_braces: true },
         },
         events: [
             ["openobject", "("],
             ["key", "a"],
             ["simplevalue", "foo"],
             ["closeobject", ")"],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
+            ["end"],
+            ["ready"],
+        ],
     },
-    missing_comma: {
+    "missing_comma": {
         text: '["foo""bar"]',
         options: {
-            allow: { missing_commas: true}
+            allow: { missing_commas: true },
         },
         events: [
-            ["openarray", undefined],
+            ["openarray"],
             ["simplevalue", "foo"],
             ["simplevalue", "bar"],
-            ["closearray", undefined],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
+            ["closearray"],
+            ["end"],
+            ["ready"],
+        ],
     },
-    angle_brackets_instead_of_brackets: {
+    "angle_brackets_instead_of_brackets": {
         text: '<"foo">',
         options: {
-            allow: { angle_brackets_instead_of_brackets: true }
+            allow: { angle_brackets_instead_of_brackets: true },
         },
         events: [
             ["openarray", "<"],
             ["simplevalue", "foo"],
             ["closearray", ">"],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
+            ["end"],
+            ["ready"],
+        ],
     },
-    apostrophe_string: {
+    "apostrophe_string": {
         text: "'a string'",
         options: {
-            allow: {apostrophes_instead_of_quotation_marks: true}
+            allow: { apostrophes_instead_of_quotation_marks: true },
         },
         events: [
             ["simplevalue", "a string", 1, 10],
-            ["end", undefined],
-            ["ready", undefined],
+            ["end"],
+            ["ready"],
         ],
     },
-    tagged_union: {
+    "tagged_union": {
         text: '| "foo" "x"',
         options: {
             allow: {
                 tagged_unions: true,
-            }
+            },
         },
         events: [
-            ["opentaggedunion", undefined],
+            ["opentaggedunion"],
             ["option", "foo"],
             ["simplevalue", "x"],
-            ["closetaggedunion", undefined],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
+            ["closetaggedunion"],
+            ["end"],
+            ["ready"],
+        ],
     },
-    tagged_union_with_number_at_end: {
+    "tagged_union_with_number_at_end": {
         text: '| "foo" 5',
         options: {
             allow: {
                 tagged_unions: true,
-            }
+            },
         },
         events: [
-            ["opentaggedunion", undefined],
+            ["opentaggedunion"],
             ["option", "foo"],
             ["simplevalue", 5],
-            ["closetaggedunion", undefined],
-            ["end", undefined],
-            ["ready", undefined],
-        ]
+            ["closetaggedunion"],
+            ["end"],
+            ["ready"],
+        ],
     },
-    schema_optional: {
+    "schema_optional": {
         text: '!"a schema" 42',
         options: {
-            allow: { schema: true}
+            allow: { schema: true },
         },
         events: [
-            ["schemastart", undefined],
+            ["schemastart"],
             ["simplevalue", "a schema"],
-            ["schemaend", undefined],
+            ["schemaend"],
             ["simplevalue", 42],
-            ["end", undefined],
-            ["ready", undefined],
+            ["end"],
+            ["ready"],
         ],
     },
-    schema_optional_but_not_there: {
+    "schema_optional_but_not_there": {
         text: "42",
         options: {
-            allow: { schema: true}
+            allow: { schema: true },
         },
         events: [
             ["simplevalue", 42],
-            ["end", undefined],
-            ["ready", undefined],
+            ["end"],
+            ["ready"],
         ],
     },
-    schema_required_but_not_there: {
+    "schema_required_but_not_there": {
         text: "42",
         options: {
-            require_schema:true
+            require: {
+                schema: true,
+            },
         },
         events: [
-            ["error", undefined],
+            ["error"],
         ],
     },
-    schema_required: {
+    "schema_required": {
         text: '! "a schema" 42',
         options: {
-           require_schema: true
+            require: {
+                schema: true,
+            },
         },
         events: [
-            ["schemastart", undefined],
+            ["schemastart"],
             ["simplevalue", "a schema"],
-            ["schemaend", undefined],
+            ["schemaend"],
             ["simplevalue", 42],
-            ["end", undefined],
-            ["ready", undefined],
+            ["end"],
+            ["ready"],
         ],
     },
 }
