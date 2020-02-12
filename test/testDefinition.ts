@@ -1,6 +1,6 @@
 import { Options } from "../src/configurationTypes"
 
-export type EventDefinition = [AnyEvent, string | undefined | false | true | null | number, number?, number?]
+export type EventDefinition = [AnyEvent, (string | false | true | null | number)?, number?, number?]
 
 export type TestDefinition = {
     text: string,
