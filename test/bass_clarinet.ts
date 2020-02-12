@@ -98,7 +98,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
                 checkLocation(ee, range.end)
             },
-            onblockcomment: (v, _indent, range) => {
+            onblockcomment: (v, range, _indent) => {
                 if (DEBUG) console.log("found block comment")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "blockcomment")

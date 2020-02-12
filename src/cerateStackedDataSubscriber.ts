@@ -63,7 +63,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, endComme
                 range: range
             })
         },
-        onblockcomment: (comment, indent, range) => {
+        onblockcomment: (comment, range, indent) => {
             comments.push({
                 text: comment,
                 type: "line",
