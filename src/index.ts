@@ -1,5 +1,5 @@
 export * from "./Parser"
 export * from "./configurationTypes"
 export * from "./cerateStackedDataSubscriber"
-export * from "./parseWrappers"
+export * from "./ErrorContext"
 export * from "./location"
