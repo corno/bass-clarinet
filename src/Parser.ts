@@ -147,19 +147,19 @@ export class Parser {
 
     private bufferCheckPosition = MAX_BUFFER_LENGTH
     private curChar = 0
-    ended = false
-    readonly opt: Options
+    private ended = false
+    private opt: Options
 
     private readonly stack = new Array<StackContext>()
     private currentContext: StackContext
 
     // mostly just for error reporting
-    public position = 0
-    public column = 0
-    public line = 1
+    private position = 0
+    private column = 0
+    private line = 1
 
-    public state: Context
-    public error: Error | null = null
+    private state: Context
+    private error: Error | null = null
 
     /**
      * the indent property keeps track of the whitespace characters after a newline.
@@ -168,12 +168,14 @@ export class Parser {
      */
     private indent: string | null = null
 
-    ondata = new s.Subscribers<DataSubscriber>()
-    onheaderdata = new s.Subscribers<HeaderSubscriber>()
+    readonly onschemadata = new s.Subscribers<DataSubscriber>()
+    readonly ondata = new s.Subscribers<DataSubscriber>()
+    private oncurrentdata: s.Subscribers<DataSubscriber>
+    readonly onheaderdata = new s.Subscribers<HeaderSubscriber>()
 
-    onend = new s.NoArgumentSubscribers()
-    onerror = new s.OneArgumentSubscribers<Error>()
-    onready = new s.NoArgumentSubscribers()
+    readonly onend = new s.NoArgumentSubscribers()
+    readonly onerror = new s.OneArgumentSubscribers<Error>()
+    readonly onready = new s.NoArgumentSubscribers()
 
     constructor(opt?: Options) {
         this.opt = opt || {}
@@ -189,6 +191,7 @@ export class Parser {
             this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }]
             this.state = [ContextType.STACK]
         }
+        this.oncurrentdata = this.ondata
     }
 
     public write(chunk: string): Parser {
@@ -225,6 +228,10 @@ export class Parser {
             }
         }
         return this
+    }
+
+    public isInErrorState() {
+        return this.error !== null
     }
 
     private processChunk(chunk: string): void {
@@ -322,7 +329,7 @@ export class Parser {
                                     //end of line comment
                                     this.setState([ContextType.STACK])
                                     flush()
-                                    this.ondata.signal(s => s.onlinecomment($.commentNode, { start: $.start, end: this.getLocation() }))
+                                    this.oncurrentdata.signal(s => s.onlinecomment($.commentNode, { start: $.start, end: this.getLocation() }))
                                     next()
                                     break commentLoop
                                 } else {
@@ -337,7 +344,7 @@ export class Parser {
                                     this.setState([ContextType.STACK])
                                     flush()
                                     const comment = $.commentNode.substring(0, $.commentNode.length - 1) //strip the found asterisk '*'
-                                    this.ondata.signal(s => s.onblockcomment(comment, this.indent, { start: $.start, end: this.getLocation() }))
+                                    this.oncurrentdata.signal(s => s.onblockcomment(comment, this.indent, { start: $.start, end: this.getLocation() }))
                                     next()
                                     break commentLoop
                                 } else {
@@ -659,6 +666,8 @@ export class Parser {
                                     }
                                     case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
                                         this.onheaderdata.signal(s => s.onschemaend())
+                                        this.oncurrentdata = this.ondata
+
                                         if (curChar === Char.Header.hash) {
 
                                             if (!this.opt.allow?.compact) {
@@ -705,6 +714,7 @@ export class Parser {
                                             this.raiseError("expected schema start (!)")
                                         } else {
                                             this.onheaderdata.signal(s => s.onschemastart(this.getLocation()))
+                                            this.oncurrentdata = this.onschemadata
                                             $$.state = RootState.EXPECTING_SCHEMA
                                         }
                                         break
@@ -712,6 +722,8 @@ export class Parser {
                                         if (curChar === Char.Header.exclamationMark) {
                                             $$.state = RootState.EXPECTING_SCHEMA
                                             this.onheaderdata.signal(s => s.onschemastart(this.getLocation()))
+                                            this.oncurrentdata = this.onschemadata
+
 
                                         } else {
                                             const vt = this.getValueType(curChar)
@@ -748,7 +760,7 @@ export class Parser {
                                     case TypedUnionState.EXPECTING_OPTION:
                                         if (this.isStringStart(curChar)) {
                                             this.initString(curChar, (textNode, range) => {
-                                                this.ondata.signal(s => s.onoption(textNode, range))
+                                                this.oncurrentdata.signal(s => s.onoption(textNode, range))
                                                 $$.state = TypedUnionState.EXPECTING_VALUE
                                             })
                                         } else {
@@ -884,13 +896,20 @@ export class Parser {
         return this.end()
     }
 
+    public getLocation(): Location {
+        return {
+            position: this.position,
+            line: this.line,
+            column: this.column,
+        }
+    }
+
     private wrapUpDanglingToken() {
         switch (this.state[0]) {
             case ContextType.COMMENT:
                 break
             case ContextType.KEYWORD:
                 const $ = this.state[1]
-                console.log(this.state[1].keywordNode)
                 const end = {
                     line: this.line,
                     position: this.position - 1,
@@ -898,19 +917,19 @@ export class Parser {
                 }
                 switch (this.state[1].keywordNode) {
                     case "true": {
-                        this.ondata.signal(s => s.onsimplevalue(true, { start: $.start, end: end }))
+                        this.oncurrentdata.signal(s => s.onsimplevalue(true, { start: $.start, end: end }))
                         this.setStateAfterValue()
 
                         break
                     }
                     case "false": {
-                        this.ondata.signal(s => s.onsimplevalue(false, { start: $.start, end: end }))
+                        this.oncurrentdata.signal(s => s.onsimplevalue(false, { start: $.start, end: end }))
                         this.setStateAfterValue()
 
                         break
                     }
                     case "null": {
-                        this.ondata.signal(s => s.onsimplevalue(null, { start: $.start, end: end }))
+                        this.oncurrentdata.signal(s => s.onsimplevalue(null, { start: $.start, end: end }))
                         this.setStateAfterValue()
 
                         break
@@ -922,7 +941,7 @@ export class Parser {
             case ContextType.NUMBER: {
                 //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
                 const numberState = this.state[1]
-                this.ondata.signal(s => s.onsimplevalue(new Number(numberState.numberNode).valueOf(), {
+                this.oncurrentdata.signal(s => s.onsimplevalue(new Number(numberState.numberNode).valueOf(), {
                     start: numberState.start,
                     end: {
                         line: this.line,
@@ -948,7 +967,7 @@ export class Parser {
         } else if (context.openChar === Char.Object.openBrace && curChar !== Char.Object.closeBrace) {
             this.raiseError("must close object with '}'")
         } else {
-            this.ondata.signal(s => s.oncloseobject(this.getLocation(), String.fromCharCode(curChar)))
+            this.oncurrentdata.signal(s => s.oncloseobject(this.getLocation(), String.fromCharCode(curChar)))
             this.popContext()
         }
     }
@@ -958,18 +977,11 @@ export class Parser {
         } else if (context.openChar === Char.Array.openAngleBracket && curChar !== Char.Array.closeAngleBracket) {
             this.raiseError("must close object with '>'")
         } else {
-            this.ondata.signal(s => s.onclosearray(this.getLocation(), String.fromCharCode(curChar)))
+            this.oncurrentdata.signal(s => s.onclosearray(this.getLocation(), String.fromCharCode(curChar)))
             this.popContext()
         }
     }
 
-    private getLocation(): Location {
-        return {
-            position: this.position,
-            line: this.line,
-            column: this.column,
-        }
-    }
 
     private raiseError(message: string) {
         const error = {
@@ -1055,7 +1067,7 @@ export class Parser {
             case StackContextType.ROOT:
                 break
             case StackContextType.TYPED_UNION:
-                this.ondata.signal(s => s.onclosetypedunion())
+                this.oncurrentdata.signal(s => s.onclosetypedunion())
                 this.popContext()
                 break
             default:
@@ -1066,7 +1078,7 @@ export class Parser {
     private processKey(curChar: number, containingObject: ObjectContext) {
         if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
             this.initString(curChar, (textNode, range) => {
-                this.ondata.signal(s => s.onkey(textNode, range))
+                this.oncurrentdata.signal(s => s.onkey(textNode, range))
                 containingObject.state = ObjectState.EXPECTING_COLON
             })
         } else {
@@ -1079,7 +1091,7 @@ export class Parser {
                 if (curChar === Char.Array.openAngleBracket && !this.opt.allow?.angle_brackets_instead_of_brackets) {
                     this.raiseError("angle brackets are not allowed")
                 } else {
-                    this.ondata.signal(s => s.onopenarray(this.getLocation(), String.fromCharCode(curChar)))
+                    this.oncurrentdata.signal(s => s.onopenarray(this.getLocation(), String.fromCharCode(curChar)))
                     this.pushContext([StackContextType.ARRAY, { openChar: curChar, state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
                 }
                 break
@@ -1101,14 +1113,14 @@ export class Parser {
                 if (curChar === Char.Object.openParen && !this.opt.allow?.parens_instead_of_braces) {
                     this.raiseError("parens are not allowed")
                 } else {
-                    this.ondata.signal(s => s.onopenobject(this.getLocation(), String.fromCharCode(curChar)))
+                    this.oncurrentdata.signal(s => s.onopenobject(this.getLocation(), String.fromCharCode(curChar)))
                     this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, openChar: curChar }])
                 }
                 break
             }
             case ValueType.STRING: {
                 this.initString(curChar, (textNode, range) => {
-                    this.ondata.signal(s => s.onsimplevalue(textNode, range))
+                    this.oncurrentdata.signal(s => s.onsimplevalue(textNode, range))
                     this.setStateAfterValue()
                 })
                 break
@@ -1116,7 +1128,7 @@ export class Parser {
             case ValueType.TYPED_UNION: {
                 if (this.opt.allow?.typed_unions) {
                     this.pushContext([StackContextType.TYPED_UNION, { state: TypedUnionState.EXPECTING_OPTION }])
-                    this.ondata.signal(s => s.onopentypedunion(this.getLocation()))
+                    this.oncurrentdata.signal(s => s.onopentypedunion(this.getLocation()))
                 } else {
                     this.raiseError("typed unions are not allowed")
                 }

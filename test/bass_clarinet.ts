@@ -79,7 +79,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 if (DEBUG) console.log("found schema end")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "schemaend")
-             },
+            },
             // onschemareference: (k, _startLocation, range) => {
             //     const ee = getExpectedEvent()
             //     validateEventsEqual(ee, "schemareference")
@@ -89,7 +89,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             oncompact: () => { },
         })
 
-        parser.ondata.subscribe({
+        const subscriber: p.DataSubscriber = {
             onlinecomment: (v, range) => {
                 if (DEBUG) console.log("found line comment")
                 const ee = getExpectedEvent()
@@ -170,7 +170,9 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
                 checkLocation(ee, range.end)
             }
-        })
+        }
+        parser.onschemadata.subscribe(subscriber)
+        parser.ondata.subscribe(subscriber)
 
 
 
@@ -190,8 +192,8 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
 
         chunks.forEach(function (chunk) {
             try {
-                if (parser.error === null) {
-                    //if in error state, don't write or we'll get an exception
+                //if in error state, don't write or we'll get an exception
+                if (!parser.isInErrorState()) {
                     parser.write(chunk);
                 }
             } catch (e) {
