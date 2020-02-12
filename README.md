@@ -11,7 +11,7 @@ In addition to the port to TypeScript, the following changes have been made:
 * the parser accepts multiple subscribers per event type
 * `trim` and `normalize` options have been dropped. This can be handled by the consumer in the `onsimplevalue` callback
 * there is a stack based wrapper named `createStackedDataSubscriber` which pairs `onopenobject`/`oncloseobject` and `onopenarray`/`onclosearray` events in a callback
-* the following options have been added (if none are selected, `base-clarinet` is a pure JSON-parser):
+* the following options have been added (if none are selected, `bass-clarinet` is a pure JSON-parser):
   * `allow:angle_brackets_instead_of_brackets`
   * `allow:apostrophes_instead_of_quotation_marks`
   * `allow:comments`
