@@ -43,15 +43,20 @@
     "type"
   ],
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^2.18.0",
+    "@typescript-eslint/eslint-plugin-tslint": "^2.18.0",
+    "@typescript-eslint/parser": "^2.18.0",
     "@types/mocha": "^7.0.1",
     "@types/node": "^13.7.1",
     "mocha": "^7.0.1",
     "should": "13.2.x",
+    "eslint": "^6.8.0",
+    "tslint": "^6.0.0",
     "typescript": "^3.7.5"
   },
   "scripts": {
     "build": "rd /s /q .\\dist & tsc",
-    "lint": "",
+    "lint": "node .\\node_modules\\eslint\\bin\\eslint.js src/**/*.ts",
     "buildLintAndTest": "npm run build && npm run lint && npm run test",
     "validatePublishReadiness": "git diff --exit-code && ncu -u --packageFile package.json && npm install && npm run buildLintAndTest",
     "pubMin": "npm run validatePublishReadiness && npm version minor && git push && npm publish",
