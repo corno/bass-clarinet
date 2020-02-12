@@ -159,12 +159,18 @@ export type ArrayHandler = {
     end: (endLocation: Location, closeCharacter: string, comments: Comment[]) => void
 }
 
+export type OnObject = (startLocation: Location, openCharacter: string, comments: Comment[]) => ObjectHandler
+export type OnArray = (startLocation: Location, openCharacter: string, comments: Comment[]) => ArrayHandler
+export type OnSimpleValue = (value: number | string | boolean, range: Range, comments: Comment[]) => void
+export type OnNull = (range: Range, comments: Comment[]) => void
+export type OnTypedUnion = (option: string, startLocation: Location, optionRange: Range, comments: Comment[]) => ValueHandler
+
 export interface ValueHandler {
-    object: (startLocation: Location, openCharacter: string, comments: Comment[]) => ObjectHandler
-    array: (startLocation: Location, openCharacter: string, comments: Comment[]) => ArrayHandler
-    simpleValue: (value: number | string | boolean, range: Range, comments: Comment[]) => void
-    null: (range: Range, comments: Comment[]) => void
-    typedUnion: (option: string, startLocation: Location, optionRange: Range, comments: Comment[]) => ValueHandler
+    object: OnObject
+    array: OnArray
+    simpleValue: OnSimpleValue
+    null: OnNull
+    typedUnion: OnTypedUnion
 }
 
 type ContextType =
