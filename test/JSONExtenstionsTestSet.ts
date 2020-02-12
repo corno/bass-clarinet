@@ -98,34 +98,34 @@ export const extensionTests: TestDefinitions = {
             ["ready", undefined],
         ],
     },
-    typed_union: {
+    tagged_union: {
         text: '| "foo" "x"',
         options: {
             allow: {
-                typed_unions: true,
+                tagged_unions: true,
             }
         },
         events: [
-            ["opentypedunion", undefined],
+            ["opentaggedunion", undefined],
             ["option", "foo"],
             ["simplevalue", "x"],
-            ["closetypedunion", undefined],
+            ["closetaggedunion", undefined],
             ["end", undefined],
             ["ready", undefined],
         ]
     },
-    typed_union_with_number_at_end: {
+    tagged_union_with_number_at_end: {
         text: '| "foo" 5',
         options: {
             allow: {
-                typed_unions: true,
+                tagged_unions: true,
             }
         },
         events: [
-            ["opentypedunion", undefined],
+            ["opentaggedunion", undefined],
             ["option", "foo"],
             ["simplevalue", 5],
-            ["closetypedunion", undefined],
+            ["closetaggedunion", undefined],
             ["end", undefined],
             ["ready", undefined],
         ]
@@ -133,7 +133,7 @@ export const extensionTests: TestDefinitions = {
     schema_optional: {
         text: '!"a schema" 42',
         options: {
-            allow: { schema_reference: true}
+            allow: { schema: true}
         },
         events: [
             ["schemastart", undefined],
@@ -147,7 +147,7 @@ export const extensionTests: TestDefinitions = {
     schema_optional_but_not_there: {
         text: "42",
         options: {
-            allow: { schema_reference: true}
+            allow: { schema: true}
         },
         events: [
             ["simplevalue", 42],
@@ -158,7 +158,7 @@ export const extensionTests: TestDefinitions = {
     schema_required_but_not_there: {
         text: "42",
         options: {
-            require_schema_reference:true
+            require_schema:true
         },
         events: [
             ["error", undefined],
@@ -167,7 +167,7 @@ export const extensionTests: TestDefinitions = {
     schema_required: {
         text: '! "a schema" 42',
         options: {
-           require_schema_reference: true
+           require_schema: true
         },
         events: [
             ["schemastart", undefined],

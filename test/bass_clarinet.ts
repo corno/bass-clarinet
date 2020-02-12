@@ -80,9 +80,9 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "schemaend")
             },
-            // onschemareference: (k, _startLocation, range) => {
+            // onschema: (k, _startLocation, range) => {
             //     const ee = getExpectedEvent()
-            //     validateEventsEqual(ee, "schemareference")
+            //     validateEventsEqual(ee, "schema")
             //     assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
             //     checkLocation(ee, range.end)
             // },
@@ -115,17 +115,17 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 checkLocation(ee, range.end)
             },
 
-            onopentypedunion: l => {
-                if (DEBUG) console.log("found open typed union")
+            onopentaggedunion: l => {
+                if (DEBUG) console.log("found open tagged union")
 
                 const ee = getExpectedEvent()
-                validateEventsEqual(ee, "opentypedunion")
+                validateEventsEqual(ee, "opentaggedunion")
                 checkLocation(ee, l)
             },
-            onclosetypedunion: () => {
-                if (DEBUG) console.log("found close typed union")
+            onclosetaggedunion: () => {
+                if (DEBUG) console.log("found close tagged union")
                 const ee = getExpectedEvent()
-                validateEventsEqual(ee, "closetypedunion")
+                validateEventsEqual(ee, "closetaggedunion")
             },
             onoption: (k, range) => {
                 if (DEBUG) console.log("found option")

@@ -1,4 +1,4 @@
-import { ValueHandler, ObjectHandler, ArrayHandler, OnObject, OnArray, OnSimpleValue, OnNull, OnTypedUnion } from "./cerateStackedDataSubscriber"
+import { ValueHandler, ObjectHandler, ArrayHandler, OnObject, OnArray, OnSimpleValue, OnNull, OnTaggedUnion } from "./cerateStackedDataSubscriber"
 import { Location, Range, printLocation } from "./location"
 
 function createDummyValueHandler(): ValueHandler {
@@ -7,7 +7,7 @@ function createDummyValueHandler(): ValueHandler {
         object: () => createDummyObjectHandler(),
         simpleValue: () => { },
         null: () => { },
-        typedUnion: () => createDummyValueHandler(),
+        taggedUnion: () => createDummyValueHandler(),
     }
 }
 
@@ -75,7 +75,7 @@ export class ErrorContext {
         this.errorHandler(message, location)
     }
 
-    public createCollectionHandler(onProperty: (key: string, range: Range) => ValueHandler): OnObject {
+    public createDictionaryHandler(onProperty: (key: string, range: Range) => ValueHandler): OnObject {
         return (startLocation, openCharacter) => {
             if (openCharacter !== "{") {
                 this.raiseWarning(`expected '<' but found '${openCharacter}'`, startLocation)
@@ -91,7 +91,7 @@ export class ErrorContext {
         }
     }
     
-    public createMetaObjectHandler(expectedProperties: { [key: string]: ValueHandler }, onEnd: () => void): OnObject {
+    public createTypeHandler(expectedProperties: { [key: string]: ValueHandler }, onEnd: () => void): OnObject {
         return (startLocation, openCharacter) => {
             if (openCharacter !== "(") {
                 this.raiseWarning(`expected '(' but found '${openCharacter}'`, startLocation)
@@ -125,7 +125,7 @@ export class ErrorContext {
         }
     }
     
-    public createMetaArrayHandler(expectedElements: ValueHandler[], onEnd: () => void): OnArray {
+    public createArrayTypeHandler(expectedElements: ValueHandler[], onEnd: () => void): OnArray {
         return (startLocation, openCharacter) => {
             if (openCharacter !== "<") {
                 this.raiseWarning(`expected '<' but found '${openCharacter}'`, startLocation)
@@ -154,7 +154,7 @@ export class ErrorContext {
         }
     }
 
-    public createTypedUnionSurrogate(callback: (option: string) => ValueHandler): OnArray {
+    public createTaggedUnionSurrogate(callback: (option: string) => ValueHandler): OnArray {
         return () => {
             let dataHandler: ValueHandler | null = null
             return {
@@ -194,13 +194,13 @@ export class ErrorContext {
                             dataHandler = null
                             return dh.null(range, comments)
                         },
-                        typedUnion: (option, startLocation, optionRange, comments) => {
+                        taggedUnion: (option, startLocation, optionRange, comments) => {
                             if (dataHandler === null) {
-                                return this.raiseValueError(`unexected typed union`, startLocation)
+                                return this.raiseValueError(`unexected tagged union`, startLocation)
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.typedUnion(option, startLocation, optionRange, comments)
+                            return dh.taggedUnion(option, startLocation, optionRange, comments)
 
                         },
                     }
@@ -236,8 +236,8 @@ export class ErrorContext {
     public createUnexpectedNullHandler(expected: string): OnNull {
         return (range) => this.raiseError(`expected '${expected}' but found 'null' `, range.start)
     }
-    public createUnexpectedTypedUnionHandler(expected: string): OnTypedUnion {
-        return (_option, location) => this.raiseValueError(`expected '${expected}' but found 'typed union' `, location)
+    public createUnexpectedTaggedUnionHandler(expected: string): OnTaggedUnion {
+        return (_option, location) => this.raiseValueError(`expected '${expected}' but found 'tagged union' `, location)
     }
     public createUnexpectedObjectHandler(expected: string): OnObject {
         return (startLocation) => this.raiseObjectError(`expected '${expected}' but found 'object' `, startLocation)
@@ -257,7 +257,7 @@ export class ErrorContext {
                 callback(value, range)
             },
             null: onNull ? onNull: this.createUnexpectedNullHandler("string"),
-            typedUnion: this.createUnexpectedTypedUnionHandler("string"),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("string"),
         }
     }
 
@@ -272,7 +272,7 @@ export class ErrorContext {
                 callback(value)
             },
             null: onNull ? onNull: this.createUnexpectedNullHandler("number"),
-            typedUnion: this.createUnexpectedTypedUnionHandler("number"),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("number"),
         }
     }
 
@@ -287,28 +287,28 @@ export class ErrorContext {
                 callback(value)
             },
             null: onNull ? onNull: this.createUnexpectedNullHandler("booelan"),
-            typedUnion: this.createUnexpectedTypedUnionHandler("boolean"),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("boolean"),
         }
     }
 
-    public expectCollection(onProperty: (key: string, range: Range) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectDictionary(onProperty: (key: string, range: Range) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
-            array: this.createUnexpectedArrayHandler("collection"),
-            object: this.createCollectionHandler(onProperty),
-            simpleValue: this.createUnexpectedSimpleValueHandler("collection"),
-            null: onNull ? onNull: this.createUnexpectedNullHandler("collection"),
-            typedUnion: this.createUnexpectedTypedUnionHandler("collection"),
+            array: this.createUnexpectedArrayHandler("dictionary"),
+            object: this.createDictionaryHandler(onProperty),
+            simpleValue: this.createUnexpectedSimpleValueHandler("dictionary"),
+            null: onNull ? onNull: this.createUnexpectedNullHandler("dictionary"),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("dictionary"),
         }
     }
 
 
-    public expectMetaObject(expectedProperties: { [key: string]: ValueHandler }, onEnd: () => void, onNull?: NullHandler): ValueHandler {
+    public expectType(expectedProperties: { [key: string]: ValueHandler }, onEnd: () => void, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("meta object"),
-            object: this.createMetaObjectHandler(expectedProperties, onEnd),
+            object: this.createTypeHandler(expectedProperties, onEnd),
             simpleValue: this.createUnexpectedSimpleValueHandler("object"),
             null: onNull ? onNull: this.createUnexpectedNullHandler("object"),
-            typedUnion: this.createUnexpectedTypedUnionHandler("object"),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("object"),
         }
     }
 
@@ -318,38 +318,38 @@ export class ErrorContext {
             object: this.createUnexpectedObjectHandler("list"),
             simpleValue: this.createUnexpectedSimpleValueHandler("list"),
             null: onNull ? onNull: this.createUnexpectedNullHandler("list"),
-            typedUnion: this.createUnexpectedTypedUnionHandler("list"),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("list"),
         }
     }
 
-    public expectMetaArray(expectedElements: ValueHandler[], onEnd: () => void, onNull?: NullHandler): ValueHandler {
+    public expectArrayType(expectedElements: ValueHandler[], onEnd: () => void, onNull?: NullHandler): ValueHandler {
         return {
-            array: this.createMetaArrayHandler(expectedElements, onEnd),
+            array: this.createArrayTypeHandler(expectedElements, onEnd),
             object: this.createUnexpectedObjectHandler("meta array"),
             simpleValue: this.createUnexpectedSimpleValueHandler("meta array"),
             null: onNull ? onNull: this.createUnexpectedNullHandler("meta array"),
-            typedUnion: this.createUnexpectedTypedUnionHandler("meta array"),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("meta array"),
         }
     }
 
 
-    public expectMetaObjectOrMetaArray(expectedProperties: { [key: string]: ValueHandler }, expectedElements: ValueHandler[], onEnd: () => void, onNull?: NullHandler): ValueHandler {
+    public expectTypeOrArrayType(expectedProperties: { [key: string]: ValueHandler }, expectedElements: ValueHandler[], onEnd: () => void, onNull?: NullHandler): ValueHandler {
         return {
-            array: this.createMetaArrayHandler(expectedElements, onEnd),
-            object: this.createMetaObjectHandler(expectedProperties, onEnd),
+            array: this.createArrayTypeHandler(expectedElements, onEnd),
+            object: this.createTypeHandler(expectedProperties, onEnd),
             simpleValue: this.createUnexpectedSimpleValueHandler("meta object or meta array"),
             null: onNull ? onNull: this.createUnexpectedNullHandler("meta object or meta array"),
-            typedUnion: this.createUnexpectedTypedUnionHandler("meta object or meta array"),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("meta object or meta array"),
         }
     }
 
-    public expectTypedUnion(callback: (option: string) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnion(callback: (option: string) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
-            array: this.createUnexpectedArrayHandler("typed union"),
-            object: this.createUnexpectedObjectHandler("typed union"),
-            simpleValue: this.createUnexpectedSimpleValueHandler("typed union"),
-            null: onNull ? onNull: this.createUnexpectedNullHandler("typed union"),
-            typedUnion: (option) => callback(option)
+            array: this.createUnexpectedArrayHandler("tagged union"),
+            object: this.createUnexpectedObjectHandler("tagged union"),
+            simpleValue: this.createUnexpectedSimpleValueHandler("tagged union"),
+            null: onNull ? onNull: this.createUnexpectedNullHandler("tagged union"),
+            taggedUnion: (option) => callback(option)
         }
     }
 
@@ -357,13 +357,13 @@ export class ErrorContext {
      * this parses values in the form of `| "option" <data value>` or `[ "option", <data value> ]`
      * @param callback 
      */
-    public expectTypedUnionOrArraySurrogate(callback: (option: string) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnionOrArraySurrogate(callback: (option: string) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
-            array: this.createTypedUnionSurrogate(callback),
-            object: this.createUnexpectedObjectHandler("typed union"),
-            simpleValue: this.createUnexpectedSimpleValueHandler("typed union"),
-            null: onNull ? onNull : this.createUnexpectedNullHandler("typed union"),
-            typedUnion: (option) => callback(option),
+            array: this.createTaggedUnionSurrogate(callback),
+            object: this.createUnexpectedObjectHandler("tagged union"),
+            simpleValue: this.createUnexpectedSimpleValueHandler("tagged union"),
+            null: onNull ? onNull : this.createUnexpectedNullHandler("tagged union"),
+            taggedUnion: (option) => callback(option),
         }
     }
 }

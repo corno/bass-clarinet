@@ -38,7 +38,7 @@ export enum KeywordState {
     NULL_EXPECTING_L2, // l
 }
 
-export enum TypedUnionState {
+export enum TaggedUnionState {
     EXPECTING_OPTION,
     EXPECTING_VALUE,
 }
@@ -56,7 +56,7 @@ export enum ValueType {
     OBJECT,
     ARRAY,
     NUMBER,
-    TYPED_UNION,
+    tagged_union,
 }
 
 
@@ -66,7 +66,7 @@ export type StackContext =
     | [StackContextType.ROOT, RootContext]
     | [StackContextType.ARRAY, ArrayContext]
     | [StackContextType.OBJECT, ObjectContext]
-    | [StackContextType.TYPED_UNION, TypedUnionContext]
+    | [StackContextType.tagged_union, TaggedUnionContext]
 
 export type Context =
     | [ContextType.STACK]
@@ -79,7 +79,7 @@ export enum StackContextType {
     ARRAY,
     OBJECT,
     ROOT,
-    TYPED_UNION,
+    tagged_union,
 }
 
 export enum ContextType {
@@ -132,6 +132,6 @@ export type StringContext = {
     slashed: boolean
 }
 
-export type TypedUnionContext = {
-    state: TypedUnionState
+export type TaggedUnionContext = {
+    state: TaggedUnionState
 }

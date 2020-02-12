@@ -47,7 +47,7 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
         null: (range) => {
             writer(`${indentation}null // ${printRange(range)}`)
         },
-        typedUnion: (option, startLocation, range) => {
+        taggedUnion: (option, startLocation, range) => {
             writer(`| ${indentation}"${JSON.stringify(option)}" // ${printLoc(startLocation)} ${printRange(range)}`)
             return createValuesAnnotater(`${indentation}\t`, writer)
         },

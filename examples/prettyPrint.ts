@@ -50,14 +50,14 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
         null: () => {
             writer(`null`)
         },
-        typedUnion: (option, _unionStart, _optionRange) => {
+        taggedUnion: (option, _unionStart, _optionRange) => {
             writer(`| "${option}" `)
             return createValuesPrettyPrinter(`${indentation}`, writer)
         },
     }
 }
 
-function createPrettyPrinter(indentation: string, writer: (str: string) => void): DataSubscriber {
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): DataSubscriber {
     return sp.createStackedDataSubscriber(
         createValuesPrettyPrinter(indentation, writer),
         () => {}

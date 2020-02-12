@@ -813,7 +813,7 @@ export const JSONTests: TestDefinitions = {
             ["error"],
         ]
     },
-    forbidden_typed_union: {
+    forbidden_tagged_union: {
         text: '| "foo", {}',
         events: [
             ["error"],

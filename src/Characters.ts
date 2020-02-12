@@ -4,7 +4,7 @@ export const Header = {
     hash: 0x23,              // #
 }
 
-export const TypedUnion = {
+export const TaggedUnion = {
     verticalLine:  0x7C,     // |
 }
 

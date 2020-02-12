@@ -30,8 +30,8 @@ export type DataEvent =
 
     | "simplevalue"
 
-    | "opentypedunion"
-    | "closetypedunion"
+    | "opentaggedunion"
+    | "closetaggedunion"
     | "option"
 
     | "openobject"

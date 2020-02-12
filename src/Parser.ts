@@ -11,7 +11,7 @@ import {
     ValueType,
     ObjectContext,
     ArrayContext,
-    TypedUnionState,
+    TaggedUnionState,
     OnStringFinished,
     StackContext,
     StackContextType,
@@ -70,10 +70,10 @@ function getContextDescription(s: StackContext) {
 
             }
         }
-        case StackContextType.TYPED_UNION: {
+        case StackContextType.tagged_union: {
             switch (s[1].state) {
-                case TypedUnionState.EXPECTING_OPTION: return "EXPECTING_STRING"
-                case TypedUnionState.EXPECTING_VALUE: return "EXPECTING_VALUE"
+                case TaggedUnionState.EXPECTING_OPTION: return "EXPECTING_STRING"
+                case TaggedUnionState.EXPECTING_VALUE: return "EXPECTING_VALUE"
                 default: return assertUnreachable(s[1].state)
 
             }
@@ -103,8 +103,8 @@ export const lax: Allow = {
     missing_commas: true,
     apostrophes_instead_of_quotation_marks: true,
     angle_brackets_instead_of_brackets: true,
-    typed_unions: true,
-    schema_reference: true,
+    tagged_unions: true,
+    schema: true,
     compact: true,
 }
 
@@ -123,8 +123,8 @@ export interface DataSubscriber {
     onopenarray(location: Location, openCharacter: string): void
     onclosearray(location: Location, closeCharacter: string): void
 
-    onopentypedunion(location: Location): void
-    onclosetypedunion(): void
+    onopentaggedunion(location: Location): void
+    onclosetaggedunion(): void
     onoption(option: string, range: Range): void
 
     onopenobject(location: Location, openCharacter: string): void
@@ -183,10 +183,10 @@ export class Parser {
         this.opt = opt || {}
         if (INFO) console.log('-- emit', "onready")
         this.onready.signal()
-        if (this.opt.require_schema_reference) {
+        if (this.opt.require_schema) {
             this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }]
             this.state = [ContextType.STACK]
-        } else if (this.opt.allow?.schema_reference) {
+        } else if (this.opt.allow?.schema) {
             this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
             this.state = [ContextType.STACK]
         } else {
@@ -730,7 +730,7 @@ export class Parser {
                                         } else {
                                             const vt = this.getValueType(curChar)
                                             if (vt === null) {
-                                                this.raiseError("expected an '!' (to specify a schema reference) or a value")
+                                                this.raiseError("expected an '!' (to specify a schema) or a value")
                                             } else {
                                                 $$.state = RootState.EXPECTING_END
                                                 this.processValue(vt, curChar)
@@ -744,7 +744,7 @@ export class Parser {
                             next()
                             break
                         }
-                        case StackContextType.TYPED_UNION: {
+                        case StackContextType.tagged_union: {
                             const $$ = $[1]
 
                             while (isWhiteSpace(curChar)) {
@@ -759,17 +759,17 @@ export class Parser {
                                 this.onFoundSolidus()
                             } else {
                                 switch ($$.state) {
-                                    case TypedUnionState.EXPECTING_OPTION:
+                                    case TaggedUnionState.EXPECTING_OPTION:
                                         if (this.isStringStart(curChar)) {
                                             this.initString(curChar, (textNode, range) => {
                                                 this.oncurrentdata.signal(s => s.onoption(textNode, range))
-                                                $$.state = TypedUnionState.EXPECTING_VALUE
+                                                $$.state = TaggedUnionState.EXPECTING_VALUE
                                             })
                                         } else {
-                                            this.raiseError("missing typed union string")
+                                            this.raiseError("missing tagged union string")
                                         }
                                         break
-                                    case TypedUnionState.EXPECTING_VALUE: {
+                                    case TaggedUnionState.EXPECTING_VALUE: {
                                         const vt = this.getValueType(curChar)
                                         if (vt === null) {
                                             this.raiseError("expected the data of the union type")
@@ -1068,8 +1068,8 @@ export class Parser {
                 break
             case StackContextType.ROOT:
                 break
-            case StackContextType.TYPED_UNION:
-                this.oncurrentdata.signal(s => s.onclosetypedunion())
+            case StackContextType.tagged_union:
+                this.oncurrentdata.signal(s => s.onclosetaggedunion())
                 this.popContext()
                 break
             default:
@@ -1127,12 +1127,12 @@ export class Parser {
                 })
                 break
             }
-            case ValueType.TYPED_UNION: {
-                if (this.opt.allow?.typed_unions) {
-                    this.pushContext([StackContextType.TYPED_UNION, { state: TypedUnionState.EXPECTING_OPTION }])
-                    this.oncurrentdata.signal(s => s.onopentypedunion(this.getLocation()))
+            case ValueType.tagged_union: {
+                if (this.opt.allow?.tagged_unions) {
+                    this.pushContext([StackContextType.tagged_union, { state: TaggedUnionState.EXPECTING_OPTION }])
+                    this.oncurrentdata.signal(s => s.onopentaggedunion(this.getLocation()))
                 } else {
-                    this.raiseError("typed unions are not allowed")
+                    this.raiseError("tagged unions are not allowed")
                 }
                 break
             }
@@ -1147,8 +1147,8 @@ export class Parser {
             return ValueType.OBJECT
         } else if (curChar === Char.Array.openBracket || curChar === Char.Array.openAngleBracket) {
             return ValueType.ARRAY
-        } else if (curChar === Char.TypedUnion.verticalLine) { //extension to strict JSON specifications
-            return ValueType.TYPED_UNION
+        } else if (curChar === Char.TaggedUnion.verticalLine) { //extension to strict JSON specifications
+            return ValueType.tagged_union
         } else if (curChar === Char.Number.minus || Char.Number._0 <= curChar && curChar <= Char.Number._9) {
             return ValueType.NUMBER
         } else if (curChar === Char.Keyword.t) {

@@ -43,9 +43,9 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, endComme
             case "root": {
                 return currentContext[1].valueHandler
             }
-            case "typedunion": {
+            case "taggedunion": {
                 if (currentContext[1].valueHandler === null) {
-                    throw new Error("stack panic; unexpected value in typed union")
+                    throw new Error("stack panic; unexpected value in tagged union")
                 }
                 return currentContext[1].valueHandler
             }
@@ -84,22 +84,22 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, endComme
             }
             pop()
         },
-        onopentypedunion: location => {
-            if (DEBUG) { console.log("on open typed union") }
+        onopentaggedunion: location => {
+            if (DEBUG) { console.log("on open tagged union") }
             stack.push(currentContext)
-            currentContext = ["typedunion", { location: location, parentValueHandler: initValueHandler(location), valueHandler: null }]
+            currentContext = ["taggedunion", { location: location, parentValueHandler: initValueHandler(location), valueHandler: null }]
         },
         onoption: (option, range) => {
             if (DEBUG) { console.log("on option", option) }
-            if (currentContext[0] !== "typedunion") {
+            if (currentContext[0] !== "taggedunion") {
                 throw new Error("stack panic; unexpected option")
             }
-            currentContext[1].valueHandler = currentContext[1].parentValueHandler.typedUnion(option, currentContext[1].location, range, flushComments())
+            currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].location, range, flushComments())
         },
-        onclosetypedunion: () => {
-            if (DEBUG) { console.log("on close typed union") }
-            if (currentContext[0] !== "typedunion") {
-                throw new Error("stack panic; unexpected end of typed union")
+        onclosetaggedunion: () => {
+            if (DEBUG) { console.log("on close tagged union") }
+            if (currentContext[0] !== "taggedunion") {
+                throw new Error("stack panic; unexpected end of tagged union")
             }
             pop()
         },
@@ -163,21 +163,21 @@ export type OnObject = (startLocation: Location, openCharacter: string, comments
 export type OnArray = (startLocation: Location, openCharacter: string, comments: Comment[]) => ArrayHandler
 export type OnSimpleValue = (value: number | string | boolean, range: Range, comments: Comment[]) => void
 export type OnNull = (range: Range, comments: Comment[]) => void
-export type OnTypedUnion = (option: string, startLocation: Location, optionRange: Range, comments: Comment[]) => ValueHandler
+export type OnTaggedUnion = (option: string, startLocation: Location, optionRange: Range, comments: Comment[]) => ValueHandler
 
 export interface ValueHandler {
     object: OnObject
     array: OnArray
     simpleValue: OnSimpleValue
     null: OnNull
-    typedUnion: OnTypedUnion
+    taggedUnion: OnTaggedUnion
 }
 
 type ContextType =
     | ["root", { valueHandler: ValueHandler }]
     | ["object", { objectHandler: ObjectHandler, valueHandler: null | ValueHandler }]
     | ["array", { arrayHandler: ArrayHandler }]
-    | ["typedunion", { location: Location, parentValueHandler: ValueHandler, valueHandler: null | ValueHandler }]
+    | ["taggedunion", { location: Location, parentValueHandler: ValueHandler, valueHandler: null | ValueHandler }]
 
 type Comment = {
     text: string

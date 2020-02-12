@@ -10,12 +10,29 @@ In addition to the port to TypeScript, the following changes have been made:
 * line and column information is fixed
 * the parser accepts multiple subscribers per event type
 * `trim` and `normalize` options have been dropped. This can be handled by the consumer in the `onsimplevalue` callback
-* `allow_comments` and `allow_trailing_commas` options have been added
-* there is a stack based wrapper named `subscribeStack` which pairs `onopenobject`/`oncloseobject` and `onopenarray`/`onclosearray` events in a callback
+* there is a stack based wrapper named `createStackedDataSubscriber` which pairs `onopenobject`/`oncloseobject` and `onopenarray`/`onclosearray` events in a callback
+* the following options have been added (if none are selected, `base-clarinet` is a pure JSON-parser):
+  * `allow:angle_brackets_instead_of_brackets`
+  * `allow:apostrophes_instead_of_quotation_marks`
+  * `allow:comments`
+  * `allow:compact`
+  * `allow:missing_commas`
+  * `allow:parens_instead_of_braces`
+  * `allow:schema`
+  * `allow:trailing_commas`
+  * `allow:tagged_unions`
+  * `spaces_per_tab`
+  * `require_schema`
+* stream support has been dropped for now. Can be added back upon request
 
 most credits go to the original author Nuno Job
 
-`clarinet/bass-clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. `clarinet` was inspired (and forked) from [sax-js][saxjs]. just like you shouldn't use `sax` when you need `dom` you shouldn't use `bass-clarinet` when you need `JSON.parse`. for a more detailed introduction and a performance study please refer to this [article][blog]. 
+`clarinet/bass-clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. `clarinet` was inspired (and forked) from [sax-js][saxjs]. just like you shouldn't use `sax` when you need `dom` you shouldn't use `bass-clarinet` when you need `JSON.parse`.
+
+Clear reasons to use `bass-clarinet` over  the build in `JSON.parse`:
+* you want location info
+* you work with very large files
+* you want a syntax that is less strict than JSON. This might be desirable when the file needs to be edited manually. See option
 
 # design goals
 
@@ -23,7 +40,7 @@ most credits go to the original author Nuno Job
 
 * written in TypeScript
 * portable
-* robust (~110 tests pass before even announcing the project)
+* robust (around 400 tests)
 * data representation independent
 * fast
 * generates verbose, useful error messages including context of where
@@ -44,70 +61,132 @@ the reason behind this work was to create better full text support in node. crea
 2. `npm install bass-clarinet`
 3. `import * as bass_clarinet from "bass-clarinet"`
 
-<!-- ## browser
-
-1. minimize clarinet.js
-2. load it into your webpage -->
-
 # usage
 
-## basics
+## high level
 
 ``` TypeScript
-import * as bass_clarinet from "bass-clarinet"
-const parser = bass_clarinet.parser()
+//a simple pretty printer
+import * as bc from "bass-clarinet"
+import * as fs  from "fs"
 
-parser.onerror.subscribe((e) => {
-  // an error happened. e is the error.
-})
-parser.onsimplevalue.subscribe((v: string | number | boolean | null) => {
-  // got some value. v is the value. can be string, number, boolean, or null.
-})
-parser.onopenobject = function () {
-  // opened an object.
-  // unlike clarinet, bass-clarinet does not handle the first key separately
-})
-parser.onkey = function (key) {
-  // got a key in an object.
-})
-parser.oncloseobject = function () {
-  // closed an object.
-})
-parser.onopenarray = function () {
-  // opened an array.
-})
-parser.onclosearray = function () {
-  // closed an array.
-})
-parser.onend = function () {
-  // parser stream is done, and ready to have more stuff written to it.
-})
+const [, , path] = process.argv
 
-parser.write('{"foo": "bar"}').close();
+if (path === undefined) {
+    console.error("missing path")
+    process.exit(1)
+}
+
+const data = fs.readFileSync(path, {encoding: "utf-8"})
+
+function format(value: number | string | boolean | null) {
+    if (typeof value === "string") {
+        return `${JSON.stringify(value)}`
+    } else {
+        return value
+    }
+}
+
+
+function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
+    return {
+        array: (_location, openCharacter) => {
+            writer(openCharacter)
+            return {
+                element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
+                end: ((_location, endCharacter) => {
+                    writer(`${indentation}${endCharacter}`)
+                })
+            }
+
+        },
+        object: (_location, openCharacter) => {
+            writer(openCharacter)
+            return {
+                property: (key, _keyRange) => {
+                    writer(`${indentation}\t"${key}": `)
+                    return createValuesPrettyPrinter(`${indentation}\t`, writer)
+                },
+                end: (_location, endCharacter) => {
+                    writer(`${indentation}${endCharacter}`)
+                }
+            }
+        },
+        simpleValue: (value) => {
+            writer(`${format(value)}`)
+        },
+        null: () => {
+            writer(`null`)
+        },
+        taggedUnion: (option, _unionStart, _optionRange) => {
+            writer(`| "${option}" `)
+            return createValuesPrettyPrinter(`${indentation}`, writer)
+        },
+    }
+}
+
+function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.DataSubscriber {
+    return bc.createStackedDataSubscriber(
+        createValuesPrettyPrinter(indentation, writer),
+        () => {}
+    )
+}
+
+const parser = new bc.Parser({ allow: bc.lax})
+parser.ondata.subscribe(createPrettyPrinter("\r\n", str => process.stdout.write(str)))
+parser.onerror.subscribe(err => { console.error("FOUND ERROR", err.message) })
+parser.write(data)
+parser.end()
+
 ```
-
+## low level
 ``` TypeScript
-// stream usage
-// takes the same options as the parser
-import * as bass_clarinet from "bass-clarinet"
+import * as fs  from "fs"
+import * as bc from "bass-clarinet"
 
-var stream = bass_clarinet.createStream(options);
-stream.on("error", function (e) {
-  // unhandled errors will throw, since this is a proper node
-  // event emitter.
-  console.error("error!", e)
-  // clear the error
-  this._parser.error = null
-  this._parser.resume()
+const [, , path] = process.argv
+
+if (path === undefined) {
+    console.error("missing path")
+    process.exit(1)
+}
+
+const data = fs.readFileSync(path, {encoding: "utf-8"})
+
+const parser = new bc.Parser({ allow: bc.lax})
+parser.ondata.subscribe({
+    onlinecomment: (comment, range) => {
+    },
+    onblockcomment: (v, indent, range) => {
+        //indent can be used to strip the leading whitespace of all lines of the block comment.
+        //indent indicates the indentation string found up to the `/*` characters.
+        //this is only provided if the block comment starts on a new line
+    },
+    onsimplevalue: (value, range) => {
+    },
+    onopentaggedunion: (location) => {
+    },
+    onclosetaggedunion: () => {
+    },
+    onoption: (option, range) => {
+    },
+    onopenarray: (startLocation, openCharacter) => {
+    },
+    onclosearray: (endLocation, closeCharacter) => {
+    },
+    onopenobject: (startLocation, openCharacter) => {
+    },
+    oncloseobject: (endLocation, closeCharacter) => {
+    },
+    onkey: (key, range) => {
+    },
+    onend: () => {
+    }
 })
-stream.on("openobject", function (node) {
-  // same object as above
-})
-// pipe is supported, and it's readable/writable
-// same chunks coming in also go out.
-fs.createReadStream("file.json")
-  .pipe(stream)
-  .pipe(fs.createReadStream("file-altered.json"))
+parser.onerror.subscribe(err => { console.error("FOUND ERROR", err.message) })
+parser.write(data)
+parser.end()
+
 ```
 
 ## arguments
@@ -116,12 +195,18 @@ pass the following arguments to the parser function.  all are optional.
 
 `opt` - object bag of settings regarding string formatting.
 
-currently the only supported setting is:
-
-* `spaces_per_tab` - number. needed for proper column info.
-* `allow_comments` - boolean. allows both line comments `//` and block comments `/* */`. Be aware: This is a deviation from the pure JSON standard
-* `allow_trailing_commas` - boolean. allows commas before the `}` or the `]` character. Be aware: This is a deviation from the pure JSON standard
-* `spaces_per_tab` - number. needed for proper column info.
+the supported options are:
+* `spaces_per_tab` - number. needed for proper column info.: Rationale: without knowing how many spaces per tab `base-clarinet` is not able to determine the colomn of a character. Default is `4` (ofcourse)
+* `allow:missing_commas` - boolean. No comma's are required. Rationale: When manually editing documents, keeping track of the comma's is cumbersome. With this option this is no longer an issue
+* `allow:trailing_commas` - boolean. allows commas before the `}` or the `]`. Rationale: for serializers it is easier to write a comma for every property/element instead of keeping a state that tracks if a property/element is the first one.
+* `allow:comments` - boolean. allows both line comments `//` and block comments `/* */`. Rationale: when using JSON-like documents for editing, it is often useful to add comments
+* `allow:apostrophes_instead_of_quotation_marks` - boolean. Allows `'` in place of `"`. Rationale: In an editor this is less intrusive (although only slightly)
+* `allow:angle_brackets_instead_of_brackets` - boolean. Allows `<` and `>` in place of `[` and `]`. Rationale: visually, a distinction can be made between fixed length arrays (`ArrayType`) and variable length arrays (`lists`)
+* `allow:parens_instead_of_braces` - boolean. Allows `(` and `)` in place of `{` and `}`. Rationale: visually, a distinction can be made between objctes with known properties (`Type`) and objects with dynamic keys (`dictionary`)
+* `allow:schema` - boolean. If enabled, the document may start with a `!` followed by a value (`object`, `string` etc). This data can be used by a processor for schema validation. For example a string can indicate a URL of the schema.
+* `require_schema` - boolean. see `allow:schema`. In this case the schema is required. This option overrides the `allow` option.
+* `allow:compact` - boolean. At the beginning of a document, after the possible schema, a `#` may be placed. This is an indicator for a processor that the data is `compact`. This means that keys for `Type`-s are emitted. Rationale: If a schema is known, a lot of keys can often be omitted from the document. This option indicates that this happened in this document. The file can only be properly parsed in combination with the schema.
+* `allow:tagged_unions` - boolean. This allows an extra value type that is not present in JSON but is very useful. tagged unions are also known as sum types or choices, see [taggedunion]. The notation is a pipe, followed by a string, followed by any other value. eg:  ````| "the chosen option" { "my data": "foo" }````
 
 (`normalize` and `trim` have been dropped as this can equally well be handled in the onsimplevalue handler)
 
@@ -130,48 +215,20 @@ currently the only supported setting is:
 `write` - write bytes onto the stream. you don't have to do this all at
 once. you can keep writing as much as you want.
 
-`close` - close the stream. once closed, no more data may be written until
-it is done processing the buffer, which is signaled by the `end` event.
-
-`resume` - to gracefully handle errors, assign a listener to the `error`
-event. then, when the error is taken care of, you can call `resume` to
-continue parsing. otherwise, the parser will not continue while in an error
-state.
-
-## members
-
-at all times, the parser object will have the following members:
-
-`line`, `column`, `position` - indications of the position in the json
-document where the parser currently is looking.
-
-`closed` - boolean indicating whether or not the parser can be written to.
-if it's `true`, then wait for the `ready` event to write again.
-
-`opt` - any options passed into the constructor.
-
-and a bunch of other stuff that you probably shouldn't touch.
+`end` - ends the stream. once ended, no more data may be written, it signals the  `onend` event.
 
 ## events
-
-all events emit with a single argument. to listen to an event, assign a
-function to `on<eventname>`. functions get executed in the this-context of
-the parser object. the list of supported events are also in the exported
-`EVENTS` array.
-
-when using the stream interface, assign handlers using the `EventEmitter`
-`on` function in the normal fashion.
 
 `error` - indication that something bad happened. the error will be hanging
 out on `parser.error`, and must be deleted before parsing can continue. by
 listening to this event, you can keep an eye on that kind of stuff. note:
 this happens *much* more in strict mode. argument: instance of `Error`.
 
-`value` - a json value. argument: value, can be a bool, null, string or number
+`simplevalue` - a simple json value.
 
-`openobject` - object was opened. argument: none (this is different from `clarinet`)
+`openobject` - object was opened. this is different from `clarinet` as the first key is not treated separately
 
-`key` - an object key: argument: key, a string with the current key. Not called for first key (use `openobject` for that).
+`key` - an object key: argument: key, a string with the current key. (Also called for the first key, unlike the behaviour of `clarinet`)
 
 `closeobject` - indication that an object was closed
 
@@ -179,14 +236,17 @@ this happens *much* more in strict mode. argument: instance of `Error`.
 
 `closearray` - indication that an array was closed
 
+
+`opentaggedunion` - indication that a tagged union was opened
+
+`option` - the value of the option (string)
+
+`closetaggedunion` - indication that a tagged union was closed
+
 `end` - indication that the closed stream has ended.
 
 `ready` - indication that the stream has reset, and is ready to be written
 to.
-
-## samples
-
-some [samples] are available to help you get started. one that creates a list of top npm contributors, and another that gets a bunch of data from twitter and generates valid json.
 
 # roadmap
 
@@ -205,15 +265,6 @@ everyone is welcome to contribute. patches, bug-fixes, new features
 7. push to your branch `git push origin my_branch`
 8. create an pull request
 
-helpful tips:
-
-check `index.html`. there's two env vars you can set, `CRECORD` and `CDEBUG`. 
-
-* `CRECORD` allows you to `record` the event sequence from a new json test so you don't have to write everything. 
-* `CDEBUG` can be set to `info` or `debug`. `info` will `console.log` all emits, `debug` will `console.log` what happens to each char. 
-
-in `test/bass_clarinet.js` there's two lines you might want to change. `#8` where you define `seps`, if you are isolating a test you probably just want to run one sep, so change this array to `[undefined]`. `#718` which says `for (var key in docs) {` is where you can change the docs you want to run. e.g. to run `foobar` i would do something like `for (var key in {foobar:''}) {`.
-
 # meta
 
 * code: `git clone git://github.com/corno/bass-clarinet.git`
@@ -221,12 +272,10 @@ in `test/bass_clarinet.js` there's two lines you might want to change. `#8` wher
 * bugs: <http://github.com/corno/bass-clarinet/issues>
 * build: [![build status](https://secure.travis-ci.org/corno/bass-clarinet.png)](http://travis-ci.org/corno/bass-clarinet)
 
-`(oO)--',-` in [caos]
 
 [npm]: http://npmjs.org
 [issues]: http://github.com/corno/bass-clarinet/issues
-[caos]: http://caos.di.uminho.pt/
 [saxjs]: http://github.com/isaacs/sax-js
 [yajl]: https://github.com/lloyd/yajl
-[samples]: https://github.com/corno/bass-clarinet/tree/master/samples
+[taggedunion]: https://en.wikipedia.org/wiki/Tagged_union
 [blog]: http://writings.nunojob.com/2011/12/clarinet-sax-based-evented-streaming-json-parser-in-javascript-for-the-browser-and-nodejs.html
