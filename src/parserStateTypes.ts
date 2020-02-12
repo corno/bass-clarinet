@@ -52,9 +52,7 @@ export enum CommentState {
 
 export enum ValueType {
     STRING,
-    FALSE,
-    TRUE,
-    NULL,
+    KEYWORD,
     OBJECT,
     ARRAY,
     NUMBER,
@@ -106,7 +104,8 @@ export type CommentContext = {
 }
 
 export type KeywordContext = {
-    state: KeywordState
+    keywordNode: string
+    start: Location
 }
 
 export type NumberContext = {

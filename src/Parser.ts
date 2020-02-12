@@ -3,7 +3,6 @@ import * as Char from "./Characters"
 
 import {
     ContextType,
-    KeywordState,
     RootState,
     ObjectState,
     ArrayState,
@@ -87,21 +86,7 @@ function getContextDescription(s: StackContext) {
 function getStateDescription(s: Context): string {
     switch (s[0]) {
         case ContextType.COMMENT: return "COMMENT"
-        case ContextType.KEYWORD: {
-            switch (s[1].state) {
-                case KeywordState.TRUE_EXPECTING_R: return "TRUE"
-                case KeywordState.TRUE_EXPECTING_U: return "TRUE2"
-                case KeywordState.TRUE_EXPECTING_E: return "TRUE3"
-                case KeywordState.FALSE_EXPECTING_A: return "FALSE"
-                case KeywordState.FALSE_EXPECTING_L: return "FALSE2"
-                case KeywordState.FALSE_EXPECTING_S: return "FALSE3"
-                case KeywordState.FALSE_EXPECTING_E: return "FALSE4"
-                case KeywordState.NULL_EXPECTING_U: return "NULL"
-                case KeywordState.NULL_EXPECTING_L1: return "NULL2"
-                case KeywordState.NULL_EXPECTING_L2: return "NULL3"
-                default: return assertUnreachable(s[1].state)
-            }
-        }
+        case ContextType.KEYWORD: return "KEYWORD"
         case ContextType.NUMBER: return "NUMBER"
         case ContextType.STACK: return "STACK"
         case ContextType.STRING: return "STRING"
@@ -260,7 +245,7 @@ export class Parser {
             this.curChar = curChar
 
             if (DEBUG) {
-                const stateInfo = getStateDescription(this.state)
+                const stateInfo = getStateDescription(this.state) + ' ' + getContextDescription(this.currentContext)
                 let char = (curChar === Char.Whitespace.tab) ? "\\t" : String.fromCharCode(curChar)
 
                 console.log(`${stateInfo.padEnd(35)}${JSON.stringify(char).padStart(4)} ${("(" + curChar + ")").padEnd(5)} ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`, currentChunkIndex)
@@ -389,84 +374,50 @@ export class Parser {
                      * KEYWORD PROCESSING (null, true, false)
                      */
                     const $ = state[1]
-                    switch ($.state) {
 
-                        case KeywordState.TRUE_EXPECTING_R:
-                            if (curChar === Char.Keyword.r) $.state = KeywordState.TRUE_EXPECTING_U
-                            else {
-                                this.raiseError('Invalid true started with t' + curChar)
-                            }
-                            break
-                        case KeywordState.TRUE_EXPECTING_U:
-                            if (curChar === Char.Keyword.u) $.state = KeywordState.TRUE_EXPECTING_E
-                            else {
-                                this.raiseError('Invalid true started with tr' + curChar)
-                            }
-                            break
-
-                        case KeywordState.TRUE_EXPECTING_E:
-                            if (curChar === Char.Keyword.e) {
-                                this.finishKeyword(true, "true".length)
-                            } else {
-                                this.raiseError('Invalid true started with tru' + curChar)
-                            }
-                            break
-
-                        case KeywordState.FALSE_EXPECTING_A:
-                            if (curChar === Char.Keyword.a) $.state = KeywordState.FALSE_EXPECTING_L
-                            else {
-                                this.raiseError('Invalid false started with f' + curChar)
-                            }
-                            break
-
-                        case KeywordState.FALSE_EXPECTING_L:
-                            if (curChar === Char.Keyword.l) $.state = KeywordState.FALSE_EXPECTING_S
-                            else {
-                                this.raiseError('Invalid false started with fa' + curChar)
-                            }
-                            break
-
-                        case KeywordState.FALSE_EXPECTING_S:
-                            if (curChar === Char.Keyword.s) $.state = KeywordState.FALSE_EXPECTING_E
-                            else {
-                                this.raiseError('Invalid false started with fal' + curChar)
-                            }
-                            break
-
-                        case KeywordState.FALSE_EXPECTING_E:
-                            if (curChar === Char.Keyword.e) {
-                                this.finishKeyword(false, "false".length)
-                            } else {
-                                this.raiseError('Invalid false started with fals' + curChar)
-                            }
-                            break
-
-                        case KeywordState.NULL_EXPECTING_U:
-                            if (curChar === Char.Keyword.u) $.state = KeywordState.NULL_EXPECTING_L1
-                            else {
-                                this.raiseError('Invalid null started with n' + curChar)
-                            }
-                            break
-
-                        case KeywordState.NULL_EXPECTING_L1:
-                            if (curChar === Char.Keyword.l) $.state = KeywordState.NULL_EXPECTING_L2
-                            else {
-                                this.raiseError('Invalid null started with nu' + curChar)
-                            }
-                            break
-
-                        case KeywordState.NULL_EXPECTING_L2:
-                            if (curChar === Char.Keyword.l) {
-                                this.finishKeyword(null, "null".length)
-                            } else {
-                                this.raiseError('Invalid null started with nul' + curChar)
-                            }
-                            break
-                        default:
-                            return assertUnreachable($.state)
-
+                    let snippetStart: null | number = null
+                    function flush() {
+                        if (snippetStart !== null) {
+                            $.keywordNode += chunk.substring(snippetStart, currentChunkIndex)
+                        }
+                        snippetStart = null
                     }
-                    next()
+
+                    while (true) {
+                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'string loop', $.slashed, $.textNode)
+                        if (this.error !== null) {
+                            return
+                        }
+                        if (isNaN(curChar)) {
+                            //end of the chunk
+                            //store it and wait for more input
+                            flush()
+                            return
+                        }
+                        //first check if we are breaking out of a keyword. Can only be done by checking the character that comes directly after the number
+                        if (curChar !== Char.Keyword.a
+                            && curChar !== Char.Keyword.e
+                            && curChar !== Char.Keyword.f
+                            && curChar !== Char.Keyword.l
+                            && curChar !== Char.Keyword.n
+                            && curChar !== Char.Keyword.r
+                            && curChar !== Char.Keyword.s
+                            && curChar !== Char.Keyword.t
+                            && curChar !== Char.Keyword.u
+                        ) {
+                            flush()
+                            this.wrapUpDanglingToken()
+                            //this character does not belong to the keyword so don't go to the next character by breaking
+                            break
+                        } else {
+                            //normal character
+                            //don't flush
+                            if (snippetStart === null) {
+                                snippetStart = currentChunkIndex
+                            }
+                        }
+                        next()
+                    }
                     break
                 }
                 case ContextType.NUMBER: {
@@ -491,8 +442,8 @@ export class Parser {
                             && curChar !== Char.Number.minus
                             && !(Char.Number._0 <= curChar && curChar <= Char.Number._9)
                         ) {
-                            this.wrapUpNumber()
-                            //this character does not belong to the number so don't go to the next character
+                            this.wrapUpDanglingToken()
+                            //this character does not belong to the number so don't go to the next character by breaking
                             break
                         } else {
                             if ($.numberNode === "-0" || $.numberNode === "0") {
@@ -933,19 +884,62 @@ export class Parser {
         return this.end()
     }
 
-    private wrapUpNumber() {
-        if (this.state[0] === ContextType.NUMBER) {
-            //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
-            const numberState = this.state[1]
-            this.ondata.signal(s => s.onsimplevalue(new Number(numberState.numberNode).valueOf(), {
-                start: numberState.start,
-                end: {
+    private wrapUpDanglingToken() {
+        switch (this.state[0]) {
+            case ContextType.COMMENT:
+                break
+            case ContextType.KEYWORD:
+                const $ = this.state[1]
+                console.log(this.state[1].keywordNode)
+                const end = {
                     line: this.line,
                     position: this.position - 1,
                     column: this.column - 1
                 }
-            }))
-            this.setStateAfterValue()
+                switch (this.state[1].keywordNode) {
+                    case "true": {
+                        this.ondata.signal(s => s.onsimplevalue(true, { start: $.start, end: end }))
+                        this.setStateAfterValue()
+
+                        break
+                    }
+                    case "false": {
+                        this.ondata.signal(s => s.onsimplevalue(false, { start: $.start, end: end }))
+                        this.setStateAfterValue()
+
+                        break
+                    }
+                    case "null": {
+                        this.ondata.signal(s => s.onsimplevalue(null, { start: $.start, end: end }))
+                        this.setStateAfterValue()
+
+                        break
+                    }
+                    default:
+                        this.raiseError(`unknown keyword '${$.keywordNode}'`)
+                }
+                break
+            case ContextType.NUMBER: {
+                //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
+                const numberState = this.state[1]
+                this.ondata.signal(s => s.onsimplevalue(new Number(numberState.numberNode).valueOf(), {
+                    start: numberState.start,
+                    end: {
+                        line: this.line,
+                        position: this.position - 1,
+                        column: this.column - 1
+                    }
+                }))
+                this.setStateAfterValue()
+                break
+            }
+            case ContextType.STACK:
+                break
+            case ContextType.STRING:
+                //strings are self closing (with a '"')
+                throw new Error("unexpected string")
+            default:
+                return assertUnreachable(this.state[0])
         }
     }
     private closeObject(curChar: number, context: ObjectContext) {
@@ -987,20 +981,8 @@ export class Parser {
         if (DEBUG) { console.log("error raised:", printError(error)) }
         this.onerror.signal(error)
     }
-    private finishKeyword(value: false | true | null, length: number) {
-        const curLoc = this.getLocation()
-        this.ondata.signal(s => s.onsimplevalue(value, {
-            start: {
-                line: curLoc.line,
-                position: curLoc.position - length + 1, //plus 1 because a string of say 4 characters starting at 5 and ends at 8, not at 9 (5678)
-                column: curLoc.column - length + 1,
-            },
-            end: curLoc,
-        }))
-        this.setStateAfterValue()
-    }
     public end() {
-        this.wrapUpNumber()
+        this.wrapUpDanglingToken()
 
         if (this.error !== null) {
             return
@@ -1016,7 +998,7 @@ export class Parser {
         this.onready.signal()
     }
     private onFoundSolidus() {
-        this.wrapUpNumber()
+        this.wrapUpDanglingToken()
         this.setState([ContextType.COMMENT, {
             state: CommentState.FOUND_SOLIDUS,
             commentNode: "",
@@ -1102,12 +1084,8 @@ export class Parser {
                 }
                 break
             }
-            case ValueType.FALSE: {
-                this.setState([ContextType.KEYWORD, { state: KeywordState.FALSE_EXPECTING_A }])
-                break
-            }
-            case ValueType.NULL: {
-                this.setState([ContextType.KEYWORD, { state: KeywordState.NULL_EXPECTING_U }])
+            case ValueType.KEYWORD: {
+                this.setState([ContextType.KEYWORD, { start: this.getLocation(), keywordNode: String.fromCharCode(curChar) }])
                 break
             }
             case ValueType.NUMBER: {
@@ -1135,10 +1113,6 @@ export class Parser {
                 })
                 break
             }
-            case ValueType.TRUE: {
-                this.setState([ContextType.KEYWORD, { state: KeywordState.TRUE_EXPECTING_R }])
-                break
-            }
             case ValueType.TYPED_UNION: {
                 if (this.opt.allow?.typed_unions) {
                     this.pushContext([StackContextType.TYPED_UNION, { state: TypedUnionState.EXPECTING_OPTION }])
@@ -1164,11 +1138,11 @@ export class Parser {
         } else if (curChar === Char.Number.minus || Char.Number._0 <= curChar && curChar <= Char.Number._9) {
             return ValueType.NUMBER
         } else if (curChar === Char.Keyword.t) {
-            return ValueType.TRUE
+            return ValueType.KEYWORD
         } else if (curChar === Char.Keyword.f) {
-            return ValueType.FALSE
+            return ValueType.KEYWORD
         } else if (curChar === Char.Keyword.n) {
-            return ValueType.NULL
+            return ValueType.KEYWORD
         } else {
             return null
         }
