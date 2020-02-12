@@ -1,4 +1,4 @@
-import { ValueHandler, ObjectHandler, ArrayHandler } from "./subscribeStack"
+import { ValueHandler, ObjectHandler, ArrayHandler } from "./cerateStackedDataSubscriber"
 import { Location, Range, printLocation } from "./location"
 
 function createDummyValueHandler(): ValueHandler {

@@ -1,57 +1,20 @@
-import { Parser, Error } from "./Parser";
+import { DataSubscriber } from "./Parser";
 import { Location, Range } from "./location"
 
 const DEBUG = false
 
 /**
- * subscribeStack allows for capturing objects and arrays in a callback, so that the consumer does not have to match
+ * createStackedDataSubscriber allows for capturing objects and arrays in a callback, so that the consumer does not have to match
  * 'onopenobject' with 'oncloseobject'
  * and
  * 'onopenarray' with 'onclosearray'
  */
 
-export function subscribeStackWithSchema(
-    p: Parser,
-    _onReference: (schemaReference: string, startLocation: Location, range: Range) => RootHandler,
-    _onError: (err: Error) => void
-) {
-
-    let foundSchemaReference = false
-
-    p.onheaderdata.subscribe({
-        onschemastart: () => {},
-        onschemaend: () => {
-            //foo
-        },
-        // onschemareference: (schemaReference, startLocation, range) => {
-        //     foundSchemaReference = true
-        //     const vh = onReference(schemaReference, startLocation, range)
-        //     subscribeStack(p, vh, onError)
-        // },
-        oncompact: () => { }
-    })
-
-    p.onend.subscribe(() => {
-        if (!foundSchemaReference) {
-            throw new Error("no schema found")
-        }
-    })
-}
-
-type Comment = {
-    text: string
-    range: Range
-    type:
-    | "block"
-    | "line"
-    indent: null | string
-}
-
-export function subscribeStack(p: Parser, rootHandler: RootHandler, onError: (error: Error) => void) {
+export function createStackedDataSubscriber(valueHandler: ValueHandler, endComments: (comments: Comment[]) => void): DataSubscriber {
     const stack: Array<ContextType> = []
     let comments: Comment[] = []
 
-    let currentContext: ContextType = ["root", { valueHandler: rootHandler.value }]
+    let currentContext: ContextType = ["root", { valueHandler: valueHandler }]
 
     function flushComments() {
         const comm = comments
@@ -90,13 +53,8 @@ export function subscribeStack(p: Parser, rootHandler: RootHandler, onError: (er
                 return assertUnreachable(currentContext[0])
         }
     }
-    p.onerror.subscribe(err => onError(err))
 
-    p.onend.subscribe(() => {
-        rootHandler.endComments(flushComments())
-    })
-
-    p.ondata.subscribe({
+    return {
         onlinecomment: (comment, range) => {
             comments.push({
                 text: comment,
@@ -184,8 +142,11 @@ export function subscribeStack(p: Parser, rootHandler: RootHandler, onError: (er
             } else {
                 vh.simpleValue(value, range, flushComments())
             }
+        },
+        onend: () => {
+            endComments(flushComments())
         }
-    })
+    }
 }
 
 export type ObjectHandler = {
@@ -206,16 +167,20 @@ export interface ValueHandler {
     typedUnion: (option: string, startLocation: Location, optionRange: Range, comments: Comment[]) => ValueHandler
 }
 
-export interface RootHandler {
-    value: ValueHandler
-    endComments: (comments: Comment[]) => void
-}
-
 type ContextType =
     | ["root", { valueHandler: ValueHandler }]
     | ["object", { objectHandler: ObjectHandler, valueHandler: null | ValueHandler }]
     | ["array", { arrayHandler: ArrayHandler }]
     | ["typedunion", { location: Location, parentValueHandler: ValueHandler, valueHandler: null | ValueHandler }]
+
+type Comment = {
+    text: string
+    range: Range
+    type:
+    | "block"
+    | "line"
+    indent: null | string
+}
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

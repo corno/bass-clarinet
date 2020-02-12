@@ -135,7 +135,10 @@ export interface DataSubscriber {
 
     onblockcomment(comment: string, indent: string | null, range: Range): void
     onlinecomment(comment: string, range: Range): void
+    onend(): void
 }
+
+export type DataSubscription = s.Subscribers<DataSubscriber>
 
 export interface HeaderSubscriber {
     onschemastart(location: Location): void
@@ -173,7 +176,6 @@ export class Parser {
     private oncurrentdata: s.Subscribers<DataSubscriber>
     readonly onheaderdata = new s.Subscribers<HeaderSubscriber>()
 
-    readonly onend = new s.NoArgumentSubscribers()
     readonly onerror = new s.OneArgumentSubscribers<Error>()
     readonly onready = new s.NoArgumentSubscribers()
 
@@ -1006,7 +1008,7 @@ export class Parser {
         }
 
         this.ended = true
-        this.onend.signal()
+        this.oncurrentdata.signal(s =>s.onend())
         this.onready.signal()
     }
     private onFoundSolidus() {

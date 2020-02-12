@@ -169,20 +169,17 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 validateEventsEqual(ee, "key")
                 assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
                 checkLocation(ee, range.end)
+            },
+            onend: () => {
+                if (DEBUG) console.log("found end")
+
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "end")
             }
         }
         parser.onschemadata.subscribe(subscriber)
         parser.ondata.subscribe(subscriber)
 
-
-
-        parser.onend.subscribe(() => {
-            if (DEBUG) console.log("found end")
-
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "end")
-
-        })
         parser.onready.subscribe(() => {
             if (DEBUG) console.log("found ready")
 

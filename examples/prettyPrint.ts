@@ -1,6 +1,6 @@
 import * as fs  from "fs"
-import { Parser, lax } from "../src/Parser"
-import * as sp from "../src/subscribeStack"
+import { Parser, lax, DataSubscriber } from "../src/Parser"
+import * as sp from "../src/cerateStackedDataSubscriber"
 
 const [, , path] = process.argv
 
@@ -57,14 +57,15 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
     }
 }
 
-function createPrettyPrinter(indentation: string, writer: (str: string) => void): sp.RootHandler {
-    return {
-        value: createValuesPrettyPrinter(indentation, writer),
-        endComments: () => {}
-    }
+function createPrettyPrinter(indentation: string, writer: (str: string) => void): DataSubscriber {
+    return sp.createStackedDataSubscriber(
+        createValuesPrettyPrinter(indentation, writer),
+        () => {}
+    )
 }
 
 const parser = new Parser({ allow: lax})
-sp.subscribeStack(parser, createPrettyPrinter("\r\n", str => process.stdout.write(str)), err => { console.error("FOUND ERROR", err.message) })
+parser.ondata.subscribe(createPrettyPrinter("\r\n", str => process.stdout.write(str)))
+parser.onerror.subscribe(err => { console.error("FOUND ERROR", err.message) })
 parser.write(data)
 parser.end()

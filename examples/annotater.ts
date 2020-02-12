@@ -1,5 +1,6 @@
-import * as sp from "../src/subscribeStack"
+import * as sp from "../src/cerateStackedDataSubscriber"
 import { Location, Range } from "../src/location"
+import { DataSubscriber } from "../src"
 
 
 function printLoc(location: Location) {
@@ -53,9 +54,9 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
     }
 }
 
-export function createRootAnnotator(indentation: string, writer: (str: string) => void): sp.RootHandler {
-    return {
-        value: createValuesAnnotater(indentation, writer),
-        endComments: () => {}
-    }
+export function createAnnotator(indentation: string, writer: (str: string) => void): DataSubscriber {
+    return sp.createStackedDataSubscriber(
+        createValuesAnnotater(indentation, writer),
+        () => { }
+    )
 }
