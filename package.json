@@ -34,7 +34,13 @@
     "emitter",
     "async",
     "streamer",
-    "browser"
+    "browser",
+    "tagged union",
+    "tagged",
+    "union",
+    "sum type",
+    "sum",
+    "type"
   ],
   "devDependencies": {
     "@types/mocha": "^7.0.1",
