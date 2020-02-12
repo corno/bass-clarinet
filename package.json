@@ -40,7 +40,8 @@
     "@types/mocha": "^7.0.1",
     "@types/node": "^13.7.1",
     "mocha": "^7.0.1",
-    "should": "13.2.x"
+    "should": "13.2.x",
+    "typescript": "^3.7.5"
   },
   "scripts": {
     "build": "rd /s /q .\\dist & tsc",
@@ -66,7 +67,5 @@
     "test": "test"
   },
   "license": "BSD-2-Clause",
-  "dependencies": {
-    "typescript": "^3.7.5"
-  }
+  "dependencies": {}
 }
