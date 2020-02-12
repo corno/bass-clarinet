@@ -4,7 +4,7 @@ export enum RootState {
     EXPECTING_SCHEMA_START,
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
     EXPECTING_SCHEMA,
-    EXPECTING_ROOTVALUE_OR_HASH,
+    EXPECTING_HASH_OR_ROOTVALUE,
     EXPECTING_ROOTVALUE,
     EXPECTING_END, // no more input expected
 }
@@ -43,82 +43,6 @@ export enum TypedUnionState {
     EXPECTING_VALUE,
 }
 
-export type OnStringFinished = (text: string, range: Range) => void
-
-export type GlobalState =
-    | [ContextType.ARRAY, ArrayContext]
-    | [ContextType.COMMENT, CommentContext]
-    | [ContextType.KEYWORD, KeywordContext]
-    | [ContextType.NUMBER, NumberContext]
-    | [ContextType.OBJECT, ObjectContext]
-    | [ContextType.ROOT, RootContext]
-    | [ContextType.STRING, StringContext]
-    | [ContextType.TYPED_UNION, TypedUnionContext]
-
-export type Context =
-    | [ContextType.ARRAY, ArrayContext]
-    | [ContextType.COMMENT, CommentContext]
-    | [ContextType.KEYWORD, KeywordContext]
-    | [ContextType.NUMBER, NumberContext]
-    | [ContextType.OBJECT, ObjectContext]
-    | [ContextType.ROOT, RootContext]
-    | [ContextType.STRING, StringContext]
-    | [ContextType.TYPED_UNION, TypedUnionContext]
-
-export enum ContextType {
-    ARRAY,
-    COMMENT,
-    KEYWORD,
-    OBJECT,
-    NUMBER,
-    ROOT,
-    STRING,
-    TYPED_UNION,
-}
-
-export type Unicode = {
-    charactersLeft: number
-    foundCharacters: ""
-}
-
-export type ArrayContext = { state: ArrayState, openChar: number }
-
-export type CommentContext = {
-    previousState: GlobalState
-    state: CommentState
-    commentNode: string
-    start: Location
-}
-
-export type KeywordContext = {
-    state: KeywordState
-}
-
-export type NumberContext = {
-    start: Location
-    numberNode: string
-    foundExponent: boolean
-    foundPeriod: boolean
-}
-
-export type ObjectContext = { state: ObjectState, openChar: number }
-
-export type RootContext = {
-    state: RootState
-}
-export type StringContext = {
-    startCharacter: number
-    start: Location
-    textNode: string
-    onFinished: OnStringFinished
-    unicode: null | Unicode
-    slashed: boolean
-}
-
-export type TypedUnionContext = {
-    state: TypedUnionState
-}
-
 export enum CommentState {
     FOUND_SOLIDUS,
     FOUND_ASTERISK,
@@ -135,4 +59,80 @@ export enum ValueType {
     ARRAY,
     NUMBER,
     TYPED_UNION,
+}
+
+
+export type OnStringFinished = (text: string, range: Range) => void
+
+export type StackContext =
+    | [StackContextType.ROOT, RootContext]
+    | [StackContextType.ARRAY, ArrayContext]
+    | [StackContextType.OBJECT, ObjectContext]
+    | [StackContextType.TYPED_UNION, TypedUnionContext]
+
+export type Context =
+    | [ContextType.STACK]
+    | [ContextType.COMMENT, CommentContext]
+    | [ContextType.KEYWORD, KeywordContext]
+    | [ContextType.NUMBER, NumberContext]
+    | [ContextType.STRING, StringContext]
+
+export enum StackContextType {
+    ARRAY,
+    OBJECT,
+    ROOT,
+    TYPED_UNION,
+}
+
+export enum ContextType {
+    COMMENT,
+    KEYWORD,
+    NUMBER,
+    STACK,
+    STRING,
+}
+
+export type Unicode = {
+    charactersLeft: number
+    foundCharacters: ""
+}
+
+export type ArrayContext = { state: ArrayState, openChar: number }
+
+export type CommentContext = {
+    state: CommentState
+    commentNode: string
+    start: Location
+}
+
+export type KeywordContext = {
+    state: KeywordState
+}
+
+export type NumberContext = {
+    start: Location
+    numberNode: string
+    foundExponent: boolean
+    foundPeriod: boolean
+}
+
+export type ObjectContext = {
+    state: ObjectState,
+    openChar: number
+}
+
+export type RootContext = {
+    state: RootState
+}
+export type StringContext = {
+    startCharacter: number
+    start: Location
+    textNode: string
+    onFinished: OnStringFinished
+    unicode: null | Unicode
+    slashed: boolean
+}
+
+export type TypedUnionContext = {
+    state: TypedUnionState
 }

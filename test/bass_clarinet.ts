@@ -15,15 +15,9 @@ const DEBUG = false
 const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
 
-// const selectedJSONTests: string[] = []
-// // //const selectedTests = ['just_a_string']
-// // //const selectedTests = ['empty_array']
-// const selectedExtensionTests = ["schema_required"]
+// const selectedJSONTests: string[] = ["forbidden_extension_apostrophe_string"]
+// const selectedExtensionTests: string[] = []
 
-
-// function assertUnreachable(_x: never) {
-//     throw new Error("unreachable")
-// }
 
 
 function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], opts?: Options) {
@@ -75,7 +69,6 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
 
         parser.onheaderdata.subscribe({
             onschemastart: (location) => {
-                console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
                 if (DEBUG) console.log("found schema start")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "schemastart")

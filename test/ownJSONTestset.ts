@@ -748,7 +748,6 @@ export const JSONTests: TestDefinitions = {
         text: "'a string'",
         events: [
             ["error", undefined],
-            ["error", undefined],
         ],
     },
     multiline_string: {
@@ -768,7 +767,6 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", 1],
             ["simplevalue", 2],
             ["error", undefined],
-            ["error", undefined], //strange.. there should not be 2 errors
         ]
     },
     forbidden_extension_multi_line_comment: {
@@ -778,7 +776,6 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", 1],
             ["simplevalue", 2],
             ["error", undefined],
-            ["error", undefined], //strange.. there should not be 2 errors
         ]
     },
     forbidden_extension_parens_instead_of_braces: {
@@ -786,7 +783,6 @@ export const JSONTests: TestDefinitions = {
         options: {
         },
         events: [
-            ["error", undefined],
             ["error", undefined],
         ]
     },
@@ -798,7 +794,6 @@ export const JSONTests: TestDefinitions = {
             ["openarray", undefined],
             ["simplevalue", "foo"],
             ["error", undefined],
-            ["error", undefined],
         ]
     },
     forbidden_extension_angle_brackets_instead_of_brackets: {
@@ -806,7 +801,6 @@ export const JSONTests: TestDefinitions = {
         options: {
         },
         events: [
-            ["error", undefined],
             ["error", undefined],
         ]
     },
@@ -817,14 +811,12 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", 1],
             ["simplevalue", 2],
             ["error", undefined],
-            ["error", undefined], //strange.. there should not be 2 errors
         ]
     },
     forbidden_typed_union: {
         text: '| "foo", {}',
         events: [
             ["error", undefined],
-            ["error", undefined], //strange.. there should not be 2 errors
         ]
     },
 }

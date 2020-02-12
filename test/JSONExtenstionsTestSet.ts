@@ -162,7 +162,6 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["error", undefined],
-            ["error", undefined],
         ],
     },
     schema_required: {
