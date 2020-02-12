@@ -157,7 +157,7 @@ const parser = new bc.Parser({ allow: bc.lax})
 parser.ondata.subscribe({
     onlinecomment: (comment, range) => {
     },
-    onblockcomment: (v, indent, range) => {
+    onblockcomment: (comment, range, indent) => {
         //indent can be used to strip the leading whitespace of all lines of the block comment.
         //indent indicates the indentation string found up to the `/*` characters.
         //this is only provided if the block comment starts on a new line

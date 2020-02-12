@@ -133,7 +133,7 @@ export interface DataSubscriber {
 
     onsimplevalue(value: string | boolean | null | number, range: Range): void
 
-    onblockcomment(comment: string, indent: string | null, range: Range): void
+    onblockcomment(comment: string, range: Range, indent: string | null): void
     onlinecomment(comment: string, range: Range): void
     onend(): void
 }
@@ -346,7 +346,7 @@ export class Parser {
                                     this.setState([ContextType.STACK])
                                     flush()
                                     const comment = $.commentNode.substring(0, $.commentNode.length - 1) //strip the found asterisk '*'
-                                    this.oncurrentdata.signal(s => s.onblockcomment(comment, this.indent, { start: $.start, end: this.getLocation() }))
+                                    this.oncurrentdata.signal(s => s.onblockcomment(comment, { start: $.start, end: this.getLocation() }, this.indent))
                                     next()
                                     break commentLoop
                                 } else {
