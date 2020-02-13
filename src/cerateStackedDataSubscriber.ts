@@ -12,8 +12,7 @@ const DEBUG = false
  * and
  * 'onopenarray' with 'onclosearray'
  */
-
-export function createStackedDataSubscriber(valueHandler: ValueHandler, endComments: (comments: Comment[]) => void): DataSubscriber {
+export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (comments: Comment[]) => void): DataSubscriber {
     const stack: ContextType[] = []
     let comments: Comment[] = []
 
@@ -147,7 +146,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, endComme
             }
         },
         onend: () => {
-            endComments(flushComments())
+            onend(flushComments())
         },
     }
 }
