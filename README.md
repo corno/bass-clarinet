@@ -21,15 +21,15 @@ In addition to the port to TypeScript, the following changes have been made:
   * `allow:schema`
   * `allow:trailing_commas`
   * `allow:tagged_unions`
+  * `require:schema`
   * `spaces_per_tab`
-  * `require_schema`
 * stream support has been dropped for now. Can be added back upon request
 
 most credits go to the original author Nuno Job
 
 `clarinet/bass-clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. `clarinet` was inspired (and forked) from [sax-js][saxjs]. just like you shouldn't use `sax` when you need `dom` you shouldn't use `bass-clarinet` when you need `JSON.parse`.
 
-Clear reasons to use `bass-clarinet` over  the build in `JSON.parse`:
+Clear reasons to use `bass-clarinet` over  the built-in `JSON.parse`:
 * you want location info
 * you work with very large files
 * you want a syntax that is less strict than JSON. This might be desirable when the file needs to be edited manually. See option
