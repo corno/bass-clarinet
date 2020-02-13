@@ -123,7 +123,7 @@ export class ErrorContext {
                         this.raiseWarning(`expected '<' but found '${closeCharacter}'`, endLocation)
                     }
                     Object.keys(expectedProperties).forEach(ep => {
-                        if (foundProperies.includes(ep)) {
+                        if (!foundProperies.includes(ep)) {
                             this.raiseError(`missing property: '${ep}'`, startLocation)//FIX print location properly
                         }
                     })
