@@ -10,7 +10,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "just_a_number": {
+    "just a number": {
         text: '42',
         events: [
             ["simplevalue", 42],
@@ -18,7 +18,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "empty_array": {
+    "empty array": {
         text: '[]',
         events: [
             ["openarray", 1, 1],
@@ -27,7 +27,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "just_slash": {
+    "just slash": {
         text: '["\\\\"]',
         events: [
             ["openarray"],
@@ -37,7 +37,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "zero_byte": {
+    "zero byte": {
         text: '{"foo": "\\u0000"}',
         events: [
             ["openobject"],
@@ -48,7 +48,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "empty_value": {
+    "empty value": {
         text: '{"foo": ""}',
         events: [
             ["openobject"],
@@ -59,7 +59,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "empty_key": {
+    "empty key": {
         text: '{"foo": "bar", "": "baz"}',
         events: [
             ["openobject"],
@@ -72,7 +72,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "three_byte_utf8": {
+    "three byte utf8": {
         text: '{"matzue": "松江", "asakusa": "浅草"}',
         events: [
             ["openobject"],
@@ -85,7 +85,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "four_byte_utf8": {
+    "four byte utf8": {
         text: '{ "U+10ABCD": "������" }',
         events: [
             ["openobject"],
@@ -106,7 +106,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "codepoints_from_unicodes": {
+    "codepoints from unicodes": {
         text: '["\\u004d\\u0430\\u4e8c\\ud800\\udf02"]',
         events: [
             ["openarray"],
@@ -116,7 +116,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "empty_object": {
+    "empty object": {
         text: '{}',
         events: [
             ["openobject"],
@@ -136,7 +136,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "as_is": {
+    "as is": {
         text: "{\"foo\": \"its \\\"as is\\\", \\\"yeah\", \"bar\": false}",
         events: [
             ["openobject"],
@@ -160,7 +160,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "array_fu": {
+    "array fu": {
         text: '["foo", "bar", "baz",true,false,null,{"key":"simplevalue"},' +
             '[null,null,null,[]]," \\\\ "]',
         events: [
@@ -188,7 +188,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "simple_exp": {
+    "simple exp": {
         text: '[10e-01]',
         events: [
             ["openarray"],
@@ -212,7 +212,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "nested_array": {
+    "nested array": {
         text: '{"a":["b", "c"]}',
         events: [
             ["openobject"],
@@ -226,7 +226,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "array_of_objs": {
+    "array of objs": {
         text: '[{"a":"b"}, {"c":"d"}]',
         events: [
             ["openarray"],
@@ -243,7 +243,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "two_keys": {
+    "two keys": {
         text: '{"a": "b", "c": "d"}',
         events: [
             ["openobject"],
@@ -256,7 +256,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "key_true": {
+    "key true": {
         text: '{"foo": true, "bar": false, "baz": null}',
         events: [
             ["openobject"],
@@ -271,7 +271,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "obj_strange_strings": {
+    "obj strange strings": {
         text: '{"foo": "bar and all\\\"", "bar": "its \\\"nice\\\""}',
         events: [
             ["openobject"],
@@ -284,7 +284,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "bad_foo_bar": {
+    "bad foo bar": {
         text: '["foo", "bar"',
         events: [
             ["openarray"],
@@ -295,7 +295,7 @@ export const JSONTests: TestDefinitions = {
             //["ready"],
         ],
     },
-    "string_invalid_escape": {
+    "string invalid escape": {
         text: '["and you can\'t escape thi\s"]',
         events: [
             ["openarray", 1, 1],
@@ -305,7 +305,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "nuts_and_bolts": {
+    "nuts and bolts": {
         text: '{"boolean, true": true' +
             ', "boolean, false": false' +
             ', "null": null }',
@@ -322,7 +322,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "frekin_string": {
+    "frekin string": {
         text: '["\\\\\\"\\"a\\""]',
         events: [
             ["openarray"],
@@ -332,7 +332,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "array_of_string_insanity": {
+    "array of string insanity": {
         text: '["\\\"and this string has an escape at the beginning",' +
             '"and this string has no escapes"]',
         events: [
@@ -344,7 +344,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "non_utf8": {
+    "non utf8": {
         text: '{"CoreletAPIVersion":2,"CoreletType":"standalone",' +
             '"documentation":"A corelet that provides the capability to upload' +
             ' a folder’s contents into a user’s locker.","functions":[' +
@@ -517,7 +517,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "array_of_arrays": {
+    "array of arrays": {
         text: '[[[["foo"]]]]',
         events: [
             ["openarray"],
@@ -533,7 +533,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "low_overflow": {
+    "low overflow": {
         text: '[-9223372036854775808]',
         chunks: [
             '[-92233720',
@@ -546,7 +546,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "high_overflow": {
+    "high overflow": {
         text: '[9223372036854775808]',
         events: [
             ["openarray"],
@@ -569,7 +569,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "numbers_game": {
+    "numbers game": {
         text: '[1,0,-1,-0.3,0.3,1343.32,3345,3.1e124,' +
             ' 9223372036854775807,-9223372036854775807,0.1e2, ' +
             '1e1, 3.141569, 10000000000000e-10,' +
@@ -655,7 +655,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "array_null": {
+    "array null": {
         text: '[null,false,true]',
         chunks: [
             '[nu',
@@ -674,7 +674,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "empty_array_comma": {
+    "empty array comma": {
         text: '{"a":[],"c": {}, "b": true}',
         events: [
             ["openobject", 1, 1],
@@ -691,7 +691,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "incomplete_json_terminates_ending_in_number": {
+    "incomplete json terminates ending in number": {
         text: '[[1,2,3],[42,0',
         events: [
             ["openarray", 1, 1],
@@ -706,7 +706,7 @@ export const JSONTests: TestDefinitions = {
             ['error'],
         ],
     },
-    "incomplete_json_terminates_ending_in_comma": {
+    "incomplete json terminates ending in comma": {
         text: '[[1,2,42],',
         events: [
             ["openarray"],
@@ -718,7 +718,7 @@ export const JSONTests: TestDefinitions = {
             ['error'],
         ],
     },
-    "json_org": {
+    "json org": {
         text: ('{\r\n' +
             '                    "glossary": {\n' +
             '                            "title": "example glossary",\n\r' +
@@ -788,7 +788,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "string_chunk_span": {
+    "string chunk span": {
         text: '["L\'OrÃ©al", "LÃ©\'Oral", "Ã©alL\'Or"]',
         chunks: [
             '["L\'OrÃ',
@@ -803,13 +803,13 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "forbidden_extension_apostrophe_string": {
+    "forbidden extension apostrophe string": {
         text: "'a string'",
         events: [
             ["error"],
         ],
     },
-    "multiline_string": {
+    "multiline string": {
         text: '["a\nstring"]',
         events: [
             ["openarray"],
@@ -819,7 +819,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "forbidden_extension_trailing_comma": {
+    "forbidden extension trailing comma": {
         text: '[1,2,]',
         events: [
             ["openarray"],
@@ -828,7 +828,7 @@ export const JSONTests: TestDefinitions = {
             ["error"],
         ],
     },
-    "forbidden_extension_multi_line_comment": {
+    "forbidden extension multi line comment": {
         text: '[1,2/*a comment\r\n*/]',
         events: [
             ["openarray"],
@@ -837,7 +837,7 @@ export const JSONTests: TestDefinitions = {
             ["error"],
         ],
     },
-    "forbidden_extension_parens_instead_of_braces": {
+    "forbidden extension parens instead of braces": {
         text: '( a: "foo" )',
         options: {
         },
@@ -845,7 +845,7 @@ export const JSONTests: TestDefinitions = {
             ["error"],
         ],
     },
-    "forbidden_extension_missing_comma": {
+    "forbidden extension missing comma": {
         text: '["foo""bar"]',
         options: {
         },
@@ -855,7 +855,7 @@ export const JSONTests: TestDefinitions = {
             ["error"],
         ],
     },
-    "forbidden_extension_angle_brackets_instead_of_brackets": {
+    "forbidden extension angle brackets instead of brackets": {
         text: '<"foo">',
         options: {
         },
@@ -863,7 +863,7 @@ export const JSONTests: TestDefinitions = {
             ["error"],
         ],
     },
-    "forbidden_extension_single_line_comment": {
+    "forbidden extension single line comment": {
         text: '[1,2//a comment\r\n]',
         events: [
             ["openarray"],
@@ -872,7 +872,7 @@ export const JSONTests: TestDefinitions = {
             ["error"],
         ],
     },
-    "forbidden_tagged_union": {
+    "forbidden tagged union": {
         text: '| "foo", {}',
         events: [
             ["error"],

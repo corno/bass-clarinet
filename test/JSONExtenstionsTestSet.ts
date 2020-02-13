@@ -20,7 +20,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "single_line_comment": {
+    "single line comment": {
         text: '[1,"a"//a comment\r\n]',
         options: {
             allow: { comments: true },
@@ -35,7 +35,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "multi_line_comment": {
+    "multi line comment": {
         text: '[1,"a"/*a comment\r\n*/]',
         options: {
             allow: {
@@ -52,7 +52,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "parens_instead_of_braces": {
+    "parens instead of braces": {
         text: '( "a": "foo" )',
         options: {
             allow: { parens_instead_of_braces: true },
@@ -66,7 +66,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "missing_comma": {
+    "missing comma": {
         text: '["foo""bar"]',
         options: {
             allow: { missing_commas: true },
@@ -80,7 +80,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "angle_brackets_instead_of_brackets": {
+    "angle brackets instead of brackets": {
         text: '<"foo">',
         options: {
             allow: { angle_brackets_instead_of_brackets: true },
@@ -93,7 +93,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "apostrophe_string": {
+    "apostrophe string": {
         text: "'a string'",
         options: {
             allow: { apostrophes_instead_of_quotation_marks: true },
@@ -104,7 +104,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "tagged_union": {
+    "tagged union": {
         text: '| "foo" "x"',
         options: {
             allow: {
@@ -120,7 +120,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "tagged_union_with_number_at_end": {
+    "tagged union with number at end": {
         text: '| "foo" 5',
         options: {
             allow: {
@@ -136,7 +136,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "schema_optional": {
+    "schema optional": {
         text: '!"a schema" 42',
         options: {
             allow: { schema: true },
@@ -150,7 +150,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "schema_optional_but_not_there": {
+    "schema optional but not there": {
         text: "42",
         options: {
             allow: { schema: true },
@@ -161,7 +161,7 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    "schema_required_but_not_there": {
+    "schema required but not there": {
         text: "42",
         options: {
             require: {
@@ -172,7 +172,7 @@ export const extensionTests: TestDefinitions = {
             ["error"],
         ],
     },
-    "schema_required": {
+    "schema required": {
         text: '! "a schema" 42',
         options: {
             require: {
