@@ -3,14 +3,14 @@ import { Options } from "../src/configurationTypes"
 export type EventDefinition = [AnyEvent, (string | false | true | null | number)?, number?, number?]
 
 export type TestDefinition = {
-    text: string,
-    chunks?: string[],
-    options?: Options
-    events: EventDefinition[]
+    readonly text: string
+    readonly chunks?: string[]
+    readonly options?: Options
+    readonly events: EventDefinition[]
 }
 
 export type TestDefinitions = {
-    [key: string]: TestDefinition
+    readonly [key: string]: TestDefinition
 }
 
 export type AnyEvent =

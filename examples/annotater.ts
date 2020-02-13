@@ -20,23 +20,23 @@ function format(value: number | string | boolean | null) {
 
 export function createValuesAnnotater(indentation: string, writer: (str: string) => void): sp.ValueHandler {
     return {
-        array: (startLocation) => {
+        array: startLocation => {
             writer(`${indentation}[ // ${printLoc(startLocation)}`)
             return {
                 element: () => createValuesAnnotater(`${indentation}\t`, writer),
                 end: (end => {
                     writer(`${indentation}] // ${printLoc(end)}`)
-                })
+                }),
             }
         },
-        object: (startLocation) => {
+        object: startLocation => {
             writer(`${indentation}{ // ${printLoc(startLocation)}`)
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}"${key}": `)
                     return createValuesAnnotater(`${indentation}\t`, writer)
                 },
-                end: (end) => {
+                end: end => {
                     writer(`${indentation}} // ${printLoc(end)}`)
                 },
             }
@@ -44,7 +44,7 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
         simpleValue: (value, range) => {
             writer(`${indentation}${format(value)} // ${printRange(range)}`)
         },
-        null: (range) => {
+        null: range => {
             writer(`${indentation}null // ${printRange(range)}`)
         },
         taggedUnion: (option, startLocation, range) => {
@@ -57,6 +57,8 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
 export function createAnnotator(indentation: string, writer: (str: string) => void): DataSubscriber {
     return sp.createStackedDataSubscriber(
         createValuesAnnotater(indentation, writer),
-        () => { }
+        () => {
+            //do nothing
+        }
     )
 }

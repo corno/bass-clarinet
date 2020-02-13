@@ -2,7 +2,7 @@ import { TestDefinitions } from "./testDefinition";
 
 
 export const JSONTests: TestDefinitions = {
-    just_a_string: {
+    "just a string": {
         text: '"a string"',
         events: [
             ["simplevalue", "a string", 1, 10],
@@ -10,7 +10,7 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    just_a_number: {
+    "just_a_number": {
         text: '42',
         events: [
             ["simplevalue", 42],
@@ -18,26 +18,26 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    empty_array: {
+    "empty_array": {
         text: '[]',
         events: [
             ["openarray", 1, 1],
             ["closearray", 1, 2],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    just_slash: {
+    "just_slash": {
         text: '["\\\\"]',
         events: [
             ["openarray"],
             ["simplevalue", "\\"],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    zero_byte: {
+    "zero_byte": {
         text: '{"foo": "\\u0000"}',
         events: [
             ["openobject"],
@@ -45,10 +45,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", "\u0000"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    empty_value: {
+    "empty_value": {
         text: '{"foo": ""}',
         events: [
             ["openobject"],
@@ -57,9 +57,9 @@ export const JSONTests: TestDefinitions = {
             ["closeobject"],
             ["end"],
             ["ready"],
-        ]
+        ],
     },
-    empty_key: {
+    "empty_key": {
         text: '{"foo": "bar", "": "baz"}',
         events: [
             ["openobject"],
@@ -69,10 +69,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", "baz"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    three_byte_utf8: {
+    "three_byte_utf8": {
         text: '{"matzue": "松江", "asakusa": "浅草"}',
         events: [
             ["openobject"],
@@ -82,10 +82,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", "浅草"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    four_byte_utf8: {
+    "four_byte_utf8": {
         text: '{ "U+10ABCD": "������" }',
         events: [
             ["openobject"],
@@ -93,39 +93,39 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", "������"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    bulgarian: {
+    "bulgarian": {
         text: '["Да Му Еба Майката"]',
         events: [
             ["openarray"],
             ["simplevalue", "Да Му Еба Майката"],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    codepoints_from_unicodes: {
+    "codepoints_from_unicodes": {
         text: '["\\u004d\\u0430\\u4e8c\\ud800\\udf02"]',
         events: [
             ["openarray"],
             ["simplevalue", "\u004d\u0430\u4e8c\ud800\udf02"],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    empty_object: {
+    "empty_object": {
         text: '{}',
         events: [
             ["openobject"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    foobar: {
+    "foobar": {
         text: '{"foo": "bar"}',
         events: [
             ["openobject"],
@@ -133,10 +133,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", "bar"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    as_is: {
+    "as_is": {
         text: "{\"foo\": \"its \\\"as is\\\", \\\"yeah\", \"bar\": false}",
         events: [
             ["openobject"],
@@ -146,10 +146,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", false],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    array: {
+    "array": {
         text: '["one", "two"]',
         events: [
             ["openarray"],
@@ -157,11 +157,12 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", 'two'],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    array_fu: {
-        text: '["foo", "bar", "baz",true,false,null,{"key":"simplevalue"},' + '[null,null,null,[]]," \\\\ "]',
+    "array_fu": {
+        text: '["foo", "bar", "baz",true,false,null,{"key":"simplevalue"},' +
+            '[null,null,null,[]]," \\\\ "]',
         events: [
             ["openarray"],
             ["simplevalue", 'foo'],
@@ -184,20 +185,20 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", " \\ "],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    simple_exp: {
+    "simple_exp": {
         text: '[10e-01]',
         events: [
             ["openarray"],
             ["simplevalue", 10e-01],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    nested: {
+    "nested": {
         text: '{"a":{"b":"c"}}',
         events: [
             ["openobject"],
@@ -208,10 +209,10 @@ export const JSONTests: TestDefinitions = {
             ["closeobject"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    nested_array: {
+    "nested_array": {
         text: '{"a":["b", "c"]}',
         events: [
             ["openobject"],
@@ -222,10 +223,10 @@ export const JSONTests: TestDefinitions = {
             ["closearray"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    array_of_objs: {
+    "array_of_objs": {
         text: '[{"a":"b"}, {"c":"d"}]',
         events: [
             ["openarray"],
@@ -239,10 +240,10 @@ export const JSONTests: TestDefinitions = {
             ["closeobject"],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    two_keys: {
+    "two_keys": {
         text: '{"a": "b", "c": "d"}',
         events: [
             ["openobject"],
@@ -252,10 +253,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", "d"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    key_true: {
+    "key_true": {
         text: '{"foo": true, "bar": false, "baz": null}',
         events: [
             ["openobject"],
@@ -267,10 +268,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", null],
             ["closeobject", 1, 40],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    obj_strange_strings: {
+    "obj_strange_strings": {
         text: '{"foo": "bar and all\\\"", "bar": "its \\\"nice\\\""}',
         events: [
             ["openobject"],
@@ -280,10 +281,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", 'its "nice"'],
             ["closeobject", 1, 47],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    bad_foo_bar: {
+    "bad_foo_bar": {
         text: '["foo", "bar"',
         events: [
             ["openarray"],
@@ -291,21 +292,23 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", 'bar'],
             ['error'],
             //["end"],
-            //["ready"]
-        ]
+            //["ready"],
+        ],
     },
-    string_invalid_escape: {
+    "string_invalid_escape": {
         text: '["and you can\'t escape thi\s"]',
         events: [
             ["openarray", 1, 1],
             ["simplevalue", 'and you can\'t escape this', 1, 28],
             ["closearray", 1, 29],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    nuts_and_bolts: {
-        text: '{"boolean, true": true' + ', "boolean, false": false' + ', "null": null }',
+    "nuts_and_bolts": {
+        text: '{"boolean, true": true' +
+            ', "boolean, false": false' +
+            ', "null": null }',
         events: [
             ["openobject"],
             ["key", "boolean, true"],
@@ -316,32 +319,60 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", null],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    frekin_string: {
+    "frekin_string": {
         text: '["\\\\\\"\\"a\\""]',
         events: [
             ["openarray"],
             ["simplevalue", '\\\"\"a\"'],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    array_of_string_insanity: {
-        text: '["\\\"and this string has an escape at the beginning",' + '"and this string has no escapes"]',
+    "array_of_string_insanity": {
+        text: '["\\\"and this string has an escape at the beginning",' +
+            '"and this string has no escapes"]',
         events: [
             ["openarray"],
             ["simplevalue", "\"and this string has an escape at the beginning"],
             ["simplevalue", "and this string has no escapes"],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    non_utf8: {
-        text: '{"CoreletAPIVersion":2,"CoreletType":"standalone",' + '"documentation":"A corelet that provides the capability to upload' + ' a folder’s contents into a user’s locker.","functions":[' + '{"documentation":"Displays a dialog box that allows user to ' + 'select a folder on the local system.","name":' + '"ShowBrowseDialog","parameters":[{"documentation":"The ' + 'callback function for results.","name":"callback","required":' + 'true,"type":"callback"}]},{"documentation":"Uploads all mp3 files' + ' in the folder provided.","name":"UploadFolder","parameters":' + '[{"documentation":"The path to upload mp3 files from."' + ',"name":"path","required":true,"type":"string"},{"documentation":' + ' "The callback function for progress.","name":"callback",' + '"required":true,"type":"callback"}]},{"documentation":"Returns' + ' the server name to the current locker service.",' + '"name":"GetLockerService","parameters":[]},{"documentation":' + '"Changes the name of the locker service.","name":"SetLockerSer' + 'vice","parameters":[{"documentation":"The value of the locker' + ' service to set active.","name":"LockerService","required":true' + ',"type":"string"}]},{"documentation":"Downloads locker files to' + ' the suggested folder.","name":"DownloadFile","parameters":[{"' + 'documentation":"The origin path of the locker file.",' + '"name":"path","required":true,"type":"string"},{"documentation"' + ':"The Window destination path of the locker file.",' + '"name":"destination","required":true,"type":"integer"},{"docum' + 'entation":"The callback function for progress.","name":' + '"callback","required":true,"type":"callback"}]}],' + '"name":"LockerUploader","version":{"major":0,' + '"micro":1,"minor":0},"versionString":"0.0.1"}',
+    "non_utf8": {
+        text: '{"CoreletAPIVersion":2,"CoreletType":"standalone",' +
+            '"documentation":"A corelet that provides the capability to upload' +
+            ' a folder’s contents into a user’s locker.","functions":[' +
+            '{"documentation":"Displays a dialog box that allows user to ' +
+            'select a folder on the local system.","name":' +
+            '"ShowBrowseDialog","parameters":[{"documentation":"The ' +
+            'callback function for results.","name":"callback","required":' +
+            'true,"type":"callback"}]},{"documentation":"Uploads all mp3 files' +
+            ' in the folder provided.","name":"UploadFolder","parameters":' +
+            '[{"documentation":"The path to upload mp3 files from."' +
+            ',"name":"path","required":true,"type":"string"},{"documentation":' +
+            ' "The callback function for progress.","name":"callback",' +
+            '"required":true,"type":"callback"}]},{"documentation":"Returns' +
+            ' the server name to the current locker service.",' +
+            '"name":"GetLockerService","parameters":[]},{"documentation":' +
+            '"Changes the name of the locker service.","name":"SetLockerSer' +
+            'vice","parameters":[{"documentation":"The value of the locker' +
+            ' service to set active.","name":"LockerService","required":true' +
+            ',"type":"string"}]},{"documentation":"Downloads locker files to' +
+            ' the suggested folder.","name":"DownloadFile","parameters":[{"' +
+            'documentation":"The origin path of the locker file.",' +
+            '"name":"path","required":true,"type":"string"},{"documentation"' +
+            ':"The Window destination path of the locker file.",' +
+            '"name":"destination","required":true,"type":"integer"},{"docum' +
+            'entation":"The callback function for progress.","name":' +
+            '"callback","required":true,"type":"callback"}]}],' +
+            '"name":"LockerUploader","version":{"major":0,' +
+            '"micro":1,"minor":0},"versionString":"0.0.1"}',
         events: [
             ["openobject"],
             ["key", "CoreletAPIVersion"],
@@ -483,10 +514,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", "0.0.1"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    array_of_arrays: {
+    "array_of_arrays": {
         text: '[[[["foo"]]]]',
         events: [
             ["openarray"],
@@ -499,10 +530,10 @@ export const JSONTests: TestDefinitions = {
             ["closearray"],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    low_overflow: {
+    "low_overflow": {
         text: '[-9223372036854775808]',
         chunks: [
             '[-92233720',
@@ -512,20 +543,20 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", -9223372036854775808],
             ["closearray", 1, 22],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    high_overflow: {
+    "high_overflow": {
         text: '[9223372036854775808]',
         events: [
             ["openarray"],
             ["simplevalue", 9223372036854775808],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    floats: {
+    "floats": {
         text: '[0.1e2, 1e1, 3.141569, 10000000000000e-10]',
         events: [
             ["openarray"],
@@ -535,17 +566,17 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", 10000000000000e-10],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    numbers_game: {
-        text: '[1,0,-1,-0.3,0.3,1343.32,3345,3.1e124,'
-            + ' 9223372036854775807,-9223372036854775807,0.1e2, '
-            + '1e1, 3.141569, 10000000000000e-10,'
-            + '0.00011999999999999999, 6E-06, 6E-06, 1E-06, 1E-06,'
-            + '"2009-10-20@20:38:21.539575", 9223372036854775808,'
-            + '123456789,-123456789,'
-            + '2147483647, -2147483647]',
+    "numbers_game": {
+        text: '[1,0,-1,-0.3,0.3,1343.32,3345,3.1e124,' +
+            ' 9223372036854775807,-9223372036854775807,0.1e2, ' +
+            '1e1, 3.141569, 10000000000000e-10,' +
+            '0.00011999999999999999, 6E-06, 6E-06, 1E-06, 1E-06,' +
+            '"2009-10-20@20:38:21.539575", 9223372036854775808,' +
+            '123456789,-123456789,' +
+            '2147483647, -2147483647]',
         events: [
             ["openarray"],
             ["simplevalue", 1],
@@ -575,11 +606,16 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", -2147483647],
             ["closearray"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    johnsmith: {
-        text: '{ "firstName": "John", "lastName" : "Smith", "age" : ' + '25, "address" : { "streetAddress": "21 2nd Street", ' + '"city" : "New York", "state" : "NY", "postalCode" : ' + ' "10021" }, "phoneNumber": [ { "type" : "home", ' + '"number": "212 555-1234" }, { "type" : "fax", ' + '"number": "646 555-4567" } ] }',
+    "johnsmith": {
+        text: '{ "firstName": "John", "lastName" : "Smith", "age" : ' +
+            '25, "address" : { "streetAddress": "21 2nd Street", ' +
+            '"city" : "New York", "state" : "NY", "postalCode" : ' +
+            ' "10021" }, "phoneNumber": [ { "type" : "home", ' +
+            '"number": "212 555-1234" }, { "type" : "fax", ' +
+            '"number": "646 555-4567" } ] }',
         events: [
             ["openobject"],
             ["key", "firstName"],
@@ -617,9 +653,9 @@ export const JSONTests: TestDefinitions = {
             ["closeobject"],
             ["end"],
             ["ready"],
-        ]
+        ],
     },
-    array_null: {
+    "array_null": {
         text: '[null,false,true]',
         chunks: [
             '[nu',
@@ -635,10 +671,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", true, 1, 16],
             ["closearray", 1, 17],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    empty_array_comma: {
+    "empty_array_comma": {
         text: '{"a":[],"c": {}, "b": true}',
         events: [
             ["openobject", 1, 1],
@@ -652,10 +688,10 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", true],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    incomplete_json_terminates_ending_in_number: {
+    "incomplete_json_terminates_ending_in_number": {
         text: '[[1,2,3],[42,0',
         events: [
             ["openarray", 1, 1],
@@ -667,10 +703,10 @@ export const JSONTests: TestDefinitions = {
             ["openarray", 1, 10],
             ["simplevalue", 42, 1, 12],
             ["simplevalue", 0],
-            ['error']
-        ]
+            ['error'],
+        ],
     },
-    incomplete_json_terminates_ending_in_comma: {
+    "incomplete_json_terminates_ending_in_comma": {
         text: '[[1,2,42],',
         events: [
             ["openarray"],
@@ -679,11 +715,34 @@ export const JSONTests: TestDefinitions = {
             ["simplevalue", 2],
             ["simplevalue", 42],
             ["closearray"],
-            ['error']
-        ]
+            ['error'],
+        ],
     },
-    json_org: {
-        text: ('{\r\n' + '                    "glossary": {\n' + '                            "title": "example glossary",\n\r' + '            \t\t"GlossDiv": {\r\n' + '                                    "title": "S",\r\n' + '            \t\t\t"GlossList": {\r\n' + '                                            "GlossEntry": {\r\n' + '                                                    "ID": "SGML",\r\n' + '            \t\t\t\t\t"SortAs": "SGML",\r\n' + '            \t\t\t\t\t"GlossTerm": "Standard Generalized ' + 'Markup Language",\r\n' + '            \t\t\t\t\t"Acronym": "SGML",\r\n' + '            \t\t\t\t\t"Abbrev": "ISO 8879:1986",\r\n' + '            \t\t\t\t\t"GlossDef": {\r\n' + '                                                            "para": "A meta-markup language,' + ' used to create markup languages such as DocBook.",\r\n' + '            \t\t\t\t\t\t"GlossSeeAlso": ["GML", "XML"]\r\n' + '                                                    },\r\n' + '            \t\t\t\t\t"GlossSee": "markup"\r\n' + '                                            }\r\n' + '                                    }\r\n' + '                            }\r\n' + '                    }\r\n' + '            }\r\n'),
+    "json_org": {
+        text: ('{\r\n' +
+            '                    "glossary": {\n' +
+            '                            "title": "example glossary",\n\r' +
+            '            \t\t"GlossDiv": {\r\n' +
+            '                                    "title": "S",\r\n' +
+            '            \t\t\t"GlossList": {\r\n' +
+            '                                            "GlossEntry": {\r\n' +
+            '                                                    "ID": "SGML",\r\n' +
+            '            \t\t\t\t\t"SortAs": "SGML",\r\n' +
+            '            \t\t\t\t\t"GlossTerm": "Standard Generalized ' +
+            'Markup Language",\r\n' +
+            '            \t\t\t\t\t"Acronym": "SGML",\r\n' +
+            '            \t\t\t\t\t"Abbrev": "ISO 8879:1986",\r\n' +
+            '            \t\t\t\t\t"GlossDef": {\r\n' +
+            '                                                            "para": "A meta-markup language,' +
+            ' used to create markup languages such as DocBook.",\r\n' +
+            '            \t\t\t\t\t\t"GlossSeeAlso": ["GML", "XML"]\r\n' +
+            '                                                    },\r\n' +
+            '            \t\t\t\t\t"GlossSee": "markup"\r\n' +
+            '                                            }\r\n' +
+            '                                    }\r\n' +
+            '                            }\r\n' +
+            '                    }\r\n' +
+            '            }\r\n'),
         events: [
             ["openobject"],
             ["key", "glossary"],
@@ -726,10 +785,10 @@ export const JSONTests: TestDefinitions = {
             ["closeobject"],
             ["closeobject"],
             ["end"],
-            ["ready"]
-        ]
+            ["ready"],
+        ],
     },
-    string_chunk_span: {
+    "string_chunk_span": {
         text: '["L\'OrÃ©al", "LÃ©\'Oral", "Ã©alL\'Or"]',
         chunks: [
             '["L\'OrÃ',
@@ -742,15 +801,15 @@ export const JSONTests: TestDefinitions = {
             ["closearray"],
             ["end"],
             ["ready"],
-        ]
+        ],
     },
-    forbidden_extension_apostrophe_string: {
+    "forbidden_extension_apostrophe_string": {
         text: "'a string'",
         events: [
             ["error"],
         ],
     },
-    multiline_string: {
+    "multiline_string": {
         text: '["a\nstring"]',
         events: [
             ["openarray"],
@@ -760,33 +819,33 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
-    forbidden_extension_trailing_comma: {
+    "forbidden_extension_trailing_comma": {
         text: '[1,2,]',
         events: [
             ["openarray"],
             ["simplevalue", 1],
             ["simplevalue", 2],
             ["error"],
-        ]
+        ],
     },
-    forbidden_extension_multi_line_comment: {
+    "forbidden_extension_multi_line_comment": {
         text: '[1,2/*a comment\r\n*/]',
         events: [
             ["openarray"],
             ["simplevalue", 1],
             ["simplevalue", 2],
             ["error"],
-        ]
+        ],
     },
-    forbidden_extension_parens_instead_of_braces: {
+    "forbidden_extension_parens_instead_of_braces": {
         text: '( a: "foo" )',
         options: {
         },
         events: [
             ["error"],
-        ]
+        ],
     },
-    forbidden_extension_missing_comma: {
+    "forbidden_extension_missing_comma": {
         text: '["foo""bar"]',
         options: {
         },
@@ -794,29 +853,29 @@ export const JSONTests: TestDefinitions = {
             ["openarray"],
             ["simplevalue", "foo"],
             ["error"],
-        ]
+        ],
     },
-    forbidden_extension_angle_brackets_instead_of_brackets: {
+    "forbidden_extension_angle_brackets_instead_of_brackets": {
         text: '<"foo">',
         options: {
         },
         events: [
             ["error"],
-        ]
+        ],
     },
-    forbidden_extension_single_line_comment: {
+    "forbidden_extension_single_line_comment": {
         text: '[1,2//a comment\r\n]',
         events: [
             ["openarray"],
             ["simplevalue", 1],
             ["simplevalue", 2],
             ["error"],
-        ]
+        ],
     },
-    forbidden_tagged_union: {
+    "forbidden_tagged_union": {
         text: '| "foo", {}',
         events: [
             ["error"],
-        ]
+        ],
     },
 }

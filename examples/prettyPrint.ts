@@ -22,29 +22,29 @@ function format(value: number | string | boolean | null) {
 
 export function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): sp.ValueHandler {
     return {
-        array: (_location, openCharacter) => {
+        array: (_startLocation, openCharacter) => {
             writer(openCharacter)
             return {
                 element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
-                end: ((_location, endCharacter) => {
+                end: ((_endLocation, endCharacter) => {
                     writer(`${indentation}${endCharacter}`)
-                })
+                }),
             }
 
         },
-        object: (_location, openCharacter) => {
+        object: (_startlocation, openCharacter) => {
             writer(openCharacter)
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}\t"${key}": `)
                     return createValuesPrettyPrinter(`${indentation}\t`, writer)
                 },
-                end: (_location, endCharacter) => {
+                end: (_endLocation, endCharacter) => {
                     writer(`${indentation}${endCharacter}`)
-                }
+                },
             }
         },
-        simpleValue: (value) => {
+        simpleValue: value => {
             writer(`${format(value)}`)
         },
         null: () => {
@@ -60,7 +60,9 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
 export function createPrettyPrinter(indentation: string, writer: (str: string) => void): DataSubscriber {
     return sp.createStackedDataSubscriber(
         createValuesPrettyPrinter(indentation, writer),
-        () => {}
+        () => {
+            //
+        }
     )
 }
 

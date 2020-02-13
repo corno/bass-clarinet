@@ -1,3 +1,6 @@
+/* eslint
+    no-console:"off",
+*/
 import { JSONTests } from "./ownJSONTestset"
 import { createAnnotator} from "../examples/annotater"
 import { Parser } from "../src/Parser"

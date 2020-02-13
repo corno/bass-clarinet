@@ -40,6 +40,7 @@ describe('parsing', () => {
                         parser.close()
                         assert.ok(!foundError, "errors found")
                     } catch (e) {
+                        //do nothing
                     }
                     break
                 }
@@ -48,10 +49,12 @@ describe('parsing', () => {
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
                         const parser = p.parser({})
                         parser.onerror.subscribe(() => {
+                            //do nothing
                         })
                         parser.write(data)
                         parser.close()
                     } catch (e) {
+                        //do nothing
                     }
                     break
                 default:
@@ -69,10 +72,12 @@ describe('transform', () => {
                 const data = fs.readFileSync(path.join(transformDir, file), { encoding: "utf-8" })
                 const parser = p.parser({})
                 parser.onerror.subscribe( () => {
+                    //do nothing
                 })
                 parser.write(data)
                 parser.close()
             } catch (e) {
+                //do nothing
             }
         })
     })
