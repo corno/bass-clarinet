@@ -114,15 +114,15 @@ function printError(error: Error) {
 }
 
 export interface DataSubscriber {
-    onopenarray(location: Location, openCharacter: string): void
-    onclosearray(location: Location, closeCharacter: string): void
+    onopenarray(range: Range, openCharacter: string): void
+    onclosearray(range: Range, closeCharacter: string): void
 
-    onopentaggedunion(location: Location): void
+    onopentaggedunion(range: Range): void
     onclosetaggedunion(): void
     onoption(option: string, range: Range): void
 
-    onopenobject(location: Location, openCharacter: string): void
-    oncloseobject(location: Location, closeCharacter: string): void
+    onopenobject(range: Range, openCharacter: string): void
+    oncloseobject(range: Range, closeCharacter: string): void
     onkey(key: string, range: Range): void
 
     onquotedstring(value: string, quote: string, range: Range): void
@@ -136,9 +136,9 @@ export interface DataSubscriber {
 export type DataSubscription = subscr.Subscribers<DataSubscriber>
 
 export interface HeaderSubscriber {
-    onschemastart(location: Location): void
+    onschemastart(range: Range): void
     onschemaend(): void
-    oncompact(isCompact: boolean, location: Location): void
+    oncompact(isCompact: boolean, range: Range): void
 }
 
 export class Parser {
@@ -327,17 +327,9 @@ export class Parser {
                                 break
                             case CommentState.FOUND_SOLIDUS:
                                 if (curChar === Char.Comment.solidus) {
-                                    if (this.opt.allow?.comments) {
-                                        $.state = CommentState.LINE_COMMENT
-                                    } else {
-                                        this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
-                                    }
+                                    $.state = CommentState.LINE_COMMENT
                                 } else if (curChar === Char.Comment.asterisk) {
-                                    if (this.opt.allow?.comments) {
-                                        $.state = CommentState.BLOCK_COMMENT
-                                    } else {
-                                        this.raiseError("comments are not allowed. You can allow comments by setting the option 'allow_comments'")
-                                    }
+                                    $.state = CommentState.BLOCK_COMMENT
                                 } else {
                                     this.raiseError("found dangling slash")
                                 }
@@ -350,7 +342,7 @@ export class Parser {
                 }
                 case ContextType.UNQUOTED_STRING: {
                     /**
-                     * KEYWORD PROCESSING (null, true, false)
+                     * UNQUOTED STRING PROCESSING (null, true, false)
                      */
                     const $ = state[1]
 
@@ -374,35 +366,7 @@ export class Parser {
                             return
                         }
                         //first check if we are breaking out of an unquoted string. Can only be done by checking the character that comes directly after the unquoted string
-                        if (false
-                            || curChar === Char.Whitespace.carriageReturn
-                            || curChar === Char.Whitespace.lineFeed
-                            || curChar === Char.Whitespace.space
-                            || curChar === Char.Whitespace.tab
-
-                            || curChar === Char.Object.closeBrace
-                            || curChar === Char.Object.closeParen
-                            || curChar === Char.Object.colon
-                            || curChar === Char.Object.comma
-                            || curChar === Char.Object.openBrace
-                            || curChar === Char.Object.openParen
-
-                            || curChar === Char.Array.closeAngleBracket
-                            || curChar === Char.Array.closeBracket
-                            || curChar === Char.Array.comma
-                            || curChar === Char.Array.openAngleBracket
-                            || curChar === Char.Array.openBracket
-
-                            || curChar === Char.Comment.solidus
-                            //|| curChar === Char.Comment.asterisk
-
-                            || curChar === Char.QuotedString.quotationMark
-                            || curChar === Char.QuotedString.apostrophe
-
-                            || curChar === Char.TaggedUnion.verticalLine
-
-                            || curChar === Char.Header.hash
-                        ) {
+                        if (!this.isUnquotedStringCharacter(curChar)) {
                             flush()
                             this.wrapUpUnquotedString()
                             //this character does not belong to the keyword so don't go to the next character by breaking
@@ -474,20 +438,19 @@ export class Parser {
                                         } else if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
                                             this.closeArray(curChar, $$)
                                         } else {
-                                            const closeCharacters = this.opt.allow?.angle_brackets_instead_of_brackets ? "']' or '>'" : "']'"
                                             const vt = this.getValueType(curChar)
                                             if (vt !== null) {
                                                 if (this.opt.allow?.missing_commas) {
                                                     $$.state = ArrayState.EXPECTING_COMMA_OR_ARRAY_END
                                                     this.processValue(vt, curChar)
                                                 } else {
-                                                    this.raiseError(`Bad array, expected ',' or ${closeCharacters} (missing commas are not allowed)`)
+                                                    this.raiseError(`Bad array, expected ',' or array end (missing commas are not allowed)`)
                                                 }
                                             } else {
                                                 if (this.opt.allow?.missing_commas) {
-                                                    this.raiseError(`Bad array, expected ',' or ${closeCharacters} or a value`)
+                                                    this.raiseError(`Bad array, expected ',', array end or a value`)
                                                 } else {
-                                                    this.raiseError(`Bad array, expected ',' or '${closeCharacters}`)
+                                                    this.raiseError(`Bad array, expected ',' or array end`)
                                                 }
                                             }
                                         }
@@ -553,11 +516,10 @@ export class Parser {
                                                 this.raiseError(`Bad object, missing comma`)
                                             }
                                         } else {
-                                            const closeCharacters = this.opt.allow?.parens_instead_of_braces ? "'}' or ')'" : "'}'"
                                             if (this.opt.allow?.missing_commas) {
-                                                this.raiseError(`Bad object, expected ',' or ${closeCharacters} or a value`)
+                                                this.raiseError(`Bad object, expected ',', object end or a value`)
                                             } else {
-                                                this.raiseError(`Bad object, expected ',' or ${closeCharacters}`)
+                                                this.raiseError(`Bad object, expected ',' or object end`)
                                             }
                                         }
                                         break
@@ -608,11 +570,11 @@ export class Parser {
                                             if (!this.opt.allow?.compact) {
                                                 this.raiseError("compact not allowed")
                                             } else {
-                                                this.onheaderdata.signal(s => s.oncompact(true, this.getLocation()))
+                                                this.onheaderdata.signal(s => s.oncompact(true, this.getOneCharacterRange()))
                                                 $$.state = RootState.EXPECTING_ROOTVALUE
                                             }
                                         } else {
-                                            this.onheaderdata.signal(s => s.oncompact(false, this.getLocation()))
+                                            this.onheaderdata.signal(s => s.oncompact(false, this.getOneCharacterRange()))
                                             const vt = this.getValueType(curChar)
                                             if (vt === null) {
                                                 this.raiseError("expected a hash ('#') or the root value")
@@ -648,7 +610,7 @@ export class Parser {
                                         if (curChar !== Char.Header.exclamationMark) {
                                             this.raiseError("expected schema start (!)")
                                         } else {
-                                            this.onheaderdata.signal(s => s.onschemastart(this.getLocation()))
+                                            this.onheaderdata.signal(s => s.onschemastart(this.getOneCharacterRange()))
                                             this.oncurrentdata = this.onschemadata
                                             $$.state = RootState.EXPECTING_SCHEMA
                                         }
@@ -656,7 +618,7 @@ export class Parser {
                                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                                         if (curChar === Char.Header.exclamationMark) {
                                             $$.state = RootState.EXPECTING_SCHEMA
-                                            this.onheaderdata.signal(s => s.onschemastart(this.getLocation()))
+                                            this.onheaderdata.signal(s => s.onschemastart(this.getOneCharacterRange()))
                                             this.oncurrentdata = this.onschemadata
 
 
@@ -839,6 +801,39 @@ export class Parser {
         }
     }
 
+    private isUnquotedStringCharacter(curChar: number) {
+        const isOtherCharacter = (false
+            || curChar === Char.Whitespace.carriageReturn
+            || curChar === Char.Whitespace.lineFeed
+            || curChar === Char.Whitespace.space
+            || curChar === Char.Whitespace.tab
+
+            || curChar === Char.Object.closeBrace
+            || curChar === Char.Object.closeParen
+            || curChar === Char.Object.colon
+            || curChar === Char.Object.comma
+            || curChar === Char.Object.openBrace
+            || curChar === Char.Object.openParen
+
+            || curChar === Char.Array.closeAngleBracket
+            || curChar === Char.Array.closeBracket
+            || curChar === Char.Array.comma
+            || curChar === Char.Array.openAngleBracket
+            || curChar === Char.Array.openBracket
+
+            || curChar === Char.Comment.solidus
+            //|| curChar === Char.Comment.asterisk
+
+            || curChar === Char.QuotedString.quotationMark
+            || curChar === Char.QuotedString.apostrophe
+
+            || curChar === Char.TaggedUnion.verticalLine
+
+            || curChar === Char.Header.hash
+        )
+        return !isOtherCharacter
+    }
+
     private wrapUpUnquotedString() {
         switch (this.state[0]) {
             case ContextType.COMMENT:
@@ -868,7 +863,7 @@ export class Parser {
         } else if (context.openChar === Char.Object.openBrace && curChar !== Char.Object.closeBrace) {
             this.raiseError("must close object with '}'")
         } else {
-            this.oncurrentdata.signal(s => s.oncloseobject(this.getLocation(), String.fromCharCode(curChar)))
+            this.oncurrentdata.signal(s => s.oncloseobject(this.getOneCharacterRange(), String.fromCharCode(curChar)))
             this.popContext()
         }
     }
@@ -878,7 +873,7 @@ export class Parser {
         } else if (context.openChar === Char.Array.openAngleBracket && curChar !== Char.Array.closeAngleBracket) {
             this.raiseError("must close object with '>'")
         } else {
-            this.oncurrentdata.signal(s => s.onclosearray(this.getLocation(), String.fromCharCode(curChar)))
+            this.oncurrentdata.signal(s => s.onclosearray(this.getOneCharacterRange(), String.fromCharCode(curChar)))
             this.popContext()
         }
     }
@@ -926,18 +921,14 @@ export class Parser {
         return curChar === Char.QuotedString.quotationMark || curChar === Char.QuotedString.apostrophe
     }
     private initString(startCharacter: number, onFinished: OnStringFinished) {
-        if (startCharacter === Char.QuotedString.apostrophe && !this.opt.allow?.apostrophes_instead_of_quotation_marks) {
-            this.raiseError(`Malformed string, should start with '"', apostrophes are not allowed`)
-        } else {
-            this.setState([ContextType.QUOTED_STRING, {
-                startCharacter: startCharacter,
-                start: this.getLocation(),
-                textNode: "",
-                onFinished: onFinished,
-                unicode: null,
-                slashed: false,
-            }])
-        }
+        this.setState([ContextType.QUOTED_STRING, {
+            startCharacter: startCharacter,
+            start: this.getLocation(),
+            textNode: "",
+            onFinished: onFinished,
+            unicode: null,
+            slashed: false,
+        }])
     }
     private pushContext(context: StackContext) {
         this.stack.push(this.currentContext)
@@ -981,18 +972,14 @@ export class Parser {
                 containingObject.state = ObjectState.EXPECTING_COLON
             })
         } else {
-            this.raiseError(`Malformed object, key should start with '"' ${this.opt.allow?.apostrophes_instead_of_quotation_marks ? "or '''" : ""}`)
+            this.raiseError(`Malformed key, should start with '"' or '''`)
         }
     }
     private processValue(vt: ValueType, curChar: number) {
         switch (vt) {
             case ValueType.ARRAY: {
-                if (curChar === Char.Array.openAngleBracket && !this.opt.allow?.angle_brackets_instead_of_brackets) {
-                    this.raiseError("angle brackets are not allowed")
-                } else {
-                    this.oncurrentdata.signal(s => s.onopenarray(this.getLocation(), String.fromCharCode(curChar)))
-                    this.pushContext([StackContextType.ARRAY, { openChar: curChar, state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
-                }
+                this.oncurrentdata.signal(s => s.onopenarray(this.getOneCharacterRange(), String.fromCharCode(curChar)))
+                this.pushContext([StackContextType.ARRAY, { openChar: curChar, state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
                 break
             }
             case ValueType.UNQUOTED_STRING: {
@@ -1000,12 +987,8 @@ export class Parser {
                 break
             }
             case ValueType.OBJECT: {
-                if (curChar === Char.Object.openParen && !this.opt.allow?.parens_instead_of_braces) {
-                    this.raiseError("parens are not allowed")
-                } else {
-                    this.oncurrentdata.signal(s => s.onopenobject(this.getLocation(), String.fromCharCode(curChar)))
-                    this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, openChar: curChar }])
-                }
+                this.oncurrentdata.signal(s => s.onopenobject(this.getOneCharacterRange(), String.fromCharCode(curChar)))
+                this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, openChar: curChar }])
                 break
             }
             case ValueType.QUOTED_STRING: {
@@ -1016,12 +999,8 @@ export class Parser {
                 break
             }
             case ValueType.TAGGED_UNION: {
-                if (this.opt.allow?.tagged_unions) {
-                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                    this.oncurrentdata.signal(s => s.onopentaggedunion(this.getLocation()))
-                } else {
-                    this.raiseError("tagged unions are not allowed")
-                }
+                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
+                this.oncurrentdata.signal(s => s.onopentaggedunion(this.getOneCharacterRange()))
                 break
             }
             default:
@@ -1037,8 +1016,22 @@ export class Parser {
             return ValueType.ARRAY
         } else if (curChar === Char.TaggedUnion.verticalLine) { //extension to strict JSON specifications
             return ValueType.TAGGED_UNION
-        } else
+        } else {
+            if (
+                curChar === Char.Array.comma ||
+                curChar === Char.Header.exclamationMark ||
+                curChar === Char.Header.hash
+            ) {
+                return null
+            }
             return ValueType.UNQUOTED_STRING
+        }
+    }
+    private getOneCharacterRange(): Range {
+        return {
+            start: this.getLocation(),
+            end: this.getLocation(),
+        }
     }
 }
 

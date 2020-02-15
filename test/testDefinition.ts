@@ -18,6 +18,7 @@ export type EventDefinition =
     | ["error"]
     | ["schemastart"]
     | ["schemaend"]
+    | ["validationerror", string]
 // [AnyEvent, string?, number?, number?]
 
 export type TestDefinition = {
@@ -32,6 +33,7 @@ export type TestDefinitions = {
 }
 
 export type AnyEvent =
+    | "validationerror"
     | "end"
     | "error"
     | HeaderEvent

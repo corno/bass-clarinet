@@ -10,6 +10,7 @@ import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, AnyEvent } from "./testDefinition"
 import { Location } from "../src/location"
 import { Options } from "../src/configurationTypes"
+import { createStrictJSONValidator } from "../src/createStictJSONValidator"
 
 const DEBUG = false
 
@@ -19,11 +20,9 @@ const selectedExtensionTests = Object.keys(extensionTests)
 // const selectedJSONTests: string[] = ["forbidden_extension_apostrophe_string"]
 // const selectedExtensionTests: string[] = []
 
-function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], opts?: Options) {
+function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], pureJSON: boolean, opts?: Options) {
     return function () {
-        if (DEBUG) {
-            console.log("CHUNKS:", chunks)
-        }
+        if (DEBUG) console.log("CHUNKS:", chunks)
         const parser = p.parser(opts)
         let currentExpectedEventIndex = 0
         //const env = process && process.env ? process.env : window
@@ -67,11 +66,11 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         })
 
         parser.onheaderdata.subscribe({
-            onschemastart: location => {
+            onschemastart: range => {
                 if (DEBUG) console.log("found schema start")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "schemastart")
-                checkLocation(ee, location)
+                checkLocation(ee, range.start)
 
             },
             onschemaend: () => {
@@ -124,12 +123,12 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 checkLocation(ee, range.end)
             },
 
-            onopentaggedunion: l => {
+            onopentaggedunion: range => {
                 if (DEBUG) console.log("found open tagged union")
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "opentaggedunion")
-                checkLocation(ee, l)
+                checkLocation(ee, range.start)
             },
             onclosetaggedunion: () => {
                 if (DEBUG) console.log("found close tagged union")
@@ -144,33 +143,33 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 checkLocation(ee, range.end)
             },
 
-            onopenarray: l => {
+            onopenarray: range => {
                 if (DEBUG) console.log("found open array")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "openarray")
-                checkLocation(ee, l)
+                checkLocation(ee, range.start)
             },
-            onclosearray: l => {
+            onclosearray: range => {
                 if (DEBUG) console.log("found close array")
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "closearray")
-                checkLocation(ee, l)
+                checkLocation(ee, range.start)
             },
 
-            onopenobject: l => {
+            onopenobject: range => {
                 if (DEBUG) console.log("found open object")
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "openobject")
-                checkLocation(ee, l)
+                checkLocation(ee, range.start)
             },
-            oncloseobject: l => {
+            oncloseobject: range => {
                 if (DEBUG) console.log("found close object")
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "closeobject")
-                checkLocation(ee, l)
+                checkLocation(ee, range.start)
             },
             onkey: (k, range) => {
                 if (DEBUG) console.log("found key")
@@ -188,6 +187,17 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         }
         parser.onschemadata.subscribe(subscriber)
         parser.ondata.subscribe(subscriber)
+
+        if (pureJSON) {
+            parser.ondata.subscribe(createStrictJSONValidator((message, range) => {
+                if (DEBUG) console.log("found JSON validation error")
+
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "validationerror")
+                assert.ok(ee[1] === message, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + message + ']');
+                checkLocation(ee, range.start)
+            }))
+        }
 
         parser.onready.subscribe(() => {
             if (DEBUG) console.log("found ready")
@@ -226,15 +236,15 @@ describe('bass-clarinet', () => {
     describe('#pureJSON', () => {
         selectedJSONTests.forEach(key => {
             const test = JSONTests[key]
-            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), test.options));
-            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), test.options));
+            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), true, test.options));
+            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), true, test.options));
         })
     })
     describe('#extensions', () => {
         selectedExtensionTests.forEach(key => {
             const test = extensionTests[key]
-            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), test.options));
-            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), test.options));
+            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), false, test.options));
+            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), false, test.options));
         })
     });
 
@@ -242,7 +252,7 @@ describe('bass-clarinet', () => {
         selectedJSONTests.forEach(key => {
             const test = JSONTests[key]
             if (!test.chunks) return;
-            it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test.events.slice(0), test.options));
+            it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test.events.slice(0), true, test.options));
         })
     });
 });

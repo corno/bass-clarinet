@@ -3,7 +3,7 @@
     no-underscore-dangle: "off",
 */
 import { DataSubscriber } from "./Parser"
-import { Location, Range } from "./location"
+import { Range } from "./location"
 import * as Char from "./NumberCharacters"
 
 const DEBUG = false
@@ -33,10 +33,10 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
         }
         currentContext = previousContext
     }
-    function initValueHandler(location: Location): ValueHandler {
+    function initValueHandler(range: Range): ValueHandler {
         switch (currentContext[0]) {
             case "array": {
-                return currentContext[1].arrayHandler.element(location, flushComments())
+                return currentContext[1].arrayHandler.element(range, flushComments())
             }
             case "object": {
                 if (currentContext[1].valueHandler === null) {
@@ -75,8 +75,8 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
                 range: range,
             })
         },
-        onopenarray: (location, openCHaracter) => {
-            const arrayHandler = initValueHandler(location).array(location, openCHaracter, flushComments())
+        onopenarray: (range, openCHaracter) => {
+            const arrayHandler = initValueHandler(range).array(range, openCHaracter, flushComments())
             stack.push(currentContext)
             currentContext = ["array", { arrayHandler: arrayHandler }]
         },
@@ -88,17 +88,17 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             }
             pop()
         },
-        onopentaggedunion: location => {
+        onopentaggedunion: range => {
             if (DEBUG) { console.log("on open tagged union") }
             stack.push(currentContext)
-            currentContext = ["taggedunion", { location: location, parentValueHandler: initValueHandler(location), valueHandler: null }]
+            currentContext = ["taggedunion", { start: range, parentValueHandler: initValueHandler(range), valueHandler: null }]
         },
         onoption: (option, range) => {
             if (DEBUG) { console.log("on option", option) }
             if (currentContext[0] !== "taggedunion") {
                 throw new Error("stack panic; unexpected option")
             }
-            currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].location, range, flushComments())
+            currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].start, range, flushComments())
         },
         onclosetaggedunion: () => {
             if (DEBUG) { console.log("on close tagged union") }
@@ -120,12 +120,12 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
                 valueHandler: null,
             }]
         },
-        oncloseobject: (location, endCharacter) => {
+        oncloseobject: (range, endCharacter) => {
             if (DEBUG) { console.log("on close object") }
             if (currentContext[0] !== "object") {
                 throw new Error("stack panic; unexpected end of object")
             }
-            currentContext[1].objectHandler.end(location, endCharacter, flushComments())
+            currentContext[1].objectHandler.end(range, endCharacter, flushComments())
             pop()
         },
         onkey: (key, range) => {
@@ -137,7 +137,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
         },
         onquotedstring: (value, _quote, range) => {
             if (DEBUG) { console.log("on quoted string", value) }
-            const vh = initValueHandler(range.start)
+            const vh = initValueHandler(range)
             if (vh === null) {
                 throw new Error("stack panic; unexpected value")
             }
@@ -146,7 +146,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
         },
         onunquotedstring: (value, range) => {
             if (DEBUG) { console.log("on value", value) }
-            const vh = initValueHandler(range.start)
+            const vh = initValueHandler(range)
             if (vh === null) {
                 throw new Error("stack panic; unexpected value")
             }
@@ -184,21 +184,21 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
 
 export type ObjectHandler = {
     property: (key: string, keyRange: Range, comments: Comment[]) => ValueHandler
-    end: (endLocation: Location, closeCharacter: string, comments: Comment[]) => void
+    end: (end: Range, closeCharacter: string, comments: Comment[]) => void
 }
 
 export type ArrayHandler = {
-    element: (startLocation: Location, comments: Comment[]) => ValueHandler
-    end: (endLocation: Location, closeCharacter: string, comments: Comment[]) => void
+    element: (start: Range, comments: Comment[]) => ValueHandler
+    end: (end: Range, closeCharacter: string, comments: Comment[]) => void
 }
 
-export type OnObject = (startLocation: Location, openCharacter: string, comments: Comment[]) => ObjectHandler
-export type OnArray = (startLocation: Location, openCharacter: string, comments: Comment[]) => ArrayHandler
+export type OnObject = (start: Range, openCharacter: string, comments: Comment[]) => ObjectHandler
+export type OnArray = (start: Range, openCharacter: string, comments: Comment[]) => ArrayHandler
 export type OnNumber = (value: number, range: Range, comments: Comment[]) => void
 export type OnBoolean = (value: boolean, range: Range, comments: Comment[]) => void
 export type OnString = (value: string, range: Range, comments: Comment[]) => void
 export type OnNull = (range: Range, comments: Comment[]) => void
-export type OnTaggedUnion = (option: string, startLocation: Location, optionRange: Range, comments: Comment[]) => ValueHandler
+export type OnTaggedUnion = (option: string, start: Range, optionRange: Range, comments: Comment[]) => ValueHandler
 
 export interface ValueHandler {
     object: OnObject
@@ -222,7 +222,7 @@ type ContextType =
         readonly arrayHandler: ArrayHandler
     }]
     | ["taggedunion", {
-        readonly location: Location
+        readonly start: Range
         readonly parentValueHandler: ValueHandler
         valueHandler: null | ValueHandler
     }]

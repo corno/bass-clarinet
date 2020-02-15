@@ -4,20 +4,32 @@
 */
 
 import { DataSubscriber } from "./Parser";
-import { Range, Location } from "./location";
+import { Range } from "./location";
 import * as Char from "./NumberCharacters";
 
 type OnError = (message: string, range: Range) => void
 
 
 function validateIsJSONNumber(value: string, raiseError: (message: string) => void) {
-    if (value === "-0" || value === "0") {
+    if (value === "0") {
+        return
+    }
+    if (value.startsWith("0")) {
+        const nextChar = value.charCodeAt(1)
+        if (nextChar !== Char.Number.period
+            && nextChar !== Char.Number.e
+            && nextChar !== Char.Number.E
+        ) {
+            raiseError(`Invalid number: Leading zero not followed by '.', 'e', 'E' in '${value}'`)
+        }
+    }
+    if (value.startsWith("-0")) {
         const nextChar = value.charCodeAt(2)
         if (nextChar !== Char.Number.period
             && nextChar !== Char.Number.e
             && nextChar !== Char.Number.E
         ) {
-            raiseError(`Invalid number: Leading zero not followed by '.', 'e', 'E'`)
+            raiseError(`Invalid number: Leading negative zero not followed by '.', 'e', 'E' in '${value}'`)
         }
     }
     let foundPeriod = false
@@ -25,28 +37,29 @@ function validateIsJSONNumber(value: string, raiseError: (message: string) => vo
     for (let i = 0; i !== value.length; i += 1) {
         const curChar = value.charCodeAt(i)
         if (i === 0) {
-            if (curChar !== Char.Number.minus || curChar < Char.Number._0 || curChar > Char.Number._9) {
-                raiseError(`Invalid number, did not start with '-' or [0-9]`)
-            }
-        }
-        if (curChar === Char.Number.period) {
-            if (foundPeriod) {
-                raiseError('Invalid number, has two dots')
-            }
-            foundPeriod = true
-        } else if (curChar === Char.Number.e || curChar === Char.Number.E) {
-            if (foundExponent) {
-                raiseError('Invalid number, has two exponential')
-            }
-            foundExponent = true
-        } else if (curChar === Char.Number.plus || curChar === Char.Number.minus) {
-            const previousChar = value.charCodeAt(i - 1)
-            if (previousChar !== Char.Number.E && previousChar !== Char.Number.e) {
-                raiseError(`Invalid symbol ${value[i]} in number`)
+            if (curChar !== Char.Number.minus && (curChar < Char.Number._0 || curChar > Char.Number._9)) {
+                raiseError(`Invalid number, did not start with '-' or [0-9] but with ${value[i]}`)
             }
         } else {
-            if (curChar !== Char.Number.minus || curChar < Char.Number._0 || curChar > Char.Number._9) {
-                raiseError(`Invalid number, unexpected character ${value[i]}`)
+            if (curChar === Char.Number.period) {
+                if (foundPeriod) {
+                    raiseError(`Invalid number, has two dots in '${value}'`)
+                }
+                foundPeriod = true
+            } else if (curChar === Char.Number.e || curChar === Char.Number.E) {
+                if (foundExponent) {
+                    raiseError(`Invalid number, has two exponential in '${value}'`)
+                }
+                foundExponent = true
+            } else if (curChar === Char.Number.plus || curChar === Char.Number.minus) {
+                const previousChar = value.charCodeAt(i - 1)
+                if (previousChar !== Char.Number.E && previousChar !== Char.Number.e) {
+                    raiseError(`Invalid number, unexpected symbol ${value[i]} in '${value}'`)
+                }
+            } else {
+                if (curChar < Char.Number._0 || curChar > Char.Number._9) {
+                    raiseError(`Invalid number, unexpected character ${value[i]} in '${value}'`)
+                }
             }
         }
     }
@@ -57,14 +70,18 @@ class StrictJSONValidator implements DataSubscriber {
     constructor(onError: OnError) {
         this.onError = onError
     }
-    public onblockcomment(_comment: string, _range: Range, _indent: string) {
-        //
+    public onblockcomment(_comment: string, range: Range, _indent: string) {
+        this.onError("block comments are not allowed in strict JSON", range)
     }
-    public onclosearray(_location: Location, _closeCharacter: string) {
-        //
+    public onclosearray(range: Range, closeCharacter: string) {
+        if (closeCharacter !== "]") {
+            this.onError("arrays should end with ']' in strict JSON", range)
+        }
     }
-    public oncloseobject(_location: Location, _closeCharacter: string) {
-        //
+    public oncloseobject(range: Range, closeCharacter: string) {
+        if (closeCharacter !== "}") {
+            this.onError("objects should end with '}' in strict JSON", range)
+        }
     }
     public onclosetaggedunion() {
         //
@@ -75,17 +92,21 @@ class StrictJSONValidator implements DataSubscriber {
     public onkey(_key: string, _range: Range) {
         //
     }
-    public onlinecomment(_comment: string, _range: Range) {
-        //
+    public onlinecomment(_comment: string, range: Range) {
+        this.onError("line comments are not allowed in strict JSON", range)
     }
-    public onopenarray(_location: Location, _openCharacter: string) {
-        //
+    public onopenarray(range: Range, openCharacter: string) {
+        if (openCharacter !== "[") {
+            this.onError("arrays should start with '[' in strict JSON", range)
+        }
     }
-    public onopenobject(_location: Location, _openCharacter: string) {
-        //
+    public onopenobject(range: Range, openCharacter: string) {
+        if (openCharacter !== "{") {
+            this.onError("objects should start with '{' in strict JSON", range)
+        }
     }
-    public onopentaggedunion(location: Location) {
-        this.onError("tagged unions are not allowed in strict JSON", { start: location, end: location })
+    public onopentaggedunion(range: Range) {
+        this.onError("tagged unions are not allowed in strict JSON", range)
     }
     public onoption(_option: string, _range: Range) {
         //
@@ -109,8 +130,10 @@ class StrictJSONValidator implements DataSubscriber {
         }
         this.onError(`invalid unquoted string, expected 'true', 'false', 'null', or a number`, range)
     }
-    public onquotedstring(_value: string, _quote: string, _range: Range) {
-        //
+    public onquotedstring(_value: string, quote: string, range: Range) {
+        if (quote !== "\"") {
+            this.onError(`invalid string, should start with'"'`, range)
+        }
     }
 }
 

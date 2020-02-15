@@ -10,7 +10,7 @@ import {
     OnNull,
     OnTaggedUnion,
 } from "./cerateStackedDataSubscriber"
-import { Location, Range, printLocation } from "./location"
+import { Range, printRange } from "./location"
 
 function createDummyValueHandler(): ValueHandler {
     return {
@@ -50,7 +50,7 @@ function createDummyObjectHandler(): ObjectHandler {
     }
 }
 
-export type IssueHandler = (message: string, location: Location) => void
+export type IssueHandler = (message: string, range: Range) => void
 
 type NullHandler = (range: Range) => void
 
@@ -67,43 +67,43 @@ export class ErrorContext {
         this.errorHandler = errorHandler
         this.warningHandler = warningHandler
     }
-    public raiseWarning(message: string, location: Location) {
+    public raiseWarning(message: string, range: Range) {
         if (this.warningHandler === null) {
-            throw new Error(message + ` @ ${printLocation(location)}`)
+            throw new Error(message + ` @ ${printRange(range)}`)
         }
     }
-    public raiseObjectError(message: string, location: Location): ObjectHandler {
+    public raiseObjectError(message: string, range: Range): ObjectHandler {
         if (this.errorHandler === null) {
-            throw new Error(message + ` @ ${printLocation(location)}`)
+            throw new Error(message + ` @ ${printRange(range)}`)
         }
-        this.errorHandler(message, location)
+        this.errorHandler(message, range)
         return createDummyObjectHandler()
     }
-    public raiseArrayError(message: string, location: Location): ArrayHandler {
+    public raiseArrayError(message: string, range: Range): ArrayHandler {
         if (this.errorHandler === null) {
-            throw new Error(message + ` @ ${printLocation(location)}`)
+            throw new Error(message + ` @ ${printRange(range)}`)
         }
-        this.errorHandler(message, location)
+        this.errorHandler(message, range)
         return createDummyArrayHandler()
     }
-    public raiseValueError(message: string, location: Location): ValueHandler {
+    public raiseValueError(message: string, range: Range): ValueHandler {
         if (this.errorHandler === null) {
-            throw new Error(message + ` @ ${printLocation(location)}`)
+            throw new Error(message + ` @ ${printRange(range)}`)
         }
-        this.errorHandler(message, location)
+        this.errorHandler(message, range)
         return createDummyValueHandler()
     }
-    public raiseError(message: string, location: Location): void {
+    public raiseError(message: string, range: Range): void {
         if (this.errorHandler === null) {
-            throw new Error(message + ` @ ${printLocation(location)}`)
+            throw new Error(message + ` @ ${printRange(range)}`)
         }
-        this.errorHandler(message, location)
+        this.errorHandler(message, range)
     }
 
     public createDictionaryHandler(onProperty: (key: string, range: Range) => ValueHandler): OnObject {
-        return (startLocation, openCharacter) => {
+        return (start, openCharacter) => {
             if (openCharacter !== "{") {
-                this.raiseWarning(`expected '<' but found '${openCharacter}'`, startLocation)
+                this.raiseWarning(`expected '<' but found '${openCharacter}'`, start)
             }
             return {
                 property: onProperty,
@@ -125,12 +125,12 @@ export class ErrorContext {
             return {
                 property: (key, range) => {
                     if (foundProperies.includes(key)) {
-                        return this.raiseValueError(`property already processed: '${key}'`, range.start)//FIX print range properly
+                        return this.raiseValueError(`property already processed: '${key}'`, range)//FIX print range properly
                     }
                     foundProperies.push(key)
                     const expected = expectedProperties[key]
                     if (expected === undefined) {
-                        return this.raiseValueError(`unexpected property: '${key}'`, range.start)//FIX print range properly
+                        return this.raiseValueError(`unexpected property: '${key}'`, range)//FIX print range properly
                     }
                     return expected
                 },
@@ -204,7 +204,7 @@ export class ErrorContext {
                         boolean: (value, range, comments) => {
                             if (dataHandler === null) {
                                 if (typeof value !== "string") {
-                                    return this.raiseError(`expected string`, range.start)
+                                    return this.raiseError(`expected string`, range)
                                 }
                                 dataHandler = callback(value)
                             } else {
@@ -214,7 +214,7 @@ export class ErrorContext {
                         number: (value, range, comments) => {
                             if (dataHandler === null) {
                                 if (typeof value !== "string") {
-                                    return this.raiseError(`expected string`, range.start)
+                                    return this.raiseError(`expected string`, range)
                                 }
                                 dataHandler = callback(value)
                             } else {
@@ -224,7 +224,7 @@ export class ErrorContext {
                         string: (value, range, comments) => {
                             if (dataHandler === null) {
                                 if (typeof value !== "string") {
-                                    return this.raiseError(`expected string`, range.start)
+                                    return this.raiseError(`expected string`, range)
                                 }
                                 dataHandler = callback(value)
                             } else {
@@ -233,7 +233,7 @@ export class ErrorContext {
                         },
                         null: (range, comments) => {
                             if (dataHandler === null) {
-                                return this.raiseObjectError(`unexected null`, range.start)
+                                return this.raiseObjectError(`unexected null`, range)
                             }
                             const dh = dataHandler
                             dataHandler = null
@@ -259,7 +259,7 @@ export class ErrorContext {
         }
     }
 
-    public createListHandler(onElement: (startLocation: Location) => ValueHandler): OnArray {
+    public createListHandler(onElement: (start: Range) => ValueHandler): OnArray {
         return (startLocation, openCharacter) => {
             if (openCharacter !== "[") {
                 this.raiseWarning(`expected '[' but found '${openCharacter}'`, startLocation)
@@ -275,16 +275,16 @@ export class ErrorContext {
         }
     }
     public createUnexpectedBooleanHandler(expected: string): OnBoolean {
-        return (_value, range) => this.raiseError(`expected '${expected}' but found 'boolean' `, range.start)
+        return (_value, range) => this.raiseError(`expected '${expected}' but found 'boolean' `, range)
     }
     public createUnexpectedNumberHandler(expected: string): OnNumber {
-        return (_value, range) => this.raiseError(`expected '${expected}' but found 'number' `, range.start)
+        return (_value, range) => this.raiseError(`expected '${expected}' but found 'number' `, range)
     }
     public createUnexpectedStringHandler(expected: string): OnString {
-        return (_value, range) => this.raiseError(`expected '${expected}' but found 'string' `, range.start)
+        return (_value, range) => this.raiseError(`expected '${expected}' but found 'string' `, range)
     }
     public createUnexpectedNullHandler(expected: string): OnNull {
-        return range => this.raiseError(`expected '${expected}' but found 'null' `, range.start)
+        return range => this.raiseError(`expected '${expected}' but found 'null' `, range)
     }
     public createUnexpectedTaggedUnionHandler(expected: string): OnTaggedUnion {
         return (_option, location) => this.raiseValueError(`expected '${expected}' but found 'tagged union' `, location)
@@ -363,7 +363,7 @@ export class ErrorContext {
         }
     }
 
-    public expectList(onElement: (startLocation: Location) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectList(onElement: (startLocation: Range) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createListHandler(onElement),
             object: this.createUnexpectedObjectHandler("list"),
