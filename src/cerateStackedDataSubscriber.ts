@@ -133,7 +133,39 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             }
             currentContext[1].valueHandler = currentContext[1].objectHandler.property(key, range, flushComments())
         },
-        onsimplevalue: (value, range) => {
+        onquotedstring: (value, _quote, range) => {
+            if (DEBUG) { console.log("on quoted string", value) }
+            const vh = initValueHandler(range.start)
+            if (vh === null) {
+                throw new Error("stack panic; unexpected value")
+            }
+            vh.simpleValue(value, range, flushComments())
+
+        },
+        onunquotedstring: (value, range) => {
+            if (DEBUG) { console.log("on value", value) }
+            const vh = initValueHandler(range.start)
+            if (vh === null) {
+                throw new Error("stack panic; unexpected value")
+            }
+            switch (value) {
+                case "true": {
+                    vh.simpleValue(true, range, flushComments())
+                    break
+                }
+                case "false": {
+                    vh.simpleValue(false, range, flushComments())
+                    break
+                }
+                case "null": {
+                    vh.null(range, flushComments())
+                    break
+                }
+                default:
+                    throw new Error(`unknown keyword '${value}'`)
+            }
+        },
+        onnumber: (value, range) => {
             if (DEBUG) { console.log("on value", value) }
             const vh = initValueHandler(range.start)
             if (vh === null) {

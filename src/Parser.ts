@@ -84,7 +84,7 @@ function getContextDescription(stackContext: StackContext) {
 function getStateDescription(stackContext: Context): string {
     switch (stackContext[0]) {
         case ContextType.COMMENT: return "COMMENT"
-        case ContextType.KEYWORD: return "KEYWORD"
+        case ContextType.UNQUOTED_STRING: return "KEYWORD"
         case ContextType.NUMBER: return "NUMBER"
         case ContextType.STACK: return "STACK"
         case ContextType.STRING: return "STRING"
@@ -129,7 +129,9 @@ export interface DataSubscriber {
     oncloseobject(location: Location, closeCharacter: string): void
     onkey(key: string, range: Range): void
 
-    onsimplevalue(value: string | boolean | null | number, range: Range): void
+    onquotedstring(value: string, quote: string, range: Range): void
+    onunquotedstring(value: string, range: Range): void
+    onnumber(value: string, range: Range): void
 
     onblockcomment(comment: string, range: Range, indent: string | null): void
     onlinecomment(comment: string, range: Range): void
@@ -378,7 +380,7 @@ export class Parser {
                     }
                     break
                 }
-                case ContextType.KEYWORD: {
+                case ContextType.UNQUOTED_STRING: {
                     /**
                      * KEYWORD PROCESSING (null, true, false)
                      */
@@ -910,41 +912,21 @@ export class Parser {
         switch (this.state[0]) {
             case ContextType.COMMENT:
                 break
-            case ContextType.KEYWORD:
+            case ContextType.UNQUOTED_STRING:
                 const $ = this.state[1]
                 const end = {
                     line: this.line,
                     position: this.position - 1,
                     column: this.column - 1,
                 }
-                switch (this.state[1].keywordNode) {
-                    case "true": {
-                        this.oncurrentdata.signal(s => s.onsimplevalue(true, { start: $.start, end: end }))
-                        this.setStateAfterValue()
-
-                        break
-                    }
-                    case "false": {
-                        this.oncurrentdata.signal(s => s.onsimplevalue(false, { start: $.start, end: end }))
-                        this.setStateAfterValue()
-
-                        break
-                    }
-                    case "null": {
-                        this.oncurrentdata.signal(s => s.onsimplevalue(null, { start: $.start, end: end }))
-                        this.setStateAfterValue()
-
-                        break
-                    }
-                    default:
-                        this.raiseError(`unknown keyword '${$.keywordNode}'`)
-                }
+                this.oncurrentdata.signal(s => s.onunquotedstring($.keywordNode, { start: $.start, end: end }))
+                this.setStateAfterValue()
                 break
             case ContextType.NUMBER: {
                 //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
                 const numberState = this.state[1]
                 // eslint-disable-next-line
-                this.oncurrentdata.signal(s => s.onsimplevalue(new Number(numberState.numberNode).valueOf(), {
+                this.oncurrentdata.signal(s => s.onnumber(numberState.numberNode, {
                     start: numberState.start,
                     end: {
                         line: this.line,
@@ -1100,7 +1082,7 @@ export class Parser {
                 break
             }
             case ValueType.KEYWORD: {
-                this.setState([ContextType.KEYWORD, { start: this.getLocation(), keywordNode: String.fromCharCode(curChar) }])
+                this.setState([ContextType.UNQUOTED_STRING, { start: this.getLocation(), keywordNode: String.fromCharCode(curChar) }])
                 break
             }
             case ValueType.NUMBER: {
@@ -1123,7 +1105,7 @@ export class Parser {
             }
             case ValueType.STRING: {
                 this.initString(curChar, (textNode, range) => {
-                    this.oncurrentdata.signal(s => s.onsimplevalue(textNode, range))
+                    this.oncurrentdata.signal(s => s.onquotedstring(textNode, String.fromCharCode(curChar), range))
                     this.setStateAfterValue()
                 })
                 break

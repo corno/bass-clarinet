@@ -1,6 +1,25 @@
 import { Options } from "../src/configurationTypes"
 
-export type EventDefinition = [AnyEvent, (string | false | true | null | number)?, number?, number?]
+export type EventDefinition =
+    | ["number", string, number?, number?]
+    | ["quotedstring", string, number?, number?]
+    | ["unquotedstring", string, number?, number?]
+    | ["openarray", (string | number)?, number?]
+    | ["closearray", (string | number)?, number?]
+    | ["openobject", (string | number)?, number?]
+    | ["closeobject", (string | number)?, number?]
+    | ["key", string]
+    | ["opentaggedunion"]
+    | ["option", string]
+    | ["closetaggedunion"]
+    | ["end", number?, number?]
+    | ["ready", number?, number?]
+    | ["linecomment", string]
+    | ["blockcomment", string]
+    | ["error"]
+    | ["schemastart"]
+    | ["schemaend"]
+// [AnyEvent, string?, number?, number?]
 
 export type TestDefinition = {
     readonly text: string
@@ -28,7 +47,9 @@ export type DataEvent =
     | "blockcomment"
     | "linecomment"
 
-    | "simplevalue"
+    | "number"
+    | "quotedstring"
+    | "unquotedstring"
 
     | "opentaggedunion"
     | "closetaggedunion"

@@ -71,7 +71,7 @@ export type StackContext =
 export type Context =
     | [ContextType.STACK]
     | [ContextType.COMMENT, CommentContext]
-    | [ContextType.KEYWORD, KeywordContext]
+    | [ContextType.UNQUOTED_STRING, UnquotedStringContext]
     | [ContextType.NUMBER, NumberContext]
     | [ContextType.STRING, StringContext]
 
@@ -84,7 +84,7 @@ export enum StackContextType {
 
 export enum ContextType {
     COMMENT,
-    KEYWORD,
+    UNQUOTED_STRING,
     NUMBER,
     STACK,
     STRING,
@@ -106,7 +106,7 @@ export type CommentContext = {
     readonly start: Location
 }
 
-export type KeywordContext = {
+export type UnquotedStringContext = {
     keywordNode: string
     readonly start: Location
 }

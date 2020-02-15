@@ -107,10 +107,26 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
                 checkLocation(ee, range.end)
             },
-            onsimplevalue: (v, range) => {
-                if (DEBUG) console.log("found value")
+            onnumber: (v, range) => {
+                if (DEBUG) console.log("found number")
                 const ee = getExpectedEvent()
-                validateEventsEqual(ee, "simplevalue")
+                validateEventsEqual(ee, "number")
+
+                assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+                checkLocation(ee, range.end)
+            },
+            onunquotedstring: (v, range) => {
+                if (DEBUG) console.log("found unquoted string")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "unquotedstring")
+
+                assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+                checkLocation(ee, range.end)
+            },
+            onquotedstring: (v, _quote, range) => {
+                if (DEBUG) console.log("found quoted string")
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "quotedstring")
 
                 assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
                 checkLocation(ee, range.end)
