@@ -20,14 +20,13 @@ parser.ondata.subscribe({
         //indent indicates the indentation string found up to the `/*` characters.
         //this is only provided if the block comment starts on a new line
     },
-    onnumber: (_value, _range) => {
-        //place your code here
-    },
     onquotedstring: (_value, _quote, _range) => {
         //place your code here
+        //in pure JSON, only '"' is valid for _quote
     },
     onunquotedstring: (_value, _range) => {
         //place your code here
+        //in pure JSON, only "null", "true" or "false" are valid for _value
     },
     onopentaggedunion: _location => {
         //place your code here

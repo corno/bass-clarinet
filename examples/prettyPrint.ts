@@ -11,15 +11,6 @@ if (path === undefined) {
 
 const data = fs.readFileSync(path, {encoding: "utf-8"})
 
-function format(value: number | string | boolean | null) {
-    if (typeof value === "string") {
-        return `${JSON.stringify(value)}`
-    } else {
-        return value
-    }
-}
-
-
 export function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): sp.ValueHandler {
     return {
         array: (_startLocation, openCharacter) => {
@@ -44,8 +35,14 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
                 },
             }
         },
-        simpleValue: value => {
-            writer(`${format(value)}`)
+        boolean: isTrue => {
+            writer(`${isTrue ? "true":"false"}`)
+        },
+        number: value => {
+            writer(`${value.toString(10)}`)//JSON.stringify(value)
+        },
+        string: value => {
+            writer(`${JSON.stringify(value)}`)//JSON.stringify(value)
         },
         null: () => {
             writer(`null`)

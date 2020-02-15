@@ -1,7 +1,6 @@
 import { Options } from "../src/configurationTypes"
 
 export type EventDefinition =
-    | ["number", string, number?, number?]
     | ["quotedstring", string, number?, number?]
     | ["unquotedstring", string, number?, number?]
     | ["openarray", (string | number)?, number?]

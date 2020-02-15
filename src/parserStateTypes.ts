@@ -51,11 +51,10 @@ export enum CommentState {
 }
 
 export enum ValueType {
-    STRING,
-    KEYWORD,
+    QUOTED_STRING,
+    UNQUOTED_STRING,
     OBJECT,
     ARRAY,
-    NUMBER,
     TAGGED_UNION,
 }
 
@@ -72,8 +71,7 @@ export type Context =
     | [ContextType.STACK]
     | [ContextType.COMMENT, CommentContext]
     | [ContextType.UNQUOTED_STRING, UnquotedStringContext]
-    | [ContextType.NUMBER, NumberContext]
-    | [ContextType.STRING, StringContext]
+    | [ContextType.QUOTED_STRING, StringContext]
 
 export enum StackContextType {
     ARRAY,
@@ -84,10 +82,9 @@ export enum StackContextType {
 
 export enum ContextType {
     COMMENT,
-    UNQUOTED_STRING,
-    NUMBER,
+    QUOTED_STRING,
     STACK,
-    STRING,
+    UNQUOTED_STRING,
 }
 
 export type Unicode = {
@@ -107,7 +104,7 @@ export type CommentContext = {
 }
 
 export type UnquotedStringContext = {
-    keywordNode: string
+    unquotedStringNode: string
     readonly start: Location
 }
 

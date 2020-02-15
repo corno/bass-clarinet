@@ -3,7 +3,6 @@
     camelcase:"off",
     complexity:"off",
     no-console:"off",
-    no-underscore-dangle: "off",
 */
 
 import * as subscr from "./subscription"
@@ -28,8 +27,6 @@ import { Location, Range, printLocation } from "./location"
 import { Options, Allow } from "./configurationTypes"
 
 export function parser(opt?: Options) { return new Parser(opt) }
-export const MAX_BUFFER_LENGTH = 64 * 1024
-const maxAllowed = Math.max(MAX_BUFFER_LENGTH, 10)
 export const DEBUG = false
 export const INFO = false
 
@@ -84,10 +81,9 @@ function getContextDescription(stackContext: StackContext) {
 function getStateDescription(stackContext: Context): string {
     switch (stackContext[0]) {
         case ContextType.COMMENT: return "COMMENT"
-        case ContextType.UNQUOTED_STRING: return "KEYWORD"
-        case ContextType.NUMBER: return "NUMBER"
+        case ContextType.UNQUOTED_STRING: return "UNQUOTED_STRING"
         case ContextType.STACK: return "STACK"
-        case ContextType.STRING: return "STRING"
+        case ContextType.QUOTED_STRING: return "QUOTED_STRING"
         default: return assertUnreachable(stackContext[0])
 
     }
@@ -131,7 +127,6 @@ export interface DataSubscriber {
 
     onquotedstring(value: string, quote: string, range: Range): void
     onunquotedstring(value: string, range: Range): void
-    onnumber(value: string, range: Range): void
 
     onblockcomment(comment: string, range: Range, indent: string | null): void
     onlinecomment(comment: string, range: Range): void
@@ -147,8 +142,6 @@ export interface HeaderSubscriber {
 }
 
 export class Parser {
-
-    private bufferCheckPosition = MAX_BUFFER_LENGTH
     private curChar = 0
     private ended = false
     private readonly opt: Options
@@ -196,40 +189,15 @@ export class Parser {
         this.oncurrentdata = this.ondata
     }
 
-    public write(chunk: string): Parser {
+    public write(chunk: string) {
         if (this.error !== null) {
             throw new SyntaxError(printError(this.error))
         }
         if (this.ended) {
             this.raiseError("Cannot write after close. Assign an onready handler.")
-            return this
         }
         if (DEBUG) console.log(`write -> [${JSON.stringify(chunk)}]`)
         this.processChunk(chunk)
-        if (this.position >= this.bufferCheckPosition) {
-            switch (this.state[0]) {
-                case ContextType.NUMBER: {
-                    const $ = this.state[1]
-                    if ($.numberNode.length > maxAllowed) {
-                        this.raiseError("Max number buffer length exceeded: " + $.numberNode.length)
-                    } else {
-                        this.bufferCheckPosition = this.position + MAX_BUFFER_LENGTH - $.numberNode.length
-
-                    }
-                    break
-                }
-                case ContextType.STRING: {
-                    const $ = this.state[1]
-                    if ($.textNode.length > maxAllowed) {
-                        this.raiseError("Max string buffer length exceeded: " + $.textNode.length)
-                    } else {
-                        this.bufferCheckPosition = this.position + MAX_BUFFER_LENGTH - $.textNode.length
-                    }
-                    break
-                }
-            }
-        }
-        return this
     }
 
     public isInErrorState() {
@@ -389,7 +357,7 @@ export class Parser {
                     let snippetStart: null | number = null
                     function flush() {
                         if (snippetStart !== null) {
-                            $.keywordNode += chunk.substring(snippetStart, currentChunkIndex)
+                            $.unquotedStringNode += chunk.substring(snippetStart, currentChunkIndex)
                         }
                         snippetStart = null
                     }
@@ -405,19 +373,38 @@ export class Parser {
                             flush()
                             return
                         }
-                        //first check if we are breaking out of a keyword. Can only be done by checking the character that comes directly after the number
-                        if (curChar !== Char.Keyword.a
-                            && curChar !== Char.Keyword.e
-                            && curChar !== Char.Keyword.f
-                            && curChar !== Char.Keyword.l
-                            && curChar !== Char.Keyword.n
-                            && curChar !== Char.Keyword.r
-                            && curChar !== Char.Keyword.s
-                            && curChar !== Char.Keyword.t
-                            && curChar !== Char.Keyword.u
+                        //first check if we are breaking out of an unquoted string. Can only be done by checking the character that comes directly after the unquoted string
+                        if (false
+                            || curChar === Char.Whitespace.carriageReturn
+                            || curChar === Char.Whitespace.lineFeed
+                            || curChar === Char.Whitespace.space
+                            || curChar === Char.Whitespace.tab
+
+                            || curChar === Char.Object.closeBrace
+                            || curChar === Char.Object.closeParen
+                            || curChar === Char.Object.colon
+                            || curChar === Char.Object.comma
+                            || curChar === Char.Object.openBrace
+                            || curChar === Char.Object.openParen
+
+                            || curChar === Char.Array.closeAngleBracket
+                            || curChar === Char.Array.closeBracket
+                            || curChar === Char.Array.comma
+                            || curChar === Char.Array.openAngleBracket
+                            || curChar === Char.Array.openBracket
+
+                            || curChar === Char.Comment.solidus
+                            //|| curChar === Char.Comment.asterisk
+
+                            || curChar === Char.QuotedString.quotationMark
+                            || curChar === Char.QuotedString.apostrophe
+
+                            || curChar === Char.TaggedUnion.verticalLine
+
+                            || curChar === Char.Header.hash
                         ) {
                             flush()
-                            this.wrapUpDanglingToken()
+                            this.wrapUpUnquotedString()
                             //this character does not belong to the keyword so don't go to the next character by breaking
                             break
                         } else {
@@ -429,62 +416,6 @@ export class Parser {
                         }
                         next()
                     }
-                    break
-                }
-                case ContextType.NUMBER: {
-                    /**
-                     * NUMBER PROCESSING
-                     */
-                    const $ = state[1]
-                    while (true) {
-                        if (this.error !== null) {
-                            return
-                        }
-                        if (isNaN(curChar)) {
-                            return
-                        }
-                        //if (DEBUG) console.log(currentChunkIndex, curChar, String.fromCharCode(curChar), 'number loop')
-
-                        //first check if we are breaking out of a number. Can only be done by checking the character that comes directly after the number
-                        if (curChar !== Char.Number.period
-                            && curChar !== Char.Number.e
-                            && curChar !== Char.Number.E
-                            && curChar !== Char.Number.plus
-                            && curChar !== Char.Number.minus
-                            && !(Char.Number._0 <= curChar && curChar <= Char.Number._9)
-                        ) {
-                            this.wrapUpDanglingToken()
-                            //this character does not belong to the number so don't go to the next character by breaking
-                            break
-                        } else {
-                            if ($.numberNode === "-0" || $.numberNode === "0") {
-                                if (curChar !== Char.Number.period
-                                    && curChar !== Char.Number.e
-                                    && curChar !== Char.Number.E
-                                ) {
-                                    this.raiseError(`Leading zero not followed by '.', 'e', 'E', ',' ']', '}' or whitespace`)
-                                }
-                            }
-                            if (curChar === Char.Number.period) {
-                                if ($.foundPeriod) {
-                                    this.raiseError('Invalid number, has two dots')
-                                }
-                                $.foundPeriod = true
-                            } else if (curChar === Char.Number.e || curChar === Char.Number.E) {
-                                if ($.foundExponent) {
-                                    this.raiseError('Invalid number, has two exponential')
-                                }
-                                $.foundExponent = true
-                            } else if (curChar === Char.Number.plus || curChar === Char.Number.minus) {
-                                if (!$.numberNode.endsWith("e") && !$.numberNode.endsWith("E")) {
-                                    this.raiseError('Invalid symbol in number')
-                                }
-                            }
-                            $.numberNode += String.fromCharCode(curChar)
-                            next()
-                        }
-                    }
-
                     break
                 }
                 case ContextType.STACK: {
@@ -615,7 +546,7 @@ export class Parser {
                                             this.closeObject(curChar, $$)
                                         } else if (curChar === Char.Object.comma) {
                                             $$.state = ObjectState.EXPECTING_KEY
-                                        } else if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
+                                        } else if (curChar === Char.QuotedString.quotationMark || curChar === Char.QuotedString.apostrophe) {
                                             if (this.opt.allow?.missing_commas) {
                                                 this.processKey(curChar, $$)
                                             } else {
@@ -794,9 +725,9 @@ export class Parser {
                     }
                     break
                 }
-                case ContextType.STRING: {
+                case ContextType.QUOTED_STRING: {
                     /**
-                     * STRING PROCESSING
+                     * QUOTED STRING PROCESSING
                      */
                     const $ = state[1]
 
@@ -828,16 +759,16 @@ export class Parser {
                             }
                         } else {
                             if ($.slashed) {
-                                if (curChar === Char.String.quotationMark) { $.textNode += '\"' }
-                                else if (curChar === Char.String.apostrophe) { $.textNode += '\'' } //deviation from the JSON standard
-                                else if (curChar === Char.String.reverseSolidus) { $.textNode += '\\' }
-                                else if (curChar === Char.String.solidus) { $.textNode += '\/' }
-                                else if (curChar === Char.String.b) { $.textNode += '\b' }
-                                else if (curChar === Char.String.f) { $.textNode += '\f' }
-                                else if (curChar === Char.String.n) { $.textNode += '\n' }
-                                else if (curChar === Char.String.r) { $.textNode += '\r' }
-                                else if (curChar === Char.String.t) { $.textNode += '\t' }
-                                else if (curChar === Char.String.u) {
+                                if (curChar === Char.QuotedString.quotationMark) { $.textNode += '\"' }
+                                else if (curChar === Char.QuotedString.apostrophe) { $.textNode += '\'' } //deviation from the JSON standard
+                                else if (curChar === Char.QuotedString.reverseSolidus) { $.textNode += '\\' }
+                                else if (curChar === Char.QuotedString.solidus) { $.textNode += '\/' }
+                                else if (curChar === Char.QuotedString.b) { $.textNode += '\b' }
+                                else if (curChar === Char.QuotedString.f) { $.textNode += '\f' }
+                                else if (curChar === Char.QuotedString.n) { $.textNode += '\n' }
+                                else if (curChar === Char.QuotedString.r) { $.textNode += '\r' }
+                                else if (curChar === Char.QuotedString.t) { $.textNode += '\t' }
+                                else if (curChar === Char.QuotedString.u) {
                                     // \uxxxx. meh!
                                     $.unicode = {
                                         charactersLeft: 4,
@@ -852,12 +783,12 @@ export class Parser {
                             } else {
 
                                 //not slashed, not unicode
-                                if (curChar === Char.String.reverseSolidus) {//backslash
+                                if (curChar === Char.QuotedString.reverseSolidus) {//backslash
                                     flush()
                                     $.slashed = true
                                 } else if (curChar === $.startCharacter) {
                                     /**
-                                     * THE STRING IS FINISHED
+                                     * THE QUOTED STRING IS FINISHED
                                      */
 
                                     flush()
@@ -908,7 +839,7 @@ export class Parser {
         }
     }
 
-    private wrapUpDanglingToken() {
+    private wrapUpUnquotedString() {
         switch (this.state[0]) {
             case ContextType.COMMENT:
                 break
@@ -919,27 +850,12 @@ export class Parser {
                     position: this.position - 1,
                     column: this.column - 1,
                 }
-                this.oncurrentdata.signal(s => s.onunquotedstring($.keywordNode, { start: $.start, end: end }))
+                this.oncurrentdata.signal(s => s.onunquotedstring($.unquotedStringNode, { start: $.start, end: end }))
                 this.setStateAfterValue()
                 break
-            case ContextType.NUMBER: {
-                //cleanup of number (we can only detect the end of a number at the first non number character or at the end)
-                const numberState = this.state[1]
-                // eslint-disable-next-line
-                this.oncurrentdata.signal(s => s.onnumber(numberState.numberNode, {
-                    start: numberState.start,
-                    end: {
-                        line: this.line,
-                        position: this.position - 1,
-                        column: this.column - 1,
-                    },
-                }))
-                this.setStateAfterValue()
-                break
-            }
             case ContextType.STACK:
                 break
-            case ContextType.STRING:
+            case ContextType.QUOTED_STRING:
                 //strings are self closing (with a '"')
                 throw new Error("unexpected string")
             default:
@@ -979,7 +895,7 @@ export class Parser {
         this.onerror.signal(error)
     }
     public end() {
-        this.wrapUpDanglingToken()
+        this.wrapUpUnquotedString()
 
         if (this.error !== null) {
             return
@@ -995,7 +911,7 @@ export class Parser {
         this.onready.signal()
     }
     private onFoundSolidus() {
-        this.wrapUpDanglingToken()
+        this.wrapUpUnquotedString()
         this.setState([ContextType.COMMENT, {
             state: CommentState.FOUND_SOLIDUS,
             commentNode: "",
@@ -1003,19 +919,17 @@ export class Parser {
         }])
     }
     private setState(newState: Context) {
-        if (DEBUG) {
-            console.log("setting state to", getStateDescription(newState))
-        }
+        if (DEBUG) console.log("setting state to", getStateDescription(newState))
         this.state = newState
     }
     private isStringStart(curChar: number) {
-        return curChar === Char.String.quotationMark || curChar === Char.String.apostrophe
+        return curChar === Char.QuotedString.quotationMark || curChar === Char.QuotedString.apostrophe
     }
     private initString(startCharacter: number, onFinished: OnStringFinished) {
-        if (startCharacter === Char.String.apostrophe && !this.opt.allow?.apostrophes_instead_of_quotation_marks) {
+        if (startCharacter === Char.QuotedString.apostrophe && !this.opt.allow?.apostrophes_instead_of_quotation_marks) {
             this.raiseError(`Malformed string, should start with '"', apostrophes are not allowed`)
         } else {
-            this.setState([ContextType.STRING, {
+            this.setState([ContextType.QUOTED_STRING, {
                 startCharacter: startCharacter,
                 start: this.getLocation(),
                 textNode: "",
@@ -1061,7 +975,7 @@ export class Parser {
 
     }
     private processKey(curChar: number, containingObject: ObjectContext) {
-        if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
+        if (curChar === Char.QuotedString.quotationMark || curChar === Char.QuotedString.apostrophe) {
             this.initString(curChar, (textNode, range) => {
                 this.oncurrentdata.signal(s => s.onkey(textNode, range))
                 containingObject.state = ObjectState.EXPECTING_COLON
@@ -1081,17 +995,8 @@ export class Parser {
                 }
                 break
             }
-            case ValueType.KEYWORD: {
-                this.setState([ContextType.UNQUOTED_STRING, { start: this.getLocation(), keywordNode: String.fromCharCode(curChar) }])
-                break
-            }
-            case ValueType.NUMBER: {
-                this.setState([ContextType.NUMBER, {
-                    start: this.getLocation(),
-                    numberNode: String.fromCharCode(curChar),
-                    foundExponent: false,
-                    foundPeriod: false,
-                }])
+            case ValueType.UNQUOTED_STRING: {
+                this.setState([ContextType.UNQUOTED_STRING, { start: this.getLocation(), unquotedStringNode: String.fromCharCode(curChar) }])
                 break
             }
             case ValueType.OBJECT: {
@@ -1103,7 +1008,7 @@ export class Parser {
                 }
                 break
             }
-            case ValueType.STRING: {
+            case ValueType.QUOTED_STRING: {
                 this.initString(curChar, (textNode, range) => {
                     this.oncurrentdata.signal(s => s.onquotedstring(textNode, String.fromCharCode(curChar), range))
                     this.setStateAfterValue()
@@ -1124,25 +1029,16 @@ export class Parser {
         }
     }
     private getValueType(curChar: number): ValueType | null {
-        if (curChar === Char.String.quotationMark || curChar === Char.String.apostrophe) {
-            return ValueType.STRING
+        if (curChar === Char.QuotedString.quotationMark || curChar === Char.QuotedString.apostrophe) {
+            return ValueType.QUOTED_STRING
         } else if (curChar === Char.Object.openBrace || curChar === Char.Object.openParen) {
             return ValueType.OBJECT
         } else if (curChar === Char.Array.openBracket || curChar === Char.Array.openAngleBracket) {
             return ValueType.ARRAY
         } else if (curChar === Char.TaggedUnion.verticalLine) { //extension to strict JSON specifications
             return ValueType.TAGGED_UNION
-        } else if (curChar === Char.Number.minus || Char.Number._0 <= curChar && curChar <= Char.Number._9) {
-            return ValueType.NUMBER
-        } else if (curChar === Char.Keyword.t) {
-            return ValueType.KEYWORD
-        } else if (curChar === Char.Keyword.f) {
-            return ValueType.KEYWORD
-        } else if (curChar === Char.Keyword.n) {
-            return ValueType.KEYWORD
-        } else {
-            return null
-        }
+        } else
+            return ValueType.UNQUOTED_STRING
     }
 }
 

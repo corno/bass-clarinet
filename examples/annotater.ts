@@ -10,14 +10,6 @@ function printRange(range: Range) {
     return `${range.start.line}:${range.start.column}-${range.start.line === range.end.line ? "" : range.end.line + ":"}${range.end.column}`
 }
 
-function format(value: number | string | boolean | null) {
-    if (typeof value === "string") {
-        return `"${JSON.stringify(value)}"`
-    } else {
-        return value
-    }
-}
-
 export function createValuesAnnotater(indentation: string, writer: (str: string) => void): sp.ValueHandler {
     return {
         array: startLocation => {
@@ -41,8 +33,14 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
                 },
             }
         },
-        simpleValue: (value, range) => {
-            writer(`${indentation}${format(value)} // ${printRange(range)}`)
+        string: (value, range) => {
+            writer(`${indentation}${JSON.stringify(value)} // ${printRange(range)}`)
+        },
+        boolean: (value, range) => {
+            writer(`${indentation}${value ? "true" : "false"} // ${printRange(range)}`)
+        },
+        number: (value, range) => {
+            writer(`${indentation}${value.toString(10)} // ${printRange(range)}`)
         },
         null: range => {
             writer(`${indentation}null // ${printRange(range)}`)

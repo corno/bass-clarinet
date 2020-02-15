@@ -1,8 +1,10 @@
 /* eslint
     no-console:"off",
+    no-underscore-dangle: "off",
 */
-import { DataSubscriber } from "./Parser";
+import { DataSubscriber } from "./Parser"
 import { Location, Range } from "./location"
+import * as Char from "./NumberCharacters"
 
 const DEBUG = false
 
@@ -139,7 +141,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             if (vh === null) {
                 throw new Error("stack panic; unexpected value")
             }
-            vh.simpleValue(value, range, flushComments())
+            vh.string(value, range, flushComments())
 
         },
         onunquotedstring: (value, range) => {
@@ -150,32 +152,29 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             }
             switch (value) {
                 case "true": {
-                    vh.simpleValue(true, range, flushComments())
-                    break
+                    vh.boolean(true, range, flushComments())
+                    return
                 }
                 case "false": {
-                    vh.simpleValue(false, range, flushComments())
-                    break
+                    vh.boolean(false, range, flushComments())
+                    return
                 }
                 case "null": {
                     vh.null(range, flushComments())
-                    break
+                    return
                 }
-                default:
-                    throw new Error(`unknown keyword '${value}'`)
             }
-        },
-        onnumber: (value, range) => {
-            if (DEBUG) { console.log("on value", value) }
-            const vh = initValueHandler(range.start)
-            if (vh === null) {
-                throw new Error("stack panic; unexpected value")
+            const curChar = value.charCodeAt(0)
+            if (curChar === Char.Number.minus || Char.Number._0 <= curChar && curChar <= Char.Number._9) {
+                //eslint-disable-next-line
+                const nr = new Number(value).valueOf()
+                if (isNaN(nr)) {
+                    throw new Error(`invalid number: ${value}`)
+                }
+                vh.number(nr, range, flushComments())
+                return
             }
-            if (value === null) {
-                vh.null(range, flushComments())
-            } else {
-                vh.simpleValue(value, range, flushComments())
-            }
+            throw new Error(`unrecognized unquoted string '${value}'`)
         },
         onend: () => {
             onend(flushComments())
@@ -195,14 +194,18 @@ export type ArrayHandler = {
 
 export type OnObject = (startLocation: Location, openCharacter: string, comments: Comment[]) => ObjectHandler
 export type OnArray = (startLocation: Location, openCharacter: string, comments: Comment[]) => ArrayHandler
-export type OnSimpleValue = (value: number | string | boolean, range: Range, comments: Comment[]) => void
+export type OnNumber = (value: number, range: Range, comments: Comment[]) => void
+export type OnBoolean = (value: boolean, range: Range, comments: Comment[]) => void
+export type OnString = (value: string, range: Range, comments: Comment[]) => void
 export type OnNull = (range: Range, comments: Comment[]) => void
 export type OnTaggedUnion = (option: string, startLocation: Location, optionRange: Range, comments: Comment[]) => ValueHandler
 
 export interface ValueHandler {
     object: OnObject
     array: OnArray
-    simpleValue: OnSimpleValue
+    boolean: OnBoolean
+    string: OnString
+    number: OnNumber
     null: OnNull
     taggedUnion: OnTaggedUnion
 }
