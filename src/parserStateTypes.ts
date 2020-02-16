@@ -9,47 +9,27 @@ export enum RootState {
     EXPECTING_END, // no more input expected
 }
 
-
 export enum ObjectState {
     EXPECTING_OBJECT_VALUE,
     EXPECTING_KEY,
 }
-
 
 export enum TaggedUnionState {
     EXPECTING_OPTION,
     EXPECTING_VALUE,
 }
 
-export enum CommentState {
-    FOUND_SOLIDUS,
-    FOUND_ASTERISK,
-    LINE_COMMENT,
-    BLOCK_COMMENT
-}
-
-export enum ValueType {
-    QUOTED_STRING,
-    UNQUOTED_STRING,
+export enum ComplexValueType {
     OBJECT,
     ARRAY,
     TAGGED_UNION,
 }
-
-
-export type OnStringFinished = (text: string, range: Range) => void
 
 export type StackContext =
     | [StackContextType.ROOT, RootContext]
     | [StackContextType.ARRAY, {}]
     | [StackContextType.OBJECT, ObjectContext]
     | [StackContextType.TAGGED_UNION, TaggedUnionContext]
-
-export type Context =
-    | [ContextType.STACK]
-    | [ContextType.COMMENT, CommentContext]
-    | [ContextType.UNQUOTED_STRING, UnquotedStringContext]
-    | [ContextType.QUOTED_STRING, StringContext]
 
 export enum StackContextType {
     ARRAY,
@@ -58,38 +38,8 @@ export enum StackContextType {
     TAGGED_UNION,
 }
 
-export enum ContextType {
-    COMMENT,
-    QUOTED_STRING,
-    STACK,
-    UNQUOTED_STRING,
-}
-
-export type Unicode = {
-    charactersLeft: number
-    foundCharacters: ""
-}
-
 export type ArrayContext = {
     readonly openChar: number
-}
-
-export type CommentContext = {
-    state: CommentState
-    commentNode: string
-    readonly start: Location
-}
-
-export type UnquotedStringContext = {
-    unquotedStringNode: string
-    readonly start: Location
-}
-
-export type NumberContext = {
-    readonly start: Location
-    numberNode: string
-    foundExponent: boolean
-    foundPeriod: boolean
 }
 
 export type ObjectContext = {
@@ -100,15 +50,45 @@ export type ObjectContext = {
 export type RootContext = {
     state: RootState
 }
-export type StringContext = {
-    readonly startCharacter: number
-    readonly start: Location
-    textNode: string
-    readonly onFinished: OnStringFinished
-    unicode: null | Unicode
-    slashed: boolean
-}
 
 export type TaggedUnionContext = {
     state: TaggedUnionState
+}
+
+export enum ExpectedType {
+    VALUE,
+    KEY,
+    OPTION,
+}
+
+
+export enum ContextType {
+    COMMENT,
+    QUOTED_STRING,
+    STACK,
+    UNQUOTED_STRING,
+}
+
+export type Context =
+    | [ContextType.STACK]
+    | [ContextType.COMMENT, CommentContext]
+    | [ContextType.UNQUOTED_STRING, UnquotedStringContext]
+    | [ContextType.QUOTED_STRING, QuotedStringContext]
+
+
+export type CommentContext = {
+    commentNode: string
+    readonly start: Range
+    readonly indent: null | string
+}
+
+export type UnquotedStringContext = {
+    unquotedStringNode: string
+    readonly start: Location
+}
+
+export type QuotedStringContext = {
+    readonly startCharacter: string
+    readonly start: Range
+    textNode: string
 }

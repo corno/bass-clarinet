@@ -52,6 +52,23 @@ export const extensionTests: TestDefinitions = {
             ["ready"],
         ],
     },
+    "multi line comment 2": {
+        text: '[1,"a"/*a comment b * c*/]',
+        parserOptions: {
+            allow: {
+                comments: true,
+            },
+        },
+        events: [
+            ["openarray"],
+            ["unquotedstring", "1"],
+            ["quotedstring", "a"],
+            ["blockcomment", "a comment b * c"],
+            ["closearray"],
+            ["end"],
+            ["ready"],
+        ],
+    },
     "parens instead of braces": {
         text: '( "a": "foo" )',
         parserOptions: {
@@ -169,7 +186,9 @@ export const extensionTests: TestDefinitions = {
             },
         },
         events: [
-            ["error"],
+            ["parsererror"],
+            ["unquotedstring", "42"],
+            ["ready"],
         ],
     },
     "schema required": {

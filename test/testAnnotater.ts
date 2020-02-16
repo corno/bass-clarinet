@@ -3,7 +3,7 @@
 */
 import { JSONTests } from "./ownJSONTestset"
 import { createAnnotator} from "../examples/annotater"
-import { Tokenizer, Parser } from "../src/Parser"
+import { Tokenizer, Parser } from "../src"
 
 Object.keys(JSONTests).forEach(testName => {
     console.log(">", testName)

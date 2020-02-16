@@ -299,9 +299,8 @@ export const JSONTests: TestDefinitions = {
             ["openarray"],
             ["quotedstring", 'foo'],
             ["quotedstring", 'bar'],
-            ['error'],
-            //["end"],
-            //["ready"],
+            ['parsererror'],
+            ['ready'],
         ],
     },
     "string invalid escape": {
@@ -712,7 +711,8 @@ export const JSONTests: TestDefinitions = {
             ["openarray", 1, 10],
             ["unquotedstring", "42", 1, 12],
             ["unquotedstring", "0"],
-            ['error'],
+            ['parsererror'],
+            ['ready'],
         ],
     },
     "incomplete json terminates ending in comma": {
@@ -724,7 +724,8 @@ export const JSONTests: TestDefinitions = {
             ["unquotedstring", "2"],
             ["unquotedstring", "42"],
             ["closearray"],
-            ['error'],
+            ['parsererror'],
+            ['ready'],
         ],
     },
     "json org": {

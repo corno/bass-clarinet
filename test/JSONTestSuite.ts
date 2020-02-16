@@ -2,7 +2,7 @@ import * as fs from "fs"
 import { describe } from "mocha"
 import assert from "assert"
 import * as path from "path"
-import * as p from "../src/Parser"
+import * as p from "../src"
 
 const parsingDir = path.join(__dirname, "/../../JSONTestSuite/test_parsing")
 describe('parsing', () => {

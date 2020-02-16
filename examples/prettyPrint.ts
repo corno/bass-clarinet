@@ -1,5 +1,5 @@
 import * as fs  from "fs"
-import { Tokenizer, lax, DataSubscriber, Parser } from "../src/Parser"
+import { Tokenizer, lax, DataSubscriber, Parser } from "../src"
 import * as sp from "../src/createStackedDataSubscriber"
 
 const [, , path] = process.argv

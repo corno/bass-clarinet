@@ -2,15 +2,12 @@
     no-console:"off",
 */
 
-import * as p from "../src/Parser"
+import * as p from "../src"
 import { describe } from "mocha"
 import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, AnyEvent } from "./testDefinition"
-import { Location } from "../src/location"
-import { ParserOptions } from "../src/configurationTypes"
-import { createStrictJSONValidator } from "../src/createStictJSONValidator"
 
 const DEBUG = false
 
@@ -20,7 +17,7 @@ const selectedExtensionTests = Object.keys(extensionTests)
 // const selectedJSONTests: string[] = ["forbidden_extension_apostrophe_string"]
 // const selectedExtensionTests: string[] = []
 
-function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], pureJSON: boolean, parserOptions?: ParserOptions) {
+function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], pureJSON: boolean, parserOptions?: p.ParserOptions) {
     return function () {
         if (DEBUG) console.log("CHUNKS:", chunks)
         const parser = new p.Parser(parserOptions)
@@ -31,7 +28,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         function validateEventsEqual(expectedEvent: EventDefinition, event: AnyEvent) {
             assert.ok(expectedEvent[0] === event, 'event: ' + currentExpectedEventIndex + ', expected type: [' + expectedEvent[0] + '] got: [' + event + ']')
         }
-        function checkLocation(expectedEvent: EventDefinition, location: Location) {
+        function checkLocation(expectedEvent: EventDefinition, location: p.Location) {
             if (expectedEvent[3] !== undefined) {
                 assert.ok(expectedEvent[2] === location.line, `expected linenumber ${expectedEvent[2]} but found ${location.line}`)
                 assert.ok(expectedEvent[3] === location.column, `expected column ${expectedEvent[3]} but found ${location.column}`)
@@ -61,14 +58,14 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         parser.onerror.subscribe(e => {
             if (DEBUG) console.log("found error")
             const ee = getExpectedEvent()
-            if (ee[0] !== "error") {
+            if (ee[0] !== "parsererror") {
                 assert.fail("unexpected error: " + e.message)
             }
         })
         tokenizer.onerror.subscribe(e => {
             if (DEBUG) console.log("found error")
             const ee = getExpectedEvent()
-            if (ee[0] !== "error") {
+            if (ee[0] !== "tokenizererror") {
                 assert.fail("unexpected error: " + e.message)
             }
         })
@@ -202,7 +199,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         parser.onschemadata.subscribe(subscriber)
 
         if (pureJSON) {
-            parser.ondata.subscribe(createStrictJSONValidator((message, range) => {
+            parser.ondata.subscribe(p.createStrictJSONValidator((message, range) => {
                 if (DEBUG) console.log("found JSON validation error", message)
 
                 const ee = getExpectedEvent()
