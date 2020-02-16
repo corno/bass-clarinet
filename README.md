@@ -56,7 +56,7 @@ Clear reasons to use `bass-clarinet` over  the built-in `JSON.parse`:
 
 1. install [npm]
 2. `npm install bass-clarinet`
-3. add this to your `.ts` file: `import * as bass_clarinet from "bass-clarinet"`
+3. add this to your `.ts` file: `import * as bc from "bass-clarinet"`
 
 # usage
 
@@ -76,70 +76,71 @@ if (path === undefined) {
 
 const data = fs.readFileSync(path, {encoding: "utf-8"})
 
-function format(value: number | string | boolean | null) {
-    if (typeof value === "string") {
-        return `${JSON.stringify(value)}`
-    } else {
-        return value
-    }
-}
-
-
-function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
+export function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
     return {
-        array: (_location, openCharacter) => {
+        array: (_startLocation, openCharacter, _comments) => {
             writer(openCharacter)
             return {
                 element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
-                end: ((_location, endCharacter) => {
+                end: ((_endLocation, endCharacter) => {
                     writer(`${indentation}${endCharacter}`)
-                })
+                }),
             }
 
         },
-        object: (_location, openCharacter) => {
+        object: (_startlocation, openCharacter, _comments) => {
             writer(openCharacter)
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}\t"${key}": `)
                     return createValuesPrettyPrinter(`${indentation}\t`, writer)
                 },
-                end: (_location, endCharacter) => {
+                end: (_endLocation, endCharacter) => {
                     writer(`${indentation}${endCharacter}`)
-                }
+                },
             }
         },
-        simpleValue: (value) => {
-            writer(`${format(value)}`)
+        boolean: (isTrue, _range, _comments) => {
+            writer(`${isTrue ? "true":"false"}`)
         },
-        null: () => {
+        number: (value, _range, _comments) => {
+            writer(`${value.toString(10)}`)//JSON.stringify(value)
+        },
+        string: (value, _range, _comments) => {
+            writer(`${JSON.stringify(value)}`)//JSON.stringify(value)
+        },
+        null: _comments => {
             writer(`null`)
         },
-        taggedUnion: (option, _unionStart, _optionRange) => {
+        taggedUnion: (option, _unionStart, _optionRange, _comments) => {
             writer(`| "${option}" `)
             return createValuesPrettyPrinter(`${indentation}`, writer)
         },
     }
 }
 
-function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.DataSubscriber {
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.DataSubscriber {
     return bc.createStackedDataSubscriber(
         createValuesPrettyPrinter(indentation, writer),
-        () => {}
+        _comments => {
+            //onEnd
+        }
     )
 }
 
 const parser = new bc.Parser({ allow: bc.lax})
+const tokenizer = new bc.Tokenizer(parser)
 parser.ondata.subscribe(createPrettyPrinter("\r\n", str => process.stdout.write(str)))
-parser.onerror.subscribe(err => { console.error("FOUND ERROR", err.message) })
-parser.write(data)
-parser.end()
+parser.onerror.subscribe(err => { console.error("FOUND PARSER ERROR", err.message) })
+tokenizer.onerror.subscribe(err => { console.error("FOUND TOKENIZER ERROR", err.message) })
+tokenizer.write(data)
+tokenizer.end()
 
 ```
 ## low level
 ``` TypeScript
-import * as fs  from "fs"
 import * as bc from "bass-clarinet"
+import * as fs  from "fs"
 
 const [, , path] = process.argv
 
@@ -151,38 +152,62 @@ if (path === undefined) {
 const data = fs.readFileSync(path, {encoding: "utf-8"})
 
 const parser = new bc.Parser({ allow: bc.lax})
+const tokenizer = new bc.Tokenizer(parser)
 parser.ondata.subscribe({
-    onlinecomment: (comment, range) => {
+    oncomma: () => {
+        //place your code here
     },
-    onblockcomment: (comment, range, indent) => {
+    oncolon: () => {
+        //place your code here
+    },
+    onlinecomment: (_comment, _range) => {
+        //place your code here
+    },
+    onblockcomment: (_comment, _range, _indent) => {
         //indent can be used to strip the leading whitespace of all lines of the block comment.
         //indent indicates the indentation string found up to the `/*` characters.
         //this is only provided if the block comment starts on a new line
     },
-    onsimplevalue: (value, range) => {
+    onquotedstring: (_value, _quote, _range) => {
+        //place your code here
+        //in pure JSON, only '"' is valid for _quote
     },
-    onopentaggedunion: (location) => {
+    onunquotedtoken: (_value, _range) => {
+        //place your code here
+        //in pure JSON, only "null", "true" or "false" are valid for _value
+    },
+    onopentaggedunion: _range => {
+        //place your code here
     },
     onclosetaggedunion: () => {
+        //place your code here
     },
-    onoption: (option, range) => {
+    onoption: (_option, _range) => {
+        //place your code here
     },
-    onopenarray: (startLocation, openCharacter) => {
+    onopenarray: (_openCharacterRange, _openCharacter) => {
+        //place your code here
     },
-    onclosearray: (endLocation, closeCharacter) => {
+    onclosearray: (_closeCharacterRange, _closeCharacter) => {
+        //place your code here
     },
-    onopenobject: (startLocation, openCharacter) => {
+    onopenobject: (_startRange, _openCharacter) => {
+        //place your code here
     },
-    oncloseobject: (endLocation, closeCharacter) => {
+    oncloseobject: (_endRange, _closeCharacter) => {
+        //place your code here
     },
-    onkey: (key, range) => {
+    onkey: (_key, _range) => {
+        //place your code here
     },
     onend: () => {
-    }
+        //place your code here
+    },
 })
-parser.onerror.subscribe(err => { console.error("FOUND ERROR", err.message) })
-parser.write(data)
-parser.end()
+parser.onerror.subscribe(err => { console.error("FOUND PARSER ERROR", err.message) })
+tokenizer.onerror.subscribe(err => { console.error("FOUND TOKENIZER ERROR", err.message) })
+tokenizer.write(data)
+tokenizer.end()
 
 ```
 

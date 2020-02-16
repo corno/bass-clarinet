@@ -1,6 +1,5 @@
+import * as bc from "../src"
 import * as fs  from "fs"
-import { Tokenizer, lax, DataSubscriber, Parser } from "../src"
-import * as sp from "../src/createStackedDataSubscriber"
 
 const [, , path] = process.argv
 
@@ -11,9 +10,9 @@ if (path === undefined) {
 
 const data = fs.readFileSync(path, {encoding: "utf-8"})
 
-export function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): sp.ValueHandler {
+export function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
     return {
-        array: (_startLocation, openCharacter) => {
+        array: (_startLocation, openCharacter, _comments) => {
             writer(openCharacter)
             return {
                 element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
@@ -23,7 +22,7 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
             }
 
         },
-        object: (_startlocation, openCharacter) => {
+        object: (_startlocation, openCharacter, _comments) => {
             writer(openCharacter)
             return {
                 property: (key, _keyRange) => {
@@ -35,36 +34,36 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
                 },
             }
         },
-        boolean: isTrue => {
+        boolean: (isTrue, _range, _comments) => {
             writer(`${isTrue ? "true":"false"}`)
         },
-        number: value => {
+        number: (value, _range, _comments) => {
             writer(`${value.toString(10)}`)//JSON.stringify(value)
         },
-        string: value => {
+        string: (value, _range, _comments) => {
             writer(`${JSON.stringify(value)}`)//JSON.stringify(value)
         },
-        null: () => {
+        null: _comments => {
             writer(`null`)
         },
-        taggedUnion: (option, _unionStart, _optionRange) => {
+        taggedUnion: (option, _unionStart, _optionRange, _comments) => {
             writer(`| "${option}" `)
             return createValuesPrettyPrinter(`${indentation}`, writer)
         },
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): DataSubscriber {
-    return sp.createStackedDataSubscriber(
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.DataSubscriber {
+    return bc.createStackedDataSubscriber(
         createValuesPrettyPrinter(indentation, writer),
-        () => {
-            //
+        _comments => {
+            //onEnd
         }
     )
 }
 
-const parser = new Parser({ allow: lax})
-const tokenizer = new Tokenizer(parser)
+const parser = new bc.Parser({ allow: bc.lax})
+const tokenizer = new bc.Tokenizer(parser)
 parser.ondata.subscribe(createPrettyPrinter("\r\n", str => process.stdout.write(str)))
 parser.onerror.subscribe(err => { console.error("FOUND PARSER ERROR", err.message) })
 tokenizer.onerror.subscribe(err => { console.error("FOUND TOKENIZER ERROR", err.message) })

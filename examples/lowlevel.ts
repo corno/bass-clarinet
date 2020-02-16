@@ -1,5 +1,5 @@
-import * as fs  from "fs"
 import * as bc from "../src"
+import * as fs  from "fs"
 
 const [, , path] = process.argv
 
@@ -14,10 +14,10 @@ const parser = new bc.Parser({ allow: bc.lax})
 const tokenizer = new bc.Tokenizer(parser)
 parser.ondata.subscribe({
     oncomma: () => {
-        //
+        //place your code here
     },
     oncolon: () => {
-        //
+        //place your code here
     },
     onlinecomment: (_comment, _range) => {
         //place your code here
@@ -35,7 +35,7 @@ parser.ondata.subscribe({
         //place your code here
         //in pure JSON, only "null", "true" or "false" are valid for _value
     },
-    onopentaggedunion: _location => {
+    onopentaggedunion: _range => {
         //place your code here
     },
     onclosetaggedunion: () => {
@@ -44,16 +44,16 @@ parser.ondata.subscribe({
     onoption: (_option, _range) => {
         //place your code here
     },
-    onopenarray: (_startLocation, _openCharacter) => {
+    onopenarray: (_openCharacterRange, _openCharacter) => {
         //place your code here
     },
-    onclosearray: (_endLocation, _closeCharacter) => {
+    onclosearray: (_closeCharacterRange, _closeCharacter) => {
         //place your code here
     },
-    onopenobject: (_startLocation, _openCharacter) => {
+    onopenobject: (_startRange, _openCharacter) => {
         //place your code here
     },
-    oncloseobject: (_endLocation, _closeCharacter) => {
+    oncloseobject: (_endRange, _closeCharacter) => {
         //place your code here
     },
     onkey: (_key, _range) => {
