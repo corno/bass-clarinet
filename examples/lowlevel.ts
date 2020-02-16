@@ -31,7 +31,7 @@ parser.ondata.subscribe({
         //place your code here
         //in pure JSON, only '"' is valid for _quote
     },
-    onunquotedstring: (_value, _range) => {
+    onunquotedtoken: (_value, _range) => {
         //place your code here
         //in pure JSON, only "null", "true" or "false" are valid for _value
     },

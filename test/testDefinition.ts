@@ -2,7 +2,7 @@ import { TokenizerOptions, ParserOptions } from "../src/configurationTypes"
 
 export type EventDefinition =
     | ["quotedstring", string, number?, number?]
-    | ["unquotedstring", string, number?, number?]
+    | ["unquotedtoken", string, number?, number?]
     | ["openarray", (string | number)?, number?]
     | ["closearray", (string | number)?, number?]
     | ["openobject", (string | number)?, number?]
@@ -52,7 +52,7 @@ export type DataEvent =
 
     | "number"
     | "quotedstring"
-    | "unquotedstring"
+    | "unquotedtoken"
 
     | "opentaggedunion"
     | "closetaggedunion"

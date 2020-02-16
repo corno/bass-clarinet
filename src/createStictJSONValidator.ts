@@ -221,7 +221,7 @@ class StrictJSONValidator implements DataSubscriber {
     public onoption(_option: string, _range: Range) {
         //
     }
-    public onunquotedstring(value: string, range: Range) {
+    public onunquotedtoken(value: string, range: Range) {
         this.onvalue(range)
         switch (value) {
             case "true": {

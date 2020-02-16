@@ -29,8 +29,8 @@ export interface IParser {
     onBlockCommentBegin(range: Range, indent: null | string): void
     onBlockCommentEnd(range: Range): void
 
-    onUnquotedStringBegin(location: Location): void
-    onUnquotedStringEnd(location: Location): void
+    onUnquotedTokenBegin(location: Location): void
+    onUnquotedTokenEnd(location: Location): void
 
     onQuotedStringBegin(range: Range, quote: string): void
     onQuotedStringEnd(range: Range, quote: string): void
@@ -169,7 +169,7 @@ export class Tokenizer {
                     let snippetStart: null | number = null
                     const flush = (offset?: number) => {
                         if (snippetStart !== null) {
-                            this.parser.onSnippet(chunk, snippetStart, currentChunkIndex + (offset === undefined ? 0: offset))
+                            this.parser.onSnippet(chunk, snippetStart, currentChunkIndex + (offset === undefined ? 0 : offset))
                         }
                         snippetStart = null
                     }
@@ -229,7 +229,7 @@ export class Tokenizer {
                                 break
                             case CommentState.FOUND_SOLIDUS:
                                 if (curChar === Char.Comment.solidus) {
-                                    this.parser.onLineCommentBegin({ start: this.getLocation(-2), end: this.getLocation()})
+                                    this.parser.onLineCommentBegin({ start: this.getLocation(-2), end: this.getLocation() })
                                     $.state = CommentState.LINE_COMMENT
                                 } else if (curChar === Char.Comment.asterisk) {
                                     this.parser.onBlockCommentBegin({ start: this.getLocation(-2), end: this.getLocation() }, this.indent)
@@ -269,7 +269,7 @@ export class Tokenizer {
                         }
 
 
-                        function isUnquotedStringCharacter() {
+                        function isUnquotedTokenCharacter() {
                             const isOtherCharacter = (false
                                 || curChar === Char.Whitespace.carriageReturn
                                 || curChar === Char.Whitespace.lineFeed
@@ -302,9 +302,9 @@ export class Tokenizer {
                             return !isOtherCharacter
                         }
                         //first check if we are breaking out of an unquoted string. Can only be done by checking the character that comes directly after the unquoted string
-                        if (!isUnquotedStringCharacter()) {
+                        if (!isUnquotedTokenCharacter()) {
                             flush()
-                            this.wrapUpUnquotedString()
+                            this.wrapUpUnquotedToken()
                             //this character does not belong to the keyword so don't go to the next character by breaking
                             break
                         } else {
@@ -354,7 +354,7 @@ export class Tokenizer {
                     }
                     const valueType = getSimpleValueType()
                     if (curChar === Char.Comment.solidus) {
-                        this.wrapUpUnquotedString()
+                        this.wrapUpUnquotedToken()
                         this.setState([ContextType.COMMENT, {
                             state: CommentState.FOUND_SOLIDUS,
                         }])
@@ -365,10 +365,10 @@ export class Tokenizer {
                                 slashed: false,
                                 unicode: null,
                             }])
-                            this.parser.onQuotedStringBegin({ start: this.getLocation(-1), end: this.getLocation()}, String.fromCharCode(curChar))
+                            this.parser.onQuotedStringBegin({ start: this.getLocation(-1), end: this.getLocation() }, String.fromCharCode(curChar))
                         } else {
                             this.setState([ContextType.UNQUOTED_STRING])
-                            this.parser.onUnquotedStringBegin(this.getLocation())
+                            this.parser.onUnquotedTokenBegin(this.getLocation())
                             this.parser.onSnippet(chunk, currentChunkIndex, currentChunkIndex + 1) //copy current character
 
                         }
@@ -406,7 +406,33 @@ export class Tokenizer {
                             flush()
                             return
                         }
-                        if ($.unicode !== null) {
+                        if ($.slashed) {
+                            const flushChar = (str: string) => {
+                                this.parser.onSnippet(str, 0, str.length)
+                            }
+                            if (curChar === Char.QuotedString.quotationMark) { flushChar('\"') }
+                            else if (curChar === Char.QuotedString.apostrophe) { flushChar('\'') } //deviation from the JSON standard
+                            else if (curChar === Char.QuotedString.reverseSolidus) { flushChar('\\') }
+                            else if (curChar === Char.QuotedString.solidus) { flushChar('\/') }
+                            else if (curChar === Char.QuotedString.b) { flushChar('\b') }
+                            else if (curChar === Char.QuotedString.f) { flushChar('\f') }
+                            else if (curChar === Char.QuotedString.n) { flushChar('\n') }
+                            else if (curChar === Char.QuotedString.r) { flushChar('\r') }
+                            else if (curChar === Char.QuotedString.t) { flushChar('\t') }
+                            else if (curChar === Char.QuotedString.u) {
+                                // \uxxxx
+                                $.unicode = {
+                                    charactersLeft: 4,
+                                    foundCharacters: "",
+                                }
+                            }
+                            else {
+                                //no special character
+                                this.raiseError("expected special character after escape slash")
+                            }
+                            $.slashed = false
+
+                        } else if ($.unicode !== null) {
                             $.unicode.foundCharacters += String.fromCharCode(curChar)
                             $.unicode.charactersLeft--
                             if ($.unicode.charactersLeft === 0) {
@@ -415,57 +441,28 @@ export class Tokenizer {
                                 $.unicode = null
                             }
                         } else {
-                            if ($.slashed) {
-                                const flushChar = (str: string) => {
-                                    this.parser.onSnippet(str, 0, str.length)
+                            //not slashed, not unicode
+                            if (curChar === Char.QuotedString.reverseSolidus) {//backslash
+                                flush()
+                                $.slashed = true
+                            } else if (curChar === $.startCharacter) {
+                                /**
+                                 * THE QUOTED STRING IS FINISHED
+                                 */
+                                flush()
+                                const locationInfo = {
+                                    start: this.getLocation(-1),
+                                    end: this.getLocation(),
                                 }
-                                if (curChar === Char.QuotedString.quotationMark) { flushChar('\"') }
-                                else if (curChar === Char.QuotedString.apostrophe) { flushChar('\'') } //deviation from the JSON standard
-                                else if (curChar === Char.QuotedString.reverseSolidus) { flushChar('\\') }
-                                else if (curChar === Char.QuotedString.solidus) { flushChar('\/') }
-                                else if (curChar === Char.QuotedString.b) { flushChar('\b') }
-                                else if (curChar === Char.QuotedString.f) { flushChar('\f') }
-                                else if (curChar === Char.QuotedString.n) { flushChar('\n') }
-                                else if (curChar === Char.QuotedString.r) { flushChar('\r') }
-                                else if (curChar === Char.QuotedString.t) { flushChar('\t') }
-                                else if (curChar === Char.QuotedString.u) {
-                                    // \uxxxx. meh!
-                                    $.unicode = {
-                                        charactersLeft: 4,
-                                        foundCharacters: "",
-                                    }
-                                }
-                                else {
-                                    //no special character
-                                    this.raiseError("expected special character after escape slash")
-                                }
-                                $.slashed = false
+                                this.setState([ContextType.STACK])
+                                this.parser.onQuotedStringEnd(locationInfo, String.fromCharCode(curChar))
+                                next()
+                                break
                             } else {
-
-                                //not slashed, not unicode
-                                if (curChar === Char.QuotedString.reverseSolidus) {//backslash
-                                    flush()
-                                    $.slashed = true
-                                } else if (curChar === $.startCharacter) {
-                                    /**
-                                     * THE QUOTED STRING IS FINISHED
-                                     */
-
-                                    flush()
-                                    const locationInfo = {
-                                        start: this.getLocation(-1),
-                                        end: this.getLocation(),
-                                    }
-                                    this.setState([ContextType.STACK])
-                                    this.parser.onQuotedStringEnd(locationInfo, String.fromCharCode(curChar))
-                                    next()
-                                    break
-                                } else {
-                                    //normal character
-                                    //don't flush
-                                    if (snippetStart === null) {
-                                        snippetStart = currentChunkIndex
-                                    }
+                                //normal character
+                                //don't flush
+                                if (snippetStart === null) {
+                                    snippetStart = currentChunkIndex
                                 }
                             }
                         }
@@ -490,7 +487,7 @@ export class Tokenizer {
         return this.end()
     }
     public end() {
-        this.wrapUpUnquotedString()
+        this.wrapUpUnquotedToken()
 
         if (this.error !== null) {
             return
@@ -513,12 +510,12 @@ export class Tokenizer {
             column: this.column + (offset === undefined ? 0 : offset),
         }
     }
-    private wrapUpUnquotedString() {
+    private wrapUpUnquotedToken() {
         switch (this.state[0]) {
             case ContextType.COMMENT:
                 break
             case ContextType.UNQUOTED_STRING:
-                this.parser.onUnquotedStringEnd(this.getLocation(-1))
+                this.parser.onUnquotedTokenEnd(this.getLocation(-1))
 
                 this.setState([ContextType.STACK])
 

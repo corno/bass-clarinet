@@ -150,7 +150,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             vh.string(value, range, flushComments())
 
         },
-        onunquotedstring: (value, range) => {
+        onunquotedtoken: (value, range) => {
             if (DEBUG) { console.log("on value", value) }
             const vh = initValueHandler(range)
             if (vh === null) {

@@ -66,13 +66,13 @@ export enum ContextType {
     COMMENT,
     QUOTED_STRING,
     STACK,
-    UNQUOTED_STRING,
+    UNQUOTED_TOKEN,
 }
 
 export type Context =
     | [ContextType.STACK]
     | [ContextType.COMMENT, CommentContext]
-    | [ContextType.UNQUOTED_STRING, UnquotedStringContext]
+    | [ContextType.UNQUOTED_TOKEN, UnquotedTokenContext]
     | [ContextType.QUOTED_STRING, QuotedStringContext]
 
 
@@ -82,13 +82,13 @@ export type CommentContext = {
     readonly indent: null | string
 }
 
-export type UnquotedStringContext = {
-    unquotedStringNode: string
+export type UnquotedTokenContext = {
+    unquotedTokenNode: string
     readonly start: Location
 }
 
 export type QuotedStringContext = {
     readonly startCharacter: string
     readonly start: Range
-    textNode: string
+    quotedStringNode: string
 }

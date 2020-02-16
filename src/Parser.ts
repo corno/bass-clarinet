@@ -102,7 +102,7 @@ export interface DataSubscriber {
     onkey(key: string, range: Range): void
 
     onquotedstring(value: string, quote: string, range: Range): void
-    onunquotedstring(value: string, range: Range): void
+    onunquotedtoken(value: string, range: Range): void
 
     onblockcomment(comment: string, range: Range, indent: string | null): void
     onlinecomment(comment: string, range: Range): void
@@ -334,15 +334,15 @@ export class Parser implements IParser {
             }
             case ContextType.QUOTED_STRING: {
                 const $ = this.state[1]
-                $.textNode += chunk.substring(begin, end)
+                $.quotedStringNode += chunk.substring(begin, end)
                 break
             }
             case ContextType.STACK: {
                 throw new Error(`unexpected chunk`)
             }
-            case ContextType.UNQUOTED_STRING: {
+            case ContextType.UNQUOTED_TOKEN: {
                 const $ = this.state[1]
-                $.unquotedStringNode += chunk.substring(begin, end)
+                $.unquotedTokenNode += chunk.substring(begin, end)
                 break
             }
             default:
@@ -371,11 +371,11 @@ export class Parser implements IParser {
         this.oncurrentdata.signal(s => s.onblockcomment($.commentNode, { start: $.start.start, end: end.end}, $.indent))
         this.unsetState()
     }
-    public onUnquotedStringBegin(location: Location) {
-        this.setState([ContextType.UNQUOTED_STRING, { unquotedStringNode: "", start: location }])
+    public onUnquotedTokenBegin(location: Location) {
+        this.setState([ContextType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }])
     }
-    public onUnquotedStringEnd(location: Location) {
-        if (this.state[0] !== ContextType.UNQUOTED_STRING) {
+    public onUnquotedTokenEnd(location: Location) {
+        if (this.state[0] !== ContextType.UNQUOTED_TOKEN) {
             throw new Error(`Unexpected unquoted string end`)
         }
         const $ = this.state[1]
@@ -384,13 +384,13 @@ export class Parser implements IParser {
             end: location,
         }
         this.setStateBeforeValue(range)
-        this.oncurrentdata.signal(s => s.onunquotedstring($.unquotedStringNode, range))
+        this.oncurrentdata.signal(s => s.onunquotedtoken($.unquotedTokenNode, range))
         this.setStateAfterValue()
         this.unsetState()
     }
 
     public onQuotedStringBegin(begin: Range, quote: string) {
-        this.setState([ContextType.QUOTED_STRING, { textNode: "", start: begin, startCharacter: quote }])
+        this.setState([ContextType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }])
     }
 
     public onQuotedStringEnd(end: Range, quote: string) {
@@ -398,7 +398,7 @@ export class Parser implements IParser {
             throw new Error(`Unexpected unquoted string end`)
         }
         const $ = this.state[1]
-        const value = $.textNode
+        const value = $.quotedStringNode
         const range = {
             start: $.start.start,
             end: end.end,

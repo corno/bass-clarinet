@@ -13,8 +13,8 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["openarray"],
-            ["unquotedstring", "1"],
-            ["unquotedstring", "2"],
+            ["unquotedtoken", "1"],
+            ["unquotedtoken", "2"],
             ["closearray"],
             ["end"],
             ["ready"],
@@ -27,7 +27,7 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["openarray"],
-            ["unquotedstring", "1"],
+            ["unquotedtoken", "1"],
             ["quotedstring", "a"],
             ["linecomment", "a comment"],
             ["closearray"],
@@ -44,7 +44,7 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["openarray"],
-            ["unquotedstring", "1"],
+            ["unquotedtoken", "1"],
             ["quotedstring", "a"],
             ["blockcomment", "a comment\r\n"],
             ["closearray"],
@@ -61,7 +61,7 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["openarray"],
-            ["unquotedstring", "1"],
+            ["unquotedtoken", "1"],
             ["quotedstring", "a"],
             ["blockcomment", "a comment b * c"],
             ["closearray"],
@@ -147,7 +147,7 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["opentaggedunion"],
             ["option", "foo"],
-            ["unquotedstring", "5"],
+            ["unquotedtoken", "5"],
             ["closetaggedunion"],
             ["end"],
             ["ready"],
@@ -162,7 +162,7 @@ export const extensionTests: TestDefinitions = {
             ["schemastart"],
             ["quotedstring", "a schema"],
             ["schemaend"],
-            ["unquotedstring", "42"],
+            ["unquotedtoken", "42"],
             ["end"],
             ["ready"],
         ],
@@ -173,7 +173,7 @@ export const extensionTests: TestDefinitions = {
             allow: { schema: true },
         },
         events: [
-            ["unquotedstring", "42"],
+            ["unquotedtoken", "42"],
             ["end"],
             ["ready"],
         ],
@@ -187,7 +187,7 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["parsererror"],
-            ["unquotedstring", "42"],
+            ["unquotedtoken", "42"],
             ["ready"],
         ],
     },
@@ -202,7 +202,7 @@ export const extensionTests: TestDefinitions = {
             ["schemastart"],
             ["quotedstring", "a schema"],
             ["schemaend"],
-            ["unquotedstring", "42"],
+            ["unquotedtoken", "42"],
             ["end"],
             ["ready"],
         ],
