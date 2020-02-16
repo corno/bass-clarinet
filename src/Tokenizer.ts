@@ -71,7 +71,7 @@ export class Tokenizer {
 
 
     // mostly just for error reporting
-    private position = 0
+    private position = -1
     private column = 0
     private line = 1
 
