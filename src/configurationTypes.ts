@@ -18,8 +18,11 @@ export type Require = {
     schema?: boolean
 }
 
-export type Options = {
+export type ParserOptions = {
     allow?: Allow
-    spaces_per_tab?: number
     require?: Require
+}
+
+export type TokenizerOptions = {
+    spaces_per_tab?: number
 }

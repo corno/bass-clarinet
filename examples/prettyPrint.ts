@@ -1,6 +1,6 @@
 import * as fs  from "fs"
-import { Parser, lax, DataSubscriber } from "../src/Parser"
-import * as sp from "../src/cerateStackedDataSubscriber"
+import { Tokenizer, lax, DataSubscriber, Parser } from "../src/Parser"
+import * as sp from "../src/createStackedDataSubscriber"
 
 const [, , path] = process.argv
 
@@ -64,7 +64,9 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
 }
 
 const parser = new Parser({ allow: lax})
+const tokenizer = new Tokenizer(parser)
 parser.ondata.subscribe(createPrettyPrinter("\r\n", str => process.stdout.write(str)))
-parser.onerror.subscribe(err => { console.error("FOUND ERROR", err.message) })
-parser.write(data)
-parser.end()
+parser.onerror.subscribe(err => { console.error("FOUND PARSER ERROR", err.message) })
+tokenizer.onerror.subscribe(err => { console.error("FOUND TOKENIZER ERROR", err.message) })
+tokenizer.write(data)
+tokenizer.end()

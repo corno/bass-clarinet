@@ -1,6 +1,6 @@
 export * from "./subscription"
 export * from "./Parser"
 export * from "./configurationTypes"
-export * from "./cerateStackedDataSubscriber"
+export * from "./createStackedDataSubscriber"
 export * from "./ErrorContext"
 export * from "./location"

@@ -1,4 +1,4 @@
-import * as sp from "../src/cerateStackedDataSubscriber"
+import * as sp from "../src/createStackedDataSubscriber"
 import { printRange } from "../src/location"
 import { DataSubscriber } from "../src"
 

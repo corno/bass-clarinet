@@ -59,6 +59,12 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
     }
 
     return {
+        oncomma: () => {
+            //
+        },
+        oncolon: () => {
+            //
+        },
         onlinecomment: (comment, range) => {
             comments.push({
                 text: comment,

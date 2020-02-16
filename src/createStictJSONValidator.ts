@@ -9,6 +9,10 @@ import * as Char from "./NumberCharacters";
 
 type OnError = (message: string, range: Range) => void
 
+function assertUnreachable(_x: never) {
+    throw new Error("unreachable")
+}
+
 
 function validateIsJSONNumber(value: string, raiseError: (message: string) => void) {
     if (value === "0") {
@@ -65,10 +69,90 @@ function validateIsJSONNumber(value: string, raiseError: (message: string) => vo
     }
 }
 
+export enum ObjectState {
+    EXPECTING_OBJECT_VALUE, // value in object
+    EXPECTING_KEY_OR_OBJECT_END,
+    EXPECTING_COMMA_OR_OBJECT_END, // , or }
+    EXPECTING_KEY, // "a"
+    EXPECTING_COLON, // :
+}
+
+export enum ArrayState {
+    EXPECTING_ARRAYVALUE, // value in array
+    EXPECTING_VALUE_OR_ARRAY_END,
+    EXPECTING_COMMA_OR_ARRAY_END, // , or ]
+}
+
+type ContextType =
+    | ["root", {
+        //readonly valueHandler: ValueHandler
+    }]
+    | ["object", {
+        state: ObjectState
+        // valueHandler: null | ValueHandler
+    }]
+    | ["array", {
+        state: ArrayState
+    }]
+    | ["taggedunion", {
+        // readonly start: Range
+        // readonly parentValueHandler: ValueHandler
+        // valueHandler: null | ValueHandler
+    }]
+
 class StrictJSONValidator implements DataSubscriber {
     private readonly onError: OnError
+    private readonly stack: ContextType[] = []
+    private currentContext: ContextType = ["root", {}]
+
+
     constructor(onError: OnError) {
         this.onError = onError
+    }
+    public oncolon(range: Range) {
+        if (this.currentContext[0] !== "object") {
+            this.onError(`colon can only be used in objects`, range)
+            return
+        }
+        if (this.currentContext[1].state !== ObjectState.EXPECTING_COLON) {
+            this.onError(`did not expect a colon`, range)
+        } else {
+            this.currentContext[1].state = ObjectState.EXPECTING_OBJECT_VALUE
+        }
+    }
+    public oncomma(range: Range) {
+        switch (this.currentContext[0]) {
+            case "array": {
+                const $ = this.currentContext[1]
+                if ($.state !== ArrayState.EXPECTING_COMMA_OR_ARRAY_END) {
+                    this.onError(`did not expect a comma`, range)
+                } else {
+                    $.state = ArrayState.EXPECTING_ARRAYVALUE
+                }
+                break
+            }
+            case "object": {
+                const $ = this.currentContext[1]
+                if ($.state !== ObjectState.EXPECTING_COMMA_OR_OBJECT_END) {
+                    this.onError(`did not expect a comma`, range)
+                } else {
+                    $.state = ObjectState.EXPECTING_OBJECT_VALUE
+                }
+                break
+            }
+            case "root": {
+                //const $ = this.currentContext[1]
+                this.onError(`did not expect a comma`, range)
+
+                break
+            }
+            case "taggedunion": {
+                //don't report
+                break
+            }
+            default:
+                return assertUnreachable(this.currentContext[0])
+        }
     }
     public onblockcomment(_comment: string, range: Range, _indent: string) {
         this.onError("block comments are not allowed in strict JSON", range)
@@ -77,20 +161,40 @@ class StrictJSONValidator implements DataSubscriber {
         if (closeCharacter !== "]") {
             this.onError("arrays should end with ']' in strict JSON", range)
         }
+        if (this.currentContext[0] !== "array") {
+            this.onError("unpaired ']'", range)
+        } else {
+            if (this.currentContext[1].state === ArrayState.EXPECTING_ARRAYVALUE) {
+                this.onError("trailing commas are not allowed", range)
+            }
+        }
+        this.pop()
     }
     public oncloseobject(range: Range, closeCharacter: string) {
         if (closeCharacter !== "}") {
             this.onError("objects should end with '}' in strict JSON", range)
         }
+        if (this.currentContext[0] !== "object") {
+            this.onError("unpaired '}'", range)
+        } else {
+            if (this.currentContext[1].state === ObjectState.EXPECTING_KEY) {
+                this.onError("trailing commas are not allowed", range)
+            }
+        }
+        this.pop()
     }
     public onclosetaggedunion() {
-        //
+        this.pop()
     }
     public onend() {
         //
     }
-    public onkey(_key: string, _range: Range) {
-        //
+    public onkey(_key: string, range: Range) {
+        if (this.currentContext[0] !== "object") {
+            this.onError(`keys can only occur in objects`, range)
+            return
+        }
+        this.currentContext[1].state = ObjectState.EXPECTING_COLON
     }
     public onlinecomment(_comment: string, range: Range) {
         this.onError("line comments are not allowed in strict JSON", range)
@@ -99,19 +203,26 @@ class StrictJSONValidator implements DataSubscriber {
         if (openCharacter !== "[") {
             this.onError("arrays should start with '[' in strict JSON", range)
         }
+        this.onvalue(range)
+        this.push(["array", { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
+
     }
     public onopenobject(range: Range, openCharacter: string) {
         if (openCharacter !== "{") {
             this.onError("objects should start with '{' in strict JSON", range)
         }
+        this.onvalue(range)
+        this.push(["object", { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END }])
     }
     public onopentaggedunion(range: Range) {
         this.onError("tagged unions are not allowed in strict JSON", range)
+        this.push(["taggedunion", {}])
     }
     public onoption(_option: string, _range: Range) {
         //
     }
     public onunquotedstring(value: string, range: Range) {
+        this.onvalue(range)
         switch (value) {
             case "true": {
                 return
@@ -133,6 +244,85 @@ class StrictJSONValidator implements DataSubscriber {
     public onquotedstring(_value: string, quote: string, range: Range) {
         if (quote !== "\"") {
             this.onError(`invalid string, should start with'"'`, range)
+        }
+        this.onvalue(range)
+    }
+    private push(newContext: ContextType) {
+        this.stack.push(this.currentContext)
+        this.currentContext = newContext
+    }
+
+    private pop() {
+        const previousContext = this.stack.pop()
+        if (previousContext === undefined) {
+            throw new Error("stack panic; lost context")
+        }
+        this.currentContext = previousContext
+    }
+    private onvalue(range: Range) {
+        switch (this.currentContext[0]) {
+            case "array": {
+                const $ = this.currentContext[1]
+                switch ($.state) {
+                    case ArrayState.EXPECTING_ARRAYVALUE: {
+                        //ok
+                        break
+                    }
+                    case ArrayState.EXPECTING_COMMA_OR_ARRAY_END: {
+                        this.onError(`expected comma or array end`, range)
+
+                        break
+                    }
+                    case ArrayState.EXPECTING_VALUE_OR_ARRAY_END: {
+                        //ok
+                        break
+                    }
+                    default:
+                        assertUnreachable($.state)
+                }
+                $.state = ArrayState.EXPECTING_COMMA_OR_ARRAY_END
+                break
+            }
+            case "object": {
+                const $ = this.currentContext[1]
+                switch ($.state) {
+                    case ObjectState.EXPECTING_COLON: {
+                        this.onError(`expected colon`, range)
+                        break
+                    }
+                    case ObjectState.EXPECTING_COMMA_OR_OBJECT_END: {
+                        this.onError(`expected comma or object end`, range)
+                        break
+                    }
+                    case ObjectState.EXPECTING_KEY: {
+                        this.onError(`expected key`, range)
+                        break
+                    }
+                    case ObjectState.EXPECTING_KEY_OR_OBJECT_END: {
+                        this.onError(`expected key or array end`, range)
+                        break
+                    }
+                    case ObjectState.EXPECTING_OBJECT_VALUE: {
+                        //ok
+                        break
+                    }
+                    default:
+                        return assertUnreachable($.state)
+                }
+                $.state = ObjectState.EXPECTING_COMMA_OR_OBJECT_END
+                break
+            }
+            case "root": {
+                //const $ = this.currentContext[1]
+
+                break
+            }
+            case "taggedunion": {
+                //don't report. Tagged unions are not supported at all
+                break
+            }
+            default:
+                return assertUnreachable(this.currentContext[0])
         }
     }
 }

@@ -9,7 +9,7 @@ import {
     OnString,
     OnNull,
     OnTaggedUnion,
-} from "./cerateStackedDataSubscriber"
+} from "./createStackedDataSubscriber"
 import { Range, printRange } from "./location"
 
 function createDummyValueHandler(): ValueHandler {

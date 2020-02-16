@@ -8,7 +8,7 @@ import { TestDefinitions } from "./testDefinition";
 export const extensionTests: TestDefinitions = {
     "trailing comma": {
         text: '[1,2,]',
-        options: {
+        parserOptions: {
             allow: { trailing_commas: true },
         },
         events: [
@@ -22,7 +22,7 @@ export const extensionTests: TestDefinitions = {
     },
     "single line comment": {
         text: '[1,"a"//a comment\r\n]',
-        options: {
+        parserOptions: {
             allow: { comments: true },
         },
         events: [
@@ -37,7 +37,7 @@ export const extensionTests: TestDefinitions = {
     },
     "multi line comment": {
         text: '[1,"a"/*a comment\r\n*/]',
-        options: {
+        parserOptions: {
             allow: {
                 comments: true,
             },
@@ -54,7 +54,7 @@ export const extensionTests: TestDefinitions = {
     },
     "parens instead of braces": {
         text: '( "a": "foo" )',
-        options: {
+        parserOptions: {
             allow: { parens_instead_of_braces: true },
         },
         events: [
@@ -68,7 +68,7 @@ export const extensionTests: TestDefinitions = {
     },
     "missing comma": {
         text: '["foo""bar"]',
-        options: {
+        parserOptions: {
             allow: { missing_commas: true },
         },
         events: [
@@ -82,7 +82,7 @@ export const extensionTests: TestDefinitions = {
     },
     "angle brackets instead of brackets": {
         text: '<"foo">',
-        options: {
+        parserOptions: {
             allow: { angle_brackets_instead_of_brackets: true },
         },
         events: [
@@ -95,7 +95,7 @@ export const extensionTests: TestDefinitions = {
     },
     "apostrophe string": {
         text: "'a string'",
-        options: {
+        parserOptions: {
             allow: { apostrophes_instead_of_quotation_marks: true },
         },
         events: [
@@ -106,7 +106,7 @@ export const extensionTests: TestDefinitions = {
     },
     "tagged union": {
         text: '| "foo" "x"',
-        options: {
+        parserOptions: {
             allow: {
                 tagged_unions: true,
             },
@@ -122,7 +122,7 @@ export const extensionTests: TestDefinitions = {
     },
     "tagged union with number at end": {
         text: '| "foo" 5',
-        options: {
+        parserOptions: {
             allow: {
                 tagged_unions: true,
             },
@@ -138,7 +138,7 @@ export const extensionTests: TestDefinitions = {
     },
     "schema optional": {
         text: '!"a schema" 42',
-        options: {
+        parserOptions: {
             allow: { schema: true },
         },
         events: [
@@ -152,7 +152,7 @@ export const extensionTests: TestDefinitions = {
     },
     "schema optional but not there": {
         text: "42",
-        options: {
+        parserOptions: {
             allow: { schema: true },
         },
         events: [
@@ -163,7 +163,7 @@ export const extensionTests: TestDefinitions = {
     },
     "schema required but not there": {
         text: "42",
-        options: {
+        parserOptions: {
             require: {
                 schema: true,
             },
@@ -174,7 +174,7 @@ export const extensionTests: TestDefinitions = {
     },
     "schema required": {
         text: '! "a schema" 42',
-        options: {
+        parserOptions: {
             require: {
                 schema: true,
             },

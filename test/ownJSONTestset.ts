@@ -21,8 +21,8 @@ export const JSONTests: TestDefinitions = {
     "invalid number": {
         text: '42x',
         events: [
-            ["unquotedstring", "42x"],
             ["validationerror", "Invalid number, unexpected character x in '42x'"],
+            ["unquotedstring", "42x"],
             ["end"],
             ["ready"],
         ],
@@ -815,8 +815,8 @@ export const JSONTests: TestDefinitions = {
     "forbidden extension apostrophe string": {
         text: "'a string'",
         events: [
-            ["quotedstring", "a string"],
             ["validationerror", "invalid string, should start with'\"'"],
+            ["quotedstring", "a string"],
             ["end"],
             ["ready"],
         ],
@@ -837,7 +837,10 @@ export const JSONTests: TestDefinitions = {
             ["openarray"],
             ["unquotedstring", "1"],
             ["unquotedstring", "2"],
-            ["error"],
+            ["validationerror", "trailing commas are not allowed"],
+            ["closearray"],
+            ["end"],
+            ["ready"],
         ],
     },
     "forbidden extension block comment": {
@@ -846,8 +849,8 @@ export const JSONTests: TestDefinitions = {
             ["openarray"],
             ["unquotedstring", "1"],
             ["unquotedstring", "2"],
-            ["blockcomment", "a comment\r\n"],
             ["validationerror", "block comments are not allowed in strict JSON"],
+            ["blockcomment", "a comment\r\n"],
             ["closearray"],
             ["end"],
             ["ready"],
@@ -855,39 +858,37 @@ export const JSONTests: TestDefinitions = {
     },
     "forbidden extension parens instead of braces": {
         text: '( "a": "foo" )',
-        options: {
-        },
         events: [
-            ["openobject"],
             ["validationerror", "objects should start with '{' in strict JSON"],
+            ["openobject"],
             ["key", "a"],
             ["quotedstring", "foo"],
-            ["closeobject"],
             ["validationerror", "objects should end with '}' in strict JSON"],
+            ["closeobject"],
             ["end"],
             ["ready"],
         ],
     },
     "forbidden extension missing comma": {
         text: '["foo""bar"]',
-        options: {
-        },
         events: [
             ["openarray"],
             ["quotedstring", "foo"],
-            ["error"],
+            ["validationerror", "expected comma or array end"],
+            ["quotedstring", "bar"],
+            ["closearray"],
+            ["end"],
+            ["ready"],
         ],
     },
     "forbidden extension angle brackets instead of brackets": {
         text: '<"foo">',
-        options: {
-        },
         events: [
-            ["openarray"],
             ["validationerror", "arrays should start with '[' in strict JSON"],
+            ["openarray"],
             ["quotedstring", "foo"],
-            ["closearray"],
             ["validationerror", "arrays should end with ']' in strict JSON"],
+            ["closearray"],
             ["end"],
             ["ready"],
         ],
@@ -898,8 +899,8 @@ export const JSONTests: TestDefinitions = {
             ["openarray"],
             ["unquotedstring", "1"],
             ["unquotedstring", "2"],
-            ["linecomment", "a comment"],
             ["validationerror", "line comments are not allowed in strict JSON"],
+            ["linecomment", "a comment"],
             ["closearray"],
             ["end"],
             ["ready"],
@@ -908,8 +909,8 @@ export const JSONTests: TestDefinitions = {
     "forbidden tagged union": {
         text: '| "foo" "x"',
         events: [
-            ["opentaggedunion"],
             ["validationerror", "tagged unions are not allowed in strict JSON"],
+            ["opentaggedunion"],
             ["option", "foo"],
             ["quotedstring", "x"],
             ["closetaggedunion"],

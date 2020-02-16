@@ -9,7 +9,7 @@ import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, AnyEvent } from "./testDefinition"
 import { Location } from "../src/location"
-import { Options } from "../src/configurationTypes"
+import { ParserOptions } from "../src/configurationTypes"
 import { createStrictJSONValidator } from "../src/createStictJSONValidator"
 
 const DEBUG = false
@@ -20,10 +20,11 @@ const selectedExtensionTests = Object.keys(extensionTests)
 // const selectedJSONTests: string[] = ["forbidden_extension_apostrophe_string"]
 // const selectedExtensionTests: string[] = []
 
-function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], pureJSON: boolean, opts?: Options) {
+function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], pureJSON: boolean, parserOptions?: ParserOptions) {
     return function () {
         if (DEBUG) console.log("CHUNKS:", chunks)
-        const parser = p.parser(opts)
+        const parser = new p.Parser(parserOptions)
+        const tokenizer = new p.Tokenizer(parser)
         let currentExpectedEventIndex = 0
         //const env = process && process.env ? process.env : window
         //const record: [AnyEvent, string][] = []
@@ -64,6 +65,13 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 assert.fail("unexpected error: " + e.message)
             }
         })
+        tokenizer.onerror.subscribe(e => {
+            if (DEBUG) console.log("found error")
+            const ee = getExpectedEvent()
+            if (ee[0] !== "error") {
+                assert.fail("unexpected error: " + e.message)
+            }
+        })
 
         parser.onheaderdata.subscribe({
             onschemastart: range => {
@@ -90,6 +98,12 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         })
 
         const subscriber: p.DataSubscriber = {
+            oncomma: () => {
+                //
+            },
+            oncolon: () => {
+                //
+            },
             onlinecomment: (v, range) => {
                 if (DEBUG) console.log("found line comment")
                 const ee = getExpectedEvent()
@@ -186,11 +200,10 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             },
         }
         parser.onschemadata.subscribe(subscriber)
-        parser.ondata.subscribe(subscriber)
 
         if (pureJSON) {
             parser.ondata.subscribe(createStrictJSONValidator((message, range) => {
-                if (DEBUG) console.log("found JSON validation error")
+                if (DEBUG) console.log("found JSON validation error", message)
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "validationerror")
@@ -198,8 +211,9 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 checkLocation(ee, range.start)
             }))
         }
+        parser.ondata.subscribe(subscriber)
 
-        parser.onready.subscribe(() => {
+        tokenizer.onready.subscribe(() => {
             if (DEBUG) console.log("found ready")
 
             const ee = getExpectedEvent()
@@ -209,15 +223,14 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         chunks.forEach(chunk => {
             try {
                 //if in error state, don't write or we'll get an exception
-                if (!parser.isInErrorState()) {
-                    parser.write(chunk);
+                if (!tokenizer.isInErrorState()) {
+                    tokenizer.write(chunk);
                 }
             } catch (e) {
-
                 assert.fail("could not write: " + e.message)
             }
         });
-        parser.end()
+        tokenizer.end()
         if (expectedEvents.length !== 0) {
             console.log("expected more events.")
             while (true) {
@@ -236,15 +249,15 @@ describe('bass-clarinet', () => {
     describe('#pureJSON', () => {
         selectedJSONTests.forEach(key => {
             const test = JSONTests[key]
-            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), true, test.options));
-            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), true, test.options));
+            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), true, test.parserOptions));
+            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), true, test.parserOptions));
         })
     })
     describe('#extensions', () => {
         selectedExtensionTests.forEach(key => {
             const test = extensionTests[key]
-            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), false, test.options));
-            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), false, test.options));
+            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), false, test.parserOptions));
+            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), false, test.parserOptions));
         })
     });
 
@@ -252,7 +265,7 @@ describe('bass-clarinet', () => {
         selectedJSONTests.forEach(key => {
             const test = JSONTests[key]
             if (!test.chunks) return;
-            it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test.events.slice(0), true, test.options));
+            it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test.events.slice(0), true, test.parserOptions));
         })
     });
 });

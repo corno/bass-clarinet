@@ -3,6 +3,7 @@
     camelcase:"off",
     complexity:"off",
     no-console:"off",
+    max-classes-per-file: "off",
 */
 
 import * as subscr from "./subscription"
@@ -12,21 +13,17 @@ import {
     ContextType,
     RootState,
     ObjectState,
-    ArrayState,
     Context,
     CommentState,
     ValueType,
-    ObjectContext,
-    ArrayContext,
     TaggedUnionState,
     OnStringFinished,
     StackContext,
     StackContextType,
 } from "./parserStateTypes"
 import { Location, Range, printLocation } from "./location"
-import { Options, Allow } from "./configurationTypes"
+import { ParserOptions, TokenizerOptions, Allow } from "./configurationTypes"
 
-export function parser(opt?: Options) { return new Parser(opt) }
 export const DEBUG = false
 export const INFO = false
 
@@ -50,22 +47,12 @@ function getContextDescription(stackContext: StackContext) {
         }
         case StackContextType.OBJECT: {
             switch (stackContext[1].state) {
-                case ObjectState.EXPECTING_OBJECTVALUE: return "EXPECTING_OBJECTVALUE"
-                case ObjectState.EXPECTING_KEY_OR_OBJECT_END: return "EXPECTING_KEY_OR_OBJECT_END"
-                case ObjectState.EXPECTING_COMMA_OR_OBJECT_END: return "EXPECTING_COMMA_OR_OBJECT_END"
+                case ObjectState.EXPECTING_OBJECT_VALUE: return "EXPECTING_OBJECTVALUE"
                 case ObjectState.EXPECTING_KEY: return "EXPECTING_KEY"
-                case ObjectState.EXPECTING_COLON: return "EXPECTING_COLON"
                 default: return assertUnreachable(stackContext[1].state)
             }
         }
-        case StackContextType.ARRAY: {
-            switch (stackContext[1].state) {
-                case ArrayState.EXPECTING_ARRAYVALUE: return "EXPECTING_ARRAYVALUE"
-                case ArrayState.EXPECTING_VALUE_OR_ARRAY_END: return "EXPECTING_VALUE_OR_ARRAY_END"
-                case ArrayState.EXPECTING_COMMA_OR_ARRAY_END: return "EXPECTING_COMMA_OR_ARRAY_END"
-                default: return assertUnreachable(stackContext[1].state)
-            }
-        }
+        case StackContextType.ARRAY: return "EXPECTING_ARRAYVALUE"
         case StackContextType.TAGGED_UNION: {
             switch (stackContext[1].state) {
                 case TaggedUnionState.EXPECTING_OPTION: return "EXPECTING_STRING"
@@ -114,6 +101,9 @@ function printError(error: Error) {
 }
 
 export interface DataSubscriber {
+    oncomma(range: Range): void
+    oncolon(range: Range): void
+
     onopenarray(range: Range, openCharacter: string): void
     onclosearray(range: Range, closeCharacter: string): void
 
@@ -142,12 +132,36 @@ export interface HeaderSubscriber {
 }
 
 export class Parser {
+    public readonly stack = new Array<StackContext>()
+    public currentContext: StackContext
+    public readonly opt: ParserOptions
+    readonly onschemadata = new subscr.Subscribers<DataSubscriber>()
+    readonly ondata = new subscr.Subscribers<DataSubscriber>()
+    public oncurrentdata: subscr.Subscribers<DataSubscriber>
+    readonly onheaderdata = new subscr.Subscribers<HeaderSubscriber>()
+
+    readonly onerror = new subscr.OneArgumentSubscribers<Error>()
+    constructor(opt?: ParserOptions) {
+        this.opt = opt || {}
+        this.oncurrentdata = this.ondata
+        if (this.opt.require?.schema) {
+            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }]
+        } else if (this.opt.allow?.schema) {
+            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
+        } else {
+            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }]
+        }
+
+    }
+}
+
+export class Tokenizer {
+    readonly onerror = new subscr.OneArgumentSubscribers<Error>()
     private curChar = 0
     private ended = false
-    private readonly opt: Options
 
-    private readonly stack = new Array<StackContext>()
-    private currentContext: StackContext
+    public readonly opt: TokenizerOptions
+
 
     // mostly just for error reporting
     private position = 0
@@ -164,29 +178,15 @@ export class Parser {
      */
     private indent: string | null = null
 
-    readonly onschemadata = new subscr.Subscribers<DataSubscriber>()
-    readonly ondata = new subscr.Subscribers<DataSubscriber>()
-    private oncurrentdata: subscr.Subscribers<DataSubscriber>
-    readonly onheaderdata = new subscr.Subscribers<HeaderSubscriber>()
-
-    readonly onerror = new subscr.OneArgumentSubscribers<Error>()
     readonly onready = new subscr.NoArgumentSubscribers()
+    private readonly parser: Parser
 
-    constructor(opt?: Options) {
-        this.opt = opt || {}
+    constructor(parser: Parser, opt?: TokenizerOptions) {
         if (INFO) console.log('-- emit', "onready")
+        this.opt = opt || {}
         this.onready.signal()
-        if (this.opt.require?.schema) {
-            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }]
-            this.state = [ContextType.STACK]
-        } else if (this.opt.allow?.schema) {
-            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
-            this.state = [ContextType.STACK]
-        } else {
-            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }]
-            this.state = [ContextType.STACK]
-        }
-        this.oncurrentdata = this.ondata
+        this.parser = parser
+        this.state = [ContextType.STACK]
     }
 
     public write(chunk: string) {
@@ -221,7 +221,7 @@ export class Parser {
             this.curChar = curChar
 
             if (DEBUG) {
-                const stateInfo = getStateDescription(this.state) + ' ' + getContextDescription(this.currentContext)
+                const stateInfo = getStateDescription(this.state) + ' ' + getContextDescription(this.parser.currentContext)
                 const char = (curChar === Char.Whitespace.tab) ? "\\t" : String.fromCharCode(curChar)
 
                 console.log(
@@ -301,7 +301,7 @@ export class Parser {
                                     //end of line comment
                                     this.setState([ContextType.STACK])
                                     flush()
-                                    this.oncurrentdata.signal(s => s.onlinecomment($.commentNode, { start: $.start, end: this.getLocation() }))
+                                    this.parser.oncurrentdata.signal(s => s.onlinecomment($.commentNode, { start: $.start, end: this.getLocation() }))
                                     next()
                                     break commentLoop
                                 } else {
@@ -316,7 +316,7 @@ export class Parser {
                                     this.setState([ContextType.STACK])
                                     flush()
                                     const comment = $.commentNode.substring(0, $.commentNode.length - 1) //strip the found asterisk '*'
-                                    this.oncurrentdata.signal(s => s.onblockcomment(comment, { start: $.start, end: this.getLocation() }, this.indent))
+                                    this.parser.oncurrentdata.signal(s => s.onblockcomment(comment, { start: $.start, end: this.getLocation() }, this.indent))
                                     next()
                                     break commentLoop
                                 } else {
@@ -383,198 +383,212 @@ export class Parser {
                     break
                 }
                 case ContextType.STACK: {
-                    const $ = this.currentContext
-                    switch ($[0]) {
-                        /**
-                         * ARRAY
-                         */
-                        case StackContextType.ARRAY: {
-                            const $$ = $[1]
-                            while (isWhiteSpace(curChar)) {
-                                next()
-                                if (isNaN(curChar)) {
-                                    return
-                                }
-                            }
-                            this.indent = null
-                            if (curChar === Char.Comment.solidus) {
-                                this.onFoundSolidus()
-                            } else {
-                                switch ($$.state) {
-                                    case ArrayState.EXPECTING_VALUE_OR_ARRAY_END:
-                                        if (curChar === Char.Array.closeBracket) {
-                                            this.closeArray(curChar, $$)
-                                        } else {
-                                            const vt = this.getValueType(curChar)
-                                            if (vt !== null) {
-                                                $$.state = ArrayState.EXPECTING_COMMA_OR_ARRAY_END
-                                                this.processValue(vt, curChar)
-                                            } else {
-                                                this.raiseError("expected value or array end")
-                                            }
-                                        }
-                                        break
-                                    case ArrayState.EXPECTING_ARRAYVALUE:
-                                        if (curChar === Char.Array.closeBracket) {
-                                            if (this.opt.allow?.trailing_commas) {
-                                                this.closeArray(curChar, $$)
-                                            } else {
-                                                this.raiseError("trailing commas are not allowed")
-                                            }
-                                        } else {
+                    const $ = this.parser.currentContext
 
-                                            const vt = this.getValueType(curChar)
-                                            if (vt === null) {
-                                                this.raiseError("expected a value after a comma")
-                                            } else {
-                                                $$.state = ArrayState.EXPECTING_COMMA_OR_ARRAY_END
-                                                this.processValue(vt, curChar)
-                                            }
-                                        }
-                                        break
-                                    case ArrayState.EXPECTING_COMMA_OR_ARRAY_END:
-                                        if (curChar === Char.Array.comma) {
-                                            $$.state = ArrayState.EXPECTING_ARRAYVALUE
-                                        } else if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
-                                            this.closeArray(curChar, $$)
-                                        } else {
-                                            const vt = this.getValueType(curChar)
-                                            if (vt !== null) {
-                                                if (this.opt.allow?.missing_commas) {
-                                                    $$.state = ArrayState.EXPECTING_COMMA_OR_ARRAY_END
-                                                    this.processValue(vt, curChar)
-                                                } else {
-                                                    this.raiseError(`Bad array, expected ',' or array end (missing commas are not allowed)`)
-                                                }
-                                            } else {
-                                                if (this.opt.allow?.missing_commas) {
-                                                    this.raiseError(`Bad array, expected ',', array end or a value`)
-                                                } else {
-                                                    this.raiseError(`Bad array, expected ',' or array end`)
-                                                }
-                                            }
-                                        }
-                                        break
-
-                                    default:
-                                        return assertUnreachable($$.state)
-                                }
-                            }
-                            next()
-                            break
+                    while (curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab) {
+                        next()
+                        if (isNaN(curChar)) {
+                            return
                         }
-                        case StackContextType.OBJECT: {
-                            const $$ = $[1]
-
-                            while (isWhiteSpace(curChar)) {
-                                next()
-                                if (isNaN(curChar)) {
-                                    return
+                    }
+                    this.indent = null
+                    if (curChar === Char.Comment.solidus) {
+                        this.onFoundSolidus()
+                    } else if (curChar === Char.Object.comma) {
+                        this.parser.oncurrentdata.signal(s => s.oncomma({ start: this.getLocation(-1), end: this.getLocation() }))
+                    } else if (curChar === Char.Object.colon) {
+                        this.parser.oncurrentdata.signal(s => s.oncolon({ start: this.getLocation(-1), end: this.getLocation() }))
+                    } else {
+                        switch ($[0]) {
+                            /**
+                             * ARRAY
+                             */
+                            case StackContextType.ARRAY: {
+                                if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
+                                    this.parser.oncurrentdata.signal(s => s.onclosearray(this.getOneCharacterRange(), String.fromCharCode(curChar)))
+                                    this.popContext()
+                                } else {
+                                    const vt = this.getValueType(curChar)
+                                    if (vt === null) {
+                                        this.raiseError("expected a value after a comma")
+                                    } else {
+                                        this.processValue(vt, curChar)
+                                    }
                                 }
-                            }
-                            this.indent = null
+                                // const $$ = $[1]
+                                // switch ($$.state) {
+                                //     case ArrayState.EXPECTING_VALUE_OR_ARRAY_END:
+                                //         if (curChar === Char.Array.closeBracket) {
+                                //             this.closeArray(curChar, $$)
+                                //         } else {
+                                //             const vt = this.getValueType(curChar)
+                                //             if (vt !== null) {
+                                //                 $$.state = ArrayState.EXPECTING_COMMA_OR_ARRAY_END
+                                //                 this.processValue(vt, curChar)
+                                //             } else {
+                                //                 this.raiseError("expected value or array end")
+                                //             }
+                                //         }
+                                //         break
+                                //     case ArrayState.EXPECTING_ARRAYVALUE:
+                                //         if (curChar === Char.Array.closeBracket) {
+                                //             if (this.parser.opt.allow?.trailing_commas) {
+                                //                 this.closeArray(curChar, $$)
+                                //             } else {
+                                //                 this.raiseError("trailing commas are not allowed")
+                                //             }
+                                //         } else {
 
-                            if (curChar === Char.Comment.solidus) {
-                                this.onFoundSolidus()
-                            } else {
+                                //             const vt = this.getValueType(curChar)
+                                //             if (vt === null) {
+                                //                 this.raiseError("expected a value after a comma")
+                                //             } else {
+                                //                 $$.state = ArrayState.EXPECTING_COMMA_OR_ARRAY_END
+                                //                 this.processValue(vt, curChar)
+                                //             }
+                                //         }
+                                //         break
+                                //     case ArrayState.EXPECTING_COMMA_OR_ARRAY_END:
+                                //         if (curChar === Char.Array.comma) {
+                                //             $$.state = ArrayState.EXPECTING_ARRAYVALUE
+                                //         } else if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
+                                //             this.closeArray(curChar, $$)
+                                //         } else {
+                                //             const vt = this.getValueType(curChar)
+                                //             if (vt !== null) {
+                                //                 if (this.parser.opt.allow?.missing_commas) {
+                                //                     $$.state = ArrayState.EXPECTING_COMMA_OR_ARRAY_END
+                                //                     this.processValue(vt, curChar)
+                                //                 } else {
+                                //                     this.raiseError(`Bad array, expected ',' or array end (missing commas are not allowed)`)
+                                //                 }
+                                //             } else {
+                                //                 if (this.parser.opt.allow?.missing_commas) {
+                                //                     this.raiseError(`Bad array, expected ',', array end or a value`)
+                                //                 } else {
+                                //                     this.raiseError(`Bad array, expected ',' or array end`)
+                                //                 }
+                                //             }
+                                //         }
+                                //         break
+
+                                //     default:
+                                //         return assertUnreachable($$.state)
+                                // }
+                                break
+                            }
+                            case StackContextType.OBJECT: {
+                                const $$ = $[1]
                                 switch ($$.state) {
                                     case ObjectState.EXPECTING_KEY:
                                         if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
-                                            if (this.opt.allow?.trailing_commas) {
-                                                this.closeObject(curChar, $$)
-                                            } else {
-                                                this.raiseError("trailing commas are not allowed")
-                                            }
-                                        } else {
-                                            this.processKey(curChar, $$)
-                                        }
-
-                                        break
-                                    case ObjectState.EXPECTING_KEY_OR_OBJECT_END:
-                                        if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
-                                            this.closeObject(curChar, $$)
-                                        } else {
-                                            this.processKey(curChar, $$)
-                                        }
-                                        break
-                                    case ObjectState.EXPECTING_COLON:
-                                        if (curChar === Char.Object.colon) {
-                                            $$.state = ObjectState.EXPECTING_OBJECTVALUE
-                                        } else {
-                                            this.raiseError(`Expected colon, found ${String.fromCharCode(curChar)}`)
-                                        }
-                                        break
-                                    case ObjectState.EXPECTING_COMMA_OR_OBJECT_END:
-                                        if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
-                                            this.closeObject(curChar, $$)
-                                        } else if (curChar === Char.Object.comma) {
-                                            $$.state = ObjectState.EXPECTING_KEY
+                                            this.parser.oncurrentdata.signal(s => s.oncloseobject(this.getOneCharacterRange(), String.fromCharCode(curChar)))
+                                            this.popContext()
                                         } else if (curChar === Char.QuotedString.quotationMark || curChar === Char.QuotedString.apostrophe) {
-                                            if (this.opt.allow?.missing_commas) {
-                                                this.processKey(curChar, $$)
-                                            } else {
-                                                this.raiseError(`Bad object, missing comma`)
-                                            }
+                                            this.initString(curChar, (textNode, range) => {
+                                                this.parser.oncurrentdata.signal(s => s.onkey(textNode, range))
+                                                $$.state = ObjectState.EXPECTING_OBJECT_VALUE
+                                            })
                                         } else {
-                                            if (this.opt.allow?.missing_commas) {
-                                                this.raiseError(`Bad object, expected ',', object end or a value`)
-                                            } else {
-                                                this.raiseError(`Bad object, expected ',' or object end`)
-                                            }
+                                            this.raiseError(`Malformed key, should start with '"' or '''`)
                                         }
                                         break
-                                    case ObjectState.EXPECTING_OBJECTVALUE:
+                                    case ObjectState.EXPECTING_OBJECT_VALUE:
                                         const vt = this.getValueType(curChar)
                                         if (vt === null) {
                                             this.raiseError("expected a value after a ':'")
                                         } else {
-                                            $$.state = ObjectState.EXPECTING_COMMA_OR_OBJECT_END
+                                            $$.state = ObjectState.EXPECTING_KEY
                                             this.processValue(vt, curChar)
                                         }
                                         break
                                     default:
                                         return assertUnreachable($$.state)
                                 }
-                            }
-                            next()
-                            break
-                        }
-                        case StackContextType.ROOT: {
-                            /**
-                             * ROOT PROCESSING
-                             */
-                            const $$ = $[1]
+                                // switch ($$.state) {
+                                //     case ObjectState.EXPECTING_KEY:
+                                //         if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
+                                //             if (this.parser.opt.allow?.trailing_commas) {
+                                //                 this.closeObject(curChar, $$)
+                                //             } else {
+                                //                 this.raiseError("trailing commas are not allowed")
+                                //             }
+                                //         } else {
+                                //             this.processKey(curChar, $$)
+                                //         }
 
-                            while (isWhiteSpace(curChar)) {
-                                next()
-                                if (isNaN(curChar)) {
-                                    return
-                                }
+                                //         break
+                                //     case ObjectState.EXPECTING_KEY_OR_OBJECT_END:
+                                //         if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
+                                //             this.closeObject(curChar, $$)
+                                //         } else {
+                                //             this.processKey(curChar, $$)
+                                //         }
+                                //         break
+                                //     case ObjectState.EXPECTING_COLON:
+                                //         if (curChar === Char.Object.colon) {
+                                //             $$.state = ObjectState.EXPECTING_OBJECT_VALUE
+                                //         } else {
+                                //             this.raiseError(`Expected colon, found ${String.fromCharCode(curChar)}`)
+                                //         }
+                                //         break
+                                //     case ObjectState.EXPECTING_COMMA_OR_OBJECT_END:
+                                //         if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
+                                //             this.closeObject(curChar, $$)
+                                //         } else if (curChar === Char.Object.comma) {
+                                //             $$.state = ObjectState.EXPECTING_KEY
+                                //         } else if (curChar === Char.QuotedString.quotationMark || curChar === Char.QuotedString.apostrophe) {
+                                //             if (this.parser.opt.allow?.missing_commas) {
+                                //                 this.processKey(curChar, $$)
+                                //             } else {
+                                //                 this.raiseError(`Bad object, missing comma`)
+                                //             }
+                                //         } else {
+                                //             if (this.parser.opt.allow?.missing_commas) {
+                                //                 this.raiseError(`Bad object, expected ',', object end or a value`)
+                                //             } else {
+                                //                 this.raiseError(`Bad object, expected ',' or object end`)
+                                //             }
+                                //         }
+                                //         break
+                                //     case ObjectState.EXPECTING_OBJECT_VALUE:
+                                //         const vt = this.getValueType(curChar)
+                                //         if (vt === null) {
+                                //             this.raiseError("expected a value after a ':'")
+                                //         } else {
+                                //             $$.state = ObjectState.EXPECTING_COMMA_OR_OBJECT_END
+                                //             this.processValue(vt, curChar)
+                                //         }
+                                //         break
+                                //     default:
+                                //         return assertUnreachable($$.state)
+                                // }
+                                break
                             }
-                            this.indent = null
-
-                            if (curChar === Char.Comment.solidus) {
-                                this.onFoundSolidus()
-                            } else {
+                            case StackContextType.ROOT: {
+                                /**
+                                 * ROOT PROCESSING
+                                 */
+                                const $$ = $[1]
                                 switch ($$.state) {
                                     case RootState.EXPECTING_END: {
                                         this.raiseError(`Unexpected data after end`)
                                         break
                                     }
                                     case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                                        this.onheaderdata.signal(s => s.onschemaend())
-                                        this.oncurrentdata = this.ondata
+                                        this.parser.onheaderdata.signal(s => s.onschemaend())
+                                        this.parser.oncurrentdata = this.parser.ondata
 
                                         if (curChar === Char.Header.hash) {
 
-                                            if (!this.opt.allow?.compact) {
+                                            if (!this.parser.opt.allow?.compact) {
                                                 this.raiseError("compact not allowed")
                                             } else {
-                                                this.onheaderdata.signal(s => s.oncompact(true, this.getOneCharacterRange()))
+                                                this.parser.onheaderdata.signal(s => s.oncompact(true, this.getOneCharacterRange()))
                                                 $$.state = RootState.EXPECTING_ROOTVALUE
                                             }
                                         } else {
-                                            this.onheaderdata.signal(s => s.oncompact(false, this.getOneCharacterRange()))
+                                            this.parser.onheaderdata.signal(s => s.oncompact(false, this.getOneCharacterRange()))
                                             const vt = this.getValueType(curChar)
                                             if (vt === null) {
                                                 this.raiseError("expected a hash ('#') or the root value")
@@ -610,16 +624,16 @@ export class Parser {
                                         if (curChar !== Char.Header.exclamationMark) {
                                             this.raiseError("expected schema start (!)")
                                         } else {
-                                            this.onheaderdata.signal(s => s.onschemastart(this.getOneCharacterRange()))
-                                            this.oncurrentdata = this.onschemadata
+                                            this.parser.onheaderdata.signal(s => s.onschemastart(this.getOneCharacterRange()))
+                                            this.parser.oncurrentdata = this.parser.onschemadata
                                             $$.state = RootState.EXPECTING_SCHEMA
                                         }
                                         break
                                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                                         if (curChar === Char.Header.exclamationMark) {
                                             $$.state = RootState.EXPECTING_SCHEMA
-                                            this.onheaderdata.signal(s => s.onschemastart(this.getOneCharacterRange()))
-                                            this.oncurrentdata = this.onschemadata
+                                            this.parser.onheaderdata.signal(s => s.onschemastart(this.getOneCharacterRange()))
+                                            this.parser.oncurrentdata = this.parser.onschemadata
 
 
                                         } else {
@@ -635,29 +649,15 @@ export class Parser {
                                     default:
                                         return assertUnreachable($$.state)
                                 }
+                                break
                             }
-                            next()
-                            break
-                        }
-                        case StackContextType.TAGGED_UNION: {
-                            const $$ = $[1]
-
-                            while (isWhiteSpace(curChar)) {
-                                next()
-                                if (isNaN(curChar)) {
-                                    return
-                                }
-                            }
-                            this.indent = null
-
-                            if (curChar === Char.Comment.solidus) {
-                                this.onFoundSolidus()
-                            } else {
+                            case StackContextType.TAGGED_UNION: {
+                                const $$ = $[1]
                                 switch ($$.state) {
                                     case TaggedUnionState.EXPECTING_OPTION:
                                         if (this.isStringStart(curChar)) {
                                             this.initString(curChar, (textNode, range) => {
-                                                this.oncurrentdata.signal(s => s.onoption(textNode, range))
+                                                this.parser.oncurrentdata.signal(s => s.onoption(textNode, range))
                                                 $$.state = TaggedUnionState.EXPECTING_VALUE
                                             })
                                         } else {
@@ -676,15 +676,15 @@ export class Parser {
                                     default:
                                         return assertUnreachable($$.state)
                                 }
+
+                                break
                             }
 
-                            next()
-                            break
+                            default:
+                                return assertUnreachable($[0])
                         }
-
-                        default:
-                            return assertUnreachable($[0])
                     }
+                    next()
                     break
                 }
                 case ContextType.QUOTED_STRING: {
@@ -779,10 +779,6 @@ export class Parser {
             }
         }
     }
-    // public resume() {
-    //     this.error = null
-    //     return this
-    // }
     public close() {
         if (this.error !== null) {
             throw new SyntaxError(printError(this.error))
@@ -793,11 +789,11 @@ export class Parser {
         return this.end()
     }
 
-    public getLocation(): Location {
+    public getLocation(offset?: number): Location {
         return {
             position: this.position,
             line: this.line,
-            column: this.column,
+            column: this.column + (offset === undefined ? 0 : offset),
         }
     }
 
@@ -845,7 +841,7 @@ export class Parser {
                     position: this.position - 1,
                     column: this.column - 1,
                 }
-                this.oncurrentdata.signal(s => s.onunquotedstring($.unquotedStringNode, { start: $.start, end: end }))
+                this.parser.oncurrentdata.signal(s => s.onunquotedstring($.unquotedStringNode, { start: $.start, end: end }))
                 this.setStateAfterValue()
                 break
             case ContextType.STACK:
@@ -857,26 +853,26 @@ export class Parser {
                 return assertUnreachable(this.state[0])
         }
     }
-    private closeObject(curChar: number, context: ObjectContext) {
-        if (context.openChar === Char.Object.openParen && curChar !== Char.Object.closeParen) {
-            this.raiseError("must close object with ')'")
-        } else if (context.openChar === Char.Object.openBrace && curChar !== Char.Object.closeBrace) {
-            this.raiseError("must close object with '}'")
-        } else {
-            this.oncurrentdata.signal(s => s.oncloseobject(this.getOneCharacterRange(), String.fromCharCode(curChar)))
-            this.popContext()
-        }
-    }
-    private closeArray(curChar: number, context: ArrayContext) {
-        if (context.openChar === Char.Array.openBracket && curChar !== Char.Array.closeBracket) {
-            this.raiseError("must close array with ']'")
-        } else if (context.openChar === Char.Array.openAngleBracket && curChar !== Char.Array.closeAngleBracket) {
-            this.raiseError("must close object with '>'")
-        } else {
-            this.oncurrentdata.signal(s => s.onclosearray(this.getOneCharacterRange(), String.fromCharCode(curChar)))
-            this.popContext()
-        }
-    }
+    // private closeObject(curChar: number, context: ObjectContext) {
+    //     if (context.openChar === Char.Object.openParen && curChar !== Char.Object.closeParen) {
+    //         this.raiseError("must close object with ')'")
+    //     } else if (context.openChar === Char.Object.openBrace && curChar !== Char.Object.closeBrace) {
+    //         this.raiseError("must close object with '}'")
+    //     } else {
+    //         this.parser.oncurrentdata.signal(s => s.oncloseobject(this.getOneCharacterRange(), String.fromCharCode(curChar)))
+    //         this.popContext()
+    //     }
+    // }
+    // private closeArray(curChar: number, context: ArrayContext) {
+    //     if (context.openChar === Char.Array.openBracket && curChar !== Char.Array.closeBracket) {
+    //         this.raiseError("must close array with ']'")
+    //     } else if (context.openChar === Char.Array.openAngleBracket && curChar !== Char.Array.closeAngleBracket) {
+    //         this.raiseError("must close object with '>'")
+    //     } else {
+    //         this.parser.oncurrentdata.signal(s => s.onclosearray(this.getOneCharacterRange(), String.fromCharCode(curChar)))
+    //         this.popContext()
+    //     }
+    // }
 
 
     private raiseError(message: string) {
@@ -896,13 +892,17 @@ export class Parser {
             return
         }
         const state = this.state
-        if (state[0] !== ContextType.STACK || this.currentContext[0] !== StackContextType.ROOT || this.currentContext[1].state !== RootState.EXPECTING_END || this.stack.length !== 0) {
+        if (state[0] !== ContextType.STACK
+            || this.parser.currentContext[0] !== StackContextType.ROOT
+            || this.parser.currentContext[1].state !== RootState.EXPECTING_END
+            || this.parser.stack.length !== 0
+        ) {
             this.raiseError("unexpected end, " + getStateDescription(this.state))
             return
         }
 
         this.ended = true
-        this.oncurrentdata.signal(s => s.onend())
+        this.parser.oncurrentdata.signal(s => s.onend())
         this.onready.signal()
     }
     private onFoundSolidus() {
@@ -931,24 +931,24 @@ export class Parser {
         }])
     }
     private pushContext(context: StackContext) {
-        this.stack.push(this.currentContext)
-        if (DEBUG) console.log(`pushed context ${getContextDescription(this.currentContext)}>${getContextDescription(context)}`)
-        this.currentContext = context
+        this.parser.stack.push(this.parser.currentContext)
+        if (DEBUG) console.log(`pushed context ${getContextDescription(this.parser.currentContext)}>${getContextDescription(context)}`)
+        this.parser.currentContext = context
         this.setState([ContextType.STACK])
     }
     private popContext() {
-        const popped = this.stack.pop()
+        const popped = this.parser.stack.pop()
         if (popped === undefined) {
             throw new Error("unexpected end of stack")
         } else {
-            if (DEBUG) console.log(`popped context ${getContextDescription(popped)}<${getContextDescription(this.currentContext)}`)
-            this.currentContext = popped
+            if (DEBUG) console.log(`popped context ${getContextDescription(popped)}<${getContextDescription(this.parser.currentContext)}`)
+            this.parser.currentContext = popped
             this.setStateAfterValue()
         }
     }
     private setStateAfterValue() {
         this.setState([ContextType.STACK])
-        const currentContext = this.currentContext
+        const currentContext = this.parser.currentContext
         switch (currentContext[0]) {
             case StackContextType.ARRAY:
                 break
@@ -957,7 +957,7 @@ export class Parser {
             case StackContextType.ROOT:
                 break
             case StackContextType.TAGGED_UNION:
-                this.oncurrentdata.signal(s => s.onclosetaggedunion())
+                this.parser.oncurrentdata.signal(s => s.onclosetaggedunion())
                 this.popContext()
                 break
             default:
@@ -965,21 +965,11 @@ export class Parser {
         }
 
     }
-    private processKey(curChar: number, containingObject: ObjectContext) {
-        if (curChar === Char.QuotedString.quotationMark || curChar === Char.QuotedString.apostrophe) {
-            this.initString(curChar, (textNode, range) => {
-                this.oncurrentdata.signal(s => s.onkey(textNode, range))
-                containingObject.state = ObjectState.EXPECTING_COLON
-            })
-        } else {
-            this.raiseError(`Malformed key, should start with '"' or '''`)
-        }
-    }
     private processValue(vt: ValueType, curChar: number) {
         switch (vt) {
             case ValueType.ARRAY: {
-                this.oncurrentdata.signal(s => s.onopenarray(this.getOneCharacterRange(), String.fromCharCode(curChar)))
-                this.pushContext([StackContextType.ARRAY, { openChar: curChar, state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
+                this.parser.oncurrentdata.signal(s => s.onopenarray(this.getOneCharacterRange(), String.fromCharCode(curChar)))
+                this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
                 break
             }
             case ValueType.UNQUOTED_STRING: {
@@ -987,20 +977,20 @@ export class Parser {
                 break
             }
             case ValueType.OBJECT: {
-                this.oncurrentdata.signal(s => s.onopenobject(this.getOneCharacterRange(), String.fromCharCode(curChar)))
-                this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END, openChar: curChar }])
+                this.parser.oncurrentdata.signal(s => s.onopenobject(this.getOneCharacterRange(), String.fromCharCode(curChar)))
+                this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
                 break
             }
             case ValueType.QUOTED_STRING: {
                 this.initString(curChar, (textNode, range) => {
-                    this.oncurrentdata.signal(s => s.onquotedstring(textNode, String.fromCharCode(curChar), range))
+                    this.parser.oncurrentdata.signal(s => s.onquotedstring(textNode, String.fromCharCode(curChar), range))
                     this.setStateAfterValue()
                 })
                 break
             }
             case ValueType.TAGGED_UNION: {
                 this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                this.oncurrentdata.signal(s => s.onopentaggedunion(this.getOneCharacterRange()))
+                this.parser.oncurrentdata.signal(s => s.onopentaggedunion(this.getOneCharacterRange()))
                 break
             }
             default:
@@ -1033,8 +1023,4 @@ export class Parser {
             end: this.getLocation(),
         }
     }
-}
-
-function isWhiteSpace(curChar: number) {
-    return curChar === Char.Whitespace.carriageReturn || curChar === Char.Whitespace.lineFeed || curChar === Char.Whitespace.space || curChar === Char.Whitespace.tab
 }

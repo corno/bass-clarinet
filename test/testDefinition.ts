@@ -1,4 +1,4 @@
-import { Options } from "../src/configurationTypes"
+import { TokenizerOptions, ParserOptions } from "../src/configurationTypes"
 
 export type EventDefinition =
     | ["quotedstring", string, number?, number?]
@@ -24,7 +24,8 @@ export type EventDefinition =
 export type TestDefinition = {
     readonly text: string
     readonly chunks?: string[]
-    readonly options?: Options
+    readonly parserOptions?: ParserOptions
+    readonly tokenizerOptions?: TokenizerOptions
     readonly events: EventDefinition[]
 }
 
