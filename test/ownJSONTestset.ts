@@ -10,6 +10,14 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
+    "newline": {
+        text: '\n  "a string"',
+        events: [
+            ["quotedstring", "a string", 2, 12],
+            ["end"],
+            ["ready"],
+        ],
+    },
     "just a number": {
         text: '42',
         events: [

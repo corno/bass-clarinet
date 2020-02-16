@@ -11,7 +11,6 @@ describe('parsing', () => {
             const expected = file[0]
             switch (expected) {
                 case "n": {
-
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
