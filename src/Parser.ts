@@ -106,7 +106,7 @@ export interface DataSubscriber {
 
     onblockcomment(comment: string, range: Range, indent: string | null): void
     onlinecomment(comment: string, range: Range): void
-    onend(): void
+    onend(location: Location): void
 }
 
 export type DataSubscription = subscr.Subscribers<DataSubscriber>
@@ -153,7 +153,7 @@ export class Parser implements IParser {
             return
         }
 
-        this.oncurrentdata.signal(s => s.onend())
+        this.oncurrentdata.signal(s => s.onend(location))
     }
     public onPunctuation(curChar: number, range: Range) {
         const $ = this.currentContext

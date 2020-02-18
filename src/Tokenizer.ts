@@ -215,7 +215,7 @@ export class Tokenizer {
                                 if (curChar === Char.Comment.solidus) {
                                     //end of block comment
                                     this.setState([ContextType.STACK])
-                                    this.parser.onBlockCommentEnd({ start: this.getLocation(-2), end: this.getLocation() })
+                                    this.parser.onBlockCommentEnd({ start: this.getLocation(-1), end: this.getLocation(1) })
                                     next()
                                     break commentLoop
                                 } else {
@@ -229,10 +229,10 @@ export class Tokenizer {
                                 break
                             case CommentState.FOUND_SOLIDUS:
                                 if (curChar === Char.Comment.solidus) {
-                                    this.parser.onLineCommentBegin({ start: this.getLocation(-2), end: this.getLocation() })
+                                    this.parser.onLineCommentBegin({ start: this.getLocation(-1), end: this.getLocation(1) })
                                     $.state = CommentState.LINE_COMMENT
                                 } else if (curChar === Char.Comment.asterisk) {
-                                    this.parser.onBlockCommentBegin({ start: this.getLocation(-2), end: this.getLocation() }, this.indent)
+                                    this.parser.onBlockCommentBegin({ start: this.getLocation(-1), end: this.getLocation(1) }, this.indent)
                                     $.state = CommentState.BLOCK_COMMENT
                                 } else {
                                     this.raiseError("found dangling slash")
@@ -365,7 +365,7 @@ export class Tokenizer {
                                 slashed: false,
                                 unicode: null,
                             }])
-                            this.parser.onQuotedStringBegin({ start: this.getLocation(-1), end: this.getLocation() }, String.fromCharCode(curChar))
+                            this.parser.onQuotedStringBegin({ start: this.getLocation(0), end: this.getLocation(1) }, String.fromCharCode(curChar))
                         } else {
                             this.setState([ContextType.UNQUOTED_STRING])
                             this.parser.onUnquotedTokenBegin(this.getLocation())
@@ -375,7 +375,7 @@ export class Tokenizer {
                     } else {
                         this.parser.onPunctuation(curChar, {
                             start: this.getLocation(),
-                            end: this.getLocation(-1),
+                            end: this.getLocation(1),
                         })
                     }
                     next()
@@ -451,8 +451,8 @@ export class Tokenizer {
                                  */
                                 flush()
                                 const locationInfo = {
-                                    start: this.getLocation(-1),
-                                    end: this.getLocation(),
+                                    start: this.getLocation(),
+                                    end: this.getLocation(1),
                                 }
                                 this.setState([ContextType.STACK])
                                 this.parser.onQuotedStringEnd(locationInfo, String.fromCharCode(curChar))
@@ -497,7 +497,7 @@ export class Tokenizer {
             this.raiseError("unexpected end of document")
             return
         }
-        this.parser.onEnd(this.getLocation())
+        this.parser.onEnd(this.getLocation(1))
 
         this.ended = true
         this.onready.signal()
@@ -515,7 +515,7 @@ export class Tokenizer {
             case ContextType.COMMENT:
                 break
             case ContextType.UNQUOTED_STRING:
-                this.parser.onUnquotedTokenEnd(this.getLocation(-1))
+                this.parser.onUnquotedTokenEnd(this.getLocation())
 
                 this.setState([ContextType.STACK])
 

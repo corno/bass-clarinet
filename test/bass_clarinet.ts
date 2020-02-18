@@ -7,7 +7,7 @@ import { describe } from "mocha"
 import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
-import { EventDefinition, AnyEvent } from "./testDefinition"
+import { EventDefinition, AnyEvent, TestRange, TestLocation } from "./testDefinition"
 
 const DEBUG = false
 
@@ -28,10 +28,21 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         function validateEventsEqual(expectedEvent: EventDefinition, event: AnyEvent) {
             assert.ok(expectedEvent[0] === event, 'event: ' + currentExpectedEventIndex + ', expected type: [' + expectedEvent[0] + '] got: [' + event + ']')
         }
-        function checkLocation(expectedEvent: EventDefinition, location: p.Location) {
-            if (expectedEvent[3] !== undefined) {
-                assert.ok(expectedEvent[2] === location.line, `expected linenumber ${expectedEvent[2]} but found ${location.line}`)
-                assert.ok(expectedEvent[3] === location.column, `expected column ${expectedEvent[3]} but found ${location.column}`)
+        function eventsNotEqual(expectedEvent: EventDefinition, event: AnyEvent) {
+            assert.fail('event: ' + currentExpectedEventIndex + ', expected type: [' + expectedEvent[0] + '] got: [' + event + ']')
+        }
+        function checkRange(range: p.Range, expectedEventRange?: TestRange) {
+            if (expectedEventRange !== undefined) {
+                assert.ok(expectedEventRange[0] === range.start.line, `expected start linenumber ${expectedEventRange[0]} but found ${range.start.line}`)
+                assert.ok(expectedEventRange[1] === range.start.column, `expected start column ${expectedEventRange[1]} but found ${range.start.column}`)
+                assert.ok(expectedEventRange[2] === range.end.line, `expected end linenumber ${expectedEventRange[2]} but found ${range.end.line}`)
+                assert.ok(expectedEventRange[3] === range.end.column, `expected end column ${expectedEventRange[3]} but found ${range.end.column}`)
+            }
+        }
+        function checkLocation(location: p.Location, expectedEventLocation?: TestLocation) {
+            if (expectedEventLocation !== undefined) {
+                assert.ok(expectedEventLocation[0] === location.line, `expected linenumber ${expectedEventLocation[0]} but found ${location.line}`)
+                assert.ok(expectedEventLocation[1] === location.column, `expected column ${expectedEventLocation[1]} but found ${location.column}`)
             }
         }
         function getExpectedEvent() {
@@ -74,8 +85,10 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             onschemastart: range => {
                 if (DEBUG) console.log("found schema start")
                 const ee = getExpectedEvent()
-                validateEventsEqual(ee, "schemastart")
-                checkLocation(ee, range.start)
+                if (ee[0] !== "schemastart") {
+                    eventsNotEqual(ee, "schemastart")
+                }
+                checkRange(range, ee[2])
 
             },
             onschemaend: () => {
@@ -107,7 +120,8 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 validateEventsEqual(ee, "linecomment")
 
                 assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
-                checkLocation(ee, range.end)
+                checkRange(range, ee[2])
+
             },
             onblockcomment: (v, range, _indent) => {
                 if (DEBUG) console.log("found block comment")
@@ -115,7 +129,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 validateEventsEqual(ee, "blockcomment")
 
                 assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
-                checkLocation(ee, range.end)
+                checkRange(range, ee[2])
             },
             onunquotedtoken: (v, range) => {
                 if (DEBUG) console.log("found unquoted string")
@@ -123,7 +137,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 validateEventsEqual(ee, "unquotedtoken")
 
                 assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
-                checkLocation(ee, range.end)
+                checkRange(range, ee[2])
             },
             onquotedstring: (v, _quote, range) => {
                 if (DEBUG) console.log("found quoted string")
@@ -131,7 +145,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 validateEventsEqual(ee, "quotedstring")
 
                 assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
-                checkLocation(ee, range.end)
+                checkRange(range, ee[2])
             },
 
             onopentaggedunion: range => {
@@ -139,7 +153,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "opentaggedunion")
-                checkLocation(ee, range.start)
+                checkRange(range, ee[2])
             },
             onclosetaggedunion: () => {
                 if (DEBUG) console.log("found close tagged union")
@@ -151,21 +165,21 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "option")
                 assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
-                checkLocation(ee, range.end)
+                checkRange(range, ee[2])
             },
 
             onopenarray: range => {
                 if (DEBUG) console.log("found open array")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "openarray")
-                checkLocation(ee, range.start)
+                checkRange(range, ee[2])
             },
             onclosearray: range => {
                 if (DEBUG) console.log("found close array")
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "closearray")
-                checkLocation(ee, range.start)
+                checkRange(range, ee[2])
             },
 
             onopenobject: range => {
@@ -173,27 +187,33 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "openobject")
-                checkLocation(ee, range.start)
+                checkRange(range, ee[2])
             },
             oncloseobject: range => {
                 if (DEBUG) console.log("found close object")
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "closeobject")
-                checkLocation(ee, range.start)
+                checkRange(range, ee[2])
             },
             onkey: (k, range) => {
                 if (DEBUG) console.log("found key")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "key")
                 assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
-                checkLocation(ee, range.end)
+                checkRange(range, ee[2])
             },
-            onend: () => {
+            onend: location => {
                 if (DEBUG) console.log("found end")
 
                 const ee = getExpectedEvent()
-                validateEventsEqual(ee, "end")
+
+                if (ee[0] !== "end") {
+                    eventsNotEqual(ee, "end")
+                } else {
+                    checkLocation(location, ee[1])
+                }
+
             },
         }
         parser.onschemadata.subscribe(subscriber)
@@ -205,7 +225,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "validationerror")
                 assert.ok(ee[1] === message, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + message + ']');
-                checkLocation(ee, range.start)
+                checkRange(range, ee[2])
             }))
         }
         parser.ondata.subscribe(subscriber)
