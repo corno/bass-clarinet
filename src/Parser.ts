@@ -149,7 +149,7 @@ export class Parser implements IParser {
             || this.currentContext[1].state !== RootState.EXPECTING_END
             || this.stack.length !== 0
         ) {
-            this.raiseError("unexpected end, " + getContextDescription(this.currentContext), { start: location, end: location })
+            this.raiseError("unexpected end of document", { start: location, end: location })
             return
         }
 

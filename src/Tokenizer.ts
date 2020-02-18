@@ -494,7 +494,7 @@ export class Tokenizer {
         }
         const state = this.state
         if (state[0] !== ContextType.STACK) {
-            this.raiseError("unexpected end, " + getStateDescription(this.state))
+            this.raiseError("unexpected end of document")
             return
         }
         this.parser.onEnd(this.getLocation())
