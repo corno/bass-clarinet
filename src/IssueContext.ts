@@ -103,7 +103,7 @@ export class IssueContext {
             const foundEntries: string[] = []
             return {
                 property: (key, range) => {
-                    if (foundEntries.includes(key) !== undefined) {
+                    if (foundEntries.includes(key)) {
                         this.raiseWarning(`duplicate key '${key}'`, range)
                     }
                     foundEntries.push(key)
