@@ -1,3 +1,6 @@
+/* eslint
+    max-classes-per-file: "off",
+*/
 import {
     ValueHandler,
     ObjectHandler,
@@ -54,7 +57,13 @@ export type IssueHandler = (message: string, range: Range) => void
 
 type NullHandler = (range: Range) => void
 
-export class ErrorContext {
+class ExpectationError extends Error {
+    constructor(message: string, range: Range) {
+        super(`${message} @ ${printRange(range)}`)
+    }
+}
+
+export class IssueContext {
     private readonly errorHandler: null | IssueHandler
     private readonly warningHandler: null | IssueHandler
     /**
@@ -69,33 +78,24 @@ export class ErrorContext {
     }
     public raiseWarning(message: string, range: Range) {
         if (this.warningHandler === null) {
-            throw new Error(message + ` @ ${printRange(range)}`)
+            throw new ExpectationError(message, range)
         }
     }
     public raiseObjectError(message: string, range: Range): ObjectHandler {
-        if (this.errorHandler === null) {
-            throw new Error(message + ` @ ${printRange(range)}`)
-        }
-        this.errorHandler(message, range)
+        this.raiseError(message, range)
         return createDummyObjectHandler()
     }
     public raiseArrayError(message: string, range: Range): ArrayHandler {
-        if (this.errorHandler === null) {
-            throw new Error(message + ` @ ${printRange(range)}`)
-        }
-        this.errorHandler(message, range)
+        this.raiseError(message, range)
         return createDummyArrayHandler()
     }
     public raiseValueError(message: string, range: Range): ValueHandler {
-        if (this.errorHandler === null) {
-            throw new Error(message + ` @ ${printRange(range)}`)
-        }
-        this.errorHandler(message, range)
+        this.raiseError(message, range)
         return createDummyValueHandler()
     }
     public raiseError(message: string, range: Range): void {
         if (this.errorHandler === null) {
-            throw new Error(message + ` @ ${printRange(range)}`)
+            throw new ExpectationError(message, range)
         }
         this.errorHandler(message, range)
     }

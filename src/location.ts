@@ -6,8 +6,8 @@ export type Location = {
 }
 
 export type Range = {
-    start: Location
-    end: Location
+    readonly start: Location
+    readonly end: Location
 }
 
 export function printLocation(location: Location) {

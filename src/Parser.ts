@@ -3,6 +3,7 @@
     camelcase:"off",
     complexity:"off",
     no-console:"off",
+    max-classes-per-file:"off",
 */
 
 import * as subscr from "./subscription"
@@ -29,6 +30,14 @@ export const INFO = false
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
+}
+
+class ParserStackPanicError extends Error {
+    readonly range: null | Range
+    constructor(message: string, range: null | Range) {
+        super(`stack panic: ${message}`)
+        this.range = range
+    }
 }
 
 function getContextDescription(stackContext: StackContext) {
@@ -94,7 +103,7 @@ export interface DataSubscriber {
     onclosearray(range: Range, closeCharacter: string): void
 
     onopentaggedunion(range: Range): void
-    onclosetaggedunion(): void
+    onclosetaggedunion(location: Location): void
     onoption(option: string, range: Range): void
 
     onopenobject(range: Range, openCharacter: string): void
@@ -179,14 +188,14 @@ export class Parser implements IParser {
                 this.raiseError("not in an array", range)
             } else {
                 this.oncurrentdata.signal(s => s.onclosearray(range, String.fromCharCode(curChar)))
-                this.popContext()
+                this.popContext(range.end)
             }
         } else if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
             if ($[0] !== StackContextType.OBJECT) {
                 this.raiseError("not in an object", range)
             } else {
                 this.oncurrentdata.signal(s => s.oncloseobject(range, String.fromCharCode(curChar)))
-                this.popContext()
+                this.popContext(range.end)
             }
         } else if (vt !== null) {
             const expected = this.getExpected()
@@ -338,7 +347,7 @@ export class Parser implements IParser {
                 break
             }
             case ContextType.STACK: {
-                throw new Error(`unexpected chunk`)
+                throw new ParserStackPanicError(`unexpected chunk`, null)
             }
             case ContextType.UNQUOTED_TOKEN: {
                 const $ = this.state[1]
@@ -350,33 +359,33 @@ export class Parser implements IParser {
         }
     }
     public onLineCommentBegin(range: Range) {
-        this.setState([ContextType.COMMENT, { commentNode: "", start: range, indent: null}])
+        this.setState([ContextType.COMMENT, { commentNode: "", start: range, indent: null}], range)
     }
     public onLineCommentEnd(location: Location) {
         if (this.state[0] !== ContextType.COMMENT) {
-            throw new Error(`Unexpected line comment end`)
+            throw new ParserStackPanicError(`Unexpected line comment end`, {start: location, end: location})
         }
         const $ = this.state[1]
         this.oncurrentdata.signal(s => s.onlinecomment($.commentNode, { start: $.start.start, end: location}))
-        this.unsetState()
+        this.unsetState({start: location, end: location})
     }
     public onBlockCommentBegin(range: Range, indent: null | string) {
-        this.setState([ContextType.COMMENT, { commentNode: "", start: range, indent: indent}])
+        this.setState([ContextType.COMMENT, { commentNode: "", start: range, indent: indent}], range)
     }
     public onBlockCommentEnd(end: Range) {
         if (this.state[0] !== ContextType.COMMENT) {
-            throw new Error(`Unexpected block comment end`)
+            throw new ParserStackPanicError(`Unexpected block comment end`, end)
         }
         const $ = this.state[1]
         this.oncurrentdata.signal(s => s.onblockcomment($.commentNode, { start: $.start.start, end: end.end}, $.indent))
-        this.unsetState()
+        this.unsetState(end)
     }
     public onUnquotedTokenBegin(location: Location) {
-        this.setState([ContextType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }])
+        this.setState([ContextType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], {start: location, end: location})
     }
     public onUnquotedTokenEnd(location: Location) {
         if (this.state[0] !== ContextType.UNQUOTED_TOKEN) {
-            throw new Error(`Unexpected unquoted string end`)
+            throw new ParserStackPanicError(`Unexpected unquoted string end`, {start: location, end: location} )
         }
         const $ = this.state[1]
         const range = {
@@ -385,17 +394,17 @@ export class Parser implements IParser {
         }
         this.setStateBeforeValue(range)
         this.oncurrentdata.signal(s => s.onunquotedtoken($.unquotedTokenNode, range))
-        this.setStateAfterValue()
-        this.unsetState()
+        this.setStateAfterValue(range.end)
+        this.unsetState({start: location, end: location})
     }
 
     public onQuotedStringBegin(begin: Range, quote: string) {
-        this.setState([ContextType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }])
+        this.setState([ContextType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
     }
 
     public onQuotedStringEnd(end: Range, quote: string) {
         if (this.state[0] !== ContextType.QUOTED_STRING) {
-            throw new Error(`Unexpected unquoted string end`)
+            throw new ParserStackPanicError(`Unexpected unquoted string end`, end)
         }
         const $ = this.state[1]
         const value = $.quotedStringNode
@@ -418,23 +427,23 @@ export class Parser implements IParser {
             case ExpectedType.VALUE: {
                 this.setStateBeforeValue(range)
                 this.oncurrentdata.signal(s => s.onquotedstring(value, quote, range))
-                this.setStateAfterValue()
+                this.setStateAfterValue(range.end)
                 break
             }
             default:
                 return assertUnreachable(expected)
         }
-        this.unsetState()
+        this.unsetState(end)
     }
-    private setState(contextType: Context) {
+    private setState(contextType: Context, range: Range) {
         if (this.state[0] !== ContextType.STACK) {
-            throw new Error(`unexpected start of state`)
+            throw new ParserStackPanicError(`unexpected start of state`, range)
         }
         this.state = contextType
     }
-    private unsetState() {
+    private unsetState(range: Range) {
         if (this.state[0] === ContextType.STACK) {
-            throw new Error(`unexpected`)
+            throw new ParserStackPanicError(`unexpected, parser is already in 'stack' mode`, range)
         }
         this.state = [ContextType.STACK]
     }
@@ -545,7 +554,7 @@ export class Parser implements IParser {
                 assertUnreachable($[0])
         }
     }
-    public setStateAfterValue() {
+    public setStateAfterValue(location: Location) {
         const currentContext = this.currentContext
         switch (currentContext[0]) {
             case StackContextType.ARRAY:
@@ -555,8 +564,8 @@ export class Parser implements IParser {
             case StackContextType.ROOT:
                 break
             case StackContextType.TAGGED_UNION:
-                this.oncurrentdata.signal(s => s.onclosetaggedunion())
-                this.popContext()
+                this.oncurrentdata.signal(s => s.onclosetaggedunion(location))
+                this.popContext(location)
                 break
             default:
                 assertUnreachable(currentContext[0])
@@ -577,14 +586,14 @@ export class Parser implements IParser {
         if (DEBUG) console.log(`pushed context ${getContextDescription(this.currentContext)}>${getContextDescription(context)}`)
         this.currentContext = context
     }
-    private popContext() {
+    private popContext(location: Location) {
         const popped = this.stack.pop()
         if (popped === undefined) {
-            throw new Error("unexpected end of stack")
+            throw new ParserStackPanicError("unexpected end of stack", { start: location, end: location})
         } else {
             if (DEBUG) console.log(`popped context ${getContextDescription(popped)}<${getContextDescription(this.currentContext)}`)
             this.currentContext = popped
-            this.setStateAfterValue()
+            this.setStateAfterValue(location)
         }
     }
 }

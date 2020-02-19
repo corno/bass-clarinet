@@ -8,6 +8,14 @@ import * as Char from "./NumberCharacters"
 
 const DEBUG = false
 
+class StackedDataSubscriberStackPanicError extends Error {
+    readonly range: Range
+    constructor(message: string, range: Range) {
+        super(`stack panic: ${message}`)
+        this.range = range
+    }
+}
+
 /**
  * createStackedDataSubscriber allows for capturing objects and arrays in a callback, so that the consumer does not have to match
  * 'onopenobject' with 'oncloseobject'
@@ -26,10 +34,10 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
         return comm
     }
 
-    function pop() {
+    function pop(range: Range) {
         const previousContext = stack.pop()
         if (previousContext === undefined) {
-            throw new Error("stack panic; lost context")
+            throw new StackedDataSubscriberStackPanicError("lost context", range)
         }
         currentContext = previousContext
     }
@@ -40,7 +48,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             }
             case "object": {
                 if (currentContext[1].valueHandler === null) {
-                    throw new Error("stack panic; unexpected value in object")
+                    throw new StackedDataSubscriberStackPanicError("unexpected value in object", range)
                 }
                 return currentContext[1].valueHandler
             }
@@ -49,7 +57,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             }
             case "taggedunion": {
                 if (currentContext[1].valueHandler === null) {
-                    throw new Error("stack panic; unexpected value in tagged union")
+                    throw new StackedDataSubscriberStackPanicError("unexpected value in tagged union", range)
                 }
                 return currentContext[1].valueHandler
             }
@@ -86,13 +94,13 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             stack.push(currentContext)
             currentContext = ["array", { arrayHandler: arrayHandler }]
         },
-        onclosearray: (location, endCharacter) => {
+        onclosearray: (range, endCharacter) => {
             if (currentContext[0] !== "array") {
-                throw new Error("stack panic; unexpected end of array")
+                throw new StackedDataSubscriberStackPanicError("unexpected end of array", range)
             } else {
-                currentContext[1].arrayHandler.end(location, endCharacter, flushComments())
+                currentContext[1].arrayHandler.end(range, endCharacter, flushComments())
             }
-            pop()
+            pop(range)
         },
         onopentaggedunion: range => {
             if (DEBUG) { console.log("on open tagged union") }
@@ -102,24 +110,24 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
         onoption: (option, range) => {
             if (DEBUG) { console.log("on option", option) }
             if (currentContext[0] !== "taggedunion") {
-                throw new Error("stack panic; unexpected option")
+                throw new StackedDataSubscriberStackPanicError("unexpected option", range)
             }
             currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].start, range, flushComments())
         },
-        onclosetaggedunion: () => {
+        onclosetaggedunion: location => {
             if (DEBUG) { console.log("on close tagged union") }
             if (currentContext[0] !== "taggedunion") {
-                throw new Error("stack panic; unexpected end of tagged union")
+                throw new StackedDataSubscriberStackPanicError("unexpected end of tagged union", { start: location, end: location})
             }
-            pop()
+            pop({ start: location, end: location})
         },
-        onopenobject: (location, openCharacter) => {
+        onopenobject: (range, openCharacter) => {
             if (DEBUG) { console.log("on open object") }
-            const vh = initValueHandler(location)
+            const vh = initValueHandler(range)
             if (vh === null) {
-                throw new Error("stack panic; unexpected value")
+                throw new StackedDataSubscriberStackPanicError("unexpected value", range)
             }
-            const objectHandler = vh.object(location, openCharacter, flushComments())
+            const objectHandler = vh.object(range, openCharacter, flushComments())
             stack.push(currentContext)
             currentContext = ["object", {
                 objectHandler: objectHandler,
@@ -129,15 +137,15 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
         oncloseobject: (range, endCharacter) => {
             if (DEBUG) { console.log("on close object") }
             if (currentContext[0] !== "object") {
-                throw new Error("stack panic; unexpected end of object")
+                throw new StackedDataSubscriberStackPanicError("unexpected end of object", range)
             }
             currentContext[1].objectHandler.end(range, endCharacter, flushComments())
-            pop()
+            pop(range)
         },
         onkey: (key, range) => {
             if (DEBUG) { console.log("on key", key) }
             if (currentContext[0] !== "object") {
-                throw new Error("stack panic; unexpected key")
+                throw new StackedDataSubscriberStackPanicError("unexpected key", range)
             }
             currentContext[1].valueHandler = currentContext[1].objectHandler.property(key, range, flushComments())
         },
@@ -145,7 +153,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             if (DEBUG) { console.log("on quoted string", value) }
             const vh = initValueHandler(range)
             if (vh === null) {
-                throw new Error("stack panic; unexpected value")
+                throw new StackedDataSubscriberStackPanicError("unexpected value", range)
             }
             vh.string(value, range, flushComments())
 
@@ -154,7 +162,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             if (DEBUG) { console.log("on value", value) }
             const vh = initValueHandler(range)
             if (vh === null) {
-                throw new Error("stack panic; unexpected value")
+                throw new StackedDataSubscriberStackPanicError("unexpected value", range)
             }
             switch (value) {
                 case "true": {
