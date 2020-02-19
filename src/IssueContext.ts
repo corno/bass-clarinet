@@ -174,7 +174,7 @@ export class IssueContext {
         }
     }
 
-    public createTaggedUnionSurrogate(callback: (option: string) => ValueHandler): OnArray {
+    public createTaggedUnionSurrogate(callback: (option: string, range: Range) => ValueHandler): OnArray {
         return () => {
             let dataHandler: ValueHandler | null = null
             return {
@@ -201,7 +201,7 @@ export class IssueContext {
                                 if (typeof value !== "string") {
                                     return this.raiseError(`expected string`, range)
                                 }
-                                dataHandler = callback(value)
+                                dataHandler = callback(value, range)
                             } else {
                                 dataHandler.boolean(value, range, comments)
                             }
@@ -211,7 +211,7 @@ export class IssueContext {
                                 if (typeof value !== "string") {
                                     return this.raiseError(`expected string`, range)
                                 }
-                                dataHandler = callback(value)
+                                dataHandler = callback(value, range)
                             } else {
                                 dataHandler.number(value, range, comments)
                             }
@@ -221,7 +221,7 @@ export class IssueContext {
                                 if (typeof value !== "string") {
                                     return this.raiseError(`expected string`, range)
                                 }
-                                dataHandler = callback(value)
+                                dataHandler = callback(value, range)
                             } else {
                                 dataHandler.string(value, range, comments)
                             }
@@ -297,9 +297,7 @@ export class IssueContext {
             object: this.createUnexpectedObjectHandler("string"),
             boolean: this.createUnexpectedBooleanHandler("string"),
             number: this.createUnexpectedNumberHandler("string"),
-            string: (value, range) => {
-                callback(value, range)
-            },
+            string: callback,
             null: onNull ? onNull : this.createUnexpectedNullHandler("string"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("string"),
         }
@@ -310,9 +308,7 @@ export class IssueContext {
             array: this.createUnexpectedArrayHandler("number"),
             object: this.createUnexpectedObjectHandler("number"),
             boolean: this.createUnexpectedBooleanHandler("number"),
-            number: (value, range) => {
-                callback(value, range)
-            },
+            number: callback,
             string: this.createUnexpectedStringHandler("number"),
             null: onNull ? onNull : this.createUnexpectedNullHandler("number"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("number"),
@@ -325,9 +321,7 @@ export class IssueContext {
             object: this.createUnexpectedObjectHandler("boolean"),
             number: this.createUnexpectedNumberHandler("boolean"),
             string: this.createUnexpectedStringHandler("boolean"),
-            boolean: (value, range) => {
-                callback(value, range)
-            },
+            boolean: callback,
             null: onNull ? onNull : this.createUnexpectedNullHandler("booelan"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("boolean"),
         }
@@ -382,7 +376,7 @@ export class IssueContext {
         }
     }
 
-    public expectTaggedUnion(callback: (option: string) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnion(callback: (option: string, range: Range) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("tagged union"),
             object: this.createUnexpectedObjectHandler("tagged union"),
@@ -390,7 +384,7 @@ export class IssueContext {
             number: this.createUnexpectedNumberHandler("tagged union"),
             string: this.createUnexpectedStringHandler("tagged union"),
             null: onNull ? onNull : this.createUnexpectedNullHandler("tagged union"),
-            taggedUnion: option => callback(option),
+            taggedUnion: callback,
         }
     }
 
@@ -398,7 +392,7 @@ export class IssueContext {
      * this parses values in the form of `| "option" <data value>` or `[ "option", <data value> ]`
      * @param callback
      */
-    public expectTaggedUnionOrArraySurrogate(callback: (option: string) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnionOrArraySurrogate(callback: (option: string, range: Range) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createTaggedUnionSurrogate(callback),
             object: this.createUnexpectedObjectHandler("tagged union"),
@@ -406,7 +400,7 @@ export class IssueContext {
             number: this.createUnexpectedNumberHandler("tagged union"),
             string: this.createUnexpectedStringHandler("tagged union"),
             null: onNull ? onNull : this.createUnexpectedNullHandler("tagged union"),
-            taggedUnion: option => callback(option),
+            taggedUnion: callback,
         }
     }
 }
