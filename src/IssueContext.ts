@@ -13,7 +13,8 @@ import {
     OnNull,
     OnTaggedUnion,
 } from "./createStackedDataSubscriber"
-import { Range, printRange } from "./location"
+import { Range } from "./location"
+import { RangeError } from "./errors"
 
 function createDummyValueHandler(): ValueHandler {
     return {
@@ -57,12 +58,6 @@ export type IssueHandler = (message: string, range: Range) => void
 
 type NullHandler = (range: Range) => void
 
-class ExpectationError extends Error {
-    constructor(message: string, range: Range) {
-        super(`${message} @ ${printRange(range)}`)
-    }
-}
-
 export class IssueContext {
     private readonly errorHandler: null | IssueHandler
     private readonly warningHandler: null | IssueHandler
@@ -78,7 +73,7 @@ export class IssueContext {
     }
     public raiseWarning(message: string, range: Range) {
         if (this.warningHandler === null) {
-            throw new ExpectationError(message, range)
+            throw new RangeError(message, range)
         }
     }
     public raiseObjectError(message: string, range: Range): ObjectHandler {
@@ -95,7 +90,7 @@ export class IssueContext {
     }
     public raiseError(message: string, range: Range): void {
         if (this.errorHandler === null) {
-            throw new ExpectationError(message, range)
+            throw new RangeError(message, range)
         }
         this.errorHandler(message, range)
     }
@@ -107,9 +102,9 @@ export class IssueContext {
             }
             return {
                 property: onProperty,
-                end: (endLocation, closeCharacter) => {
+                end: (endRange, closeCharacter) => {
                     if (closeCharacter !== "}") {
-                        this.raiseWarning(`expected '}' but found '${closeCharacter}'`, endLocation)
+                        this.raiseWarning(`expected '}' but found '${closeCharacter}'`, endRange)
                     }
                 },
             }
@@ -117,9 +112,9 @@ export class IssueContext {
     }
 
     public createTypeHandler(expectedProperties: { [key: string]: ValueHandler }, onEnd: () => void): OnObject {
-        return (startLocation, openCharacter) => {
+        return (startRange, openCharacter) => {
             if (openCharacter !== "(") {
-                this.raiseWarning(`expected '(' but found '${openCharacter}'`, startLocation)
+                this.raiseWarning(`expected '(' but found '${openCharacter}'`, startRange)
             }
             const foundProperies: string[] = []
             return {
@@ -134,14 +129,14 @@ export class IssueContext {
                     }
                     return expected
                 },
-                end: (endLocation, closeCharacter) => {
+                end: (endRange, closeCharacter) => {
 
                     if (closeCharacter !== ")") {
-                        this.raiseWarning(`expected '<' but found '${closeCharacter}'`, endLocation)
+                        this.raiseWarning(`expected '<' but found '${closeCharacter}'`, endRange)
                     }
                     Object.keys(expectedProperties).forEach(ep => {
                         if (!foundProperies.includes(ep)) {
-                            this.raiseError(`missing property: '${ep}'`, startLocation)//FIX print location properly
+                            this.raiseError(`missing property: '${ep}'`, startRange)//FIX print location properly
                         }
                     })
                     onEnd()
@@ -151,9 +146,9 @@ export class IssueContext {
     }
 
     public createArrayTypeHandler(expectedElements: ValueHandler[], onEnd: () => void): OnArray {
-        return (startLocation, openCharacter) => {
+        return (startRange, openCharacter) => {
             if (openCharacter !== "<") {
-                this.raiseWarning(`expected '<' but found '${openCharacter}'`, startLocation)
+                this.raiseWarning(`expected '<' but found '${openCharacter}'`, startRange)
             }
             let index = 0
             return {
@@ -161,17 +156,17 @@ export class IssueContext {
                     const ee = expectedElements[index]
                     index++
                     if (ee === undefined) {
-                        return this.raiseValueError(`found more than the expected ${expectedElements.length} element(s)`, startLocation)//FIX print range properly
+                        return this.raiseValueError(`found more than the expected ${expectedElements.length} element(s)`, startRange)//FIX print range properly
                     }
                     return ee
                 },
-                end: (endLocation, closeCharacter) => {
+                end: (endRange, closeCharacter) => {
                     if (closeCharacter !== ">") {
-                        this.raiseWarning(`expected '>' but found '${closeCharacter}'`, endLocation)
+                        this.raiseWarning(`expected '>' but found '${closeCharacter}'`, endRange)
                     }
                     const missing = expectedElements.length - index
                     if (missing > 0) {
-                        this.raiseError(`elements missing`, endLocation)
+                        this.raiseError(`elements missing`, endRange)
                     }
                     onEnd()
                 },
@@ -250,9 +245,9 @@ export class IssueContext {
                         },
                     }
                 },
-                end: endLocation => {
+                end: endRange => {
                     if (dataHandler === null) {
-                        this.raiseError(`missing option`, endLocation)
+                        this.raiseError(`missing option`, endRange)
                     }
                 },
             }
@@ -260,15 +255,15 @@ export class IssueContext {
     }
 
     public createListHandler(onElement: (start: Range) => ValueHandler): OnArray {
-        return (startLocation, openCharacter) => {
+        return (startRange, openCharacter) => {
             if (openCharacter !== "[") {
-                this.raiseWarning(`expected '[' but found '${openCharacter}'`, startLocation)
+                this.raiseWarning(`expected '[' but found '${openCharacter}'`, startRange)
             }
             return {
-                element: () => onElement(startLocation),
-                end: (endLocation, closeCharacter) => {
+                element: () => onElement(startRange),
+                end: (endRange, closeCharacter) => {
                     if (closeCharacter !== "]") {
-                        this.raiseWarning(`expected ']' but found '${closeCharacter}'`, endLocation)
+                        this.raiseWarning(`expected ']' but found '${closeCharacter}'`, endRange)
                     }
                 },
             }

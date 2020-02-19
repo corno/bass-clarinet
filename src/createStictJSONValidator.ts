@@ -4,8 +4,9 @@
 */
 
 import { DataSubscriber } from "./Parser";
-import { Range } from "./location";
+import { Range, Location } from "./location";
 import * as Char from "./NumberCharacters";
+import { LocationError } from "./errors";
 
 type OnError = (message: string, range: Range) => void
 
@@ -168,7 +169,7 @@ class StrictJSONValidator implements DataSubscriber {
                 this.onError("trailing commas are not allowed", range)
             }
         }
-        this.pop()
+        this.pop(range.end)
     }
     public oncloseobject(range: Range, closeCharacter: string) {
         if (closeCharacter !== "}") {
@@ -181,10 +182,10 @@ class StrictJSONValidator implements DataSubscriber {
                 this.onError("trailing commas are not allowed", range)
             }
         }
-        this.pop()
+        this.pop(range.end)
     }
-    public onclosetaggedunion() {
-        this.pop()
+    public onclosetaggedunion(location: Location) {
+        this.pop(location)
     }
     public onend() {
         //
@@ -252,10 +253,10 @@ class StrictJSONValidator implements DataSubscriber {
         this.currentContext = newContext
     }
 
-    private pop() {
+    private pop(location: Location) {
         const previousContext = this.stack.pop()
         if (previousContext === undefined) {
-            throw new Error("stack panic; lost context")
+            throw new LocationError("stack panic; lost context", location)
         }
         this.currentContext = previousContext
     }

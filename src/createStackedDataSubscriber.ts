@@ -5,16 +5,9 @@
 import { DataSubscriber } from "./Parser"
 import { Range } from "./location"
 import * as Char from "./NumberCharacters"
+import { RangeError, LocationError } from "./errors"
 
 const DEBUG = false
-
-class StackedDataSubscriberStackPanicError extends Error {
-    readonly range: Range
-    constructor(message: string, range: Range) {
-        super(`stack panic: ${message}`)
-        this.range = range
-    }
-}
 
 /**
  * createStackedDataSubscriber allows for capturing objects and arrays in a callback, so that the consumer does not have to match
@@ -37,7 +30,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
     function pop(range: Range) {
         const previousContext = stack.pop()
         if (previousContext === undefined) {
-            throw new StackedDataSubscriberStackPanicError("lost context", range)
+            throw new RangeError("lost context", range)
         }
         currentContext = previousContext
     }
@@ -48,7 +41,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             }
             case "object": {
                 if (currentContext[1].valueHandler === null) {
-                    throw new StackedDataSubscriberStackPanicError("unexpected value in object", range)
+                    throw new RangeError("unexpected value in object", range)
                 }
                 return currentContext[1].valueHandler
             }
@@ -57,7 +50,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             }
             case "taggedunion": {
                 if (currentContext[1].valueHandler === null) {
-                    throw new StackedDataSubscriberStackPanicError("unexpected value in tagged union", range)
+                    throw new RangeError("unexpected value in tagged union", range)
                 }
                 return currentContext[1].valueHandler
             }
@@ -96,7 +89,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
         },
         onclosearray: (range, endCharacter) => {
             if (currentContext[0] !== "array") {
-                throw new StackedDataSubscriberStackPanicError("unexpected end of array", range)
+                throw new RangeError("unexpected end of array", range)
             } else {
                 currentContext[1].arrayHandler.end(range, endCharacter, flushComments())
             }
@@ -110,14 +103,14 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
         onoption: (option, range) => {
             if (DEBUG) { console.log("on option", option) }
             if (currentContext[0] !== "taggedunion") {
-                throw new StackedDataSubscriberStackPanicError("unexpected option", range)
+                throw new RangeError("unexpected option", range)
             }
             currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].start, range, flushComments())
         },
         onclosetaggedunion: location => {
             if (DEBUG) { console.log("on close tagged union") }
             if (currentContext[0] !== "taggedunion") {
-                throw new StackedDataSubscriberStackPanicError("unexpected end of tagged union", { start: location, end: location})
+                throw new LocationError("unexpected end of tagged union", location)
             }
             pop({ start: location, end: location})
         },
@@ -125,7 +118,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             if (DEBUG) { console.log("on open object") }
             const vh = initValueHandler(range)
             if (vh === null) {
-                throw new StackedDataSubscriberStackPanicError("unexpected value", range)
+                throw new RangeError("unexpected value", range)
             }
             const objectHandler = vh.object(range, openCharacter, flushComments())
             stack.push(currentContext)
@@ -137,7 +130,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
         oncloseobject: (range, endCharacter) => {
             if (DEBUG) { console.log("on close object") }
             if (currentContext[0] !== "object") {
-                throw new StackedDataSubscriberStackPanicError("unexpected end of object", range)
+                throw new RangeError("unexpected end of object", range)
             }
             currentContext[1].objectHandler.end(range, endCharacter, flushComments())
             pop(range)
@@ -145,7 +138,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
         onkey: (key, range) => {
             if (DEBUG) { console.log("on key", key) }
             if (currentContext[0] !== "object") {
-                throw new StackedDataSubscriberStackPanicError("unexpected key", range)
+                throw new RangeError("unexpected key", range)
             }
             currentContext[1].valueHandler = currentContext[1].objectHandler.property(key, range, flushComments())
         },
@@ -153,7 +146,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             if (DEBUG) { console.log("on quoted string", value) }
             const vh = initValueHandler(range)
             if (vh === null) {
-                throw new StackedDataSubscriberStackPanicError("unexpected value", range)
+                throw new RangeError("unexpected value", range)
             }
             vh.string(value, range, flushComments())
 
@@ -162,7 +155,7 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
             if (DEBUG) { console.log("on value", value) }
             const vh = initValueHandler(range)
             if (vh === null) {
-                throw new StackedDataSubscriberStackPanicError("unexpected value", range)
+                throw new RangeError("unexpected value", range)
             }
             switch (value) {
                 case "true": {
@@ -183,12 +176,12 @@ export function createStackedDataSubscriber(valueHandler: ValueHandler, onend: (
                 //eslint-disable-next-line
                 const nr = new Number(value).valueOf()
                 if (isNaN(nr)) {
-                    throw new Error(`invalid number: ${value}`)
+                    throw new RangeError(`invalid number: ${value}`, range)
                 }
                 vh.number(nr, range, flushComments())
                 return
             }
-            throw new Error(`unrecognized unquoted string '${value}'`)
+            throw new RangeError(`unrecognized unquoted string '${value}'`, range)
         },
         onend: () => {
             onend(flushComments())

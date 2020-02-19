@@ -23,6 +23,7 @@ import {
 } from "./parserStateTypes"
 import { Location, Range, printRange } from "./location"
 import { ParserOptions, Allow } from "./configurationTypes"
+import { RangeError } from "./errors"
 
 export const DEBUG = false
 export const INFO = false
@@ -32,10 +33,10 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-class ParserStackPanicError extends Error {
+class ParserStackPanicError extends RangeError {
     readonly range: null | Range
-    constructor(message: string, range: null | Range) {
-        super(`stack panic: ${message}`)
+    constructor(message: string, range: Range) {
+        super(`stack panic: ${message}`, range)
         this.range = range
     }
 }
@@ -347,7 +348,7 @@ export class Parser implements IParser {
                 break
             }
             case ContextType.STACK: {
-                throw new ParserStackPanicError(`unexpected chunk`, null)
+                throw new Error(`unexpected chunk`)
             }
             case ContextType.UNQUOTED_TOKEN: {
                 const $ = this.state[1]

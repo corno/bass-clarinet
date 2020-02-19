@@ -1,6 +1,7 @@
 /* eslint
     complexity:"off",
     no-console:"off",
+    max-classes-per-file: "off",
 */
 
 import * as subscr from "./subscription"
@@ -11,8 +12,9 @@ import {
     CommentState,
     SimpleValueType,
 } from "./tokenizerStateTypes"
-import { Location, Range, printLocation } from "./location"
+import { Location, Range } from "./location"
 import { TokenizerOptions } from "./configurationTypes"
+import { LocationError } from "./errors"
 
 const DEBUG = false
 const INFO = false
@@ -51,15 +53,12 @@ function getStateDescription(stackContext: Context): string {
     }
 }
 
-export type TokenizerError = {
-    message: string
-    location: Location
-    character: number
-}
-
-function printTokenizerError(error: TokenizerError) {
-    return `${error.message} @ ${printLocation(error.location)} '${String.fromCharCode(error.character)}' (${error.character})`
-
+export class TokenizerError extends LocationError {
+    readonly character: number
+    constructor(message: string, character: number, location: Location) {
+        super(`${message} ${String.fromCharCode(character)}' (${character})`, location)
+        this.character = character
+    }
 }
 
 export class Tokenizer {
@@ -98,7 +97,7 @@ export class Tokenizer {
 
     public write(chunk: string) {
         if (this.error !== null) {
-            throw new SyntaxError(printTokenizerError(this.error))
+            throw this.error
         }
         if (this.ended) {
             this.raiseError("Cannot write after close. Assign an onready handler.")
@@ -479,7 +478,7 @@ export class Tokenizer {
     }
     public close() {
         if (this.error !== null) {
-            throw new SyntaxError(printTokenizerError(this.error))
+            throw this.error
         }
         if (this.ended) {
             this.raiseError("Already closed.")
@@ -530,14 +529,13 @@ export class Tokenizer {
         }
     }
     private raiseError(message: string) {
-        const error = {
-            message: message,
-            location: this.getLocation(),
-            character: this.curChar,
-        }
-        this.error = error
-        if (DEBUG) { console.log("error raised:", printTokenizerError(error)) }
-        this.onerror.signal(error)
+        this.error = new TokenizerError(
+            message,
+            this.curChar,
+            this.getLocation(),
+        )
+        if (DEBUG) { console.log("error raised:", this.error.message) }
+        this.onerror.signal(this.error)
     }
     private setState(newState: Context) {
         if (DEBUG) console.log("setting state to", getStateDescription(newState))
