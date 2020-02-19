@@ -1,3 +1,4 @@
+export * from "./errors"
 export * from "./subscription"
 export * from "./Parser"
 export * from "./Tokenizer"
