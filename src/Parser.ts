@@ -34,10 +34,8 @@ function assertUnreachable<RT>(_x: never): RT {
 }
 
 class ParserStackPanicError extends RangeError {
-    readonly range: null | Range
     constructor(message: string, range: Range) {
         super(`stack panic: ${message}`, range)
-        this.range = range
     }
 }
 
