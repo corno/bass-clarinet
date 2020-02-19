@@ -84,16 +84,6 @@ export const lax: Allow = {
     compact: true,
 }
 
-export type ParserError = {
-    message: string
-    range: Range
-}
-
-function printParserError(error: ParserError) {
-    return `${error.message} @ ${printRange(error.range)}`
-
-}
-
 export interface DataSubscriber {
     oncomma(range: Range): void
     oncolon(range: Range): void
@@ -133,10 +123,10 @@ export class Parser implements IParser {
     readonly ondata = new subscr.Subscribers<DataSubscriber>()
     public oncurrentdata: subscr.Subscribers<DataSubscriber>
     readonly onheaderdata = new subscr.Subscribers<HeaderSubscriber>()
-    private error: null | ParserError = null
+    private error: null | RangeError = null
     private state: Context = [ContextType.STACK]
 
-    readonly onerror = new subscr.OneArgumentSubscribers<ParserError>()
+    readonly onerror = new subscr.OneArgumentSubscribers<RangeError>()
     constructor(opt?: ParserOptions) {
         this.opt = opt || {}
         this.oncurrentdata = this.ondata
@@ -193,6 +183,9 @@ export class Parser implements IParser {
             if ($[0] !== StackContextType.OBJECT) {
                 this.raiseError("not in an object", range)
             } else {
+                if ($[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
+                    this.raiseError("missing property value", range)
+                }
                 this.oncurrentdata.signal(s => s.oncloseobject(range, String.fromCharCode(curChar)))
                 this.popContext(range.end)
             }
@@ -572,13 +565,9 @@ export class Parser implements IParser {
 
     }
     private raiseError(message: string, range: Range) {
-        const error = {
-            message: message,
-            range: range,
-        }
-        this.error = error
-        if (DEBUG) { console.log("error raised:", printParserError(error)) }
-        this.onerror.signal(error)
+        this. error = new RangeError(message, range)
+        if (DEBUG) { console.log("error raised:", message, printRange(range)) }
+        this.onerror.signal(this.error)
     }
     private pushContext(context: StackContext) {
         this.stack.push(this.currentContext)

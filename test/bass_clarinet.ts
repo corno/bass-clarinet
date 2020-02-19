@@ -72,6 +72,8 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             if (ee[0] !== "parsererror") {
                 assert.fail("unexpected error: " + e.message)
             }
+            assert.ok(ee[1] === e.rangeLessMessage, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + e.rangeLessMessage + ']');
+
         })
         tokenizer.onerror.subscribe(e => {
             if (DEBUG) console.log("found error")
@@ -79,6 +81,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             if (ee[0] !== "tokenizererror") {
                 assert.fail("unexpected error: " + e.message)
             }
+            assert.ok(ee[1] === e.locationLessMessage, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + e.locationLessMessage + ']');
         })
 
         parser.onheaderdata.subscribe({

@@ -142,6 +142,16 @@ export const JSONTests: TestDefinitions = {
             ["ready"],
         ],
     },
+    "missing property value": {
+        text: '{ "foo" }',
+        events: [
+            ["openobject"],
+            ["key", "foo"],
+            ["parsererror", "missing property value"],
+            ["closeobject"],
+            ["ready"],
+        ],
+    },
     "foobar": {
         text: '{"foo": "bar"}',
         events: [
@@ -307,7 +317,7 @@ export const JSONTests: TestDefinitions = {
             ["openarray"],
             ["quotedstring", 'foo'],
             ["quotedstring", 'bar'],
-            ['parsererror'],
+            ['parsererror', 'unexpected end of document'],
             ['ready'],
         ],
     },
@@ -719,7 +729,7 @@ export const JSONTests: TestDefinitions = {
             ["openarray", "[", [1, 10, 1, 11]],
             ["unquotedtoken", "42", [1, 11, 1, 13]],
             ["unquotedtoken", "0"],
-            ['parsererror'],
+            ['parsererror', 'unexpected end of document'],
             ['ready'],
         ],
     },
@@ -732,7 +742,7 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "2"],
             ["unquotedtoken", "42"],
             ["closearray"],
-            ['parsererror'],
+            ['parsererror', 'unexpected end of document'],
             ['ready'],
         ],
     },
