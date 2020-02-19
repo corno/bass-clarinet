@@ -132,7 +132,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 checkRange(range, ee[2])
             },
             onunquotedtoken: (v, range) => {
-                if (DEBUG) console.log("found unquoted string")
+                if (DEBUG) console.log("found unquoted token")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "unquotedtoken")
 

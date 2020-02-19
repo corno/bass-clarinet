@@ -240,7 +240,7 @@ class StrictJSONValidator implements DataSubscriber {
             validateIsJSONNumber(value, message => this.onError(message, range))
             return
         }
-        this.onError(`invalid unquoted string, expected 'true', 'false', 'null', or a number`, range)
+        this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, range)
     }
     public onquotedstring(_value: string, quote: string, range: Range) {
         if (quote !== "\"") {

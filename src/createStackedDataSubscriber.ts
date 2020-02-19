@@ -194,7 +194,7 @@ export function createStackedDataSubscriber(
                 vh.number(nr, range, flushComments())
                 return
             }
-            onRangeError(`unrecognized unquoted string '${value}'`, range)
+            onRangeError(`unrecognized unquoted token '${value}'`, range)
         },
         onend: () => {
             onend(flushComments())

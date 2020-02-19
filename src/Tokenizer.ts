@@ -245,7 +245,7 @@ export class Tokenizer {
                 }
                 case ContextType.UNQUOTED_STRING: {
                     /**
-                     * UNQUOTED STRING PROCESSING (null, true, false)
+                     * unquoted token PROCESSING (null, true, false)
                      */
 
                     let snippetStart: null | number = null
@@ -300,7 +300,7 @@ export class Tokenizer {
                             )
                             return !isOtherCharacter
                         }
-                        //first check if we are breaking out of an unquoted string. Can only be done by checking the character that comes directly after the unquoted string
+                        //first check if we are breaking out of an unquoted token. Can only be done by checking the character that comes directly after the unquoted token
                         if (!isUnquotedTokenCharacter()) {
                             flush()
                             this.wrapUpUnquotedToken()

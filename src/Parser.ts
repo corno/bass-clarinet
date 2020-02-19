@@ -384,7 +384,7 @@ export class Parser implements IParser {
     }
     public onUnquotedTokenEnd(location: Location) {
         if (this.state[0] !== ContextType.UNQUOTED_TOKEN) {
-            throw new ParserStackPanicError(`Unexpected unquoted string end`, {start: location, end: location} )
+            throw new ParserStackPanicError(`Unexpected unquoted token end`, {start: location, end: location} )
         }
         const $ = this.state[1]
         const range = {
@@ -403,7 +403,7 @@ export class Parser implements IParser {
 
     public onQuotedStringEnd(end: Range, quote: string) {
         if (this.state[0] !== ContextType.QUOTED_STRING) {
-            throw new ParserStackPanicError(`Unexpected unquoted string end`, end)
+            throw new ParserStackPanicError(`Unexpected unquoted token end`, end)
         }
         const $ = this.state[1]
         const value = $.quotedStringNode
