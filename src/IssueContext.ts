@@ -75,6 +75,7 @@ export class IssueContext {
         if (this.warningHandler === null) {
             throw new RangeError(message, range)
         }
+        this.warningHandler(message, range)
     }
     public raiseObjectError(message: string, range: Range): ObjectHandler {
         this.raiseError(message, range)
