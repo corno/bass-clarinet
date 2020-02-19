@@ -100,8 +100,15 @@ export class IssueContext {
             if (openCharacter !== "{") {
                 this.raiseWarning(`expected '{' but found '${openCharacter}'`, start)
             }
+            const foundEntries: string[] = []
             return {
-                property: onProperty,
+                property: (key, range) => {
+                    if (foundEntries.includes(key) !== undefined) {
+                        this.raiseWarning(`duplicate key '${key}'`, range)
+                    }
+                    foundEntries.push(key)
+                    return onProperty(key, range)
+                },
                 end: (endRange, closeCharacter) => {
                     if (closeCharacter !== "}") {
                         this.raiseWarning(`expected '}' but found '${closeCharacter}'`, endRange)
