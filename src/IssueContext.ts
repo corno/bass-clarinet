@@ -98,7 +98,7 @@ export class IssueContext {
     public createDictionaryHandler(onProperty: (key: string, range: Range) => ValueHandler): OnObject {
         return (start, openCharacter) => {
             if (openCharacter !== "{") {
-                this.raiseWarning(`expected '<' but found '${openCharacter}'`, start)
+                this.raiseWarning(`expected '{' but found '${openCharacter}'`, start)
             }
             return {
                 property: onProperty,
@@ -132,7 +132,7 @@ export class IssueContext {
                 end: (endRange, closeCharacter) => {
 
                     if (closeCharacter !== ")") {
-                        this.raiseWarning(`expected '<' but found '${closeCharacter}'`, endRange)
+                        this.raiseWarning(`expected ')' but found '${closeCharacter}'`, endRange)
                     }
                     Object.keys(expectedProperties).forEach(ep => {
                         if (!foundProperies.includes(ep)) {
