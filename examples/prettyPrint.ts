@@ -1,5 +1,6 @@
 import * as bc from "../src"
 import * as fs  from "fs"
+import { LocationError, RangeError } from "../src"
 
 const [, , path] = process.argv
 
@@ -56,6 +57,12 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
 export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.DataSubscriber {
     return bc.createStackedDataSubscriber(
         createValuesPrettyPrinter(indentation, writer),
+        (message, range) => {
+            throw new RangeError(message, range)
+        },
+        (message, location) => {
+            throw new LocationError(message, location)
+        },
         _comments => {
             //onEnd
         }

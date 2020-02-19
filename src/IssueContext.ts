@@ -3,8 +3,6 @@
 */
 import {
     ValueHandler,
-    ObjectHandler,
-    ArrayHandler,
     OnObject,
     OnArray,
     OnBoolean,
@@ -15,44 +13,7 @@ import {
 } from "./createStackedDataSubscriber"
 import { Range } from "./location"
 import { RangeError } from "./errors"
-
-function createDummyValueHandler(): ValueHandler {
-    return {
-        array: () => createDummyArrayHandler(),
-        object: () => createDummyObjectHandler(),
-        boolean: () => {
-            //do nothing
-        },
-        number: () => {
-            //do nothing
-        },
-        string: () => {
-            //do nothing
-        },
-        null: () => {
-            //do nothing
-        },
-        taggedUnion: () => createDummyValueHandler(),
-    }
-}
-
-function createDummyArrayHandler(): ArrayHandler {
-    return {
-        element: () => createDummyValueHandler(),
-        end: () => {
-            //do nothing
-        },
-    }
-}
-
-function createDummyObjectHandler(): ObjectHandler {
-    return {
-        property: () => createDummyValueHandler(),
-        end: () => {
-            //do nothing
-        },
-    }
-}
+import { createDummyObjectHandler, createDummyArrayHandler, createDummyValueHandler } from "./dummyHandlers"
 
 export type IssueHandler = (message: string, range: Range) => void
 
@@ -76,18 +37,6 @@ export class IssueContext {
             throw new RangeError(message, range)
         }
         this.warningHandler(message, range)
-    }
-    public raiseObjectError(message: string, range: Range): ObjectHandler {
-        this.raiseError(message, range)
-        return createDummyObjectHandler()
-    }
-    public raiseArrayError(message: string, range: Range): ArrayHandler {
-        this.raiseError(message, range)
-        return createDummyArrayHandler()
-    }
-    public raiseValueError(message: string, range: Range): ValueHandler {
-        this.raiseError(message, range)
-        return createDummyValueHandler()
     }
     public raiseError(message: string, range: Range): void {
         if (this.errorHandler === null) {
@@ -128,12 +77,14 @@ export class IssueContext {
             return {
                 property: (key, range) => {
                     if (foundProperies.includes(key)) {
-                        return this.raiseValueError(`property already processed: '${key}'`, range)//FIX print range properly
+                        this.raiseError(`property already processed: '${key}'`, range)//FIX print range properly
+                        return createDummyValueHandler()
                     }
                     foundProperies.push(key)
                     const expected = expectedProperties[key]
                     if (expected === undefined) {
-                        return this.raiseValueError(`unexpected property: '${key}'`, range)//FIX print range properly
+                        this.raiseError(`unexpected property: '${key}'`, range)//FIX print range properly
+                        return createDummyValueHandler()
                     }
                     return expected
                 },
@@ -164,7 +115,9 @@ export class IssueContext {
                     const ee = expectedElements[index]
                     index++
                     if (ee === undefined) {
-                        return this.raiseValueError(`found more than the expected ${expectedElements.length} element(s)`, startRange)//FIX print range properly
+                        this.raiseError(`found more than the expected ${expectedElements.length} element(s)`, startRange)//FIX print range properly
+                        return createDummyValueHandler()
+
                     }
                     return ee
                 },
@@ -190,7 +143,9 @@ export class IssueContext {
                     return {
                         array: (startLocation, openCharacter, comments) => {
                             if (dataHandler === null) {
-                                return this.raiseArrayError(`unexected array`, startLocation)
+                                this.raiseError(`unexected array`, startLocation)
+                                return createDummyArrayHandler()
+
                             }
                             const dh = dataHandler
                             dataHandler = null
@@ -198,7 +153,9 @@ export class IssueContext {
                         },
                         object: (startLocation, openCharacter, comments) => {
                             if (dataHandler === null) {
-                                return this.raiseObjectError(`unexected object`, startLocation)
+                                this.raiseError(`unexected object`, startLocation)
+                                return createDummyObjectHandler()
+
                             }
                             const dh = dataHandler
                             dataHandler = null
@@ -236,7 +193,9 @@ export class IssueContext {
                         },
                         null: (range, comments) => {
                             if (dataHandler === null) {
-                                return this.raiseObjectError(`unexected null`, range)
+                                this.raiseError(`unexected null`, range)
+                                return createDummyObjectHandler()
+
                             }
                             const dh = dataHandler
                             dataHandler = null
@@ -244,7 +203,9 @@ export class IssueContext {
                         },
                         taggedUnion: (option, startLocation, optionRange, comments) => {
                             if (dataHandler === null) {
-                                return this.raiseValueError(`unexected tagged union`, startLocation)
+                                this.raiseError(`unexected tagged union`, startLocation)
+                                return createDummyValueHandler()
+
                             }
                             const dh = dataHandler
                             dataHandler = null
@@ -290,13 +251,24 @@ export class IssueContext {
         return range => this.raiseError(`expected '${expected}' but found 'null' `, range)
     }
     public createUnexpectedTaggedUnionHandler(expected: string): OnTaggedUnion {
-        return (_option, location) => this.raiseValueError(`expected '${expected}' but found 'tagged union' `, location)
+        return (_option, location) => {
+            this.raiseError(`expected '${expected}' but found 'tagged union' `, location)
+            return createDummyValueHandler()
+        }
     }
     public createUnexpectedObjectHandler(expected: string): OnObject {
-        return startLocation => this.raiseObjectError(`expected '${expected}' but found 'object' `, startLocation)
+        return startLocation => {
+            this.raiseError(`expected '${expected}' but found 'object' `, startLocation)
+            return createDummyObjectHandler()
+        }
+
     }
     public createUnexpectedArrayHandler(expected: string): OnArray {
-        return startLocation => this.raiseArrayError(`expected '${expected}' but found 'array' `, startLocation)
+        return startLocation => {
+            this.raiseError(`expected '${expected}' but found 'array' `, startLocation)
+            return createDummyArrayHandler()
+
+        }
     }
 
     public expectString(callback: (value: string, range: Range) => void, onNull?: NullHandler): ValueHandler {
