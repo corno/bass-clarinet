@@ -126,7 +126,7 @@ export class Parser implements IParser {
     private error: null | RangeError = null
     private state: Context = [ContextType.STACK]
 
-    readonly onerror: (error: RangeError) => void
+    private readonly onerror: (error: RangeError) => void
     constructor(onerror: (error: RangeError) => void, opt?: ParserOptions) {
         this.onerror = onerror
         this.opt = opt || {}

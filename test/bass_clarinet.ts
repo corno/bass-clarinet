@@ -20,8 +20,29 @@ const selectedExtensionTests = Object.keys(extensionTests)
 function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], pureJSON: boolean, parserOptions?: p.ParserOptions) {
     return function () {
         if (DEBUG) console.log("CHUNKS:", chunks)
-        const parser = new p.Parser(parserOptions)
-        const tokenizer = new p.Tokenizer(parser)
+        const parser = new p.Parser(
+            e => {
+                if (DEBUG) console.log("found error")
+                const ee = getExpectedEvent()
+                if (ee[0] !== "parsererror") {
+                    assert.fail("unexpected error: " + e.message)
+                }
+                assert.ok(ee[1] === e.rangeLessMessage, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + e.rangeLessMessage + ']');
+
+            },
+            parserOptions
+        )
+        const tokenizer = new p.Tokenizer(
+            parser,
+            e => {
+                if (DEBUG) console.log("found error")
+                const ee = getExpectedEvent()
+                if (ee[0] !== "tokenizererror") {
+                    assert.fail("unexpected error: " + e.message)
+                }
+                assert.ok(ee[1] === e.locationLessMessage, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + e.locationLessMessage + ']');
+            }
+        )
         let currentExpectedEventIndex = 0
         //const env = process && process.env ? process.env : window
         //const record: [AnyEvent, string][] = []
@@ -65,24 +86,6 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             // }
             //}
         }
-
-        parser.onerror.subscribe(e => {
-            if (DEBUG) console.log("found error")
-            const ee = getExpectedEvent()
-            if (ee[0] !== "parsererror") {
-                assert.fail("unexpected error: " + e.message)
-            }
-            assert.ok(ee[1] === e.rangeLessMessage, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + e.rangeLessMessage + ']');
-
-        })
-        tokenizer.onerror.subscribe(e => {
-            if (DEBUG) console.log("found error")
-            const ee = getExpectedEvent()
-            if (ee[0] !== "tokenizererror") {
-                assert.fail("unexpected error: " + e.message)
-            }
-            assert.ok(ee[1] === e.locationLessMessage, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + e.locationLessMessage + ']');
-        })
 
         parser.onheaderdata.subscribe({
             onschemastart: range => {

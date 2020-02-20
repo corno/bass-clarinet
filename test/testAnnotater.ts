@@ -8,11 +8,15 @@ import { Tokenizer, Parser } from "../src"
 Object.keys(JSONTests).forEach(testName => {
     console.log(">", testName)
     const test = JSONTests[testName]
-    const parser = new Parser()
-    const tokenizer = new Tokenizer(parser)
+    const parser = new Parser(
+        err => console.error(err),
+        {}
+    )
+    const tokenizer = new Tokenizer(
+        parser,
+        err => console.error(err),
+    )
     parser.ondata.subscribe(createAnnotator("", str => console.log(str)))
-    parser.onerror.subscribe(err => console.error(err))
-    tokenizer.onerror.subscribe(err => console.error(err))
     tokenizer.write(test.text)
     tokenizer.end()
 })

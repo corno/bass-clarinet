@@ -14,14 +14,18 @@ describe('parsing', () => {
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = new p.Parser({})
-                        const tokenizer = new p.Tokenizer(parser)
-                        parser.onerror.subscribe( () => {
-                            foundError = true
-                        })
-                        tokenizer.onerror.subscribe( () => {
-                            foundError = true
-                        })
+                        const parser = new p.Parser(
+                            () => {
+                                foundError = true
+                            },
+                            {}
+                        )
+                        const tokenizer = new p.Tokenizer(
+                            parser,
+                            () => {
+                                foundError = true
+                            },
+                        )
                         tokenizer.write(data)
                         tokenizer.close()
 
@@ -35,14 +39,18 @@ describe('parsing', () => {
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = new p.Parser({})
-                        const tokenizer = new p.Tokenizer(parser)
-                        parser.onerror.subscribe(() => {
-                            foundError = true
-                        })
-                        tokenizer.onerror.subscribe(() => {
-                            foundError = true
-                        })
+                        const parser = new p.Parser(
+                            () => {
+                                foundError = true
+                            },
+                            {}
+                        )
+                        const tokenizer = new p.Tokenizer(
+                            parser,
+                            () => {
+                                foundError = true
+                            },
+                        )
                         tokenizer.write(data)
                         tokenizer.close()
                         assert.ok(!foundError, "errors found")
@@ -54,14 +62,18 @@ describe('parsing', () => {
                 case "i":
                     try {
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = new p.Parser({})
-                        const tokenizer = new p.Tokenizer(parser, {})
-                        parser.onerror.subscribe(() => {
-                            //do nothing
-                        })
-                        tokenizer.onerror.subscribe(() => {
-                            //do nothing
-                        })
+                        const parser = new p.Parser(
+                            () => {
+                                //do nothing with error
+                            },
+                            {}
+                        )
+                        const tokenizer = new p.Tokenizer(
+                            parser,
+                            () => {
+                                //do nothing with error
+                            },
+                        )
                         tokenizer.write(data)
                         tokenizer.close()
                     } catch (e) {
@@ -81,14 +93,18 @@ describe('transform', () => {
         it(file, () => {
             try {
                 const data = fs.readFileSync(path.join(transformDir, file), { encoding: "utf-8" })
-                const parser = new p.Parser({})
-                const tokenizer = new p.Tokenizer(parser, {})
-                parser.onerror.subscribe( () => {
-                    //do nothing
-                })
-                tokenizer.onerror.subscribe( () => {
-                    //do nothing
-                })
+                const parser = new p.Parser(
+                    () => {
+                        //do nothing with error
+                    },
+                    {}
+                )
+                const tokenizer = new p.Tokenizer(
+                    parser,
+                    () => {
+                        //do nothing with error
+                    },
+                )
                 tokenizer.write(data)
                 tokenizer.close()
             } catch (e) {
