@@ -163,7 +163,7 @@ export class ExpectContext {
         }
     }
 
-    public createTaggedUnionSurrogate(callback: (option: string, range: Range, optionRange: Range, comments: Comment[]) => ValueHandler): OnArray {
+    public createTaggedUnionSurrogateHandler(options: { [key: string]: (range: Range, optionRange: Range, comments: Comment[]) => ValueHandler }): OnArray {
         return () => {
             let dataHandler: ValueHandler | null = null
             return {
@@ -207,7 +207,11 @@ export class ExpectContext {
                         string: (value, range, dataComments) => {
                             if (dataHandler === null) {
                                 //found the option
-                                dataHandler = callback(value, startRange, range, dataComments)
+                                const optionHandler = options[value]
+                                if (optionHandler === undefined) {
+                                    return this.raiseError(`unknown option ${value}`, range)
+                                }
+                                dataHandler = optionHandler(startRange, range, dataComments)
                             } else {
                                 dataHandler.string(value, range, dataComments)
                             }
@@ -239,6 +243,18 @@ export class ExpectContext {
                         this.raiseError(`missing option`, endRange)
                     }
                 },
+            }
+        }
+    }
+
+    public createTaggedUnionHandler(options: { [key: string]: (range: Range, optionRange: Range, comments: Comment[]) => ValueHandler }): OnTaggedUnion {
+        return (option: string, start: Range, optionRange: Range, comments: Comment[]) => {
+            const optionHandler = options[option]
+            if (optionHandler === undefined) {
+                this.raiseError(`unknown option ${option}`, optionRange)
+                return createDummyValueHandler()
+            } else {
+                return optionHandler(start, optionRange, comments)
             }
         }
     }
@@ -387,7 +403,7 @@ export class ExpectContext {
         }
     }
 
-    public expectTaggedUnion(callback: (option: string, range: Range, optionRange: Range, comments: Comment[]) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnion(options: { [key: string]: (range: Range, optionRange: Range, comments: Comment[]) => ValueHandler}, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("tagged union"),
             object: this.createUnexpectedObjectHandler("tagged union"),
@@ -395,7 +411,7 @@ export class ExpectContext {
             number: this.createUnexpectedNumberHandler("tagged union"),
             string: this.createUnexpectedStringHandler("tagged union"),
             null: onNull ? onNull : this.createUnexpectedNullHandler("tagged union"),
-            taggedUnion: callback,
+            taggedUnion: this.createTaggedUnionHandler(options),
         }
     }
 
@@ -403,15 +419,15 @@ export class ExpectContext {
      * this parses values in the form of `| "option" <data value>` or `[ "option", <data value> ]`
      * @param callback
      */
-    public expectTaggedUnionOrArraySurrogate(callback: (option: string, range: Range, optionRange: Range, comments: Comment[]) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnionOrArraySurrogate(options: { [key: string]: (range: Range, optionRange: Range, comments: Comment[]) => ValueHandler }, onNull?: NullHandler): ValueHandler {
         return {
-            array: this.createTaggedUnionSurrogate(callback),
+            array: this.createTaggedUnionSurrogateHandler(options),
             object: this.createUnexpectedObjectHandler("tagged union"),
             boolean: this.createUnexpectedBooleanHandler("tagged union"),
             number: this.createUnexpectedNumberHandler("tagged union"),
             string: this.createUnexpectedStringHandler("tagged union"),
             null: onNull ? onNull : this.createUnexpectedNullHandler("tagged union"),
-            taggedUnion: callback,
+            taggedUnion: this.createTaggedUnionHandler(options),
         }
     }
 }
