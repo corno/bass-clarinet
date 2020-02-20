@@ -2,9 +2,11 @@
 
 ![NPM Downloads](http://img.shields.io/npm/dm/bass-clarinet.svg?style=flat) ![NPM Version](http://img.shields.io/npm/v/bass-clarinet.svg?style=flat)
 
-`bass-clarinet` is a port from `clarinet` to TypeScript
+`bass-clarinet` is a JSON parser.
 
+It was forked from `clarinet` but the API has been changed significantly.
 In addition to the port to TypeScript, the following changes have been made:
+* The parser was made as robust as possible. It will try to continue parsing after an unexpected event. This is useful for editors as documents will often be in an invalid state during editing.
 * `onopenobject` no longer includes the first key
 * `JSONTestSuite` is added to the test set. All tests pass.
 * line and column information is fixed
@@ -24,15 +26,15 @@ In addition to the port to TypeScript, the following changes have been made:
   * `require:schema`
   * `spaces_per_tab`
 * stream support has been dropped for now. Can be added back upon request
+* There is an 'ExpectContext' class that helps processing documents that should conform to an expected structure.
 
-most credits go to the original author Nuno Job
-
-`clarinet/bass-clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. `clarinet` was inspired (and forked) from [sax-js][saxjs]. just like you shouldn't use `sax` when you need `dom` you shouldn't use `bass-clarinet` when you need `JSON.parse`.
+`bass-clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. just like you shouldn't use `sax` when you need `dom` you shouldn't use `bass-clarinet` when you need `JSON.parse`.
 
 Clear reasons to use `bass-clarinet` over  the built-in `JSON.parse`:
 * you want location info
+* you want the parser to continue after it encountered an error
 * you work with very large files
-* you want a syntax that is less strict than JSON. This might be desirable when the file needs to be edited manually. See option
+* you want a syntax that is less strict than JSON. This might be desirable when the file needs to be edited manually. See the `options` below
 
 # design goals
 
@@ -46,7 +48,6 @@ Clear reasons to use `bass-clarinet` over  the built-in `JSON.parse`:
 * fast
 * generates verbose, useful error messages including context of where
    the error occurs in the input text.
-* can parse json data off a stream, incrementally
 * simple to use
 * tiny
 
@@ -122,19 +123,28 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
 export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.DataSubscriber {
     return bc.createStackedDataSubscriber(
         createValuesPrettyPrinter(indentation, writer),
+        error => {
+            console.error("FOUND STACKED DATA ERROR", error.message)
+        },
         _comments => {
             //onEnd
         }
     )
 }
 
-const parser = new bc.Parser({ allow: bc.lax})
-const tokenizer = new bc.Tokenizer(parser)
+
+const parser = new bc.Parser(
+    err => { console.error("FOUND PARSER ERROR", err.message) },
+    { allow: bc.lax }
+)
+const tokenizer = new bc.Tokenizer(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err.message) }
+)
 parser.ondata.subscribe(createPrettyPrinter("\r\n", str => process.stdout.write(str)))
-parser.onerror.subscribe(err => { console.error("FOUND PARSER ERROR", err.message) })
-tokenizer.onerror.subscribe(err => { console.error("FOUND TOKENIZER ERROR", err.message) })
 tokenizer.write(data)
 tokenizer.end()
+
 
 ```
 ## low level
@@ -151,8 +161,15 @@ if (path === undefined) {
 
 const data = fs.readFileSync(path, {encoding: "utf-8"})
 
-const parser = new bc.Parser({ allow: bc.lax})
-const tokenizer = new bc.Tokenizer(parser)
+
+const parser = new bc.Parser(
+    err => { console.error("FOUND PARSER ERROR", err.message) },
+    { allow: bc.lax }
+)
+const tokenizer = new bc.Tokenizer(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err.message) }
+)
 parser.ondata.subscribe({
     oncomma: () => {
         //place your code here
@@ -204,8 +221,66 @@ parser.ondata.subscribe({
         //place your code here
     },
 })
-parser.onerror.subscribe(err => { console.error("FOUND PARSER ERROR", err.message) })
-tokenizer.onerror.subscribe(err => { console.error("FOUND TOKENIZER ERROR", err.message) })
+tokenizer.write(data)
+tokenizer.end()
+
+```
+## if the document needs to conform to an expected structure (or schema)
+``` TypeScript
+import * as bc from "bass-clarinet"
+import * as fs from "fs"
+import { ExpectContext, createStackedDataSubscriber, LocationError, RangeError } from "../src"
+
+const [, , path] = process.argv
+
+if (path === undefined) {
+    console.error("missing path")
+    process.exit(1)
+}
+
+const data = fs.readFileSync(path, { encoding: "utf-8" })
+
+const parser = new bc.Parser(
+    err => { console.error("FOUND PARSER ERROR", err.message) },
+    { allow: bc.lax }
+)
+const tokenizer = new bc.Tokenizer(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err.message) }
+)
+
+const ec = new ExpectContext(null, null)
+
+/**
+ * expect an object/type with 2 properties, 'prop a' and 'prop b', both numbers
+ */
+parser.ondata.subscribe(
+    createStackedDataSubscriber(
+        ec.expectType(
+            {
+                "prop a": ec.expectNumber((_value, _range, _comments) => {
+                    //handle 'prop a'
+                }),
+                "prop b": ec.expectNumber(_value => {
+                    //handle 'prop b'
+                }),
+            },
+            _hasErrors => {
+                //wrap up the object
+            }
+        ),
+        error => {
+            if (error.context[0] === "range") {
+                throw new RangeError(error.message, error.context[1])
+            } else {
+                throw new LocationError(error.message, error.context[1])
+            }
+        },
+        _comments => {
+            //wrap up the document
+        }
+    )
+)
 tokenizer.write(data)
 tokenizer.end()
 
