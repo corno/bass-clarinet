@@ -126,8 +126,9 @@ export class Parser implements IParser {
     private error: null | RangeError = null
     private state: Context = [ContextType.STACK]
 
-    readonly onerror = new subscr.OneArgumentSubscribers<RangeError>()
-    constructor(opt?: ParserOptions) {
+    readonly onerror: (error: RangeError) => void
+    constructor(onerror: (error: RangeError) => void, opt?: ParserOptions) {
+        this.onerror = onerror
         this.opt = opt || {}
         this.oncurrentdata = this.ondata
         if (this.opt.require?.schema) {
@@ -567,7 +568,7 @@ export class Parser implements IParser {
     private raiseError(message: string, range: Range) {
         this. error = new RangeError(message, range)
         if (DEBUG) { console.log("error raised:", message, printRange(range)) }
-        this.onerror.signal(this.error)
+        this.onerror(this.error)
     }
     private pushContext(context: StackContext) {
         this.stack.push(this.currentContext)

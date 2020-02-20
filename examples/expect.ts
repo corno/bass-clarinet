@@ -11,7 +11,10 @@ if (path === undefined) {
 
 const data = fs.readFileSync(path, { encoding: "utf-8" })
 
-const parser = new bc.Parser({ allow: bc.lax })
+const parser = new bc.Parser(
+    err => { console.error("FOUND PARSER ERROR", err.message) },
+    { allow: bc.lax }
+)
 const tokenizer = new bc.Tokenizer(
     parser,
     err => { console.error("FOUND TOKENIZER ERROR", err.message) }
@@ -49,6 +52,5 @@ parser.ondata.subscribe(
         }
     )
 )
-parser.onerror.subscribe(err => { console.error("FOUND PARSER ERROR", err.message) })
 tokenizer.write(data)
 tokenizer.end()
