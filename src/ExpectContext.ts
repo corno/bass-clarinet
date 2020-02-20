@@ -3,6 +3,9 @@
 */
 import {
     ValueHandler,
+    createDummyObjectHandler,
+    createDummyArrayHandler,
+    createDummyValueHandler,
     OnObject,
     OnArray,
     OnBoolean,
@@ -10,16 +13,37 @@ import {
     OnString,
     OnNull,
     OnTaggedUnion,
-} from "./createStackedDataSubscriber"
+    Comment,
+} from "./stackedDataSubscriber"
 import { Range } from "./location"
 import { RangeError } from "./errors"
-import { createDummyObjectHandler, createDummyArrayHandler, createDummyValueHandler } from "./dummyHandlers"
 
 export type IssueHandler = (message: string, range: Range) => void
 
 type NullHandler = (range: Range) => void
 
-export class IssueContext {
+/**
+ * ExpectContext is a class that helps processing a document that conforms to an expected structure
+ * for example; if you expect and object with 2 properties, 'a' and 'b', both numbers, you could write it like this:
+ *
+ * const ec = new ExpectContext()
+ * const handler = ec.expectType(
+ *     {
+ *         "a": ec.expectNumber(value => {
+ *             //handle a
+ *         }),
+ *         "b": ec.expectNumber(value => {
+ *             //handle b
+ *         })
+ *     },
+ *     () => {
+ *         //wrapup of type
+ *     }
+ * )
+ * parser.
+ */
+
+export class ExpectContext {
     private readonly errorHandler: null | IssueHandler
     private readonly warningHandler: null | IssueHandler
     /**
@@ -45,19 +69,19 @@ export class IssueContext {
         this.errorHandler(message, range)
     }
 
-    public createDictionaryHandler(onProperty: (key: string, range: Range) => ValueHandler): OnObject {
+    public createDictionaryHandler(onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler): OnObject {
         return (start, openCharacter) => {
             if (openCharacter !== "{") {
                 this.raiseWarning(`expected '{' but found '${openCharacter}'`, start)
             }
             const foundEntries: string[] = []
             return {
-                property: (key, range) => {
+                property: (key, range, comments) => {
                     if (foundEntries.includes(key)) {
                         this.raiseWarning(`duplicate key '${key}'`, range)
                     }
                     foundEntries.push(key)
-                    return onProperty(key, range)
+                    return onProperty(key, range, comments)
                 },
                 end: (endRange, closeCharacter) => {
                     if (closeCharacter !== "}") {
@@ -68,43 +92,47 @@ export class IssueContext {
         }
     }
 
-    public createTypeHandler(expectedProperties: { [key: string]: ValueHandler }, onEnd: () => void): OnObject {
+    public createTypeHandler(expectedProperties: { [key: string]: ValueHandler }, onEnd: (hasErrors: boolean, comments: Comment[]) => void): OnObject {
         return (startRange, openCharacter) => {
             if (openCharacter !== "(") {
                 this.raiseWarning(`expected '(' but found '${openCharacter}'`, startRange)
             }
             const foundProperies: string[] = []
+            let hasErrors = false
             return {
                 property: (key, range) => {
                     if (foundProperies.includes(key)) {
+                        hasErrors = true
                         this.raiseError(`property already processed: '${key}'`, range)//FIX print range properly
                         return createDummyValueHandler()
                     }
                     foundProperies.push(key)
                     const expected = expectedProperties[key]
                     if (expected === undefined) {
+                        hasErrors = true
                         this.raiseError(`unexpected property: '${key}'`, range)//FIX print range properly
                         return createDummyValueHandler()
                     }
                     return expected
                 },
-                end: (endRange, closeCharacter) => {
+                end: (endRange, closeCharacter, comments) => {
 
                     if (closeCharacter !== ")") {
                         this.raiseWarning(`expected ')' but found '${closeCharacter}'`, endRange)
                     }
                     Object.keys(expectedProperties).forEach(ep => {
                         if (!foundProperies.includes(ep)) {
+                            hasErrors = true
                             this.raiseError(`missing property: '${ep}'`, startRange)//FIX print location properly
                         }
                     })
-                    onEnd()
+                    onEnd(hasErrors, comments)
                 },
             }
         }
     }
 
-    public createArrayTypeHandler(expectedElements: ValueHandler[], onEnd: () => void): OnArray {
+    public createArrayTypeHandler(expectedElements: ValueHandler[], onEnd: (comments: Comment[]) => void): OnArray {
         return (startRange, openCharacter) => {
             if (openCharacter !== "<") {
                 this.raiseWarning(`expected '<' but found '${openCharacter}'`, startRange)
@@ -121,7 +149,7 @@ export class IssueContext {
                     }
                     return ee
                 },
-                end: (endRange, closeCharacter) => {
+                end: (endRange, closeCharacter, endComments) => {
                     if (closeCharacter !== ">") {
                         this.raiseWarning(`expected '>' but found '${closeCharacter}'`, endRange)
                     }
@@ -129,19 +157,19 @@ export class IssueContext {
                     if (missing > 0) {
                         this.raiseError(`elements missing`, endRange)
                     }
-                    onEnd()
+                    onEnd(endComments)
                 },
             }
         }
     }
 
-    public createTaggedUnionSurrogate(callback: (option: string, range: Range) => ValueHandler): OnArray {
+    public createTaggedUnionSurrogate(callback: (option: string, range: Range, optionRange: Range, comments: Comment[]) => ValueHandler): OnArray {
         return () => {
             let dataHandler: ValueHandler | null = null
             return {
-                element: () => {
+                element: (startRange, _comments) => {
                     return {
-                        array: (startLocation, openCharacter, comments) => {
+                        array: (startLocation, openCharacter, dataComments) => {
                             if (dataHandler === null) {
                                 this.raiseError(`unexected array`, startLocation)
                                 return createDummyArrayHandler()
@@ -149,9 +177,9 @@ export class IssueContext {
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.array(startLocation, openCharacter, comments)
+                            return dh.array(startLocation, openCharacter, dataComments)
                         },
-                        object: (startLocation, openCharacter, comments) => {
+                        object: (startLocation, openCharacter, dataComments) => {
                             if (dataHandler === null) {
                                 this.raiseError(`unexected object`, startLocation)
                                 return createDummyObjectHandler()
@@ -159,49 +187,41 @@ export class IssueContext {
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.object(startLocation, openCharacter, comments)
+                            return dh.object(startLocation, openCharacter, dataComments)
                         },
-                        boolean: (value, range, comments) => {
+                        boolean: (value, dataRange, dataComments) => {
                             if (dataHandler === null) {
-                                if (typeof value !== "string") {
-                                    return this.raiseError(`expected string`, range)
-                                }
-                                dataHandler = callback(value, range)
-                            } else {
-                                dataHandler.boolean(value, range, comments)
-                            }
-                        },
-                        number: (value, range, comments) => {
-                            if (dataHandler === null) {
-                                if (typeof value !== "string") {
-                                    return this.raiseError(`expected string`, range)
-                                }
-                                dataHandler = callback(value, range)
-                            } else {
-                                dataHandler.number(value, range, comments)
-                            }
-                        },
-                        string: (value, range, comments) => {
-                            if (dataHandler === null) {
-                                if (typeof value !== "string") {
-                                    return this.raiseError(`expected string`, range)
-                                }
-                                dataHandler = callback(value, range)
-                            } else {
-                                dataHandler.string(value, range, comments)
-                            }
-                        },
-                        null: (range, comments) => {
-                            if (dataHandler === null) {
-                                this.raiseError(`unexected null`, range)
-                                return createDummyObjectHandler()
+                                return this.raiseError(`expected string`, dataRange)
 
+                            } else {
+                                dataHandler.boolean(value, dataRange, dataComments)
+                            }
+                        },
+                        number: (value, dataRange, dataComments) => {
+                            if (dataHandler === null) {
+                                return this.raiseError(`expected string`, dataRange)
+                            } else {
+                                dataHandler.number(value, dataRange, dataComments)
+                            }
+                        },
+                        string: (value, range, dataComments) => {
+                            if (dataHandler === null) {
+                                //found the option
+                                dataHandler = callback(value, startRange, range, dataComments)
+                            } else {
+                                dataHandler.string(value, range, dataComments)
+                            }
+                        },
+                        null: (dataRange, dataComments) => {
+                            if (dataHandler === null) {
+                                this.raiseError(`unexected null`, dataRange)
+                                return createDummyObjectHandler()
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.null(range, comments)
+                            return dh.null(dataRange, dataComments)
                         },
-                        taggedUnion: (option, startLocation, optionRange, comments) => {
+                        taggedUnion: (option, startLocation, dataRange, dataComments) => {
                             if (dataHandler === null) {
                                 this.raiseError(`unexected tagged union`, startLocation)
                                 return createDummyValueHandler()
@@ -209,7 +229,7 @@ export class IssueContext {
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.taggedUnion(option, startLocation, optionRange, comments)
+                            return dh.taggedUnion(option, startLocation, dataRange, dataComments)
 
                         },
                     }
@@ -223,13 +243,13 @@ export class IssueContext {
         }
     }
 
-    public createListHandler(onElement: (start: Range) => ValueHandler): OnArray {
+    public createListHandler(onElement: (start: Range, comments: Comment[]) => ValueHandler): OnArray {
         return (startRange, openCharacter) => {
             if (openCharacter !== "[") {
                 this.raiseWarning(`expected '[' but found '${openCharacter}'`, startRange)
             }
             return {
-                element: () => onElement(startRange),
+                element: (elementStartRange, comments) => onElement(elementStartRange, comments),
                 end: (endRange, closeCharacter) => {
                     if (closeCharacter !== "]") {
                         this.raiseWarning(`expected ']' but found '${closeCharacter}'`, endRange)
@@ -271,7 +291,18 @@ export class IssueContext {
         }
     }
 
-    public expectString(callback: (value: string, range: Range) => void, onNull?: NullHandler): ValueHandler {
+    public expectNothing(onNull?: NullHandler): ValueHandler {
+        return {
+            array: this.createUnexpectedArrayHandler("nothing"),
+            object: this.createUnexpectedObjectHandler("nothing"),
+            boolean: this.createUnexpectedBooleanHandler("nothing"),
+            number: this.createUnexpectedNumberHandler("nothing"),
+            string: this.createUnexpectedStringHandler("nothing"),
+            null: onNull ? onNull : this.createUnexpectedNullHandler("nothing"),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("nothing"),
+        }
+    }
+    public expectString(callback: (value: string, range: Range, comments: Comment[]) => void, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("string"),
             object: this.createUnexpectedObjectHandler("string"),
@@ -283,7 +314,7 @@ export class IssueContext {
         }
     }
 
-    public expectNumber(callback: (value: number, range: Range) => void, onNull?: NullHandler): ValueHandler {
+    public expectNumber(callback: (value: number, range: Range, comments: Comment[]) => void, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("number"),
             object: this.createUnexpectedObjectHandler("number"),
@@ -295,7 +326,7 @@ export class IssueContext {
         }
     }
 
-    public expectBoolean(callback: (value: boolean, range: Range) => void, onNull?: NullHandler): ValueHandler {
+    public expectBoolean(callback: (value: boolean, range: Range, comments: Comment[]) => void, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("boolean"),
             object: this.createUnexpectedObjectHandler("boolean"),
@@ -307,7 +338,7 @@ export class IssueContext {
         }
     }
 
-    public expectDictionary(onProperty: (key: string, range: Range) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectDictionary(onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("dictionary"),
             object: this.createDictionaryHandler(onProperty),
@@ -320,7 +351,7 @@ export class IssueContext {
     }
 
 
-    public expectType(expectedProperties: { [key: string]: ValueHandler }, onEnd: () => void, onNull?: NullHandler): ValueHandler {
+    public expectType(expectedProperties: { [key: string]: ValueHandler }, onEnd: (hasErrors: boolean, comments: Comment[]) => void, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("type"),
             object: this.createTypeHandler(expectedProperties, onEnd),
@@ -332,7 +363,7 @@ export class IssueContext {
         }
     }
 
-    public expectList(onElement: (startLocation: Range) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectList(onElement: (startLocation: Range, comments: Comment[]) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createListHandler(onElement),
             object: this.createUnexpectedObjectHandler("list"),
@@ -344,7 +375,7 @@ export class IssueContext {
         }
     }
 
-    public expectArrayType(expectedElements: ValueHandler[], onEnd: () => void, onNull?: NullHandler): ValueHandler {
+    public expectArrayType(expectedElements: ValueHandler[], onEnd: (comments: Comment[]) => void, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createArrayTypeHandler(expectedElements, onEnd),
             object: this.createUnexpectedObjectHandler("array type"),
@@ -356,7 +387,7 @@ export class IssueContext {
         }
     }
 
-    public expectTaggedUnion(callback: (option: string, range: Range) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnion(callback: (option: string, range: Range, optionRange: Range, comments: Comment[]) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("tagged union"),
             object: this.createUnexpectedObjectHandler("tagged union"),
@@ -372,7 +403,7 @@ export class IssueContext {
      * this parses values in the form of `| "option" <data value>` or `[ "option", <data value> ]`
      * @param callback
      */
-    public expectTaggedUnionOrArraySurrogate(callback: (option: string, range: Range) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnionOrArraySurrogate(callback: (option: string, range: Range, optionRange: Range, comments: Comment[]) => ValueHandler, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createTaggedUnionSurrogate(callback),
             object: this.createUnexpectedObjectHandler("tagged union"),

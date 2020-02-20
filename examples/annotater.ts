@@ -1,4 +1,4 @@
-import * as sp from "../src/createStackedDataSubscriber"
+import * as sp from "../src/stackedDataSubscriber"
 import { printRange } from "../src/location"
 import { DataSubscriber, LocationError, RangeError } from "../src"
 
@@ -47,11 +47,13 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
 export function createAnnotator(indentation: string, writer: (str: string) => void): DataSubscriber {
     return sp.createStackedDataSubscriber(
         createValuesAnnotater(indentation, writer),
-        (message, range) => {
-            throw new RangeError(message, range)
-        },
-        (message, location) => {
-            throw new LocationError(message, location)
+        error => {
+            if (error.context[0] === "range") {
+                throw new RangeError(error.message, error.context[1])
+            } else {
+                throw new LocationError(error.message, error.context[1])
+
+            }
         },
         () => {
             //do nothing

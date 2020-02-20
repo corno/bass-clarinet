@@ -1,4 +1,4 @@
-import { ArrayHandler, ObjectHandler, ValueHandler } from "./createStackedDataSubscriber"
+import { ArrayHandler, ObjectHandler, ValueHandler } from "./handlers"
 
 export function createDummyValueHandler(): ValueHandler {
     return {

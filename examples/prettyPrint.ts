@@ -57,11 +57,8 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
 export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.DataSubscriber {
     return bc.createStackedDataSubscriber(
         createValuesPrettyPrinter(indentation, writer),
-        (message, range) => {
-            throw new RangeError(message, range)
-        },
-        (message, location) => {
-            throw new LocationError(message, location)
+        error => {
+            console.error("FOUND STACKED DATA ERROR", error.message)
         },
         _comments => {
             //onEnd

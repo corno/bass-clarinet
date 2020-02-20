@@ -2,12 +2,51 @@
     no-console:"off",
     no-underscore-dangle: "off",
 */
-import { DataSubscriber } from "./Parser"
-import { Location, Range } from "./location"
-import * as Char from "./NumberCharacters"
+import { DataSubscriber } from "../Parser"
+import { Location, Range } from "../location"
+import * as Char from "../NumberCharacters"
 import { createDummyValueHandler } from "./dummyHandlers"
+import { ValueHandler, ObjectHandler, ArrayHandler, Comment } from "./handlers"
 
 const DEBUG = false
+
+
+export type ContextType =
+    | ["root", {
+        readonly valueHandler: ValueHandler
+    }]
+    | ["object", {
+        readonly objectHandler: ObjectHandler
+        valueHandler: null | ValueHandler
+    }]
+    | ["array", {
+        readonly arrayHandler: ArrayHandler
+    }]
+    | ["taggedunion", {
+        readonly start: Range
+        readonly parentValueHandler: ValueHandler
+        valueHandler: null | ValueHandler
+    }]
+
+type StackedDataError = {
+    message: string
+    context:
+    | ["range", Range]
+    | ["location", Location]
+}
+
+function raiseRangeError(onError: (error: StackedDataError) => void, message: string, range: Range) {
+    onError({
+        message: message,
+        context: ["range", range],
+    })
+}
+function raiseLocationError(onError: (error: StackedDataError) => void, message: string, location: Location) {
+    onError({
+        message: message,
+        context: ["location", location],
+    })
+}
 
 /**
  * createStackedDataSubscriber allows for capturing objects and arrays in a callback, so that the consumer does not have to match
@@ -17,8 +56,7 @@ const DEBUG = false
  */
 export function createStackedDataSubscriber(
     valueHandler: ValueHandler,
-    onRangeError: (message: string, range: Range) => void,
-    onLocationError: (message: string, location: Location) => void,
+    onError: (error: StackedDataError) => void,
     onend: (comments: Comment[]) => void
 ): DataSubscriber {
     const stack: ContextType[] = []
@@ -35,7 +73,7 @@ export function createStackedDataSubscriber(
     function pop(range: Range) {
         const previousContext = stack.pop()
         if (previousContext === undefined) {
-            onRangeError("lost context", range)
+            raiseRangeError(onError, "lost context", range)
         } else {
             currentContext = previousContext
         }
@@ -47,7 +85,7 @@ export function createStackedDataSubscriber(
             }
             case "object": {
                 if (currentContext[1].valueHandler === null) {
-                    onRangeError("unexpected value in object", range)
+                    raiseRangeError(onError, "unexpected value in object", range)
                     return createDummyValueHandler()
                 } else {
                     return currentContext[1].valueHandler
@@ -58,7 +96,7 @@ export function createStackedDataSubscriber(
             }
             case "taggedunion": {
                 if (currentContext[1].valueHandler === null) {
-                    onRangeError("unexpected value in tagged union", range)
+                    raiseRangeError(onError, "unexpected value in tagged union", range)
                     return createDummyValueHandler()
                 } else {
                     return currentContext[1].valueHandler
@@ -99,7 +137,7 @@ export function createStackedDataSubscriber(
         },
         onclosearray: (range, endCharacter) => {
             if (currentContext[0] !== "array") {
-                onRangeError("unexpected end of array", range)
+                raiseRangeError(onError, "unexpected end of array", range)
             } else {
                 currentContext[1].arrayHandler.end(range, endCharacter, flushComments())
             }
@@ -113,7 +151,7 @@ export function createStackedDataSubscriber(
         onoption: (option, range) => {
             if (DEBUG) { console.log("on option", option) }
             if (currentContext[0] !== "taggedunion") {
-                onRangeError("unexpected option", range)
+                raiseRangeError(onError, "unexpected option", range)
             } else {
                 currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].start, range, flushComments())
             }
@@ -121,7 +159,7 @@ export function createStackedDataSubscriber(
         onclosetaggedunion: location => {
             if (DEBUG) { console.log("on close tagged union") }
             if (currentContext[0] !== "taggedunion") {
-                onLocationError("unexpected end of tagged union", location)
+                raiseLocationError(onError, "unexpected end of tagged union", location)
             }
             pop({ start: location, end: location })
         },
@@ -129,7 +167,7 @@ export function createStackedDataSubscriber(
             if (DEBUG) { console.log("on open object") }
             const vh = initValueHandler(range)
             if (vh === null) {
-                onRangeError("unexpected value", range)
+                raiseRangeError(onError, "unexpected value", range)
             }
             const objectHandler = vh.object(range, openCharacter, flushComments())
             stack.push(currentContext)
@@ -141,7 +179,7 @@ export function createStackedDataSubscriber(
         oncloseobject: (range, endCharacter) => {
             if (DEBUG) { console.log("on close object") }
             if (currentContext[0] !== "object") {
-                onRangeError("unexpected end of object", range)
+                raiseRangeError(onError, "unexpected end of object", range)
             } else {
                 currentContext[1].objectHandler.end(range, endCharacter, flushComments())
             }
@@ -150,7 +188,7 @@ export function createStackedDataSubscriber(
         onkey: (key, range) => {
             if (DEBUG) { console.log("on key", key) }
             if (currentContext[0] !== "object") {
-                onRangeError("unexpected key", range)
+                raiseRangeError(onError, "unexpected key", range)
             } else {
                 currentContext[1].valueHandler = currentContext[1].objectHandler.property(key, range, flushComments())
             }
@@ -159,7 +197,7 @@ export function createStackedDataSubscriber(
             if (DEBUG) { console.log("on quoted string", value) }
             const vh = initValueHandler(range)
             if (vh === null) {
-                onRangeError("unexpected value", range)
+                raiseRangeError(onError, "unexpected value", range)
             }
             vh.string(value, range, flushComments())
 
@@ -168,7 +206,7 @@ export function createStackedDataSubscriber(
             if (DEBUG) { console.log("on value", value) }
             const vh = initValueHandler(range)
             if (vh === null) {
-                onRangeError("unexpected value", range)
+                raiseRangeError(onError, "unexpected value", range)
             }
             switch (value) {
                 case "true": {
@@ -189,71 +227,17 @@ export function createStackedDataSubscriber(
                 //eslint-disable-next-line
                 const nr = new Number(value).valueOf()
                 if (isNaN(nr)) {
-                    onRangeError(`invalid number: ${value}`, range)
+                    raiseRangeError(onError, `invalid number: ${value}`, range)
                 }
                 vh.number(nr, range, flushComments())
                 return
             }
-            onRangeError(`unrecognized unquoted token '${value}'`, range)
+            raiseRangeError(onError, `unrecognized unquoted token '${value}'`, range)
         },
         onend: () => {
             onend(flushComments())
         },
     }
-}
-
-export type ObjectHandler = {
-    property: (key: string, keyRange: Range, comments: Comment[]) => ValueHandler
-    end: (end: Range, closeCharacter: string, comments: Comment[]) => void
-}
-
-export type ArrayHandler = {
-    element: (start: Range, comments: Comment[]) => ValueHandler
-    end: (end: Range, closeCharacter: string, comments: Comment[]) => void
-}
-
-export type OnObject = (start: Range, openCharacter: string, comments: Comment[]) => ObjectHandler
-export type OnArray = (start: Range, openCharacter: string, comments: Comment[]) => ArrayHandler
-export type OnNumber = (value: number, range: Range, comments: Comment[]) => void
-export type OnBoolean = (value: boolean, range: Range, comments: Comment[]) => void
-export type OnString = (value: string, range: Range, comments: Comment[]) => void
-export type OnNull = (range: Range, comments: Comment[]) => void
-export type OnTaggedUnion = (option: string, start: Range, optionRange: Range, comments: Comment[]) => ValueHandler
-
-export interface ValueHandler {
-    object: OnObject
-    array: OnArray
-    boolean: OnBoolean
-    string: OnString
-    number: OnNumber
-    null: OnNull
-    taggedUnion: OnTaggedUnion
-}
-
-type ContextType =
-    | ["root", {
-        readonly valueHandler: ValueHandler
-    }]
-    | ["object", {
-        readonly objectHandler: ObjectHandler
-        valueHandler: null | ValueHandler
-    }]
-    | ["array", {
-        readonly arrayHandler: ArrayHandler
-    }]
-    | ["taggedunion", {
-        readonly start: Range
-        readonly parentValueHandler: ValueHandler
-        valueHandler: null | ValueHandler
-    }]
-
-type Comment = {
-    text: string
-    range: Range
-    type:
-    | "block"
-    | "line"
-    indent: null | string
 }
 
 function assertUnreachable<RT>(_x: never): RT {
