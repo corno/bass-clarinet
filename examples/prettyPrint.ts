@@ -1,6 +1,5 @@
 import * as bc from "../src"
 import * as fs  from "fs"
-import { LocationError, RangeError } from "../src"
 
 const [, , path] = process.argv
 
@@ -67,9 +66,11 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
 }
 
 const parser = new bc.Parser({ allow: bc.lax})
-const tokenizer = new bc.Tokenizer(parser)
+const tokenizer = new bc.Tokenizer(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err.message) }
+)
 parser.ondata.subscribe(createPrettyPrinter("\r\n", str => process.stdout.write(str)))
 parser.onerror.subscribe(err => { console.error("FOUND PARSER ERROR", err.message) })
-tokenizer.onerror.subscribe(err => { console.error("FOUND TOKENIZER ERROR", err.message) })
 tokenizer.write(data)
 tokenizer.end()

@@ -62,7 +62,7 @@ export class TokenizerError extends LocationError {
 }
 
 export class Tokenizer {
-    readonly onerror = new subscr.OneArgumentSubscribers<TokenizerError>()
+    private readonly onerror: (error: TokenizerError) => void
     private curChar = 0
     private ended = false
 
@@ -87,12 +87,13 @@ export class Tokenizer {
     readonly onready = new subscr.NoArgumentSubscribers()
     private readonly parser: IParser
 
-    constructor(parser: IParser, opt?: TokenizerOptions) {
+    constructor(parser: IParser, onerror: (error: TokenizerError) => void, opt?: TokenizerOptions) {
         if (INFO) console.log('-- emit', "onready")
         this.opt = opt || {}
         this.onready.signal()
         this.parser = parser
         this.state = [ContextType.STACK]
+        this.onerror = onerror
     }
 
     public write(chunk: string) {
@@ -535,7 +536,7 @@ export class Tokenizer {
             this.getLocation(),
         )
         if (DEBUG) { console.log("error raised:", this.error.message) }
-        this.onerror.signal(this.error)
+        this.onerror(this.error)
     }
     private setState(newState: Context) {
         if (DEBUG) console.log("setting state to", getStateDescription(newState))
