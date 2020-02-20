@@ -94,7 +94,7 @@ export class ExpectContext {
 
     public createTypeHandler(
         onBegin: (range: Range, comments: Comment[]) => void,
-        expectedProperties: { [key: string]: ValueHandler },
+        expectedProperties: { [key: string]: (range: Range, comments: Comment[]) => ValueHandler },
         onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void
     ): OnObject {
         return (startRange, openCharacter, beginComments) => {
@@ -105,7 +105,7 @@ export class ExpectContext {
             const foundProperies: string[] = []
             let hasErrors = false
             return {
-                property: (key, range) => {
+                property: (key, range, comments) => {
                     if (foundProperies.includes(key)) {
                         hasErrors = true
                         this.raiseError(`property already processed: '${key}'`, range)//FIX print range properly
@@ -118,7 +118,7 @@ export class ExpectContext {
                         this.raiseError(`unexpected property: '${key}'`, range)//FIX print range properly
                         return createDummyValueHandler()
                     }
-                    return expected
+                    return expected(range, comments)
                 },
                 end: (endRange, closeCharacter, comments) => {
 
@@ -139,7 +139,7 @@ export class ExpectContext {
 
     public createArrayTypeHandler(
         onBegin: (range: Range, comments: Comment[]) => void,
-        expectedElements: ValueHandler[],
+        expectedElements: ((range: Range, comments: Comment[]) => ValueHandler)[],
         onEnd: (range: Range, comments: Comment[]) => void
     ): OnArray {
         return (startRange, openCharacter, startComments) => {
@@ -149,7 +149,7 @@ export class ExpectContext {
             }
             let index = 0
             return {
-                element: () => {
+                element: (range, comments) => {
                     const ee = expectedElements[index]
                     index++
                     if (ee === undefined) {
@@ -157,7 +157,7 @@ export class ExpectContext {
                         return createDummyValueHandler()
 
                     }
-                    return ee
+                    return ee(range, comments)
                 },
                 end: (endRange, closeCharacter, endComments) => {
                     if (closeCharacter !== ">") {
@@ -383,7 +383,7 @@ export class ExpectContext {
 
     public expectType(
         onBegin: (range: Range, comments: Comment[]) => void,
-        expectedProperties: { [key: string]: ValueHandler },
+        expectedProperties: { [key: string]: (range: Range, comments: Comment[]) => ValueHandler },
         onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void, onNull?: NullHandler
     ): ValueHandler {
         return {
@@ -411,7 +411,7 @@ export class ExpectContext {
 
     public expectArrayType(
         onBegin: (range: Range, comments: Comment[]) => void,
-        expectedElements: ValueHandler[],
+        expectedElements: ((range: Range, comments: Comment[]) => ValueHandler)[],
         onEnd: (range: Range, comments: Comment[]) => void,
         onNull?: NullHandler
     ): ValueHandler {

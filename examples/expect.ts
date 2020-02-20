@@ -32,10 +32,10 @@ parser.ondata.subscribe(
                 //prepare code here
             },
             {
-                "prop a": ec.expectNumber((_value, _range, _comments) => {
+                "prop a": (_propRange, _propComments) => ec.expectNumber((_value, _range, _comments) => {
                     //handle 'prop a'
                 }),
-                "prop b": ec.expectNumber(_value => {
+                "prop b": () => ec.expectNumber(_value => {
                     //handle 'prop b'
                 }),
             },
