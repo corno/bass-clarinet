@@ -26,6 +26,7 @@ export type ContextType =
         readonly start: Range
         readonly parentValueHandler: ValueHandler
         valueHandler: null | ValueHandler
+        comments: Comment[]
     }]
 
 type StackedDataError = {
@@ -146,14 +147,14 @@ export function createStackedDataSubscriber(
         onopentaggedunion: range => {
             if (DEBUG) { console.log("on open tagged union") }
             stack.push(currentContext)
-            currentContext = ["taggedunion", { start: range, parentValueHandler: initValueHandler(range), valueHandler: null }]
+            currentContext = ["taggedunion", { start: range, parentValueHandler: initValueHandler(range), valueHandler: null, comments: flushComments() }]
         },
         onoption: (option, range) => {
             if (DEBUG) { console.log("on option", option) }
             if (currentContext[0] !== "taggedunion") {
                 raiseRangeError(onError, "unexpected option", range)
             } else {
-                currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].start, range, flushComments())
+                currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].start, currentContext[1].comments, range, flushComments())
             }
         },
         onclosetaggedunion: location => {

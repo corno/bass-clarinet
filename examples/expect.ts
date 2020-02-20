@@ -28,6 +28,9 @@ const ec = new ExpectContext(null, null)
 parser.ondata.subscribe(
     createStackedDataSubscriber(
         ec.expectType(
+            (_range, _comments) => {
+                //prepare code here
+            },
             {
                 "prop a": ec.expectNumber((_value, _range, _comments) => {
                     //handle 'prop a'
@@ -36,7 +39,7 @@ parser.ondata.subscribe(
                     //handle 'prop b'
                 }),
             },
-            _hasErrors => {
+            (_hasErrors, _range, _comments) => {
                 //wrap up the object
             }
         ),

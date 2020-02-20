@@ -92,8 +92,13 @@ export class ExpectContext {
         }
     }
 
-    public createTypeHandler(expectedProperties: { [key: string]: ValueHandler }, onEnd: (hasErrors: boolean, comments: Comment[]) => void): OnObject {
-        return (startRange, openCharacter) => {
+    public createTypeHandler(
+        onBegin: (range: Range, comments: Comment[]) => void,
+        expectedProperties: { [key: string]: ValueHandler },
+        onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void
+    ): OnObject {
+        return (startRange, openCharacter, beginComments) => {
+            onBegin(startRange, beginComments)
             if (openCharacter !== "(") {
                 this.raiseWarning(`expected '(' but found '${openCharacter}'`, startRange)
             }
@@ -126,14 +131,19 @@ export class ExpectContext {
                             this.raiseError(`missing property: '${ep}'`, startRange)//FIX print location properly
                         }
                     })
-                    onEnd(hasErrors, comments)
+                    onEnd(hasErrors, endRange, comments)
                 },
             }
         }
     }
 
-    public createArrayTypeHandler(expectedElements: ValueHandler[], onEnd: (comments: Comment[]) => void): OnArray {
-        return (startRange, openCharacter) => {
+    public createArrayTypeHandler(
+        onBegin: (range: Range, comments: Comment[]) => void,
+        expectedElements: ValueHandler[],
+        onEnd: (range: Range, comments: Comment[]) => void
+    ): OnArray {
+        return (startRange, openCharacter, startComments) => {
+            onBegin(startRange, startComments)
             if (openCharacter !== "<") {
                 this.raiseWarning(`expected '<' but found '${openCharacter}'`, startRange)
             }
@@ -157,17 +167,19 @@ export class ExpectContext {
                     if (missing > 0) {
                         this.raiseError(`elements missing`, endRange)
                     }
-                    onEnd(endComments)
+                    onEnd(endRange, endComments)
                 },
             }
         }
     }
 
-    public createTaggedUnionSurrogateHandler(options: { [key: string]: (range: Range, optionRange: Range, comments: Comment[]) => ValueHandler }): OnArray {
+    public createTaggedUnionSurrogateHandler(
+        options: { [key: string]: (startRange: Range, unionComments: Comment[], optionRange: Range, optionComments: Comment[]) => ValueHandler }
+    ): OnArray {
         return () => {
             let dataHandler: ValueHandler | null = null
             return {
-                element: (startRange, _comments) => {
+                element: (startRange, tuComments) => {
                     return {
                         array: (startLocation, openCharacter, dataComments) => {
                             if (dataHandler === null) {
@@ -211,7 +223,7 @@ export class ExpectContext {
                                 if (optionHandler === undefined) {
                                     return this.raiseError(`unknown option ${value}`, range)
                                 }
-                                dataHandler = optionHandler(startRange, range, dataComments)
+                                dataHandler = optionHandler(startRange, tuComments, range, dataComments)
                             } else {
                                 dataHandler.string(value, range, dataComments)
                             }
@@ -225,15 +237,15 @@ export class ExpectContext {
                             dataHandler = null
                             return dh.null(dataRange, dataComments)
                         },
-                        taggedUnion: (option, startLocation, dataRange, dataComments) => {
+                        taggedUnion: (option, subTuRange, subTuComments, dataRange, dataComments) => {
                             if (dataHandler === null) {
-                                this.raiseError(`unexected tagged union`, startLocation)
+                                this.raiseError(`unexected tagged union`, startRange)
                                 return createDummyValueHandler()
 
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.taggedUnion(option, startLocation, dataRange, dataComments)
+                            return dh.taggedUnion(option, subTuRange, subTuComments, dataRange, dataComments)
 
                         },
                     }
@@ -247,14 +259,16 @@ export class ExpectContext {
         }
     }
 
-    public createTaggedUnionHandler(options: { [key: string]: (range: Range, optionRange: Range, comments: Comment[]) => ValueHandler }): OnTaggedUnion {
-        return (option: string, start: Range, optionRange: Range, comments: Comment[]) => {
+    public createTaggedUnionHandler(
+        options: { [key: string]: (startRange: Range, unionComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }
+    ): OnTaggedUnion {
+        return (option: string, tuStartRange: Range, tuComments: Comment[], optionRange: Range, optionComments: Comment[]) => {
             const optionHandler = options[option]
             if (optionHandler === undefined) {
                 this.raiseError(`unknown option ${option}`, optionRange)
                 return createDummyValueHandler()
             } else {
-                return optionHandler(start, optionRange, comments)
+                return optionHandler(tuStartRange, tuComments, optionRange, optionComments)
             }
         }
     }
@@ -367,10 +381,14 @@ export class ExpectContext {
     }
 
 
-    public expectType(expectedProperties: { [key: string]: ValueHandler }, onEnd: (hasErrors: boolean, comments: Comment[]) => void, onNull?: NullHandler): ValueHandler {
+    public expectType(
+        onBegin: (range: Range, comments: Comment[]) => void,
+        expectedProperties: { [key: string]: ValueHandler },
+        onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void, onNull?: NullHandler
+    ): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("type"),
-            object: this.createTypeHandler(expectedProperties, onEnd),
+            object: this.createTypeHandler(onBegin, expectedProperties, onEnd),
             boolean: this.createUnexpectedBooleanHandler("type"),
             number: this.createUnexpectedNumberHandler("type"),
             string: this.createUnexpectedStringHandler("type"),
@@ -391,9 +409,14 @@ export class ExpectContext {
         }
     }
 
-    public expectArrayType(expectedElements: ValueHandler[], onEnd: (comments: Comment[]) => void, onNull?: NullHandler): ValueHandler {
+    public expectArrayType(
+        onBegin: (range: Range, comments: Comment[]) => void,
+        expectedElements: ValueHandler[],
+        onEnd: (range: Range, comments: Comment[]) => void,
+        onNull?: NullHandler
+    ): ValueHandler {
         return {
-            array: this.createArrayTypeHandler(expectedElements, onEnd),
+            array: this.createArrayTypeHandler(onBegin, expectedElements, onEnd),
             object: this.createUnexpectedObjectHandler("array type"),
             boolean: this.createUnexpectedBooleanHandler("array type"),
             number: this.createUnexpectedNumberHandler("array type"),
@@ -403,7 +426,7 @@ export class ExpectContext {
         }
     }
 
-    public expectTaggedUnion(options: { [key: string]: (range: Range, optionRange: Range, comments: Comment[]) => ValueHandler}, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnion(options: { [key: string]: (tuStartRange: Range, tuComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }, onNull?: NullHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("tagged union"),
             object: this.createUnexpectedObjectHandler("tagged union"),
@@ -419,7 +442,9 @@ export class ExpectContext {
      * this parses values in the form of `| "option" <data value>` or `[ "option", <data value> ]`
      * @param callback
      */
-    public expectTaggedUnionOrArraySurrogate(options: { [key: string]: (range: Range, optionRange: Range, comments: Comment[]) => ValueHandler }, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnionOrArraySurrogate(
+        options: { [key: string]: (tuStartRange: Range, tuComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }, onNull?: NullHandler
+    ): ValueHandler {
         return {
             array: this.createTaggedUnionSurrogateHandler(options),
             object: this.createUnexpectedObjectHandler("tagged union"),

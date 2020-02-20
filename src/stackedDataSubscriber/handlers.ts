@@ -16,7 +16,7 @@ export type OnNumber = (value: number, range: Range, comments: Comment[]) => voi
 export type OnBoolean = (value: boolean, range: Range, comments: Comment[]) => void
 export type OnString = (value: string, range: Range, comments: Comment[]) => void
 export type OnNull = (range: Range, comments: Comment[]) => void
-export type OnTaggedUnion = (option: string, start: Range, optionRange: Range, comments: Comment[]) => ValueHandler
+export type OnTaggedUnion = (option: string, start: Range, tuComments: Comment[], optionRange: Range, optionComments: Comment[]) => ValueHandler
 
 export interface ValueHandler {
     object: OnObject
