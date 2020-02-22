@@ -1,3 +1,6 @@
+/* eslint
+    no-console: "off",
+*/
 import * as bc from "../src";
 
 const parser = new bc.Parser(
