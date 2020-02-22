@@ -114,7 +114,7 @@ export interface HeaderSubscriber {
     onheaderstart(): void
     onschemastart(range: Range): void
     oncompact(range: Range): void
-    onheaderend(): void
+    onheaderend(range: Range): void
 }
 
 export class Parser implements IParser {
@@ -128,8 +128,8 @@ export class Parser implements IParser {
     private error: null | RangeError = null
     private state: Context = [ContextType.STACK]
 
-    private readonly onerror: (error: RangeError) => void
-    constructor(onerror: (error: RangeError) => void, opt?: ParserOptions) {
+    private readonly onerror: (message: string, range: Range) => void
+    constructor(onerror: (message: string, range: Range) => void, opt?: ParserOptions) {
         this.onerror = onerror
         this.opt = opt || {}
         this.oncurrentdata = this.ondata
@@ -271,9 +271,9 @@ export class Parser implements IParser {
                                     this.onheaderdata.signal(s => s.oncompact(range))
                                     $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
                                 }
-                                this.onheaderdata.signal(s => s.onheaderend())
+                                this.onheaderdata.signal(s => s.onheaderend(range))
                             } else {
-                                this.onheaderdata.signal(s => s.onheaderend())
+                                this.onheaderdata.signal(s => s.onheaderend(range))
                                 this.raiseError("expected a hash ('#') or the root value", range)
                             }
                             break
@@ -513,7 +513,7 @@ export class Parser implements IParser {
                     }
                     case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
                         this.oncurrentdata = this.ondata
-                        this.onheaderdata.signal(s => s.onheaderend())
+                        this.onheaderdata.signal(s => s.onheaderend(range))
                         $$.state = RootState.EXPECTING_END
                         break
                     }
@@ -527,7 +527,7 @@ export class Parser implements IParser {
                     }
                     case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
                         this.onheaderdata.signal(s => s.onheaderstart())
-                        this.onheaderdata.signal(s => s.onheaderend())
+                        this.onheaderdata.signal(s => s.onheaderend(range))
                         $$.state = RootState.EXPECTING_END
                         break
                     }
@@ -536,7 +536,7 @@ export class Parser implements IParser {
                         break
                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                         this.onheaderdata.signal(s => s.onheaderstart())
-                        this.onheaderdata.signal(s => s.onheaderend())
+                        this.onheaderdata.signal(s => s.onheaderend(range))
                         $$.state = RootState.EXPECTING_END
                         break
                     default:
@@ -583,7 +583,7 @@ export class Parser implements IParser {
     private raiseError(message: string, range: Range) {
         this. error = new RangeError(message, range)
         if (DEBUG) { console.log("error raised:", message, printRange(range)) }
-        this.onerror(this.error)
+        this.onerror(message, range)
     }
     private pushContext(context: StackContext) {
         this.stack.push(this.currentContext)

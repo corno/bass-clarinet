@@ -2,12 +2,14 @@
     no-console:"off",
 */
 
-import * as p from "../src"
+import * as bc from "../src"
 import { describe } from "mocha"
+import * as chai from "chai"
 import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, AnyEvent, TestRange, TestLocation, TestDefinition } from "./testDefinition"
+import { createStackedDataSubscriber, ExpectContext, printRange, ValueHandler } from "../src"
 
 const DEBUG = false
 
@@ -22,27 +24,27 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
     const parserOptions = test.parserOptions
     return function () {
         if (DEBUG) console.log("CHUNKS:", chunks)
-        const parser = new p.Parser(
-            e => {
+        const parser = new bc.Parser(
+            (message, range) => {
                 if (DEBUG) console.log("found error")
                 const ee = getExpectedEvent()
                 if (ee[0] !== "parsererror") {
-                    assert.fail("unexpected parser error: " + e.message)
+                    assert.fail(`unexpected parser error: ${message} @ ${printRange(range)}`)
                 }
-                assert.ok(ee[1] === e.rangeLessMessage, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + e.rangeLessMessage + ']');
+                assert.ok(ee[1] === message, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + message + ']');
 
             },
             parserOptions
         )
-        const tokenizer = new p.Tokenizer(
+        const tokenizer = new bc.Tokenizer(
             parser,
-            e => {
+            (message, _location) => {
                 if (DEBUG) console.log("found error")
                 const ee = getExpectedEvent()
                 if (ee[0] !== "tokenizererror") {
-                    assert.fail("unexpected tokenizer error: " + e.message)
+                    assert.fail("unexpected tokenizer error: " + message)
                 }
-                assert.ok(ee[1] === e.locationLessMessage, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + e.locationLessMessage + ']');
+                assert.ok(ee[1] === message, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + message + ']');
             }
         )
         let currentExpectedEventIndex = 0
@@ -54,7 +56,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
         function eventsNotEqual(expectedEvent: EventDefinition, event: AnyEvent) {
             assert.fail('event: ' + currentExpectedEventIndex + ', expected type: [' + expectedEvent[0] + '] got: [' + event + ']')
         }
-        function checkRange(range: p.Range, expectedEventRange?: TestRange) {
+        function checkRange(range: bc.Range, expectedEventRange?: TestRange) {
             if (expectedEventRange !== undefined) {
                 assert.ok(expectedEventRange[0] === range.start.line, `expected start linenumber ${expectedEventRange[0]} but found ${range.start.line}`)
                 assert.ok(expectedEventRange[1] === range.start.column, `expected start column ${expectedEventRange[1]} but found ${range.start.column}`)
@@ -62,7 +64,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 assert.ok(expectedEventRange[3] === range.end.column, `expected end column ${expectedEventRange[3]} but found ${range.end.column}`)
             }
         }
-        function checkLocation(location: p.Location, expectedEventLocation?: TestLocation) {
+        function checkLocation(location: bc.Location, expectedEventLocation?: TestLocation) {
             if (expectedEventLocation !== undefined) {
                 assert.ok(expectedEventLocation[0] === location.line, `expected linenumber ${expectedEventLocation[0]} but found ${location.line}`)
                 assert.ok(expectedEventLocation[1] === location.column, `expected column ${expectedEventLocation[1]} but found ${location.column}`)
@@ -128,7 +130,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
             })
         }
 
-        const subscriber: p.DataSubscriber = {
+        const subscriber: bc.DataSubscriber = {
             oncomma: () => {
                 //
             },
@@ -240,7 +242,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
         parser.onschemadata.subscribe(subscriber)
 
         if (pureJSON) {
-            parser.ondata.subscribe(p.createStrictJSONValidator((message, range) => {
+            parser.ondata.subscribe(bc.createStrictJSONValidator((message, range) => {
                 if (DEBUG) console.log("found JSON validation error", message)
 
                 const ee = getExpectedEvent()
@@ -297,6 +299,80 @@ describe('bass-clarinet', () => {
             const test = JSONTests[key]
             if (!test.chunks) return;
             it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test, true));
+        })
+    });
+    describe('#expect', () => {
+        function doTest(data: string, callback: (expect: ExpectContext) => ValueHandler, expectedErrors: string[]) {
+            const foundErrors: string[] = []
+            const onError = (message: string, _range: bc.Range) => {
+                foundErrors.push(message)
+            }
+            const onWarning = (message: string, _range: bc.Range) => {
+                foundErrors.push(message)
+            }
+            const parser = new bc.Parser(
+                onError,
+                {}
+            )
+            const tok = new bc.Tokenizer(
+                parser,
+                (message, _location) => {
+                    foundErrors.push(message)
+                },
+                {}
+            )
+            const expect = new ExpectContext(onError, onWarning)
+            parser.ondata.subscribe(createStackedDataSubscriber(
+                callback(expect),
+                err => {
+                    foundErrors.push(err.message)
+                },
+                () => {
+                    //do nothing with end
+                },
+            ))
+            tok.write(data)
+            tok.end()
+            chai.assert.deepEqual(foundErrors, expectedErrors)
+        }
+
+        it('duplicate key', () => {
+            doTest(
+                `{ "a": (), "a": () }`,
+                expect => expect.expectDictionary(
+                    (_key, _range) => {
+                        return expect.expectType(
+                            () => {
+                                //
+                            },
+                            {},
+                            () => {
+                                //
+                            }
+                        )
+                    }
+                ),
+                ["duplicate key 'a'"]
+            )
+        })
+        it('duplicate property', () => {
+            doTest(
+                `( "a": 42, "a": 42 )`,
+                expect => expect.expectType(
+                    () => {
+                        //
+                    },
+                    {
+                        a : () => expect.expectNumber(() => {
+                            //
+                        }),
+                    },
+                    () => {
+                        //
+                    },
+                ),
+                ["property already processed: 'a'"]
+            )
         })
     });
 });

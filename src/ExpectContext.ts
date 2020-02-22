@@ -70,6 +70,7 @@ export class ExpectContext {
             const foundEntries: string[] = []
             return {
                 property: (key, range, comments) => {
+
                     if (foundEntries.includes(key)) {
                         this.raiseWarning(`duplicate key '${key}'`, range)
                     }

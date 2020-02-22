@@ -82,7 +82,7 @@ enum PauseState {
 
 export class Tokenizer {
     private pausedState: PauseState = PauseState.NO_PAUSE
-    private readonly onerror: (error: TokenizerError) => void
+    private readonly onerror: (message: string, location: Location) => void
 
     private currentChunk: null | CurrentChunk = null
     private ended = false
@@ -108,7 +108,7 @@ export class Tokenizer {
     readonly onreadyforwrite = new subscr.NoArgumentSubscribers()
     private readonly parser: IParser
 
-    constructor(parser: IParser, onerror: (error: TokenizerError) => void, opt?: TokenizerOptions) {
+    constructor(parser: IParser, onerror: (message: string, location: Location) => void, opt?: TokenizerOptions) {
         this.opt = opt || {}
         this.parser = parser
         this.state = [ContextType.STACK]
@@ -597,7 +597,7 @@ export class Tokenizer {
             this.getLocation(),
         )
         if (DEBUG) { console.log("error raised:", this.error.message) }
-        this.onerror(this.error)
+        this.onerror(message, this.getLocation())
     }
     private setState(newState: Context) {
         if (DEBUG) console.log("setting state to", getStateDescription(newState))
