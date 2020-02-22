@@ -7,7 +7,7 @@ import { describe } from "mocha"
 import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
-import { EventDefinition, AnyEvent, TestRange, TestLocation } from "./testDefinition"
+import { EventDefinition, AnyEvent, TestRange, TestLocation, TestDefinition } from "./testDefinition"
 
 const DEBUG = false
 
@@ -17,7 +17,9 @@ const selectedExtensionTests = Object.keys(extensionTests)
 // const selectedJSONTests: string[] = ["forbidden_extension_apostrophe_string"]
 // const selectedExtensionTests: string[] = []
 
-function createTestFunction(chunks: string[], expectedEvents: EventDefinition[], pureJSON: boolean, parserOptions?: p.ParserOptions) {
+function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: boolean) {
+    const expectedEvents = test.events.slice()
+    const parserOptions = test.parserOptions
     return function () {
         if (DEBUG) console.log("CHUNKS:", chunks)
         const parser = new p.Parser(
@@ -25,7 +27,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 if (DEBUG) console.log("found error")
                 const ee = getExpectedEvent()
                 if (ee[0] !== "parsererror") {
-                    assert.fail("unexpected error: " + e.message)
+                    assert.fail("unexpected parser error: " + e.message)
                 }
                 assert.ok(ee[1] === e.rangeLessMessage, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + e.rangeLessMessage + ']');
 
@@ -38,7 +40,7 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
                 if (DEBUG) console.log("found error")
                 const ee = getExpectedEvent()
                 if (ee[0] !== "tokenizererror") {
-                    assert.fail("unexpected error: " + e.message)
+                    assert.fail("unexpected tokenizer error: " + e.message)
                 }
                 assert.ok(ee[1] === e.locationLessMessage, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + e.locationLessMessage + ']');
             }
@@ -87,31 +89,44 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
             //}
         }
 
-        parser.onheaderdata.subscribe({
-            onschemastart: range => {
-                if (DEBUG) console.log("found schema start")
-                const ee = getExpectedEvent()
-                if (ee[0] !== "schemastart") {
-                    eventsNotEqual(ee, "schemastart")
-                }
-                checkRange(range, ee[2])
+        if (test.testHeaders) {
+            parser.onheaderdata.subscribe({
+                onheaderstart: () => {
+                    if (DEBUG) console.log("found header start")
+                    const ee = getExpectedEvent()
+                    if (ee[0] !== "headerstart") {
+                        eventsNotEqual(ee, "headerstart")
+                    }
+                    //checkRange(range, ee[2])
 
-            },
-            onschemaend: () => {
-                if (DEBUG) console.log("found schema end")
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "schemaend")
-            },
-            // onschema: (k, _startLocation, range) => {
-            //     const ee = getExpectedEvent()
-            //     validateEventsEqual(ee, "schema")
-            //     assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
-            //     checkLocation(ee, range.end)
-            // },
-            oncompact: () => {
-                //do nothing
-            },
-        })
+                },
+                onschemastart: range => {
+                    if (DEBUG) console.log("found schema start")
+                    const ee = getExpectedEvent()
+                    if (ee[0] !== "schemastart") {
+                        eventsNotEqual(ee, "schemastart")
+                    }
+                    checkRange(range, ee[2])
+
+                },
+                onheaderend: () => {
+                    if (DEBUG) console.log("found header end")
+                    const ee = getExpectedEvent()
+                    validateEventsEqual(ee, "headerend")
+                },
+                // onschema: (k, _startLocation, range) => {
+                //     const ee = getExpectedEvent()
+                //     validateEventsEqual(ee, "schema")
+                //     assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+                //     checkLocation(ee, range.end)
+                // },
+                oncompact: () => {
+                    if (DEBUG) console.log("found compact")
+                    const ee = getExpectedEvent()
+                    validateEventsEqual(ee, "compact")
+                },
+            })
+        }
 
         const subscriber: p.DataSubscriber = {
             oncomma: () => {
@@ -265,15 +280,15 @@ describe('bass-clarinet', () => {
     describe('#pureJSON', () => {
         selectedJSONTests.forEach(key => {
             const test = JSONTests[key]
-            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), true, test.parserOptions));
-            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), true, test.parserOptions));
+            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test, true));
+            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test, true));
         })
     })
     describe('#extensions', () => {
         selectedExtensionTests.forEach(key => {
             const test = extensionTests[key]
-            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test.events.slice(0), false, test.parserOptions));
-            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test.events.slice(0), false, test.parserOptions));
+            it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test, false));
+            it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test, false));
         })
     });
 
@@ -281,7 +296,7 @@ describe('bass-clarinet', () => {
         selectedJSONTests.forEach(key => {
             const test = JSONTests[key]
             if (!test.chunks) return;
-            it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test.events.slice(0), true, test.parserOptions));
+            it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test, true));
         })
     });
 });

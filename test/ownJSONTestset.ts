@@ -884,4 +884,17 @@ export const JSONTests: TestDefinitions = {
             ["end"],
         ],
     },
+    "forbidden schema": {
+        text: '! "foo" {}',
+        testHeaders: true,
+        events: [
+            ["parsererror", "expected the root value"],
+            ["headerstart"],
+            ["headerend"],
+            ["quotedstring", "foo"],
+            ["parsererror", "Unexpected data after end"],
+            ["openobject"],
+            ["closeobject"],
+        ],
+    },
 }

@@ -44,7 +44,8 @@ function getContextDescription(stackContext: StackContext) {
         case StackContextType.ROOT: {
             switch (stackContext[1].state) {
                 case RootState.EXPECTING_END: return "EXPECTING_END"
-                case RootState.EXPECTING_ROOTVALUE: return "EXPECTING_ROOTVALUE"
+                case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: return "EXPECTING_ROOTVALUE_WITHOUT_HEADER"
+                case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: return "EXPECTING_ROOTVALUE_AFTER_HEADER"
                 case RootState.EXPECTING_HASH_OR_ROOTVALUE: return "EXPECTING_ROOTVALUE_OR_HASH"
                 case RootState.EXPECTING_SCHEMA_START: return "EXPECTING_SCHEMA_START"
                 case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: return "EXPECTING_SCHEMA_START_OR_ROOT_VALUE"
@@ -110,9 +111,10 @@ export interface DataSubscriber {
 export type DataSubscription = subscr.Subscribers<DataSubscriber>
 
 export interface HeaderSubscriber {
+    onheaderstart(): void
     onschemastart(range: Range): void
-    onschemaend(): void
-    oncompact(isCompact: boolean, range: Range): void
+    oncompact(range: Range): void
+    onheaderend(): void
 }
 
 export class Parser implements IParser {
@@ -136,7 +138,7 @@ export class Parser implements IParser {
         } else if (this.opt.allow?.schema) {
             this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
         } else {
-            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }]
+            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER }]
         }
     }
     public assertIsEnded(location: Location) {
@@ -259,7 +261,6 @@ export class Parser implements IParser {
                             break
                         }
                         case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                            this.onheaderdata.signal(s => s.onschemaend())
                             this.oncurrentdata = this.ondata
 
                             if (curChar === Char.Header.hash) {
@@ -267,11 +268,12 @@ export class Parser implements IParser {
                                 if (!this.opt.allow?.compact) {
                                     this.raiseError("compact not allowed", range)
                                 } else {
-                                    this.onheaderdata.signal(s => s.oncompact(true, range))
-                                    $$.state = RootState.EXPECTING_ROOTVALUE
+                                    this.onheaderdata.signal(s => s.oncompact(range))
+                                    $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
                                 }
+                                this.onheaderdata.signal(s => s.onheaderend())
                             } else {
-                                this.onheaderdata.signal(s => s.oncompact(false, range))
+                                this.onheaderdata.signal(s => s.onheaderend())
                                 this.raiseError("expected a hash ('#') or the root value", range)
                             }
                             break
@@ -280,7 +282,11 @@ export class Parser implements IParser {
                             this.raiseError("expected the schema", range)
                             break
                         }
-                        case RootState.EXPECTING_ROOTVALUE: {
+                        case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                            this.raiseError("expected the root value", range)
+                            break
+                        }
+                        case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
                             this.raiseError("expected the root value", range)
                             break
                         }
@@ -288,6 +294,7 @@ export class Parser implements IParser {
                             if (curChar !== Char.Header.exclamationMark) {
                                 this.raiseError("expected schema start (!)", range)
                             } else {
+                                this.onheaderdata.signal(s => s.onheaderstart())
                                 this.onheaderdata.signal(s => s.onschemastart(range))
                                 this.oncurrentdata = this.onschemadata
                                 $$.state = RootState.EXPECTING_SCHEMA
@@ -296,6 +303,7 @@ export class Parser implements IParser {
                         case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                             if (curChar === Char.Header.exclamationMark) {
                                 $$.state = RootState.EXPECTING_SCHEMA
+                                this.onheaderdata.signal(s => s.onheaderstart())
                                 this.onheaderdata.signal(s => s.onschemastart(range))
                                 this.oncurrentdata = this.onschemadata
                             } else {
@@ -504,9 +512,8 @@ export class Parser implements IParser {
                         break
                     }
                     case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                        this.onheaderdata.signal(s => s.onschemaend())
                         this.oncurrentdata = this.ondata
-                        this.onheaderdata.signal(s => s.oncompact(false, range))
+                        this.onheaderdata.signal(s => s.onheaderend())
                         $$.state = RootState.EXPECTING_END
                         break
                     }
@@ -514,7 +521,13 @@ export class Parser implements IParser {
                         $$.state = RootState.EXPECTING_HASH_OR_ROOTVALUE
                         break
                     }
-                    case RootState.EXPECTING_ROOTVALUE: {
+                    case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                        $$.state = RootState.EXPECTING_END
+                        break
+                    }
+                    case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
+                        this.onheaderdata.signal(s => s.onheaderstart())
+                        this.onheaderdata.signal(s => s.onheaderend())
                         $$.state = RootState.EXPECTING_END
                         break
                     }
@@ -522,6 +535,8 @@ export class Parser implements IParser {
                         this.raiseError("expecting schema start (!)", range)
                         break
                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                        this.onheaderdata.signal(s => s.onheaderstart())
+                        this.onheaderdata.signal(s => s.onheaderend())
                         $$.state = RootState.EXPECTING_END
                         break
                     default:

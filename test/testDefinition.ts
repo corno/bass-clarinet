@@ -20,13 +20,16 @@ export type EventDefinition =
     | ["blockcomment", string, TestRange?]
     | ["parsererror", string]
     | ["tokenizererror", string]
+    | ["headerstart"]
     | ["schemastart"]
-    | ["schemaend"]
+    | ["compact"]
+    | ["headerend"]
     | ["validationerror", string]
 // [AnyEvent, string?, number?, number?]
 
 export type TestDefinition = {
     readonly text: string
+    readonly testHeaders?: boolean
     readonly chunks?: string[]
     readonly parserOptions?: ParserOptions
     readonly tokenizerOptions?: TokenizerOptions
@@ -45,8 +48,10 @@ export type AnyEvent =
     | DataEvent
 
 export type HeaderEvent =
+    | "headerstart"
     | "schemastart"
-    | "schemaend"
+    | "compact"
+    | "headerend"
 
 export type DataEvent =
 

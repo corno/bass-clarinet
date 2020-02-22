@@ -44,7 +44,7 @@ export const extensionTests: TestDefinitions = {
             ["openarray"],
             ["unquotedtoken", "1"],
             ["quotedstring", "a"],
-            ["blockcomment", "a comment\r\n", [ 1, 7, 2, 3]],
+            ["blockcomment", "a comment\r\n", [1, 7, 2, 3]],
             ["closearray"],
             ["end"],
         ],
@@ -109,7 +109,7 @@ export const extensionTests: TestDefinitions = {
             allow: { apostrophes_instead_of_quotation_marks: true },
         },
         events: [
-            ["quotedstring", "a string", [ 1, 1, 1, 11]],
+            ["quotedstring", "a string", [1, 1, 1, 11]],
             ["end"],
         ],
     },
@@ -148,26 +148,32 @@ export const extensionTests: TestDefinitions = {
         parserOptions: {
             allow: { schema: true },
         },
+        testHeaders: true,
         events: [
+            ["headerstart"],
             ["schemastart"],
             ["quotedstring", "a schema"],
-            ["schemaend"],
+            ["headerend"],
             ["unquotedtoken", "42"],
             ["end"],
         ],
     },
     "schema optional but not there": {
         text: "42",
+        testHeaders: true,
         parserOptions: {
             allow: { schema: true },
         },
         events: [
+            ["headerstart"],
+            ["headerend"],
             ["unquotedtoken", "42"],
             ["end"],
         ],
     },
     "schema required but not there": {
         text: "42",
+        testHeaders: true,
         parserOptions: {
             require: {
                 schema: true,
@@ -180,15 +186,17 @@ export const extensionTests: TestDefinitions = {
     },
     "schema required": {
         text: '! "a schema" 42',
+        testHeaders: true,
         parserOptions: {
             require: {
                 schema: true,
             },
         },
         events: [
+            ["headerstart"],
             ["schemastart"],
             ["quotedstring", "a schema"],
-            ["schemaend"],
+            ["headerend"],
             ["unquotedtoken", "42"],
             ["end"],
         ],
