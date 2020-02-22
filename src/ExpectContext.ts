@@ -16,7 +16,6 @@ import {
     Comment,
 } from "./stackedDataSubscriber"
 import { Range } from "./location"
-import { RangeError } from "./errors"
 
 export type IssueHandler = (message: string, range: Range) => void
 
@@ -44,28 +43,22 @@ type NullHandler = (range: Range) => void
  */
 
 export class ExpectContext {
-    private readonly errorHandler: null | IssueHandler
-    private readonly warningHandler: null | IssueHandler
+    private readonly errorHandler: IssueHandler
+    private readonly warningHandler: IssueHandler
     /**
      *
      * @param errorHandler if provided (not null), the errors are reported to this handler
      * and no errors are thrown
      * if not provided (null), this Context will throw errors
      */
-    constructor(errorHandler: null | IssueHandler, warningHandler: null | IssueHandler) {
+    constructor(errorHandler: IssueHandler, warningHandler: IssueHandler) {
         this.errorHandler = errorHandler
         this.warningHandler = warningHandler
     }
     public raiseWarning(message: string, range: Range) {
-        if (this.warningHandler === null) {
-            throw new RangeError(message, range)
-        }
         this.warningHandler(message, range)
     }
     public raiseError(message: string, range: Range): void {
-        if (this.errorHandler === null) {
-            throw new RangeError(message, range)
-        }
         this.errorHandler(message, range)
     }
 

@@ -19,7 +19,14 @@ const tokenizer = new bc.Tokenizer(
     err => { console.error("FOUND TOKENIZER ERROR", err.message) }
 )
 
-const ec = new bc.ExpectContext(null, null)
+const ec = new bc.ExpectContext(
+    (_message, _range) => {
+        throw new Error("encounterd error")
+    },
+    (_message, _range) => {
+        throw new Error("encounterd warning")
+    }
+)
 
 /**
  * expect an object/type with 2 properties, 'prop a' and 'prop b', both numbers

@@ -201,4 +201,15 @@ export const extensionTests: TestDefinitions = {
             ["end"],
         ],
     },
+    "empty while expecting schema": {
+        text: '',
+        parserOptions: {
+            require: {
+                schema: true,
+            },
+        },
+        events: [
+            ["parsererror", "unexpected end of document"],
+        ],
+    },
 }

@@ -2,6 +2,12 @@ import { TestDefinitions } from "./testDefinition";
 
 
 export const JSONTests: TestDefinitions = {
+    "empty": {
+        text: '',
+        events: [
+            ["parsererror", "unexpected end of document"],
+        ],
+    },
     "just a string": {
         text: '"a string"',
         events: [

@@ -114,19 +114,24 @@ export class Tokenizer {
         this.state = [ContextType.STACK]
         this.onerror = onerror
     }
-
-    public write(chunk: string) {
+    public canWrite() {
         if (this.pausedState === PauseState.PAUSED) {
-            throw new Error("cannot write while paused")
+            return false
         }
         if (this.error !== null) {
-            throw this.error
+            return false
         }
-        this.currentChunk = new CurrentChunk(chunk)
         if (this.ended) {
-            this.raiseError("Cannot write after end")
+            return false
+        }
+        return true
+    }
+    public write(chunk: string) {
+        if (!this.canWrite()) {
+            throw new Error("cannot write")
         }
         if (DEBUG) console.log(`write -> [${JSON.stringify(chunk)}]`)
+        this.currentChunk = new CurrentChunk(chunk)
         this.writeImp(this.currentChunk)
     }
     public pause() {
@@ -542,8 +547,8 @@ export class Tokenizer {
         return this.error !== null
     }
     public end() {
-        if (this.pausedState === PauseState.PAUSED) {
-            throw new Error("cannot end while paused")
+        if (!this.canWrite()) {
+            throw new Error("cannot end")
         }
         this.wrapUpUnquotedToken()
 
