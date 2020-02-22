@@ -65,7 +65,6 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
     )
 }
 
-
 const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err.message) },
     { allow: bc.lax }

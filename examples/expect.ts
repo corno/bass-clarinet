@@ -1,6 +1,5 @@
 import * as bc from "../src"
 import * as fs from "fs"
-import { ExpectContext, createStackedDataSubscriber, LocationError, RangeError } from "../src"
 
 const [, , path] = process.argv
 
@@ -20,13 +19,13 @@ const tokenizer = new bc.Tokenizer(
     err => { console.error("FOUND TOKENIZER ERROR", err.message) }
 )
 
-const ec = new ExpectContext(null, null)
+const ec = new bc.ExpectContext(null, null)
 
 /**
  * expect an object/type with 2 properties, 'prop a' and 'prop b', both numbers
  */
 parser.ondata.subscribe(
-    createStackedDataSubscriber(
+    bc.createStackedDataSubscriber(
         ec.expectType(
             (_range, _comments) => {
                 //prepare code here
@@ -45,9 +44,9 @@ parser.ondata.subscribe(
         ),
         error => {
             if (error.context[0] === "range") {
-                throw new RangeError(error.message, error.context[1])
+                throw new bc.RangeError(error.message, error.context[1])
             } else {
-                throw new LocationError(error.message, error.context[1])
+                throw new bc.LocationError(error.message, error.context[1])
             }
         },
         _comments => {
