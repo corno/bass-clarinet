@@ -139,7 +139,7 @@ export class Parser implements IParser {
             this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_ROOTVALUE }]
         }
     }
-    public onEnd(location: Location) {
+    public assertIsEnded(location: Location) {
 
         if (this.error !== null) {
             return

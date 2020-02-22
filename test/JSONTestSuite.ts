@@ -27,7 +27,7 @@ describe('parsing', () => {
                             },
                         )
                         tokenizer.write(data)
-                        tokenizer.close()
+                        tokenizer.end()
 
                         assert.ok(foundError, "no errors found")
                     } catch (e) {
@@ -52,7 +52,7 @@ describe('parsing', () => {
                             },
                         )
                         tokenizer.write(data)
-                        tokenizer.close()
+                        tokenizer.end()
                         assert.ok(!foundError, "errors found")
                     } catch (e) {
                         //do nothing
@@ -75,7 +75,7 @@ describe('parsing', () => {
                             },
                         )
                         tokenizer.write(data)
-                        tokenizer.close()
+                        tokenizer.end()
                     } catch (e) {
                         //do nothing
                     }
@@ -106,7 +106,7 @@ describe('transform', () => {
                     },
                 )
                 tokenizer.write(data)
-                tokenizer.close()
+                tokenizer.end()
             } catch (e) {
                 //do nothing
             }

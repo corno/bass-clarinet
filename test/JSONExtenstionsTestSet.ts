@@ -17,7 +17,6 @@ export const extensionTests: TestDefinitions = {
             ["unquotedtoken", "2"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "single line comment": {
@@ -32,7 +31,6 @@ export const extensionTests: TestDefinitions = {
             ["linecomment", "a comment"],//FIX this location, [ 1, 7, 1, 18 ]],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "multi line comment": {
@@ -49,7 +47,6 @@ export const extensionTests: TestDefinitions = {
             ["blockcomment", "a comment\r\n", [ 1, 7, 2, 3]],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "multi line comment 2": {
@@ -66,7 +63,6 @@ export const extensionTests: TestDefinitions = {
             ["blockcomment", "a comment b * c"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "parens instead of braces": {
@@ -80,7 +76,6 @@ export const extensionTests: TestDefinitions = {
             ["quotedstring", "foo"],
             ["closeobject", ")"],
             ["end"],
-            ["ready"],
         ],
     },
     "missing comma": {
@@ -94,7 +89,6 @@ export const extensionTests: TestDefinitions = {
             ["quotedstring", "bar"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "angle brackets instead of brackets": {
@@ -107,7 +101,6 @@ export const extensionTests: TestDefinitions = {
             ["quotedstring", "foo"],
             ["closearray", ">"],
             ["end"],
-            ["ready"],
         ],
     },
     "apostrophe string": {
@@ -118,7 +111,6 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["quotedstring", "a string", [ 1, 1, 1, 11]],
             ["end"],
-            ["ready"],
         ],
     },
     "tagged union": {
@@ -134,7 +126,6 @@ export const extensionTests: TestDefinitions = {
             ["quotedstring", "x"],
             ["closetaggedunion"],
             ["end"],
-            ["ready"],
         ],
     },
     "tagged union with number at end": {
@@ -150,7 +141,6 @@ export const extensionTests: TestDefinitions = {
             ["unquotedtoken", "5"],
             ["closetaggedunion"],
             ["end"],
-            ["ready"],
         ],
     },
     "schema optional": {
@@ -164,7 +154,6 @@ export const extensionTests: TestDefinitions = {
             ["schemaend"],
             ["unquotedtoken", "42"],
             ["end"],
-            ["ready"],
         ],
     },
     "schema optional but not there": {
@@ -175,7 +164,6 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["unquotedtoken", "42"],
             ["end"],
-            ["ready"],
         ],
     },
     "schema required but not there": {
@@ -188,7 +176,6 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["parsererror", 'expecting schema start (!)'],
             ["unquotedtoken", "42"],
-            ["ready"],
         ],
     },
     "schema required": {
@@ -204,7 +191,6 @@ export const extensionTests: TestDefinitions = {
             ["schemaend"],
             ["unquotedtoken", "42"],
             ["end"],
-            ["ready"],
         ],
     },
 }

@@ -7,7 +7,6 @@ export const JSONTests: TestDefinitions = {
         events: [
             ["quotedstring", "a string", [1, 1, 1, 11]],
             ["end", [1, 11]],
-            ["ready"],
         ],
     },
     "newline": {
@@ -15,7 +14,6 @@ export const JSONTests: TestDefinitions = {
         events: [
             ["quotedstring", "a string", [2, 3, 2, 13]],
             ["end"],
-            ["ready"],
         ],
     },
     "just a number": {
@@ -23,7 +21,6 @@ export const JSONTests: TestDefinitions = {
         events: [
             ["unquotedtoken", "42", [1, 1, 1, 2]],
             ["end", [1, 3]],
-            ["ready"],
         ],
     },
     "invalid number": {
@@ -32,7 +29,6 @@ export const JSONTests: TestDefinitions = {
             ["validationerror", "Invalid number, unexpected character x in '42x'"],
             ["unquotedtoken", "42x"],
             ["end"],
-            ["ready"],
         ],
     },
     "empty array": {
@@ -41,7 +37,6 @@ export const JSONTests: TestDefinitions = {
             ["openarray", "[", [1, 1, 1, 2]],
             ["closearray", "]", [1, 2, 1, 3]],
             ["end"],
-            ["ready"],
         ],
     },
     "just slash": {
@@ -51,7 +46,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "\\"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "zero byte": {
@@ -62,7 +56,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "\u0000"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "empty value": {
@@ -73,7 +66,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", ""],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "empty key": {
@@ -86,7 +78,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "baz"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "three byte utf8": {
@@ -99,7 +90,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "浅草"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "four byte utf8": {
@@ -110,7 +100,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "������"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "bulgarian": {
@@ -120,7 +109,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "Да Му Еба Майката"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "codepoints from unicodes": {
@@ -130,7 +118,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "\u004d\u0430\u4e8c\ud800\udf02"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "empty object": {
@@ -139,7 +126,6 @@ export const JSONTests: TestDefinitions = {
             ["openobject"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "missing property value": {
@@ -149,7 +135,6 @@ export const JSONTests: TestDefinitions = {
             ["key", "foo"],
             ["parsererror", "missing property value"],
             ["closeobject"],
-            ["ready"],
         ],
     },
     "foobar": {
@@ -160,7 +145,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "bar"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "as is": {
@@ -173,7 +157,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "false"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "array": {
@@ -184,7 +167,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", 'two'],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "array fu": {
@@ -212,7 +194,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", " \\ "],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "simple exp": {
@@ -222,7 +203,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "10e-01"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "nested": {
@@ -236,7 +216,6 @@ export const JSONTests: TestDefinitions = {
             ["closeobject"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "nested array": {
@@ -250,7 +229,6 @@ export const JSONTests: TestDefinitions = {
             ["closearray"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "array of objs": {
@@ -267,7 +245,6 @@ export const JSONTests: TestDefinitions = {
             ["closeobject"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "two keys": {
@@ -280,7 +257,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "d"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "key true": {
@@ -295,7 +271,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "null"],
             ["closeobject", "}", [1, 40, 1, 41]],
             ["end"],
-            ["ready"],
         ],
     },
     "obj strange strings": {
@@ -308,7 +283,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", 'its "nice"'],
             ["closeobject", "}", [1, 47, 1, 48]],
             ["end"],
-            ["ready"],
         ],
     },
     "bad foo bar": {
@@ -318,7 +292,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", 'foo'],
             ["quotedstring", 'bar'],
             ['parsererror', 'unexpected end of document'],
-            ['ready'],
         ],
     },
     "string invalid escape": {
@@ -328,7 +301,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", 'and you can\'t escape this', [1, 2, 1, 29]],
             ["closearray", "]", [1, 29, 1, 30]],
             ["end"],
-            ["ready"],
         ],
     },
     "nuts and bolts": {
@@ -345,7 +317,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "null"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "frekin string": {
@@ -355,7 +326,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", '\\\"\"a\"'],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "array of string insanity": {
@@ -367,7 +337,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "and this string has no escapes"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "non utf8": {
@@ -540,7 +509,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "0.0.1"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "array of arrays": {
@@ -556,7 +524,6 @@ export const JSONTests: TestDefinitions = {
             ["closearray"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "low overflow": {
@@ -569,7 +536,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "-9223372036854775808"],
             ["closearray", "]", [1, 22, 1, 23]],
             ["end"],
-            ["ready"],
         ],
     },
     "high overflow": {
@@ -579,7 +545,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "9223372036854775808"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "floats": {
@@ -592,7 +557,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "10000000000000e-10"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "numbers game": {
@@ -632,7 +596,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "-2147483647"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "johnsmith": {
@@ -678,7 +641,6 @@ export const JSONTests: TestDefinitions = {
             ["closearray"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "array null": {
@@ -697,7 +659,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "true", [1, 13, 1, 17]],
             ["closearray", "]", [1, 17, 1, 18]],
             ["end"],
-            ["ready"],
         ],
     },
     "empty array comma": {
@@ -714,7 +675,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "true"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "incomplete json terminates ending in number": {
@@ -730,7 +690,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "42", [1, 11, 1, 13]],
             ["unquotedtoken", "0"],
             ['parsererror', 'unexpected end of document'],
-            ['ready'],
         ],
     },
     "incomplete json terminates ending in comma": {
@@ -743,7 +702,6 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "42"],
             ["closearray"],
             ['parsererror', 'unexpected end of document'],
-            ['ready'],
         ],
     },
     "json org": {
@@ -813,7 +771,6 @@ export const JSONTests: TestDefinitions = {
             ["closeobject"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "string chunk span": {
@@ -828,7 +785,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", 'Ã©alL\'Or'],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "forbidden extension apostrophe string": {
@@ -837,7 +793,6 @@ export const JSONTests: TestDefinitions = {
             ["validationerror", "invalid string, should start with'\"'"],
             ["quotedstring", "a string"],
             ["end"],
-            ["ready"],
         ],
     },
     "multiline string": {
@@ -847,7 +802,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "a\nstring"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "forbidden extension trailing comma": {
@@ -859,7 +813,6 @@ export const JSONTests: TestDefinitions = {
             ["validationerror", "trailing commas are not allowed"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "forbidden extension block comment": {
@@ -872,7 +825,6 @@ export const JSONTests: TestDefinitions = {
             ["blockcomment", "a comment\r\n"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "forbidden extension parens instead of braces": {
@@ -885,7 +837,6 @@ export const JSONTests: TestDefinitions = {
             ["validationerror", "objects should end with '}' in strict JSON"],
             ["closeobject"],
             ["end"],
-            ["ready"],
         ],
     },
     "forbidden extension missing comma": {
@@ -897,7 +848,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "bar"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "forbidden extension angle brackets instead of brackets": {
@@ -909,7 +859,6 @@ export const JSONTests: TestDefinitions = {
             ["validationerror", "arrays should end with ']' in strict JSON"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "forbidden extension single line comment": {
@@ -922,7 +871,6 @@ export const JSONTests: TestDefinitions = {
             ["linecomment", "a comment"],
             ["closearray"],
             ["end"],
-            ["ready"],
         ],
     },
     "forbidden tagged union": {
@@ -934,7 +882,6 @@ export const JSONTests: TestDefinitions = {
             ["quotedstring", "x"],
             ["closetaggedunion"],
             ["end"],
-            ["ready"],
         ],
     },
 }

@@ -236,13 +236,6 @@ function createTestFunction(chunks: string[], expectedEvents: EventDefinition[],
         }
         parser.ondata.subscribe(subscriber)
 
-        tokenizer.onready.subscribe(() => {
-            if (DEBUG) console.log("found ready")
-
-            const ee = getExpectedEvent()
-            validateEventsEqual(ee, "ready")
-        })
-
         chunks.forEach(chunk => {
             try {
                 //if in error state, don't write or we'll get an exception
