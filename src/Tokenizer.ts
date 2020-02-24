@@ -586,7 +586,8 @@ export class Tokenizer {
                 break
             case ContextType.QUOTED_STRING:
                 //strings are self closing (with a '"')
-                throw new Error("unexpected string")
+                this.raiseError("unterminated string")
+                break
             default:
                 return assertUnreachable(this.state[0])
         }
