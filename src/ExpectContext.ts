@@ -45,12 +45,6 @@ type NullHandler = (range: Range) => void
 export class ExpectContext {
     private readonly errorHandler: IssueHandler
     private readonly warningHandler: IssueHandler
-    /**
-     *
-     * @param errorHandler if provided (not null), the errors are reported to this handler
-     * and no errors are thrown
-     * if not provided (null), this Context will throw errors
-     */
     constructor(errorHandler: IssueHandler, warningHandler: IssueHandler) {
         this.errorHandler = errorHandler
         this.warningHandler = warningHandler
