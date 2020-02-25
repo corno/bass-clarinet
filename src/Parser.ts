@@ -102,7 +102,7 @@ export interface DataSubscriber {
     onkey(key: string, range: Range, pauser: Pauser): void
 
     onquotedstring(value: string, quote: string, range: Range, pauser: Pauser): void
-    onunquotedtoken(value: string, range: Range): void
+    onunquotedtoken(value: string, range: Range, pauser: Pauser): void
 
     onblockcomment(comment: string, range: Range, indent: string | null, pauser: Pauser): void
     onlinecomment(comment: string, range: Range, pauser: Pauser): void
@@ -380,7 +380,7 @@ export class Parser implements IParser {
     public onUnquotedTokenBegin(location: Location) {
         this.setState([ContextType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], {start: location, end: location})
     }
-    public onUnquotedTokenEnd(location: Location) {
+    public onUnquotedTokenEnd(location: Location, pauser: Pauser) {
         if (this.state[0] !== ContextType.UNQUOTED_TOKEN) {
             throw new ParserStackPanicError(`Unexpected unquoted token end`, {start: location, end: location} )
         }
@@ -390,7 +390,7 @@ export class Parser implements IParser {
             end: location,
         }
         this.setStateBeforeValue(range)
-        this.oncurrentdata.signal(s => s.onunquotedtoken($.unquotedTokenNode, range))
+        this.oncurrentdata.signal(s => s.onunquotedtoken($.unquotedTokenNode, range, pauser))
         this.setStateAfterValue(range.end)
         this.unsetState({start: location, end: location})
     }

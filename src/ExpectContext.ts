@@ -169,7 +169,7 @@ export class ExpectContext {
             return {
                 element: (startRange, tuComments) => {
                     return {
-                        array: (startLocation, openCharacter, dataComments) => {
+                        array: (startLocation, openCharacter, dataComments, pauser) => {
                             if (dataHandler === null) {
                                 this.raiseError(`unexected array`, startLocation)
                                 return createDummyArrayHandler()
@@ -177,9 +177,9 @@ export class ExpectContext {
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.array(startLocation, openCharacter, dataComments)
+                            return dh.array(startLocation, openCharacter, dataComments, pauser)
                         },
-                        object: (startLocation, openCharacter, dataComments) => {
+                        object: (startLocation, openCharacter, dataComments, pauser) => {
                             if (dataHandler === null) {
                                 this.raiseError(`unexected object`, startLocation)
                                 return createDummyObjectHandler()
@@ -187,24 +187,24 @@ export class ExpectContext {
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.object(startLocation, openCharacter, dataComments)
+                            return dh.object(startLocation, openCharacter, dataComments, pauser)
                         },
-                        boolean: (value, dataRange, dataComments) => {
+                        boolean: (value, dataRange, dataComments, pauser) => {
                             if (dataHandler === null) {
                                 return this.raiseError(`expected string`, dataRange)
 
                             } else {
-                                dataHandler.boolean(value, dataRange, dataComments)
+                                dataHandler.boolean(value, dataRange, dataComments, pauser)
                             }
                         },
-                        number: (value, dataRange, dataComments) => {
+                        number: (value, dataRange, dataComments, pauser) => {
                             if (dataHandler === null) {
                                 return this.raiseError(`expected string`, dataRange)
                             } else {
-                                dataHandler.number(value, dataRange, dataComments)
+                                dataHandler.number(value, dataRange, dataComments, pauser)
                             }
                         },
-                        string: (value, range, dataComments) => {
+                        string: (value, range, dataComments, pauser) => {
                             if (dataHandler === null) {
                                 //found the option
                                 const optionHandler = options[value]
@@ -213,19 +213,19 @@ export class ExpectContext {
                                 }
                                 dataHandler = optionHandler(startRange, tuComments, range, dataComments)
                             } else {
-                                dataHandler.string(value, range, dataComments)
+                                dataHandler.string(value, range, dataComments, pauser)
                             }
                         },
-                        null: (dataRange, dataComments) => {
+                        null: (dataRange, dataComments, pauser) => {
                             if (dataHandler === null) {
                                 this.raiseError(`unexected null`, dataRange)
                                 return createDummyObjectHandler()
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.null(dataRange, dataComments)
+                            return dh.null(dataRange, dataComments, pauser)
                         },
-                        taggedUnion: (option, subTuRange, subTuComments, dataRange, dataComments) => {
+                        taggedUnion: (option, subTuRange, subTuComments, dataRange, dataComments, pauser) => {
                             if (dataHandler === null) {
                                 this.raiseError(`unexected tagged union`, startRange)
                                 return createDummyValueHandler()
@@ -233,7 +233,7 @@ export class ExpectContext {
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.taggedUnion(option, subTuRange, subTuComments, dataRange, dataComments)
+                            return dh.taggedUnion(option, subTuRange, subTuComments, dataRange, dataComments, pauser)
 
                         },
                     }

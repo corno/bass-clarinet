@@ -14,7 +14,7 @@ export interface IParser {
     onBlockCommentEnd(range: Range, pauser: Pauser | null): void //pauser can be null for unterminated comments
 
     onUnquotedTokenBegin(location: Location, pauser: Pauser): void
-    onUnquotedTokenEnd(location: Location): void
+    onUnquotedTokenEnd(location: Location, pauser: Pauser | null): void
 
     onQuotedStringBegin(range: Range, quote: string, pauser: Pauser): void
     onQuotedStringEnd(range: Range, quote: string | null, pauser: Pauser | null): void //quote can be null for unterminated strings

@@ -340,7 +340,7 @@ export class Tokenizer {
                         if (!isUnquotedTokenCharacter()) {
                             flush()
 
-                            this.parser.onUnquotedTokenEnd(this.getEndLocation())
+                            this.parser.onUnquotedTokenEnd(this.getEndLocation(), pauser)
 
                             this.setState([ContextType.STACK])
                             //this character does not belong to the keyword so don't go to the next character by breaking
@@ -568,7 +568,7 @@ export class Tokenizer {
                 break
             }
             case ContextType.UNQUOTED_TOKEN:
-                this.parser.onUnquotedTokenEnd(this.getEndLocation())
+                this.parser.onUnquotedTokenEnd(this.getEndLocation(), null)
 
                 this.setState([ContextType.STACK])
 

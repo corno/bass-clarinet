@@ -131,8 +131,8 @@ export function createStackedDataSubscriber(
                 range: range,
             })
         },
-        onopenarray: (range, openCHaracter) => {
-            const arrayHandler = initValueHandler(range).array(range, openCHaracter, flushComments())
+        onopenarray: (range, openCHaracter, pauser) => {
+            const arrayHandler = initValueHandler(range).array(range, openCHaracter, flushComments(), pauser)
             stack.push(currentContext)
             currentContext = ["array", { arrayHandler: arrayHandler }]
         },
@@ -149,12 +149,12 @@ export function createStackedDataSubscriber(
             stack.push(currentContext)
             currentContext = ["taggedunion", { start: range, parentValueHandler: initValueHandler(range), valueHandler: null, comments: flushComments() }]
         },
-        onoption: (option, range) => {
+        onoption: (option, range, pauser) => {
             if (DEBUG) { console.log("on option", option) }
             if (currentContext[0] !== "taggedunion") {
                 raiseRangeError(onError, "unexpected option", range)
             } else {
-                currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].start, currentContext[1].comments, range, flushComments())
+                currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].start, currentContext[1].comments, range, flushComments(), pauser)
             }
         },
         onclosetaggedunion: location => {
@@ -164,13 +164,13 @@ export function createStackedDataSubscriber(
             }
             pop({ start: location, end: location })
         },
-        onopenobject: (range, openCharacter) => {
+        onopenobject: (range, openCharacter, pauser) => {
             if (DEBUG) { console.log("on open object") }
             const vh = initValueHandler(range)
             if (vh === null) {
                 raiseRangeError(onError, "unexpected value", range)
             }
-            const objectHandler = vh.object(range, openCharacter, flushComments())
+            const objectHandler = vh.object(range, openCharacter, flushComments(), pauser)
             stack.push(currentContext)
             currentContext = ["object", {
                 objectHandler: objectHandler,
@@ -194,16 +194,16 @@ export function createStackedDataSubscriber(
                 currentContext[1].valueHandler = currentContext[1].objectHandler.property(key, range, flushComments())
             }
         },
-        onquotedstring: (value, _quote, range) => {
+        onquotedstring: (value, _quote, range, pauser) => {
             if (DEBUG) { console.log("on quoted string", value) }
             const vh = initValueHandler(range)
             if (vh === null) {
                 raiseRangeError(onError, "unexpected value", range)
             }
-            vh.string(value, range, flushComments())
+            vh.string(value, range, flushComments(), pauser)
 
         },
-        onunquotedtoken: (value, range) => {
+        onunquotedtoken: (value, range, pauser) => {
             if (DEBUG) { console.log("on value", value) }
             const vh = initValueHandler(range)
             if (vh === null) {
@@ -211,15 +211,15 @@ export function createStackedDataSubscriber(
             }
             switch (value) {
                 case "true": {
-                    vh.boolean(true, range, flushComments())
+                    vh.boolean(true, range, flushComments(), pauser)
                     return
                 }
                 case "false": {
-                    vh.boolean(false, range, flushComments())
+                    vh.boolean(false, range, flushComments(), pauser)
                     return
                 }
                 case "null": {
-                    vh.null(range, flushComments())
+                    vh.null(range, flushComments(), pauser)
                     return
                 }
             }
@@ -230,7 +230,7 @@ export function createStackedDataSubscriber(
                 if (isNaN(nr)) {
                     raiseRangeError(onError, `invalid number: ${value}`, range)
                 }
-                vh.number(nr, range, flushComments())
+                vh.number(nr, range, flushComments(), pauser)
                 return
             }
             raiseRangeError(onError, `unrecognized unquoted token '${value}'`, range)

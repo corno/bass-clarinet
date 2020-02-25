@@ -1,4 +1,5 @@
 import { Range } from "../location"
+import { Pauser } from "../parserAPI"
 
 export type ObjectHandler = {
     property: (key: string, keyRange: Range, comments: Comment[]) => ValueHandler
@@ -10,13 +11,13 @@ export type ArrayHandler = {
     end: (end: Range, closeCharacter: string, comments: Comment[]) => void
 }
 
-export type OnObject = (start: Range, openCharacter: string, comments: Comment[]) => ObjectHandler
-export type OnArray = (start: Range, openCharacter: string, comments: Comment[]) => ArrayHandler
-export type OnNumber = (value: number, range: Range, comments: Comment[]) => void
-export type OnBoolean = (value: boolean, range: Range, comments: Comment[]) => void
-export type OnString = (value: string, range: Range, comments: Comment[]) => void
-export type OnNull = (range: Range, comments: Comment[]) => void
-export type OnTaggedUnion = (option: string, start: Range, tuComments: Comment[], optionRange: Range, optionComments: Comment[]) => ValueHandler
+export type OnObject = (start: Range, openCharacter: string, comments: Comment[], pauser: Pauser) => ObjectHandler
+export type OnArray = (start: Range, openCharacter: string, comments: Comment[], pauser: Pauser) => ArrayHandler
+export type OnNumber = (value: number, range: Range, comments: Comment[], pauser: Pauser) => void
+export type OnBoolean = (value: boolean, range: Range, comments: Comment[], pauser: Pauser) => void
+export type OnString = (value: string, range: Range, comments: Comment[], pauser: Pauser) => void
+export type OnNull = (range: Range, comments: Comment[], pauser: Pauser) => void
+export type OnTaggedUnion = (option: string, start: Range, tuComments: Comment[], optionRange: Range, optionComments: Comment[], pauser: Pauser) => ValueHandler
 
 export interface ValueHandler {
     object: OnObject
