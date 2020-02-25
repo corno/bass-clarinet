@@ -116,6 +116,42 @@ export class Tokenizer {
             }
         }
     }
+    private next(currentChunk: ProcessingData) {
+        const cc = currentChunk.next()
+
+        if (DEBUG) {
+            const stateInfo = getStateDescription(this.state)
+            const char = (cc === Char.Whitespace.tab) ? "\\t" : cc === null ? "\\0" : String.fromCharCode(cc)
+
+            console.log(
+                `${stateInfo.padEnd(35)}${JSON.stringify(char).padStart(4)} ${("(" + cc + ")").padEnd(5)}` +
+                ` ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`,
+                currentChunk.index
+            )
+        }
+        if (cc === null) {
+            this.currentChunk = null
+        } else {
+            this.position++
+            //set the position
+            switch (cc) {
+                case Char.Whitespace.lineFeed:
+                    this.line++
+                    this.column = 0
+                    this.indent = ""
+                    break
+                case Char.Whitespace.carriageReturn:
+                    break
+                case Char.Whitespace.tab:
+                    const tab = (this.opt.spaces_per_tab) ? this.opt.spaces_per_tab : 4
+                    this.column += tab
+                    break
+                default:
+                    this.column++
+            }
+        }
+        return cc
+    }
     private writeImp(currentChunk: ProcessingData) {
         const pauser: Pauser = {
             pause: () => {
@@ -130,46 +166,6 @@ export class Tokenizer {
                 this.emptyQueue()
                 currentChunk.sourcePauser.continue()
             },
-        }
-        const lookahead = () => {
-            return currentChunk.lookahead()
-        }
-        const next = () => {
-            const cc = currentChunk.next()
-
-
-            if (DEBUG) {
-                const stateInfo = getStateDescription(this.state)
-                const char = (cc === Char.Whitespace.tab) ? "\\t" : cc === null ? "\\0" : String.fromCharCode(cc)
-
-                console.log(
-                    `${stateInfo.padEnd(35)}${JSON.stringify(char).padStart(4)} ${("(" + cc + ")").padEnd(5)}` +
-                    ` ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`,
-                    currentChunk.index
-                )
-            }
-            if (cc === null) {
-                this.currentChunk = null
-            } else {
-                this.position++
-                //set the position
-                switch (cc) {
-                    case Char.Whitespace.lineFeed:
-                        this.line++
-                        this.column = 0
-                        this.indent = ""
-                        break
-                    case Char.Whitespace.carriageReturn:
-                        break
-                    case Char.Whitespace.tab:
-                        const tab = (this.opt.spaces_per_tab) ? this.opt.spaces_per_tab : 4
-                        this.column += tab
-                        break
-                    default:
-                        this.column++
-                }
-            }
-            return cc
         }
         while (true) {
             const state = this.state
@@ -193,7 +189,7 @@ export class Tokenizer {
 
                     commentLoop: while (true) {
                         //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
-                        const currentChar = next()
+                        const currentChar = this.next(currentChunk)
 
 
                         if (currentChar === null) {
@@ -301,7 +297,7 @@ export class Tokenizer {
                     }
 
                     while (true) {
-                        const nextChar = lookahead()
+                        const nextChar = currentChunk.lookahead()
                         if (nextChar === null) {
                             this.currentChunk = null
                             flush()
@@ -352,7 +348,7 @@ export class Tokenizer {
                         } else {
                             //normal character
                             //don't flush
-                            next()
+                            this.next(currentChunk)
                             if (snippetStart === null) {
                                 snippetStart = currentChunk.index
                             }
@@ -361,88 +357,84 @@ export class Tokenizer {
                     break
                 }
                 case ContextType.STACK: {
-                    stackLoop: while (true) {
-                        const currentChar = next()
+                    const currentChar = this.next(currentChunk)
 
-                        if (
-                            currentChar === Char.Whitespace.carriageReturn ||
-                            currentChar === Char.Whitespace.lineFeed ||
-                            currentChar === Char.Whitespace.space ||
-                            currentChar === Char.Whitespace.tab
-                        ) {
-                            continue
-                        }
-                        if (currentChar === null) {
-                            //end of chunk reached
-                            return
-                        }
-                        this.indent = null
+                    if (
+                        currentChar === Char.Whitespace.carriageReturn ||
+                        currentChar === Char.Whitespace.lineFeed ||
+                        currentChar === Char.Whitespace.space ||
+                        currentChar === Char.Whitespace.tab
+                    ) {
+                        continue
+                    }
+                    if (currentChar === null) {
+                        //end of chunk reached
+                        return
+                    }
+                    this.indent = null
 
-                        function getSimpleValueType(): SimpleValueType | null {
-                            if (currentChar === Char.QuotedString.quotationMark || currentChar === Char.QuotedString.apostrophe) {
-                                return SimpleValueType.QUOTED_STRING
-                            } else if (currentChar === Char.Object.openBrace || currentChar === Char.Object.openParen) {
-                                return null
-                            } else if (currentChar === Char.Array.openBracket || currentChar === Char.Array.openAngleBracket) {
-                                return null
-                            } else if (currentChar === Char.TaggedUnion.verticalLine) { //extension to strict JSON specifications
-                                return null
-                            } else {
-                                if (
-                                    currentChar === Char.Array.comma ||
-                                    currentChar === Char.Array.closeBracket ||
-                                    currentChar === Char.Array.closeAngleBracket ||
-                                    currentChar === Char.Object.closeParen ||
-                                    currentChar === Char.Object.closeBrace ||
-                                    currentChar === Char.Object.colon ||
-                                    currentChar === Char.Header.exclamationMark ||
-                                    currentChar === Char.Header.hash
-                                ) {
-                                    return null
-                                }
-                                return SimpleValueType.UNQUOTED_STRING
-                            }
-                        }
-                        const valueType = getSimpleValueType()
-                        if (currentChar === Char.Comment.solidus) {
-                            this.setState([ContextType.COMMENT, {
-                                state: [CommentState.FOUND_SOLIDUS, { start: this.getBeginLocation() }],
-                            }])
-                        } else if (valueType !== null) {
-                            if (valueType === SimpleValueType.QUOTED_STRING) {
-                                this.setState([ContextType.QUOTED_STRING, {
-                                    startCharacter: currentChar,
-                                    slashed: false,
-                                    unicode: null,
-                                }])
-                                this.parser.onQuotedStringBegin({ start: this.getBeginLocation(), end: this.getEndLocation() }, String.fromCharCode(currentChar), pauser)
-                                if (currentChunk.mustPause) {
-                                    return
-                                }
-                            } else {
-                                this.setState([ContextType.UNQUOTED_TOKEN])
-                                this.parser.onUnquotedTokenBegin(this.getBeginLocation(), pauser)
-                                if (currentChunk.mustPause) {
-                                    return
-                                }
-                                this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1, pauser) //copy current character
-                                if (currentChunk.mustPause) {
-                                    return
-                                }
-
-                            }
+                    function getSimpleValueType(): SimpleValueType | null {
+                        if (currentChar === Char.QuotedString.quotationMark || currentChar === Char.QuotedString.apostrophe) {
+                            return SimpleValueType.QUOTED_STRING
+                        } else if (currentChar === Char.Object.openBrace || currentChar === Char.Object.openParen) {
+                            return null
+                        } else if (currentChar === Char.Array.openBracket || currentChar === Char.Array.openAngleBracket) {
+                            return null
+                        } else if (currentChar === Char.TaggedUnion.verticalLine) { //extension to strict JSON specifications
+                            return null
                         } else {
-                            this.parser.onPunctuation(currentChar, {
-                                start: this.getBeginLocation(),
-                                end: this.getEndLocation(),
-                            }, pauser)
+                            if (
+                                currentChar === Char.Array.comma ||
+                                currentChar === Char.Array.closeBracket ||
+                                currentChar === Char.Array.closeAngleBracket ||
+                                currentChar === Char.Object.closeParen ||
+                                currentChar === Char.Object.closeBrace ||
+                                currentChar === Char.Object.colon ||
+                                currentChar === Char.Header.exclamationMark ||
+                                currentChar === Char.Header.hash
+                            ) {
+                                return null
+                            }
+                            return SimpleValueType.UNQUOTED_STRING
+                        }
+                    }
+                    const valueType = getSimpleValueType()
+                    if (currentChar === Char.Comment.solidus) {
+                        this.setState([ContextType.COMMENT, {
+                            state: [CommentState.FOUND_SOLIDUS, { start: this.getBeginLocation() }],
+                        }])
+                    } else if (valueType !== null) {
+                        if (valueType === SimpleValueType.QUOTED_STRING) {
+                            this.setState([ContextType.QUOTED_STRING, {
+                                startCharacter: currentChar,
+                                slashed: false,
+                                unicode: null,
+                            }])
+                            this.parser.onQuotedStringBegin({ start: this.getBeginLocation(), end: this.getEndLocation() }, String.fromCharCode(currentChar), pauser)
                             if (currentChunk.mustPause) {
                                 return
                             }
-                        }
-                        break stackLoop
-                    }
+                        } else {
+                            this.setState([ContextType.UNQUOTED_TOKEN])
+                            this.parser.onUnquotedTokenBegin(this.getBeginLocation(), pauser)
+                            if (currentChunk.mustPause) {
+                                return
+                            }
+                            this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1, pauser) //copy current character
+                            if (currentChunk.mustPause) {
+                                return
+                            }
 
+                        }
+                    } else {
+                        this.parser.onPunctuation(currentChar, {
+                            start: this.getBeginLocation(),
+                            end: this.getEndLocation(),
+                        }, pauser)
+                        if (currentChunk.mustPause) {
+                            return
+                        }
+                    }
                     break
                 }
                 case ContextType.QUOTED_STRING: {
@@ -462,9 +454,9 @@ export class Tokenizer {
                         snippetStart = null
                     }
 
-                    while (true) {
+                    quotedStringLoop: while (true) {
                         //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
-                        const currentChar = next()
+                        const currentChar = this.next(currentChunk)
 
                         if (currentChar === null) {
                             //end of the chunk
@@ -534,7 +526,7 @@ export class Tokenizer {
                                 if (currentChunk.mustPause) {
                                     return
                                 }
-                                break
+                                break quotedStringLoop
                             } else {
                                 //normal character
                                 //don't flush
@@ -561,12 +553,11 @@ export class Tokenizer {
         }
     }
     private onEnd() {
-
         switch (this.state[0]) {
             case ContextType.COMMENT: {
                 const $ = this.state[1]
                 if ($.state[0] === CommentState.BLOCK_COMMENT) {
-                    this.raiseError("unterminated block comment", { start: this.getEndLocation(), end: this.getEndLocation()})
+                    this.raiseError("unterminated block comment", { start: this.getEndLocation(), end: this.getEndLocation() })
                     const locationInfo = {
                         start: this.getEndLocation(),
                         end: this.getEndLocation(),
@@ -585,7 +576,7 @@ export class Tokenizer {
             case ContextType.STACK:
                 break
             case ContextType.QUOTED_STRING: {
-                this.raiseError("unterminated string", { start: this.getEndLocation(), end: this.getEndLocation()})
+                this.raiseError("unterminated string", { start: this.getEndLocation(), end: this.getEndLocation() })
 
                 const locationInfo = {
                     start: this.getEndLocation(),
