@@ -120,15 +120,15 @@ export interface HeaderSubscriber {
 
 export class Parser implements IParser {
     public readonly stack = new Array<StackContext>()
-    public currentContext: StackContext
     public readonly opt: ParserOptions
-    readonly onschemadata = new subscr.Subscribers<DataSubscriber>()
-    readonly ondata = new subscr.Subscribers<DataSubscriber>()
-    public oncurrentdata: subscr.Subscribers<DataSubscriber>
-    readonly onheaderdata = new subscr.Subscribers<HeaderSubscriber>()
+    public readonly onschemadata = new subscr.Subscribers<DataSubscriber>()
+    public readonly ondata = new subscr.Subscribers<DataSubscriber>()
+    public readonly onheaderdata = new subscr.Subscribers<HeaderSubscriber>()
+    private currentContext: StackContext
+    private oncurrentdata: subscr.Subscribers<DataSubscriber>
     private state: Context = [ContextType.STACK]
-
     private readonly onerror: (message: string, range: Range) => void
+
     constructor(onerror: (message: string, range: Range) => void, opt?: ParserOptions) {
         this.onerror = onerror
         this.opt = opt || {}
@@ -142,14 +142,46 @@ export class Parser implements IParser {
         }
     }
     public assertIsEnded(location: Location) {
-        if (this.currentContext[0] !== StackContextType.ROOT
-            || this.currentContext[1].state !== RootState.EXPECTING_END
-            || this.stack.length !== 0
-        ) {
-            this.raiseError("unexpected end of document", { start: location, end: location })
-            return
-        }
+        const range = { start: location, end: location }
+        if (this.currentContext[0] === StackContextType.ROOT) {
+            const $$ = this.currentContext[1]
+            switch ($$.state) {
+                case RootState.EXPECTING_END: {
+                    break
+                }
+                case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
+                    this.raiseError("expected hash or rootvalue", range)
+                    this.onheaderdata.signal(s => s.onheaderend(range))
+                    break
+                }
+                case RootState.EXPECTING_SCHEMA: {
+                    this.raiseError("expected the schema", range)
+                    this.onheaderdata.signal(s => s.onheaderend(range))
+                    break
+                }
+                case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                    this.raiseError("expected the root value", range)
+                    break
+                }
+                case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
+                    this.raiseError("expected the root value", range)
+                    break
+                }
+                case RootState.EXPECTING_SCHEMA_START:
+                    this.raiseError("expected the schema start (!)", range)
+                    this.onheaderdata.signal(s => s.onheaderend(range))
 
+                    break
+                case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                    this.raiseError("expected the schema start (!) or root value", range)
+                    this.onheaderdata.signal(s => s.onheaderend(range))
+                    break
+                default:
+                    return assertUnreachable($$.state)
+            }
+        } else {
+            this.raiseError("unexpected end of document, still in nested type", range)
+        }
         this.oncurrentdata.signal(s => s.onend(location))
     }
     public onPunctuation(curChar: number, range: Range, pauser: Pauser) {
@@ -356,33 +388,33 @@ export class Parser implements IParser {
         }
     }
     public onLineCommentBegin(range: Range) {
-        this.setState([ContextType.COMMENT, { commentNode: "", start: range, indent: null}], range)
+        this.setState([ContextType.COMMENT, { commentNode: "", start: range, indent: null }], range)
     }
     public onLineCommentEnd(location: Location, pauser: Pauser) {
         if (this.state[0] !== ContextType.COMMENT) {
-            throw new ParserStackPanicError(`Unexpected line comment end`, {start: location, end: location})
+            throw new ParserStackPanicError(`Unexpected line comment end`, { start: location, end: location })
         }
         const $ = this.state[1]
-        this.oncurrentdata.signal(s => s.onlinecomment($.commentNode, { start: $.start.start, end: location}, pauser))
-        this.unsetState({start: location, end: location})
+        this.oncurrentdata.signal(s => s.onlinecomment($.commentNode, { start: $.start.start, end: location }, pauser))
+        this.unsetState({ start: location, end: location })
     }
     public onBlockCommentBegin(range: Range, indent: null | string) {
-        this.setState([ContextType.COMMENT, { commentNode: "", start: range, indent: indent}], range)
+        this.setState([ContextType.COMMENT, { commentNode: "", start: range, indent: indent }], range)
     }
     public onBlockCommentEnd(end: Range, pauser: Pauser) {
         if (this.state[0] !== ContextType.COMMENT) {
             throw new ParserStackPanicError(`Unexpected block comment end`, end)
         }
         const $ = this.state[1]
-        this.oncurrentdata.signal(s => s.onblockcomment($.commentNode, { start: $.start.start, end: end.end}, $.indent, pauser))
+        this.oncurrentdata.signal(s => s.onblockcomment($.commentNode, { start: $.start.start, end: end.end }, $.indent, pauser))
         this.unsetState(end)
     }
     public onUnquotedTokenBegin(location: Location) {
-        this.setState([ContextType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], {start: location, end: location})
+        this.setState([ContextType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], { start: location, end: location })
     }
     public onUnquotedTokenEnd(location: Location, pauser: Pauser) {
         if (this.state[0] !== ContextType.UNQUOTED_TOKEN) {
-            throw new ParserStackPanicError(`Unexpected unquoted token end`, {start: location, end: location} )
+            throw new ParserStackPanicError(`Unexpected unquoted token end`, { start: location, end: location })
         }
         const $ = this.state[1]
         const range = {
@@ -392,7 +424,7 @@ export class Parser implements IParser {
         this.setStateBeforeValue(range)
         this.oncurrentdata.signal(s => s.onunquotedtoken($.unquotedTokenNode, range, pauser))
         this.setStateAfterValue(range.end)
-        this.unsetState({start: location, end: location})
+        this.unsetState({ start: location, end: location })
     }
 
     public onQuotedStringBegin(begin: Range, quote: string) {
@@ -586,7 +618,7 @@ export class Parser implements IParser {
     private popContext(location: Location) {
         const popped = this.stack.pop()
         if (popped === undefined) {
-            throw new ParserStackPanicError("unexpected end of stack", { start: location, end: location})
+            throw new ParserStackPanicError("unexpected end of stack", { start: location, end: location })
         } else {
             if (DEBUG) console.log(`popped context ${getContextDescription(popped)}<${getContextDescription(this.currentContext)}`)
             this.currentContext = popped

@@ -5,7 +5,8 @@ export const JSONTests: TestDefinitions = {
     "empty": {
         text: '',
         events: [
-            ["parsererror", "unexpected end of document"],
+            ["parsererror", "expected the root value"],
+            ["end"],
         ],
     },
     "just a string": {
@@ -306,7 +307,8 @@ export const JSONTests: TestDefinitions = {
             ["openarray"],
             ["quotedstring", 'foo'],
             ["quotedstring", 'bar'],
-            ['parsererror', 'unexpected end of document'],
+            ['parsererror', 'unexpected end of document, still in nested type'],
+            ["end"],
         ],
     },
     "string invalid escape": {
@@ -704,7 +706,8 @@ export const JSONTests: TestDefinitions = {
             ["openarray", "[", [1, 10, 1, 11]],
             ["unquotedtoken", "42", [1, 11, 1, 13]],
             ["unquotedtoken", "0"],
-            ['parsererror', 'unexpected end of document'],
+            ['parsererror', 'unexpected end of document, still in nested type'],
+            ["end"],
         ],
     },
     "incomplete json terminates ending in comma": {
@@ -716,7 +719,8 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "2"],
             ["unquotedtoken", "42"],
             ["closearray"],
-            ['parsererror', 'unexpected end of document'],
+            ['parsererror', 'unexpected end of document, still in nested type'],
+            ["end"],
         ],
     },
     "json org": {

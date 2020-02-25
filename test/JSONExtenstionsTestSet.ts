@@ -210,7 +210,8 @@ export const extensionTests: TestDefinitions = {
             },
         },
         events: [
-            ["parsererror", "unexpected end of document"],
+            ["parsererror", "expected the schema start (!)"],
+            ["end"],
         ],
     },
 }
