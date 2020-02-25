@@ -256,9 +256,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
         chunks.forEach(chunk => {
             try {
                 //if in error state, don't write or we'll get an exception
-                if (!tokenizer.isInErrorState()) {
-                    tokenizer.write(chunk);
-                }
+                tokenizer.write(chunk);
             } catch (e) {
                 assert.fail("could not write: " + e.message)
             }
@@ -363,7 +361,7 @@ describe('bass-clarinet', () => {
                         //
                     },
                     {
-                        a : () => expect.expectNumber(() => {
+                        a: () => expect.expectNumber(() => {
                             //
                         }),
                     },

@@ -125,7 +125,6 @@ export class Parser implements IParser {
     readonly ondata = new subscr.Subscribers<DataSubscriber>()
     public oncurrentdata: subscr.Subscribers<DataSubscriber>
     readonly onheaderdata = new subscr.Subscribers<HeaderSubscriber>()
-    private error: null | RangeError = null
     private state: Context = [ContextType.STACK]
 
     private readonly onerror: (message: string, range: Range) => void
@@ -142,10 +141,6 @@ export class Parser implements IParser {
         }
     }
     public assertIsEnded(location: Location) {
-
-        if (this.error !== null) {
-            return
-        }
         if (this.currentContext[0] !== StackContextType.ROOT
             || this.currentContext[1].state !== RootState.EXPECTING_END
             || this.stack.length !== 0
@@ -403,7 +398,7 @@ export class Parser implements IParser {
         this.setState([ContextType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
     }
 
-    public onQuotedStringEnd(end: Range, quote: string) {
+    public onQuotedStringEnd(end: Range, _quote: string) {
         if (this.state[0] !== ContextType.QUOTED_STRING) {
             throw new ParserStackPanicError(`Unexpected unquoted token end`, end)
         }
@@ -427,7 +422,7 @@ export class Parser implements IParser {
             }
             case ExpectedType.VALUE: {
                 this.setStateBeforeValue(range)
-                this.oncurrentdata.signal(s => s.onquotedstring(value, quote, range))
+                this.oncurrentdata.signal(s => s.onquotedstring(value, $.startCharacter, range))
                 this.setStateAfterValue(range.end)
                 break
             }
@@ -578,10 +573,8 @@ export class Parser implements IParser {
             default:
                 assertUnreachable(currentContext[0])
         }
-
     }
     private raiseError(message: string, range: Range) {
-        this. error = new RangeError(message, range)
         if (DEBUG) { console.log("error raised:", message, printRange(range)) }
         this.onerror(message, range)
     }

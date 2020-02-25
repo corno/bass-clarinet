@@ -14,7 +14,6 @@ import {
 } from "./tokenizerStateTypes"
 import { Location, Range } from "./location"
 import { TokenizerOptions } from "./configurationTypes"
-import { LocationError } from "./errors"
 
 const DEBUG = false
 
@@ -33,7 +32,7 @@ export interface IParser {
     onUnquotedTokenEnd(location: Location): void
 
     onQuotedStringBegin(range: Range, quote: string): void
-    onQuotedStringEnd(range: Range, quote: string): void
+    onQuotedStringEnd(range: Range, quote: string | null): void //quote can be null for unterminated strings
 
     onPunctuation(char: number, range: Range): void
 
@@ -48,12 +47,6 @@ function getStateDescription(stackContext: Context): string {
         case ContextType.QUOTED_STRING: return "QUOTED_STRING"
         default: return assertUnreachable(stackContext[0])
 
-    }
-}
-
-export class TokenizerError extends LocationError {
-    constructor(message: string, location: Location) {
-        super(message, location)
     }
 }
 
@@ -96,7 +89,6 @@ export class Tokenizer {
     private line = 1
 
     private state: Context
-    private error: TokenizerError | null = null
 
     /**
      * the indent property keeps track of the whitespace characters after a newline.
@@ -116,9 +108,6 @@ export class Tokenizer {
     }
     public canWrite() {
         if (this.pausedState === PauseState.PAUSED) {
-            return false
-        }
-        if (this.error !== null) {
             return false
         }
         if (this.ended) {
@@ -191,9 +180,6 @@ export class Tokenizer {
         }
         let currentChar = next()
         while (true) {
-            if (this.error !== null) {
-                return
-            }
             const tmpPS = this.pausedState
             if (tmpPS === PauseState.MUST_PAUSE) {
                 this.pausedState = PauseState.PAUSED
@@ -222,9 +208,6 @@ export class Tokenizer {
                     commentLoop: while (true) {
                         //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
 
-                        if (this.error !== null) {
-                            return
-                        }
                         if (this.pausedState === PauseState.MUST_PAUSE) {
                             this.pausedState = PauseState.PAUSED
                             flush()
@@ -286,6 +269,8 @@ export class Tokenizer {
                                     $.state = CommentState.BLOCK_COMMENT
                                 } else {
                                     this.raiseError("found dangling slash")
+                                    this.setState([ContextType.STACK])
+
                                 }
                                 break
                             default: assertUnreachable($.state)
@@ -308,9 +293,6 @@ export class Tokenizer {
                     }
 
                     while (true) {
-                        if (this.error !== null) {
-                            return
-                        }
                         if (this.pausedState === PauseState.MUST_PAUSE) {
                             this.pausedState = PauseState.PAUSED
                             flush()
@@ -461,9 +443,6 @@ export class Tokenizer {
 
                     while (true) {
                         //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
-                        if (this.error !== null) {
-                            return
-                        }
                         if (this.pausedState === PauseState.MUST_PAUSE) {
                             this.pausedState = PauseState.PAUSED
                             flush()
@@ -543,22 +522,15 @@ export class Tokenizer {
             }
         }
     }
-    public isInErrorState() {
-        return this.error !== null
-    }
     public end() {
         if (!this.canWrite()) {
             throw new Error("cannot end")
         }
         this.wrapUpUnquotedToken()
 
-        if (this.error !== null) {
-            return
-        }
         const state = this.state
         if (state[0] !== ContextType.STACK) {
             this.raiseError("unexpected end of document")
-            return
         }
         this.parser.assertIsEnded(this.getLocation(1))
 
@@ -585,19 +557,22 @@ export class Tokenizer {
             case ContextType.STACK:
                 break
             case ContextType.QUOTED_STRING:
-                //strings are self closing (with a '"')
                 this.raiseError("unterminated string")
+
+                const locationInfo = {
+                    start: this.getLocation(),
+                    end: this.getLocation(1),
+                }
+                this.setState([ContextType.STACK])
+                this.parser.onQuotedStringEnd(locationInfo, null)
+                this.setState([ContextType.STACK])
                 break
             default:
                 return assertUnreachable(this.state[0])
         }
     }
     private raiseError(message: string) {
-        this.error = new TokenizerError(
-            message,
-            this.getLocation(),
-        )
-        if (DEBUG) { console.log("error raised:", this.error.message) }
+        if (DEBUG) { console.log("error raised:", message) }
         this.onerror(message, this.getLocation())
     }
     private setState(newState: Context) {

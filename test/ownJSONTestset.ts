@@ -19,6 +19,8 @@ export const JSONTests: TestDefinitions = {
         text: '"an unterminated string',
         events: [
             ["tokenizererror", "unterminated string"],
+            ["quotedstring", "an unterminated string", [1, 1, 1, 24]],
+            ["end", [1, 24]],
         ],
     },
     "newline": {
