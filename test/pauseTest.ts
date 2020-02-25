@@ -21,7 +21,7 @@ function pause(pauser: Pauser) {
         pauser.continue()
         //console.log("continued", counter)
         counter -= 1
-    }, 3000)
+    }, 500)
 }
 
 parser.ondata.subscribe({
@@ -77,10 +77,12 @@ parser.ondata.subscribe({
 })
 
 
-bc.tokenizeString(
+bc.tokenizeStrings(
     parser,
     err => { console.error("FOUND TOKENIZER ERROR", err) },
-    `[
-        "A", "B", "C"
-    ]`
+    [
+        `[
+        "A", "B", "C"`,
+        `]`,
+    ]
 )

@@ -104,7 +104,7 @@ export class Tokenizer {
     }
     private emptyQueue() {
         while (this.currentChunk === null) {
-            const nextChunk = this.queue.pop()
+            const nextChunk = this.queue.shift()
             if (nextChunk !== undefined) {
                 if (nextChunk === null) {
                     this.onEnd()
