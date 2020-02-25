@@ -15,10 +15,6 @@ const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
     { allow: bc.lax }
 )
-const tokenizer = new bc.Tokenizer(
-    parser,
-    err => { console.error("FOUND TOKENIZER ERROR", err) }
-)
 parser.ondata.subscribe({
     oncomma: () => {
         //place your code here
@@ -70,5 +66,9 @@ parser.ondata.subscribe({
         //place your code here
     },
 })
-tokenizer.write(data)
-tokenizer.end()
+
+bc.tokenizeString(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
+    data,
+)

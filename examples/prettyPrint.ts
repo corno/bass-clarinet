@@ -69,10 +69,10 @@ const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
     { allow: bc.lax }
 )
-const tokenizer = new bc.Tokenizer(
-    parser,
-    err => { console.error("FOUND TOKENIZER ERROR", err) }
-)
 parser.ondata.subscribe(createPrettyPrinter("\r\n", str => process.stdout.write(str)))
-tokenizer.write(data)
-tokenizer.end()
+
+bc.tokenizeString(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
+    data
+)

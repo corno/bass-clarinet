@@ -1,19 +1,26 @@
+import { Location} from "./location"
+
 export enum ContextType {
     COMMENT,
     QUOTED_STRING,
     STACK,
-    UNQUOTED_STRING,
+    UNQUOTED_TOKEN,
 }
 
 export type Context =
     | [ContextType.STACK]
     | [ContextType.COMMENT, CommentContext]
-    | [ContextType.UNQUOTED_STRING]
+    | [ContextType.UNQUOTED_TOKEN]
     | [ContextType.QUOTED_STRING, StringContext]
 
+export type CommentContextState =
+    | [CommentState.FOUND_ASTERISK, { start: Location }]
+    | [CommentState.BLOCK_COMMENT]
+    | [CommentState.FOUND_SOLIDUS, { start: Location }]
+    | [CommentState.LINE_COMMENT]
 
 export type CommentContext = {
-    state: CommentState
+    state: CommentContextState
 }
 
 export type Unicode = {

@@ -36,17 +36,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
             },
             parserOptions
         )
-        const tokenizer = new bc.Tokenizer(
-            parser,
-            (message, _location) => {
-                if (DEBUG) console.log("found error")
-                const ee = getExpectedEvent()
-                if (ee[0] !== "tokenizererror") {
-                    assert.fail(`unexpected tokenizer error: ${message}, expected '${ee[0]}'`)
-                }
-                assert.ok(ee[1] === message, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${message}]`);
-            }
-        )
         let currentExpectedEventIndex = 0
         //const env = process && process.env ? process.env : window
         //const record: [AnyEvent, string][] = []
@@ -54,7 +43,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
             assert.ok(expectedEvent[0] === event, `event: ${currentExpectedEventIndex}, expected type: [${expectedEvent[0]}] got: [${event}]`)
         }
         function eventsNotEqual(expectedEvent: EventDefinition, event: AnyEvent) {
-            assert.fail(`event: ${currentExpectedEventIndex}, expected type: [${expectedEvent[0]}] got: [${ event}]`)
+            assert.fail(`event: ${currentExpectedEventIndex}, expected type: [${expectedEvent[0]}] got: [${event}]`)
         }
         function checkRange(range: bc.Range, expectedEventRange?: TestRange) {
             if (expectedEventRange !== undefined) {
@@ -253,23 +242,27 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
         }
         parser.ondata.subscribe(subscriber)
 
-        chunks.forEach(chunk => {
-            try {
-                //if in error state, don't write or we'll get an exception
-                tokenizer.write(chunk);
-            } catch (e) {
-                assert.fail("could not write: " + e.message)
-            }
-        });
-        tokenizer.end()
+        bc.tokenizeStrings(
+            parser,
+            (message, _location) => {
+                if (DEBUG) console.log("found error")
+                const ee = getExpectedEvent()
+                if (ee[0] !== "tokenizererror") {
+                    assert.fail(`unexpected tokenizer error: ${message}, expected '${ee[0]}'`)
+                }
+                assert.ok(ee[1] === message, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${message}]`);
+            },
+            chunks
+        )
+
         if (expectedEvents.length !== 0) {
-            console.log("expected more events.")
+            //console.log("expected more events.")
             while (true) {
                 const ee = expectedEvents.pop()
                 if (ee === undefined) {
                     break
                 }
-                console.log(ee)
+                //console.log(ee)
             }
             throw new Error("expected more events.")
         }
@@ -312,13 +305,6 @@ describe('bass-clarinet', () => {
                 onError,
                 {}
             )
-            const tok = new bc.Tokenizer(
-                parser,
-                (message, _location) => {
-                    foundErrors.push(message)
-                },
-                {}
-            )
             const expect = new ExpectContext(onError, onWarning)
             parser.ondata.subscribe(createStackedDataSubscriber(
                 callback(expect),
@@ -329,8 +315,15 @@ describe('bass-clarinet', () => {
                     //do nothing with end
                 },
             ))
-            tok.write(data)
-            tok.end()
+            bc.tokenizeString(
+                parser,
+                (message, _location) => {
+                    foundErrors.push(message)
+                },
+                data,
+                {}
+            )
+
             chai.assert.deepEqual(foundErrors, expectedErrors)
         }
 

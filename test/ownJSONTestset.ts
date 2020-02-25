@@ -33,7 +33,7 @@ export const JSONTests: TestDefinitions = {
     "just a number": {
         text: '42',
         events: [
-            ["unquotedtoken", "42", [1, 1, 1, 2]],
+            ["unquotedtoken", "42", [1, 1, 1, 3]],
             ["end", [1, 3]],
         ],
     },

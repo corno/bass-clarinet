@@ -8,7 +8,7 @@
 
 import * as subscr from "./subscription"
 import * as Char from "./Characters"
-import { IParser } from "./Tokenizer"
+import { IParser, Pauser } from "./parserAPI"
 
 import {
     RootState,
@@ -85,26 +85,27 @@ export const lax: Allow = {
     compact: true,
 }
 
+
 export interface DataSubscriber {
-    oncomma(range: Range): void
-    oncolon(range: Range): void
+    oncomma(range: Range, pauser: Pauser): void
+    oncolon(range: Range, pauser: Pauser): void
 
-    onopenarray(range: Range, openCharacter: string): void
-    onclosearray(range: Range, closeCharacter: string): void
+    onopenarray(range: Range, openCharacter: string, pauser: Pauser): void
+    onclosearray(range: Range, closeCharacter: string, pauser: Pauser): void
 
-    onopentaggedunion(range: Range): void
+    onopentaggedunion(range: Range, pauser: Pauser): void
     onclosetaggedunion(location: Location): void
-    onoption(option: string, range: Range): void
+    onoption(option: string, range: Range, pauser: Pauser): void
 
-    onopenobject(range: Range, openCharacter: string): void
-    oncloseobject(range: Range, closeCharacter: string): void
-    onkey(key: string, range: Range): void
+    onopenobject(range: Range, openCharacter: string, pauser: Pauser): void
+    oncloseobject(range: Range, closeCharacter: string, pauser: Pauser): void
+    onkey(key: string, range: Range, pauser: Pauser): void
 
-    onquotedstring(value: string, quote: string, range: Range): void
+    onquotedstring(value: string, quote: string, range: Range, pauser: Pauser): void
     onunquotedtoken(value: string, range: Range): void
 
-    onblockcomment(comment: string, range: Range, indent: string | null): void
-    onlinecomment(comment: string, range: Range): void
+    onblockcomment(comment: string, range: Range, indent: string | null, pauser: Pauser): void
+    onlinecomment(comment: string, range: Range, pauser: Pauser): void
     onend(location: Location): void
 }
 
@@ -151,7 +152,7 @@ export class Parser implements IParser {
 
         this.oncurrentdata.signal(s => s.onend(location))
     }
-    public onPunctuation(curChar: number, range: Range) {
+    public onPunctuation(curChar: number, range: Range, pauser: Pauser) {
         const $ = this.currentContext
 
         function getComplexValueType(): ComplexValueType | null {
@@ -167,14 +168,14 @@ export class Parser implements IParser {
         }
         const vt = getComplexValueType()
         if (curChar === Char.Object.comma) {
-            this.oncurrentdata.signal(s => s.oncomma(range))
+            this.oncurrentdata.signal(s => s.oncomma(range, pauser))
         } else if (curChar === Char.Object.colon) {
-            this.oncurrentdata.signal(s => s.oncolon(range))
+            this.oncurrentdata.signal(s => s.oncolon(range, pauser))
         } else if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
             if ($[0] !== StackContextType.ARRAY) {
                 this.raiseError("not in an array", range)
             } else {
-                this.oncurrentdata.signal(s => s.onclosearray(range, String.fromCharCode(curChar)))
+                this.oncurrentdata.signal(s => s.onclosearray(range, String.fromCharCode(curChar), pauser))
                 this.popContext(range.end)
             }
         } else if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
@@ -184,7 +185,7 @@ export class Parser implements IParser {
                 if ($[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
                     this.raiseError("missing property value", range)
                 }
-                this.oncurrentdata.signal(s => s.oncloseobject(range, String.fromCharCode(curChar)))
+                this.oncurrentdata.signal(s => s.oncloseobject(range, String.fromCharCode(curChar), pauser))
                 this.popContext(range.end)
             }
         } else if (vt !== null) {
@@ -208,18 +209,18 @@ export class Parser implements IParser {
 
             switch (vt) {
                 case ComplexValueType.ARRAY: {
-                    this.oncurrentdata.signal(s => s.onopenarray(range, String.fromCharCode(curChar)))
+                    this.oncurrentdata.signal(s => s.onopenarray(range, String.fromCharCode(curChar), pauser))
                     this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
                     break
                 }
                 case ComplexValueType.OBJECT: {
-                    this.oncurrentdata.signal(s => s.onopenobject(range, String.fromCharCode(curChar)))
+                    this.oncurrentdata.signal(s => s.onopenobject(range, String.fromCharCode(curChar), pauser))
                     this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
                     break
                 }
                 case ComplexValueType.TAGGED_UNION: {
                     this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                    this.oncurrentdata.signal(s => s.onopentaggedunion(range))
+                    this.oncurrentdata.signal(s => s.onopentaggedunion(range, pauser))
                     break
                 }
                 default:
@@ -357,23 +358,23 @@ export class Parser implements IParser {
     public onLineCommentBegin(range: Range) {
         this.setState([ContextType.COMMENT, { commentNode: "", start: range, indent: null}], range)
     }
-    public onLineCommentEnd(location: Location) {
+    public onLineCommentEnd(location: Location, pauser: Pauser) {
         if (this.state[0] !== ContextType.COMMENT) {
             throw new ParserStackPanicError(`Unexpected line comment end`, {start: location, end: location})
         }
         const $ = this.state[1]
-        this.oncurrentdata.signal(s => s.onlinecomment($.commentNode, { start: $.start.start, end: location}))
+        this.oncurrentdata.signal(s => s.onlinecomment($.commentNode, { start: $.start.start, end: location}, pauser))
         this.unsetState({start: location, end: location})
     }
     public onBlockCommentBegin(range: Range, indent: null | string) {
         this.setState([ContextType.COMMENT, { commentNode: "", start: range, indent: indent}], range)
     }
-    public onBlockCommentEnd(end: Range) {
+    public onBlockCommentEnd(end: Range, pauser: Pauser) {
         if (this.state[0] !== ContextType.COMMENT) {
             throw new ParserStackPanicError(`Unexpected block comment end`, end)
         }
         const $ = this.state[1]
-        this.oncurrentdata.signal(s => s.onblockcomment($.commentNode, { start: $.start.start, end: end.end}, $.indent))
+        this.oncurrentdata.signal(s => s.onblockcomment($.commentNode, { start: $.start.start, end: end.end}, $.indent, pauser))
         this.unsetState(end)
     }
     public onUnquotedTokenBegin(location: Location) {
@@ -398,7 +399,7 @@ export class Parser implements IParser {
         this.setState([ContextType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
     }
 
-    public onQuotedStringEnd(end: Range, _quote: string) {
+    public onQuotedStringEnd(end: Range, _quote: string, pauser: Pauser) {
         if (this.state[0] !== ContextType.QUOTED_STRING) {
             throw new ParserStackPanicError(`Unexpected unquoted token end`, end)
         }
@@ -412,15 +413,15 @@ export class Parser implements IParser {
         this.setStateBeforeValue(range)
         switch (expected) {
             case ExpectedType.KEY: {
-                this.oncurrentdata.signal(s => s.onkey(value, range))
+                this.oncurrentdata.signal(s => s.onkey(value, range, pauser))
                 break
             }
             case ExpectedType.OPTION: {
-                this.oncurrentdata.signal(s => s.onoption(value, range))
+                this.oncurrentdata.signal(s => s.onoption(value, range, pauser))
                 break
             }
             case ExpectedType.VALUE: {
-                this.oncurrentdata.signal(s => s.onquotedstring(value, $.startCharacter, range))
+                this.oncurrentdata.signal(s => s.onquotedstring(value, $.startCharacter, range, pauser))
                 this.setStateAfterValue(range.end)
                 break
             }

@@ -2,77 +2,85 @@
     no-console: "off",
 */
 import * as bc from "../src";
+import { Pauser } from "../src/parserAPI";
 
 const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
     { allow: bc.lax }
 )
-const tokenizer = new bc.Tokenizer(
-    parser,
-    err => { console.error("FOUND TOKENIZER ERROR", err) }
-)
 
-function pause() {
-    console.log("pausing")
-    tokenizer.pause()
+let counter = 0
+
+function pause(pauser: Pauser) {
+    counter += 1
+    console.log("pausing", counter)
+    pauser.pause()
+    //console.log("paused", counter)
     setTimeout(() => {
-        console.log("continuing")
-        tokenizer.continue()
-    }, 10)
+        console.log("continuing", counter)
+        pauser.continue()
+        //console.log("continued", counter)
+        counter -= 1
+    }, 3000)
 }
 
 parser.ondata.subscribe({
-    oncomma: () => {
-        pause()
+    oncomma: (_, pauser) => {
+        console.log("COMMA")
+        pause(pauser)
     },
-    oncolon: () => {
-        pause()
+    oncolon: (_, pauser) => {
+        pause(pauser)
     },
-    onlinecomment: (_comment, _range) => {
-        pause()
+    onlinecomment: (_comment, _range, pauser) => {
+        pause(pauser)
     },
-    onblockcomment: (_comment, _range, _indent) => {
-        pause()
+    onblockcomment: (_comment, _range, _indent, pauser) => {
+        pause(pauser)
     },
-    onquotedstring: (_value, _quote, _range) => {
-        pause()
+    onquotedstring: (_value, _quote, _range, pauser) => {
+        console.log("QUOTED")
+        pause(pauser)
     },
     onunquotedtoken: (_value, _range) => {
-        pause()
+        //
     },
-    onopentaggedunion: _range => {
-        pause()
+    onopentaggedunion: (_range, pauser) => {
+        pause(pauser)
     },
     onclosetaggedunion: () => {
-        pause()
+        //
     },
-    onoption: (_option, _range) => {
-        pause()
+    onoption: (_option, _range, pauser) => {
+        pause(pauser)
     },
-    onopenarray: (_openCharacterRange, _openCharacter) => {
-        pause()
+    onopenarray: (_openCharacterRange, _openCharacter, pauser) => {
+        console.log("OPEN ARRAY")
+        pause(pauser)
     },
-    onclosearray: (_closeCharacterRange, _closeCharacter) => {
-        pause()
+    onclosearray: (_closeCharacterRange, _closeCharacter, pauser) => {
+        console.log("CLOSE ARRAY")
+        pause(pauser)
     },
-    onopenobject: (_startRange, _openCharacter) => {
-        pause()
+    onopenobject: (_startRange, _openCharacter, pauser) => {
+        pause(pauser)
     },
-    oncloseobject: (_endRange, _closeCharacter) => {
-        pause()
+    oncloseobject: (_endRange, _closeCharacter, pauser) => {
+        pause(pauser)
     },
-    onkey: (_key, _range) => {
-        pause()
+    onkey: (_key, _range, pauser) => {
+        pause(pauser)
     },
     onend: () => {
         console.log("Reached end")
-
     },
 })
 
-tokenizer.write(`[
-    "A", "B", "C"
-]`)
-tokenizer.onreadyforwrite.subscribe(() => {
-    tokenizer.end()
-})
+
+bc.tokenizeString(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
+    `[
+        "A", "B", "C"
+    ]`
+)

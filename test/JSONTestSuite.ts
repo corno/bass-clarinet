@@ -2,7 +2,8 @@ import * as fs from "fs"
 import { describe } from "mocha"
 import assert from "assert"
 import * as path from "path"
-import * as p from "../src"
+import * as bc from "../src"
+import { tokenizeString } from "../src"
 
 const parsingDir = path.join(__dirname, "/../../JSONTestSuite/test_parsing")
 describe('parsing', () => {
@@ -14,21 +15,19 @@ describe('parsing', () => {
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = new p.Parser(
+                        const parser = new bc.Parser(
                             () => {
                                 foundError = true
                             },
                             {}
                         )
-                        const tokenizer = new p.Tokenizer(
+                        bc.tokenizeString(
                             parser,
                             () => {
                                 foundError = true
                             },
+                            data
                         )
-                        tokenizer.write(data)
-                        tokenizer.end()
-
                         assert.ok(foundError, "no errors found")
                     } catch (e) {
                         //nothing to do
@@ -39,20 +38,19 @@ describe('parsing', () => {
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = new p.Parser(
+                        const parser = new bc.Parser(
                             () => {
                                 foundError = true
                             },
                             {}
                         )
-                        const tokenizer = new p.Tokenizer(
+                        bc.tokenizeString(
                             parser,
                             () => {
                                 foundError = true
                             },
+                            data
                         )
-                        tokenizer.write(data)
-                        tokenizer.end()
                         assert.ok(!foundError, "errors found")
                     } catch (e) {
                         //do nothing
@@ -62,20 +60,19 @@ describe('parsing', () => {
                 case "i":
                     try {
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = new p.Parser(
+                        const parser = new bc.Parser(
                             () => {
                                 //do nothing with error
                             },
                             {}
                         )
-                        const tokenizer = new p.Tokenizer(
+                        bc.tokenizeString(
                             parser,
                             () => {
                                 //do nothing with error
                             },
+                            data
                         )
-                        tokenizer.write(data)
-                        tokenizer.end()
                     } catch (e) {
                         //do nothing
                     }
@@ -93,20 +90,19 @@ describe('transform', () => {
         it(file, () => {
             try {
                 const data = fs.readFileSync(path.join(transformDir, file), { encoding: "utf-8" })
-                const parser = new p.Parser(
+                const parser = new bc.Parser(
                     () => {
                         //do nothing with error
                     },
                     {}
                 )
-                const tokenizer = new p.Tokenizer(
+                tokenizeString(
                     parser,
                     () => {
                         //do nothing with error
                     },
+                    data,
                 )
-                tokenizer.write(data)
-                tokenizer.end()
             } catch (e) {
                 //do nothing
             }

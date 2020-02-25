@@ -14,11 +14,6 @@ const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
     { allow: bc.lax }
 )
-const tokenizer = new bc.Tokenizer(
-    parser,
-    err => { console.error("FOUND TOKENIZER ERROR", err) }
-)
-
 const ec = new bc.ExpectContext(
     (_message, _range) => {
         throw new Error("encounterd error")
@@ -61,5 +56,9 @@ parser.ondata.subscribe(
         }
     )
 )
-tokenizer.write(data)
-tokenizer.end()
+
+bc.tokenizeString(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
+    data
+)

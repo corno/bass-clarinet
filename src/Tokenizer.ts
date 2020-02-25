@@ -4,7 +4,6 @@
     max-classes-per-file: "off",
 */
 
-import * as subscr from "./subscription"
 import * as Char from "./Characters"
 import {
     ContextType,
@@ -14,35 +13,18 @@ import {
 } from "./tokenizerStateTypes"
 import { Location, Range } from "./location"
 import { TokenizerOptions } from "./configurationTypes"
+import { IParser, Pauser } from "./parserAPI"
 
 const DEBUG = false
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
-export interface IParser {
-    onSnippet(chunk: string, begin: number, end: number): void
-    onLineCommentBegin(range: Range): void
-    onLineCommentEnd(location: Location): void
-
-    onBlockCommentBegin(range: Range, indent: null | string): void
-    onBlockCommentEnd(range: Range): void
-
-    onUnquotedTokenBegin(location: Location): void
-    onUnquotedTokenEnd(location: Location): void
-
-    onQuotedStringBegin(range: Range, quote: string): void
-    onQuotedStringEnd(range: Range, quote: string | null): void //quote can be null for unterminated strings
-
-    onPunctuation(char: number, range: Range): void
-
-    assertIsEnded(location: Location): void
-}
 
 function getStateDescription(stackContext: Context): string {
     switch (stackContext[0]) {
         case ContextType.COMMENT: return "COMMENT"
-        case ContextType.UNQUOTED_STRING: return "UNQUOTED_STRING"
+        case ContextType.UNQUOTED_TOKEN: return "UNQUOTED_STRING"
         case ContextType.STACK: return "STACK"
         case ContextType.QUOTED_STRING: return "QUOTED_STRING"
         default: return assertUnreachable(stackContext[0])
@@ -50,11 +32,14 @@ function getStateDescription(stackContext: Context): string {
     }
 }
 
-class CurrentChunk {
+class ProcessingData {
     public readonly chunk: string
     public index: number
-    constructor(chunk: string) {
+    public mustPause = false
+    public sourcePauser: Pauser
+    constructor(chunk: string, sourcePauser: Pauser) {
         this.chunk = chunk
+        this.sourcePauser = sourcePauser
 
         //start at the position just before the first character
         //because we are going to call currentChar = next() once at the beginning
@@ -65,22 +50,21 @@ class CurrentChunk {
         const char = this.chunk.charCodeAt(this.index)
         return isNaN(char) ? null : char
     }
-}
-
-enum PauseState {
-    MUST_PAUSE,
-    PAUSED,
-    NO_PAUSE,
+    lookahead(): number | null {
+        const char = this.chunk.charCodeAt(this.index + 1)
+        return isNaN(char) ? null : char
+    }
 }
 
 export class Tokenizer {
-    private pausedState: PauseState = PauseState.NO_PAUSE
-    private readonly onerror: (message: string, location: Location) => void
+    private readonly onerror: (message: string, range: Range) => void
 
-    private currentChunk: null | CurrentChunk = null
+    private currentChunk: null | ProcessingData = null
     private ended = false
 
     public readonly opt: TokenizerOptions
+
+    private readonly queue: (ProcessingData | null)[] = []
 
 
     // mostly just for error reporting
@@ -97,49 +81,59 @@ export class Tokenizer {
      */
     private indent: string | null = null
 
-    readonly onreadyforwrite = new subscr.NoArgumentSubscribers()
     private readonly parser: IParser
 
-    constructor(parser: IParser, onerror: (message: string, location: Location) => void, opt?: TokenizerOptions) {
+    constructor(parser: IParser, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions) {
         this.opt = opt || {}
         this.parser = parser
         this.state = [ContextType.STACK]
         this.onerror = onerror
     }
-    public canWrite() {
-        if (this.pausedState === PauseState.PAUSED) {
-            return false
-        }
+    public write(chunk: string, sourcePauser: Pauser) {
         if (this.ended) {
-            return false
-        }
-        return true
-    }
-    public write(chunk: string) {
-        if (!this.canWrite()) {
-            throw new Error("cannot write")
+            throw new Error("cannot write, stream is ended")
         }
         if (DEBUG) console.log(`write -> [${JSON.stringify(chunk)}]`)
-        this.currentChunk = new CurrentChunk(chunk)
-        this.writeImp(this.currentChunk)
-    }
-    public pause() {
-        this.pausedState = PauseState.MUST_PAUSE
-    }
-    public continue() {
-        if (this.pausedState === PauseState.PAUSED) {
-            this.pausedState = PauseState.NO_PAUSE
-            if (this.currentChunk !== null) {
-                this.writeImp(this.currentChunk)
-            }
+        if (this.currentChunk === null) {
+            this.currentChunk = new ProcessingData(chunk, sourcePauser)
+            this.writeImp(this.currentChunk)
+            this.emptyQueue()
         } else {
-            this.pausedState = PauseState.NO_PAUSE
+            this.queue.push(new ProcessingData(chunk, sourcePauser))
         }
     }
-    public isPaused() {
-        return this.pausedState !== PauseState.NO_PAUSE
+    private emptyQueue() {
+        while (this.currentChunk === null) {
+            const nextChunk = this.queue.pop()
+            if (nextChunk !== undefined) {
+                if (nextChunk === null) {
+                    this.onEnd()
+                } else {
+                    this.writeImp(new ProcessingData(nextChunk.chunk, nextChunk.sourcePauser))
+                }
+            } else {
+                return
+            }
+        }
     }
-    private writeImp(currentChunk: CurrentChunk) {
+    private writeImp(currentChunk: ProcessingData) {
+        const pauser: Pauser = {
+            pause: () => {
+                currentChunk.mustPause = true
+                currentChunk.sourcePauser.pause()
+            },
+            continue: () => {
+                currentChunk.mustPause = false
+                if (this.currentChunk !== null) {
+                    this.writeImp(this.currentChunk)
+                }
+                this.emptyQueue()
+                currentChunk.sourcePauser.continue()
+            },
+        }
+        const lookahead = () => {
+            return currentChunk.lookahead()
+        }
         const next = () => {
             const cc = currentChunk.next()
 
@@ -156,7 +150,6 @@ export class Tokenizer {
             }
             if (cc === null) {
                 this.currentChunk = null
-                this.onreadyforwrite.signal()
             } else {
                 this.position++
                 //set the position
@@ -178,17 +171,7 @@ export class Tokenizer {
             }
             return cc
         }
-        let currentChar = next()
         while (true) {
-            const tmpPS = this.pausedState
-            if (tmpPS === PauseState.MUST_PAUSE) {
-                this.pausedState = PauseState.PAUSED
-                return
-            }
-            if (currentChar === null) {
-                //end of chunk reached
-                return
-            }
             const state = this.state
             switch (state[0]) {
                 case ContextType.COMMENT: {
@@ -200,32 +183,32 @@ export class Tokenizer {
                     let snippetStart: null | number = null
                     const flush = (offset?: number) => {
                         if (snippetStart !== null) {
-                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + (offset === undefined ? 0 : offset))
+                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + (offset === undefined ? 0 : offset), pauser)
+                            if (currentChunk.mustPause) {
+                                return
+                            }
                         }
                         snippetStart = null
                     }
 
                     commentLoop: while (true) {
                         //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
+                        const currentChar = next()
 
-                        if (this.pausedState === PauseState.MUST_PAUSE) {
-                            this.pausedState = PauseState.PAUSED
-                            flush()
-                            return
-                        }
+
                         if (currentChar === null) {
                             //end of the chunk
                             //store it and wait for more input
                             flush()
                             return
                         }
-                        switch ($.state) {
+                        switch ($.state[0]) {
                             case CommentState.BLOCK_COMMENT:
                                 if (snippetStart === null) {
                                     snippetStart = currentChunk.index
                                 }
                                 if (currentChar === Char.Comment.asterisk) {
-                                    $.state = CommentState.FOUND_ASTERISK
+                                    $.state = [CommentState.FOUND_ASTERISK, { start: this.getBeginLocation() }]
                                     //possible end of comment
                                     flush()
                                 }
@@ -235,8 +218,10 @@ export class Tokenizer {
                                     //end of line comment
                                     this.setState([ContextType.STACK])
                                     flush()
-                                    this.parser.onLineCommentEnd(this.getLocation())
-                                    currentChar = next()
+                                    this.parser.onLineCommentEnd(this.getEndLocation(), pauser)
+                                    if (currentChunk.mustPause) {
+                                        return
+                                    }
                                     break commentLoop
                                 } else {
                                     if (snippetStart === null) {
@@ -244,187 +229,220 @@ export class Tokenizer {
                                     }
                                 }
                                 break
-                            case CommentState.FOUND_ASTERISK:
+                            case CommentState.FOUND_ASTERISK: {
+                                const $$ = $.state[1]
                                 if (currentChar === Char.Comment.solidus) {
                                     //end of block comment
                                     this.setState([ContextType.STACK])
-                                    this.parser.onBlockCommentEnd({ start: this.getLocation(-1), end: this.getLocation(1) })
-                                    currentChar = next()
+                                    this.parser.onBlockCommentEnd({ start: $$.start, end: this.getEndLocation() }, pauser)
+
+                                    if (currentChunk.mustPause) {
+                                        return
+                                    }
                                     break commentLoop
                                 } else {
                                     //false alarm, not the end of the comment
-                                    this.parser.onSnippet("*", 0, 1)
+                                    this.parser.onSnippet("*", 0, 1, pauser)
+
+                                    if (currentChunk.mustPause) {
+                                        return
+                                    }
                                     if (snippetStart === null) {
                                         snippetStart = currentChunk.index
                                     }
-                                    $.state = CommentState.BLOCK_COMMENT
+                                    $.state = [CommentState.BLOCK_COMMENT]
                                 }
                                 break
-                            case CommentState.FOUND_SOLIDUS:
+                            }
+                            case CommentState.FOUND_SOLIDUS: {
+                                const $$ = $.state[1]
+
                                 if (currentChar === Char.Comment.solidus) {
-                                    this.parser.onLineCommentBegin({ start: this.getLocation(-1), end: this.getLocation(1) })
-                                    $.state = CommentState.LINE_COMMENT
+                                    this.parser.onLineCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
+
+                                    if (currentChunk.mustPause) {
+                                        return
+                                    }
+                                    $.state = [CommentState.LINE_COMMENT]
                                 } else if (currentChar === Char.Comment.asterisk) {
-                                    this.parser.onBlockCommentBegin({ start: this.getLocation(-1), end: this.getLocation(1) }, this.indent)
-                                    $.state = CommentState.BLOCK_COMMENT
+                                    this.parser.onBlockCommentBegin({ start: $$.start, end: this.getEndLocation() }, this.indent, pauser)
+
+                                    if (currentChunk.mustPause) {
+                                        return
+                                    }
+                                    $.state = [CommentState.BLOCK_COMMENT]
                                 } else {
-                                    this.raiseError("found dangling slash")
+                                    this.raiseError("found dangling slash", { start: this.getBeginLocation(), end: this.getEndLocation() })
                                     this.setState([ContextType.STACK])
 
                                 }
                                 break
+                            }
                             default: assertUnreachable($.state)
                         }
-                        currentChar = next()
                     }
+
                     break
                 }
-                case ContextType.UNQUOTED_STRING: {
+                case ContextType.UNQUOTED_TOKEN: {
                     /**
                      * unquoted token PROCESSING (null, true, false)
                      */
-
                     let snippetStart: null | number = null
                     const flush = () => {
                         if (snippetStart !== null) {
-                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index)
+                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1, pauser)
+
+                            if (currentChunk.mustPause) {
+                                return
+                            }
                         }
                         snippetStart = null
                     }
 
                     while (true) {
-                        if (this.pausedState === PauseState.MUST_PAUSE) {
-                            this.pausedState = PauseState.PAUSED
+                        const nextChar = lookahead()
+                        if (nextChar === null) {
+                            this.currentChunk = null
                             flush()
                             return
                         }
-                        if (currentChar === null) {
-                            //end of the chunk
-                            //store it and wait for more input
-                            flush()
-                            return
-                        }
-
 
                         function isUnquotedTokenCharacter() {
                             const isOtherCharacter = (false
-                                || currentChar === Char.Whitespace.carriageReturn
-                                || currentChar === Char.Whitespace.lineFeed
-                                || currentChar === Char.Whitespace.space
-                                || currentChar === Char.Whitespace.tab
+                                || nextChar === Char.Whitespace.carriageReturn
+                                || nextChar === Char.Whitespace.lineFeed
+                                || nextChar === Char.Whitespace.space
+                                || nextChar === Char.Whitespace.tab
 
-                                || currentChar === Char.Object.closeBrace
-                                || currentChar === Char.Object.closeParen
-                                || currentChar === Char.Object.colon
-                                || currentChar === Char.Object.comma
-                                || currentChar === Char.Object.openBrace
-                                || currentChar === Char.Object.openParen
+                                || nextChar === Char.Object.closeBrace
+                                || nextChar === Char.Object.closeParen
+                                || nextChar === Char.Object.colon
+                                || nextChar === Char.Object.comma
+                                || nextChar === Char.Object.openBrace
+                                || nextChar === Char.Object.openParen
 
-                                || currentChar === Char.Array.closeAngleBracket
-                                || currentChar === Char.Array.closeBracket
-                                || currentChar === Char.Array.comma
-                                || currentChar === Char.Array.openAngleBracket
-                                || currentChar === Char.Array.openBracket
+                                || nextChar === Char.Array.closeAngleBracket
+                                || nextChar === Char.Array.closeBracket
+                                || nextChar === Char.Array.comma
+                                || nextChar === Char.Array.openAngleBracket
+                                || nextChar === Char.Array.openBracket
 
-                                || currentChar === Char.Comment.solidus
-                                //|| currentChar === Char.Comment.asterisk
+                                || nextChar === Char.Comment.solidus
+                                //|| nextChar === Char.Comment.asterisk
 
-                                || currentChar === Char.QuotedString.quotationMark
-                                || currentChar === Char.QuotedString.apostrophe
+                                || nextChar === Char.QuotedString.quotationMark
+                                || nextChar === Char.QuotedString.apostrophe
 
-                                || currentChar === Char.TaggedUnion.verticalLine
+                                || nextChar === Char.TaggedUnion.verticalLine
 
-                                || currentChar === Char.Header.hash
+                                || nextChar === Char.Header.hash
                             )
                             return !isOtherCharacter
                         }
                         //first check if we are breaking out of an unquoted token. Can only be done by checking the character that comes directly after the unquoted token
                         if (!isUnquotedTokenCharacter()) {
                             flush()
-                            this.wrapUpUnquotedToken()
+
+                            this.parser.onUnquotedTokenEnd(this.getEndLocation())
+
+                            this.setState([ContextType.STACK])
                             //this character does not belong to the keyword so don't go to the next character by breaking
                             break
                         } else {
                             //normal character
                             //don't flush
+                            next()
                             if (snippetStart === null) {
                                 snippetStart = currentChunk.index
                             }
                         }
-                        currentChar = next()
                     }
                     break
                 }
                 case ContextType.STACK: {
-                    while (
-                        currentChar === Char.Whitespace.carriageReturn ||
-                        currentChar === Char.Whitespace.lineFeed ||
-                        currentChar === Char.Whitespace.space ||
-                        currentChar === Char.Whitespace.tab
-                    ) {
-                        currentChar = next()
-                        if (this.pausedState === PauseState.MUST_PAUSE) {
-                            this.pausedState = PauseState.PAUSED
-                            return
+                    stackLoop: while (true) {
+                        const currentChar = next()
+
+                        if (
+                            currentChar === Char.Whitespace.carriageReturn ||
+                            currentChar === Char.Whitespace.lineFeed ||
+                            currentChar === Char.Whitespace.space ||
+                            currentChar === Char.Whitespace.tab
+                        ) {
+                            continue
                         }
                         if (currentChar === null) {
+                            //end of chunk reached
                             return
                         }
-                    }
-                    this.indent = null
+                        this.indent = null
 
-                    function getSimpleValueType(): SimpleValueType | null {
-                        if (currentChar === Char.QuotedString.quotationMark || currentChar === Char.QuotedString.apostrophe) {
-                            return SimpleValueType.QUOTED_STRING
-                        } else if (currentChar === Char.Object.openBrace || currentChar === Char.Object.openParen) {
-                            return null
-                        } else if (currentChar === Char.Array.openBracket || currentChar === Char.Array.openAngleBracket) {
-                            return null
-                        } else if (currentChar === Char.TaggedUnion.verticalLine) { //extension to strict JSON specifications
-                            return null
-                        } else {
-                            if (
-                                currentChar === Char.Array.comma ||
-                                currentChar === Char.Array.closeBracket ||
-                                currentChar === Char.Array.closeAngleBracket ||
-                                currentChar === Char.Object.closeParen ||
-                                currentChar === Char.Object.closeBrace ||
-                                currentChar === Char.Object.colon ||
-                                currentChar === Char.Header.exclamationMark ||
-                                currentChar === Char.Header.hash
-                            ) {
+                        function getSimpleValueType(): SimpleValueType | null {
+                            if (currentChar === Char.QuotedString.quotationMark || currentChar === Char.QuotedString.apostrophe) {
+                                return SimpleValueType.QUOTED_STRING
+                            } else if (currentChar === Char.Object.openBrace || currentChar === Char.Object.openParen) {
                                 return null
+                            } else if (currentChar === Char.Array.openBracket || currentChar === Char.Array.openAngleBracket) {
+                                return null
+                            } else if (currentChar === Char.TaggedUnion.verticalLine) { //extension to strict JSON specifications
+                                return null
+                            } else {
+                                if (
+                                    currentChar === Char.Array.comma ||
+                                    currentChar === Char.Array.closeBracket ||
+                                    currentChar === Char.Array.closeAngleBracket ||
+                                    currentChar === Char.Object.closeParen ||
+                                    currentChar === Char.Object.closeBrace ||
+                                    currentChar === Char.Object.colon ||
+                                    currentChar === Char.Header.exclamationMark ||
+                                    currentChar === Char.Header.hash
+                                ) {
+                                    return null
+                                }
+                                return SimpleValueType.UNQUOTED_STRING
                             }
-                            return SimpleValueType.UNQUOTED_STRING
                         }
-                    }
-                    const valueType = getSimpleValueType()
-                    if (currentChar === Char.Comment.solidus) {
-                        this.wrapUpUnquotedToken()
-                        this.setState([ContextType.COMMENT, {
-                            state: CommentState.FOUND_SOLIDUS,
-                        }])
-                    } else if (valueType !== null) {
-                        if (valueType === SimpleValueType.QUOTED_STRING) {
-                            this.setState([ContextType.QUOTED_STRING, {
-                                startCharacter: currentChar,
-                                slashed: false,
-                                unicode: null,
+                        const valueType = getSimpleValueType()
+                        if (currentChar === Char.Comment.solidus) {
+                            this.setState([ContextType.COMMENT, {
+                                state: [CommentState.FOUND_SOLIDUS, { start: this.getBeginLocation() }],
                             }])
-                            this.parser.onQuotedStringBegin({ start: this.getLocation(0), end: this.getLocation(1) }, String.fromCharCode(currentChar))
-                        } else {
-                            this.setState([ContextType.UNQUOTED_STRING])
-                            this.parser.onUnquotedTokenBegin(this.getLocation())
-                            this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1) //copy current character
+                        } else if (valueType !== null) {
+                            if (valueType === SimpleValueType.QUOTED_STRING) {
+                                this.setState([ContextType.QUOTED_STRING, {
+                                    startCharacter: currentChar,
+                                    slashed: false,
+                                    unicode: null,
+                                }])
+                                this.parser.onQuotedStringBegin({ start: this.getBeginLocation(), end: this.getEndLocation() }, String.fromCharCode(currentChar), pauser)
+                                if (currentChunk.mustPause) {
+                                    return
+                                }
+                            } else {
+                                this.setState([ContextType.UNQUOTED_TOKEN])
+                                this.parser.onUnquotedTokenBegin(this.getBeginLocation(), pauser)
+                                if (currentChunk.mustPause) {
+                                    return
+                                }
+                                this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1, pauser) //copy current character
+                                if (currentChunk.mustPause) {
+                                    return
+                                }
 
+                            }
+                        } else {
+                            this.parser.onPunctuation(currentChar, {
+                                start: this.getBeginLocation(),
+                                end: this.getEndLocation(),
+                            }, pauser)
+                            if (currentChunk.mustPause) {
+                                return
+                            }
                         }
-                    } else {
-                        this.parser.onPunctuation(currentChar, {
-                            start: this.getLocation(),
-                            end: this.getLocation(1),
-                        })
+                        break stackLoop
                     }
-                    currentChar = next()
+
                     break
                 }
                 case ContextType.QUOTED_STRING: {
@@ -436,18 +454,18 @@ export class Tokenizer {
                     let snippetStart: null | number = null
                     const flush = () => {
                         if (snippetStart !== null) {
-                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index)
+                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index, pauser)
+                            if (currentChunk.mustPause) {
+                                return
+                            }
                         }
                         snippetStart = null
                     }
 
                     while (true) {
                         //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
-                        if (this.pausedState === PauseState.MUST_PAUSE) {
-                            this.pausedState = PauseState.PAUSED
-                            flush()
-                            return
-                        }
+                        const currentChar = next()
+
                         if (currentChar === null) {
                             //end of the chunk
                             //store it and wait for more input
@@ -456,7 +474,10 @@ export class Tokenizer {
                         }
                         if ($.slashed) {
                             const flushChar = (str: string) => {
-                                this.parser.onSnippet(str, 0, str.length)
+                                this.parser.onSnippet(str, 0, str.length, pauser)
+                                if (currentChunk.mustPause) {
+                                    return
+                                }
                             }
                             if (currentChar === Char.QuotedString.quotationMark) { flushChar('\"') }
                             else if (currentChar === Char.QuotedString.apostrophe) { flushChar('\'') } //deviation from the JSON standard
@@ -476,7 +497,10 @@ export class Tokenizer {
                             }
                             else {
                                 //no special character
-                                this.raiseError(`expected special character after escape slash, but found ${String.fromCharCode(currentChar)}`)
+                                this.raiseError(
+                                    `expected special character after escape slash, but found ${String.fromCharCode(currentChar)}`,
+                                    { start: this.getBeginLocation(), end: this.getEndLocation() }
+                                )
                             }
                             $.slashed = false
 
@@ -485,7 +509,10 @@ export class Tokenizer {
                             $.unicode.charactersLeft--
                             if ($.unicode.charactersLeft === 0) {
                                 const textNode = String.fromCharCode(parseInt($.unicode.foundCharacters, 16))
-                                this.parser.onSnippet(textNode, 0, textNode.length)
+                                this.parser.onSnippet(textNode, 0, textNode.length, pauser)
+                                if (currentChunk.mustPause) {
+                                    return
+                                }
                                 $.unicode = null
                             }
                         } else {
@@ -499,12 +526,14 @@ export class Tokenizer {
                                  */
                                 flush()
                                 const locationInfo = {
-                                    start: this.getLocation(),
-                                    end: this.getLocation(1),
+                                    start: this.getBeginLocation(),
+                                    end: this.getEndLocation(),
                                 }
                                 this.setState([ContextType.STACK])
-                                this.parser.onQuotedStringEnd(locationInfo, String.fromCharCode(currentChar))
-                                currentChar = next()
+                                this.parser.onQuotedStringEnd(locationInfo, String.fromCharCode(currentChar), pauser)
+                                if (currentChunk.mustPause) {
+                                    return
+                                }
                                 break
                             } else {
                                 //normal character
@@ -514,7 +543,6 @@ export class Tokenizer {
                                 }
                             }
                         }
-                        currentChar = next()
                     }
                     break
                 }
@@ -523,60 +551,110 @@ export class Tokenizer {
         }
     }
     public end() {
-        if (!this.canWrite()) {
-            throw new Error("cannot end")
+        if (this.ended) {
+            throw new Error("cannot end, already ended")
         }
-        this.wrapUpUnquotedToken()
-
-        const state = this.state
-        if (state[0] !== ContextType.STACK) {
-            this.raiseError("unexpected end of document")
-        }
-        this.parser.assertIsEnded(this.getLocation(1))
-
-        this.ended = true
-    }
-
-    private getLocation(offset?: number): Location {
-        return {
-            position: this.position + (offset === undefined ? 0 : offset),
-            line: this.line,
-            column: this.column + (offset === undefined ? 0 : offset),
+        if (this.currentChunk !== null) {
+            this.queue.push(null)
+        } else {
+            this.onEnd()
         }
     }
-    private wrapUpUnquotedToken() {
+    private onEnd() {
+
         switch (this.state[0]) {
-            case ContextType.COMMENT:
+            case ContextType.COMMENT: {
+                const $ = this.state[1]
+                if ($.state[0] === CommentState.BLOCK_COMMENT) {
+                    this.raiseError("unterminated block comment", { start: this.getEndLocation(), end: this.getEndLocation()})
+                    const locationInfo = {
+                        start: this.getEndLocation(),
+                        end: this.getEndLocation(),
+                    }
+                    this.parser.onBlockCommentEnd(locationInfo, null)
+                    this.setState([ContextType.STACK])
+                }
                 break
-            case ContextType.UNQUOTED_STRING:
-                this.parser.onUnquotedTokenEnd(this.getLocation())
+            }
+            case ContextType.UNQUOTED_TOKEN:
+                this.parser.onUnquotedTokenEnd(this.getEndLocation())
 
                 this.setState([ContextType.STACK])
 
                 break
             case ContextType.STACK:
                 break
-            case ContextType.QUOTED_STRING:
-                this.raiseError("unterminated string")
+            case ContextType.QUOTED_STRING: {
+                this.raiseError("unterminated string", { start: this.getEndLocation(), end: this.getEndLocation()})
 
                 const locationInfo = {
-                    start: this.getLocation(),
-                    end: this.getLocation(1),
+                    start: this.getEndLocation(),
+                    end: this.getEndLocation(),
                 }
-                this.setState([ContextType.STACK])
-                this.parser.onQuotedStringEnd(locationInfo, null)
+                this.parser.onQuotedStringEnd(locationInfo, null, null)
                 this.setState([ContextType.STACK])
                 break
+            }
             default:
                 return assertUnreachable(this.state[0])
         }
+        this.parser.assertIsEnded(this.getEndLocation())
+
+        this.ended = true
     }
-    private raiseError(message: string) {
+    private getEndLocation(): Location {
+        return {
+            position: this.position + 1,
+            line: this.line,
+            column: this.column + 1,
+        }
+    }
+    private getBeginLocation(): Location {
+        return {
+            position: this.position,
+            line: this.line,
+            column: this.column,
+        }
+    }
+    private raiseError(message: string, range: Range) {
         if (DEBUG) { console.log("error raised:", message) }
-        this.onerror(message, this.getLocation())
+        this.onerror(message, range)
     }
     private setState(newState: Context) {
         if (DEBUG) console.log("setting state to", getStateDescription(newState))
         this.state = newState
     }
+}
+
+export function tokenizeString(parser: IParser, onerror: (message: string, range: Range) => void, str: string, opt?: TokenizerOptions) {
+    const tok = new Tokenizer(parser, onerror, opt)
+    tok.write(
+        str,
+        {
+            pause: () => {
+                //
+            },
+            continue: () => {
+                //
+            },
+        }
+    )
+    tok.end()
+}
+export function tokenizeStrings(parser: IParser, onerror: (message: string, range: Range) => void, strings: string[], opt?: TokenizerOptions) {
+    const tok = new Tokenizer(parser, onerror, opt)
+    strings.forEach(str => {
+        tok.write(
+            str,
+            {
+                pause: () => {
+                    //
+                },
+                continue: () => {
+                    //
+                },
+            }
+        )
+    })
+    tok.end()
 }
