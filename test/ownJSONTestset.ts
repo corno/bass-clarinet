@@ -149,6 +149,7 @@ export const JSONTests: TestDefinitions = {
             ["key", "foo"],
             ["parsererror", "missing property value"],
             ["closeobject"],
+            ["end"],
         ],
     },
     "foobar": {
@@ -909,6 +910,7 @@ export const JSONTests: TestDefinitions = {
             ["parsererror", "Unexpected data after end"],
             ["openobject"],
             ["closeobject"],
+            ["end"],
         ],
     },
 }

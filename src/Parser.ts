@@ -409,19 +409,17 @@ export class Parser implements IParser {
             end: end.end,
         }
         const expected = this.getExpected()
+        this.setStateBeforeValue(range)
         switch (expected) {
             case ExpectedType.KEY: {
-                this.setStateBeforeValue(range)
                 this.oncurrentdata.signal(s => s.onkey(value, range))
                 break
             }
             case ExpectedType.OPTION: {
-                this.setStateBeforeValue(range)
                 this.oncurrentdata.signal(s => s.onoption(value, range))
                 break
             }
             case ExpectedType.VALUE: {
-                this.setStateBeforeValue(range)
                 this.oncurrentdata.signal(s => s.onquotedstring(value, $.startCharacter, range))
                 this.setStateAfterValue(range.end)
                 break
@@ -528,6 +526,7 @@ export class Parser implements IParser {
                     }
                     case RootState.EXPECTING_SCHEMA_START:
                         this.raiseError("expecting schema start (!)", range)
+                        $$.state = RootState.EXPECTING_END // this is only expected after processing the value
                         break
                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                         this.onheaderdata.signal(s => s.onheaderstart())

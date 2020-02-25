@@ -29,9 +29,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 if (DEBUG) console.log("found error")
                 const ee = getExpectedEvent()
                 if (ee[0] !== "parsererror") {
-                    assert.fail(`unexpected parser error: ${message} @ ${printRange(range)}`)
+                    assert.fail(`unexpected parser error: ${message} @ ${printRange(range)}, expected '${ee[0]}'`)
                 }
-                assert.ok(ee[1] === message, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + message + ']');
+                assert.ok(ee[1] === message, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${message}]`);
 
             },
             parserOptions
@@ -42,19 +42,19 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 if (DEBUG) console.log("found error")
                 const ee = getExpectedEvent()
                 if (ee[0] !== "tokenizererror") {
-                    assert.fail("unexpected tokenizer error: " + message)
+                    assert.fail(`unexpected tokenizer error: ${message}, expected '${ee[0]}'`)
                 }
-                assert.ok(ee[1] === message, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + message + ']');
+                assert.ok(ee[1] === message, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${message}]`);
             }
         )
         let currentExpectedEventIndex = 0
         //const env = process && process.env ? process.env : window
         //const record: [AnyEvent, string][] = []
         function validateEventsEqual(expectedEvent: EventDefinition, event: AnyEvent) {
-            assert.ok(expectedEvent[0] === event, 'event: ' + currentExpectedEventIndex + ', expected type: [' + expectedEvent[0] + '] got: [' + event + ']')
+            assert.ok(expectedEvent[0] === event, `event: ${currentExpectedEventIndex}, expected type: [${expectedEvent[0]}] got: [${event}]`)
         }
         function eventsNotEqual(expectedEvent: EventDefinition, event: AnyEvent) {
-            assert.fail('event: ' + currentExpectedEventIndex + ', expected type: [' + expectedEvent[0] + '] got: [' + event + ']')
+            assert.fail(`event: ${currentExpectedEventIndex}, expected type: [${expectedEvent[0]}] got: [${ event}]`)
         }
         function checkRange(range: bc.Range, expectedEventRange?: TestRange) {
             if (expectedEventRange !== undefined) {
@@ -142,7 +142,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "linecomment")
 
-                assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
 
             },
@@ -151,7 +151,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "blockcomment")
 
-                assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
             },
             onunquotedtoken: (v, range) => {
@@ -159,7 +159,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "unquotedtoken")
 
-                assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
             },
             onquotedstring: (v, _quote, range) => {
@@ -167,7 +167,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "quotedstring")
 
-                assert.ok(ee[1] === v, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + v + ']');
+                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
             },
 
@@ -183,11 +183,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "closetaggedunion")
             },
-            onoption: (k, range) => {
+            onoption: (v, range) => {
                 if (DEBUG) console.log("found option")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "option")
-                assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
             },
 
@@ -219,11 +219,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 validateEventsEqual(ee, "closeobject")
                 checkRange(range, ee[2])
             },
-            onkey: (k, range) => {
+            onkey: (v, range) => {
                 if (DEBUG) console.log("found key")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "key")
-                assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
+                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
             },
             onend: location => {
@@ -242,12 +242,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
         parser.onschemadata.subscribe(subscriber)
 
         if (pureJSON) {
-            parser.ondata.subscribe(bc.createStrictJSONValidator((message, range) => {
-                if (DEBUG) console.log("found JSON validation error", message)
+            parser.ondata.subscribe(bc.createStrictJSONValidator((v, range) => {
+                if (DEBUG) console.log("found JSON validation error", v)
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "validationerror")
-                assert.ok(ee[1] === message, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + message + ']');
+                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
             }))
         }

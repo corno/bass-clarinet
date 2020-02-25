@@ -182,6 +182,7 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["parsererror", 'expecting schema start (!)'],
             ["unquotedtoken", "42"],
+            ["end"],
         ],
     },
     "schema required": {
