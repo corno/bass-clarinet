@@ -209,7 +209,7 @@ export class ExpectContext {
                                 //found the option
                                 const optionHandler = options[value]
                                 if (optionHandler === undefined) {
-                                    return this.raiseError(`unknown option ${value}`, range)
+                                    return this.raiseError(`unknown option: '${value}'`, range)
                                 }
                                 dataHandler = optionHandler(startRange, tuComments, range, dataComments)
                             } else {
@@ -253,7 +253,7 @@ export class ExpectContext {
         return (option: string, tuStartRange: Range, tuComments: Comment[], optionRange: Range, optionComments: Comment[]) => {
             const optionHandler = options[option]
             if (optionHandler === undefined) {
-                this.raiseError(`unknown option ${option}`, optionRange)
+                this.raiseError(`unknown option '${option}'`, optionRange)
                 return createDummyValueHandler()
             } else {
                 return optionHandler(tuStartRange, tuComments, optionRange, optionComments)
