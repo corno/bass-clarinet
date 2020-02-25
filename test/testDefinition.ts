@@ -21,7 +21,6 @@ export type EventDefinition =
     | ["parsererror", string]
     | ["tokenizererror", string]
     | ["headerstart"]
-    | ["schemastart"]
     | ["compact"]
     | ["headerend"]
     | ["validationerror", string]
@@ -49,7 +48,6 @@ export type AnyEvent =
 
 export type HeaderEvent =
     | "headerstart"
-    | "schemastart"
     | "compact"
     | "headerend"
 

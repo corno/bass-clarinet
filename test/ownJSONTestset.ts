@@ -909,9 +909,8 @@ export const JSONTests: TestDefinitions = {
         events: [
             ["parsererror", "expected the root value"],
             ["headerstart"],
-            ["headerend"],
             ["quotedstring", "foo"],
-            ["parsererror", "Unexpected data after end"],
+            ["headerend"],
             ["openobject"],
             ["closeobject"],
             ["end"],

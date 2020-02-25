@@ -151,7 +151,6 @@ export const extensionTests: TestDefinitions = {
         testHeaders: true,
         events: [
             ["headerstart"],
-            ["schemastart"],
             ["quotedstring", "a schema"],
             ["headerend"],
             ["unquotedtoken", "42"],
@@ -165,7 +164,6 @@ export const extensionTests: TestDefinitions = {
             allow: { schema: true },
         },
         events: [
-            ["headerstart"],
             ["headerend"],
             ["unquotedtoken", "42"],
             ["end"],
@@ -181,6 +179,7 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["parsererror", 'expecting schema start (!)'],
+            ["headerend"],
             ["unquotedtoken", "42"],
             ["end"],
         ],
@@ -195,7 +194,6 @@ export const extensionTests: TestDefinitions = {
         },
         events: [
             ["headerstart"],
-            ["schemastart"],
             ["quotedstring", "a schema"],
             ["headerend"],
             ["unquotedtoken", "42"],

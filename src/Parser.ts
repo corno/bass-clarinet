@@ -112,8 +112,7 @@ export interface DataSubscriber {
 export type DataSubscription = subscr.Subscribers<DataSubscriber>
 
 export interface HeaderSubscriber {
-    onheaderstart(): void
-    onschemastart(range: Range): void
+    onheaderstart(range: Range): void
     oncompact(range: Range): void
     onheaderend(range: Range): void
 }
@@ -308,6 +307,7 @@ export class Parser implements IParser {
                         }
                         case RootState.EXPECTING_SCHEMA: {
                             this.raiseError("expected the schema", range)
+                            this.onheaderdata.signal(s => s.onheaderend(range))
                             break
                         }
                         case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
@@ -316,14 +316,19 @@ export class Parser implements IParser {
                         }
                         case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
                             this.raiseError("expected the root value", range)
+                            if (curChar === Char.Header.exclamationMark) {
+                                this.onheaderdata.signal(s => s.onheaderstart(range))
+                                $$.state = RootState.EXPECTING_SCHEMA
+                            } else {
+                                this.onheaderdata.signal(s => s.onheaderend(range))
+                            }
                             break
                         }
                         case RootState.EXPECTING_SCHEMA_START:
                             if (curChar !== Char.Header.exclamationMark) {
                                 this.raiseError("expected schema start (!)", range)
                             } else {
-                                this.onheaderdata.signal(s => s.onheaderstart())
-                                this.onheaderdata.signal(s => s.onschemastart(range))
+                                this.onheaderdata.signal(s => s.onheaderstart(range))
                                 this.oncurrentdata = this.onschemadata
                                 $$.state = RootState.EXPECTING_SCHEMA
                             }
@@ -331,8 +336,7 @@ export class Parser implements IParser {
                         case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                             if (curChar === Char.Header.exclamationMark) {
                                 $$.state = RootState.EXPECTING_SCHEMA
-                                this.onheaderdata.signal(s => s.onheaderstart())
-                                this.onheaderdata.signal(s => s.onschemastart(range))
+                                this.onheaderdata.signal(s => s.onheaderstart(range))
                                 this.oncurrentdata = this.onschemadata
                             } else {
                                 this.raiseError("expected an '!' (to specify a schema) or a value", range)
@@ -552,17 +556,16 @@ export class Parser implements IParser {
                         break
                     }
                     case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
-                        this.onheaderdata.signal(s => s.onheaderstart())
                         this.onheaderdata.signal(s => s.onheaderend(range))
                         $$.state = RootState.EXPECTING_END
                         break
                     }
                     case RootState.EXPECTING_SCHEMA_START:
                         this.raiseError("expecting schema start (!)", range)
+                        this.onheaderdata.signal(s => s.onheaderend(range))
                         $$.state = RootState.EXPECTING_END // this is only expected after processing the value
                         break
                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                        this.onheaderdata.signal(s => s.onheaderstart())
                         this.onheaderdata.signal(s => s.onheaderend(range))
                         $$.state = RootState.EXPECTING_END
                         break

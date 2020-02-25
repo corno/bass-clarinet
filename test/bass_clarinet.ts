@@ -82,20 +82,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
 
         if (test.testHeaders) {
             parser.onheaderdata.subscribe({
-                onheaderstart: () => {
+                onheaderstart: range => {
                     if (DEBUG) console.log("found header start")
                     const ee = getExpectedEvent()
                     if (ee[0] !== "headerstart") {
                         eventsNotEqual(ee, "headerstart")
-                    }
-                    //checkRange(range, ee[2])
-
-                },
-                onschemastart: range => {
-                    if (DEBUG) console.log("found schema start")
-                    const ee = getExpectedEvent()
-                    if (ee[0] !== "schemastart") {
-                        eventsNotEqual(ee, "schemastart")
                     }
                     checkRange(range, ee[2])
 
@@ -105,12 +96,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                     const ee = getExpectedEvent()
                     validateEventsEqual(ee, "headerend")
                 },
-                // onschema: (k, _startLocation, range) => {
-                //     const ee = getExpectedEvent()
-                //     validateEventsEqual(ee, "schema")
-                //     assert.ok(ee[1] === k, 'event:' + currentExpectedEventIndex + ' expected value: [' + ee[1] + '] got: [' + k + ']');
-                //     checkLocation(ee, range.end)
-                // },
                 oncompact: () => {
                     if (DEBUG) console.log("found compact")
                     const ee = getExpectedEvent()
