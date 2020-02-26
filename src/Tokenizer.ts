@@ -6,8 +6,8 @@
 
 import * as Char from "./Characters"
 import {
-    ContextType,
-    Context,
+    TokenType,
+    CurrentToken,
     CommentState,
     SimpleValueType,
 } from "./tokenizerStateTypes"
@@ -21,12 +21,13 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-function getStateDescription(stackContext: Context): string {
+function getStateDescription(stackContext: CurrentToken): string {
     switch (stackContext[0]) {
-        case ContextType.COMMENT: return "COMMENT"
-        case ContextType.UNQUOTED_TOKEN: return "UNQUOTED_STRING"
-        case ContextType.STACK: return "STACK"
-        case ContextType.QUOTED_STRING: return "QUOTED_STRING"
+        case TokenType.COMMENT: return "COMMENT"
+        case TokenType.UNQUOTED_TOKEN: return "UNQUOTED_STRING"
+        case TokenType.NONE: return "STACK"
+        case TokenType.QUOTED_STRING: return "QUOTED_STRING"
+        case TokenType.WHITESPACE: return "WHITESPACE"
         default: return assertUnreachable(stackContext[0])
 
     }
@@ -72,21 +73,14 @@ export class Tokenizer {
     private column = 0
     private line = 1
 
-    private state: Context
-
-    /**
-     * the indent property keeps track of the whitespace characters after a newline.
-     * when a block comment is reported, this indent will be sent along so that the
-     * leading whitespace of the full block can be stripped
-     */
-    private indent: string | null = null
+    private state: CurrentToken
 
     private readonly parser: IParser
 
     constructor(parser: IParser, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions) {
         this.opt = opt || {}
         this.parser = parser
-        this.state = [ContextType.STACK]
+        this.state = [TokenType.NONE, { virginLine: true }]
         this.onerror = onerror
     }
     public write(chunk: string, sourcePauser: Pauser) {
@@ -138,7 +132,6 @@ export class Tokenizer {
                 case Char.Whitespace.lineFeed:
                     this.line++
                     this.column = 0
-                    this.indent = ""
                     break
                 case Char.Whitespace.carriageReturn:
                     break
@@ -170,7 +163,7 @@ export class Tokenizer {
         while (true) {
             const state = this.state
             switch (state[0]) {
-                case ContextType.COMMENT: {
+                case TokenType.COMMENT: {
                     /**
                      * COMMENT
                      */
@@ -212,7 +205,7 @@ export class Tokenizer {
                             case CommentState.LINE_COMMENT:
                                 if (currentChar === Char.Whitespace.lineFeed || currentChar === Char.Whitespace.carriageReturn) {
                                     //end of line comment
-                                    this.setState([ContextType.STACK])
+                                    this.setCurrentTokenType([TokenType.NONE, { virginLine: true }])
                                     flush()
                                     this.parser.onLineCommentEnd(this.getEndLocation(), pauser)
                                     if (currentChunk.mustPause) {
@@ -229,7 +222,7 @@ export class Tokenizer {
                                 const $$ = $.state[1]
                                 if (currentChar === Char.Comment.solidus) {
                                     //end of block comment
-                                    this.setState([ContextType.STACK])
+                                    this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
                                     this.parser.onBlockCommentEnd({ start: $$.start, end: this.getEndLocation() }, pauser)
 
                                     if (currentChunk.mustPause) {
@@ -261,7 +254,7 @@ export class Tokenizer {
                                     }
                                     $.state = [CommentState.LINE_COMMENT]
                                 } else if (currentChar === Char.Comment.asterisk) {
-                                    this.parser.onBlockCommentBegin({ start: $$.start, end: this.getEndLocation() }, this.indent, pauser)
+                                    this.parser.onBlockCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
 
                                     if (currentChunk.mustPause) {
                                         return
@@ -269,7 +262,7 @@ export class Tokenizer {
                                     $.state = [CommentState.BLOCK_COMMENT]
                                 } else {
                                     this.raiseError("found dangling slash", { start: this.getBeginLocation(), end: this.getEndLocation() })
-                                    this.setState([ContextType.STACK])
+                                    this.setCurrentTokenType([TokenType.NONE, { virginLine: false}])
 
                                 }
                                 break
@@ -280,7 +273,7 @@ export class Tokenizer {
 
                     break
                 }
-                case ContextType.UNQUOTED_TOKEN: {
+                case TokenType.UNQUOTED_TOKEN: {
                     /**
                      * unquoted token PROCESSING (null, true, false)
                      */
@@ -342,7 +335,7 @@ export class Tokenizer {
 
                             this.parser.onUnquotedTokenEnd(this.getEndLocation(), pauser)
 
-                            this.setState([ContextType.STACK])
+                            this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
                             //this character does not belong to the keyword so don't go to the next character by breaking
                             break
                         } else {
@@ -356,23 +349,31 @@ export class Tokenizer {
                     }
                     break
                 }
-                case ContextType.STACK: {
+                case TokenType.NONE: {
+                    const $ = state[1]
                     const currentChar = this.next(currentChunk)
 
+                    if (currentChar === Char.Whitespace.carriageReturn) {
+                        this.parser.onNewLine(this.getBeginLocation())
+                        continue
+                    }
+
+                    if (currentChar === Char.Whitespace.lineFeed) {
+                        continue
+                    }
                     if (
-                        currentChar === Char.Whitespace.carriageReturn ||
-                        currentChar === Char.Whitespace.lineFeed ||
                         currentChar === Char.Whitespace.space ||
                         currentChar === Char.Whitespace.tab
                     ) {
+                        this.parser.onWhitespaceBegin(this.getBeginLocation(), $.virginLine)
+                        this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1, pauser) //copy current character
+                        this.setCurrentTokenType([TokenType.WHITESPACE])
                         continue
                     }
                     if (currentChar === null) {
                         //end of chunk reached
                         return
                     }
-                    this.indent = null
-
                     function getSimpleValueType(): SimpleValueType | null {
                         if (currentChar === Char.QuotedString.quotationMark || currentChar === Char.QuotedString.apostrophe) {
                             return SimpleValueType.QUOTED_STRING
@@ -400,12 +401,12 @@ export class Tokenizer {
                     }
                     const valueType = getSimpleValueType()
                     if (currentChar === Char.Comment.solidus) {
-                        this.setState([ContextType.COMMENT, {
+                        this.setCurrentTokenType([TokenType.COMMENT, {
                             state: [CommentState.FOUND_SOLIDUS, { start: this.getBeginLocation() }],
                         }])
                     } else if (valueType !== null) {
                         if (valueType === SimpleValueType.QUOTED_STRING) {
-                            this.setState([ContextType.QUOTED_STRING, {
+                            this.setCurrentTokenType([TokenType.QUOTED_STRING, {
                                 startCharacter: currentChar,
                                 slashed: false,
                                 unicode: null,
@@ -415,7 +416,7 @@ export class Tokenizer {
                                 return
                             }
                         } else {
-                            this.setState([ContextType.UNQUOTED_TOKEN])
+                            this.setCurrentTokenType([TokenType.UNQUOTED_TOKEN])
                             this.parser.onUnquotedTokenBegin(this.getBeginLocation(), pauser)
                             if (currentChunk.mustPause) {
                                 return
@@ -437,7 +438,7 @@ export class Tokenizer {
                     }
                     break
                 }
-                case ContextType.QUOTED_STRING: {
+                case TokenType.QUOTED_STRING: {
                     /**
                      * QUOTED STRING PROCESSING
                      */
@@ -521,7 +522,7 @@ export class Tokenizer {
                                     start: this.getBeginLocation(),
                                     end: this.getEndLocation(),
                                 }
-                                this.setState([ContextType.STACK])
+                                this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
                                 this.parser.onQuotedStringEnd(locationInfo, String.fromCharCode(currentChar), pauser)
                                 if (currentChunk.mustPause) {
                                     return
@@ -533,6 +534,53 @@ export class Tokenizer {
                                 if (snippetStart === null) {
                                     snippetStart = currentChunk.index
                                 }
+                            }
+                        }
+                    }
+                    break
+                }
+                case TokenType.WHITESPACE: {
+                    /**
+                     * unquoted token PROCESSING (null, true, false)
+                     */
+                    let snippetStart: null | number = null
+                    const flush = () => {
+                        if (snippetStart !== null) {
+                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1, pauser)
+
+                            if (currentChunk.mustPause) {
+                                return
+                            }
+                        }
+                        snippetStart = null
+                    }
+
+                    while (true) {
+                        const nextChar = currentChunk.lookahead()
+                        if (nextChar === null) {
+                            this.currentChunk = null
+                            flush()
+                            return
+                        }
+
+                        function isWhiteSpaceCharacter() {
+                            return (nextChar === Char.Whitespace.space || nextChar === Char.Whitespace.tab)
+                        }
+                        //first check if we are breaking out of an whitespace token. Can only be done by checking the character that comes directly after the whitespace token
+                        if (!isWhiteSpaceCharacter()) {
+                            flush()
+
+                            this.parser.onWhitespaceEnd(this.getBeginLocation())
+
+                            this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
+                            //this character does not belong to the whitespace so don't go to the next character by breaking
+                            break
+                        } else {
+                            //normal character
+                            //don't flush
+                            this.next(currentChunk)
+                            if (snippetStart === null) {
+                                snippetStart = currentChunk.index
                             }
                         }
                     }
@@ -554,7 +602,7 @@ export class Tokenizer {
     }
     private onEnd() {
         switch (this.state[0]) {
-            case ContextType.COMMENT: {
+            case TokenType.COMMENT: {
                 const $ = this.state[1]
                 if ($.state[0] === CommentState.BLOCK_COMMENT) {
                     this.raiseError("unterminated block comment", { start: this.getEndLocation(), end: this.getEndLocation() })
@@ -563,19 +611,19 @@ export class Tokenizer {
                         end: this.getEndLocation(),
                     }
                     this.parser.onBlockCommentEnd(locationInfo, null)
-                    this.setState([ContextType.STACK])
+                    this.setCurrentTokenType([TokenType.NONE, { virginLine: false}])
                 }
                 break
             }
-            case ContextType.UNQUOTED_TOKEN:
+            case TokenType.UNQUOTED_TOKEN:
                 this.parser.onUnquotedTokenEnd(this.getEndLocation(), null)
 
-                this.setState([ContextType.STACK])
+                this.setCurrentTokenType([TokenType.NONE, { virginLine: false}])
 
                 break
-            case ContextType.STACK:
+            case TokenType.NONE:
                 break
-            case ContextType.QUOTED_STRING: {
+            case TokenType.QUOTED_STRING: {
                 this.raiseError("unterminated string", { start: this.getEndLocation(), end: this.getEndLocation() })
 
                 const locationInfo = {
@@ -583,9 +631,15 @@ export class Tokenizer {
                     end: this.getEndLocation(),
                 }
                 this.parser.onQuotedStringEnd(locationInfo, null, null)
-                this.setState([ContextType.STACK])
+                this.setCurrentTokenType([TokenType.NONE, { virginLine: false}])
                 break
             }
+            case TokenType.WHITESPACE:
+                this.parser.onWhitespaceEnd(this.getEndLocation())
+
+                this.setCurrentTokenType([TokenType.NONE, { virginLine: false}])
+
+                break
             default:
                 return assertUnreachable(this.state[0])
         }
@@ -611,7 +665,7 @@ export class Tokenizer {
         if (DEBUG) { console.log("error raised:", message) }
         this.onerror(message, range)
     }
-    private setState(newState: Context) {
+    private setCurrentTokenType(newState: CurrentToken) {
         if (DEBUG) console.log("setting state to", getStateDescription(newState))
         this.state = newState
     }

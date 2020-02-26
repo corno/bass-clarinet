@@ -1,5 +1,5 @@
 import * as bc from "../src"
-import * as fs  from "fs"
+import * as fs from "fs"
 
 const [, , path] = process.argv
 
@@ -8,7 +8,7 @@ if (path === undefined) {
     process.exit(1)
 }
 
-const data = fs.readFileSync(path, {encoding: "utf-8"})
+const data = fs.readFileSync(path, { encoding: "utf-8" })
 
 
 const parser = new bc.Parser(
@@ -16,54 +16,58 @@ const parser = new bc.Parser(
     { allow: bc.lax }
 )
 parser.ondata.subscribe({
-    oncomma: () => {
+    onComma: () => {
         //place your code here
     },
-    oncolon: () => {
+    onColon: () => {
         //place your code here
     },
-    onlinecomment: (_comment, _range) => {
+    onLineComment: (_comment, _range) => {
         //place your code here
     },
-    onblockcomment: (_comment, _range, _indent) => {
-        //indent can be used to strip the leading whitespace of all lines of the block comment.
-        //indent indicates the indentation string found up to the `/*` characters.
-        //this is only provided if the block comment starts on a new line
+    onBlockComment: (_comment, _range) => {
+        //
     },
-    onquotedstring: (_value, _quote, _range) => {
+    onQuotedString: (_value, _quote, _range) => {
         //place your code here
         //in pure JSON, only '"' is valid for _quote
     },
-    onunquotedtoken: (_value, _range) => {
+    onUnquotedToken: (_value, _range) => {
         //place your code here
         //in pure JSON, only "null", "true" or "false" are valid for _value
     },
-    onopentaggedunion: _range => {
+    onOpenTaggedUnion: _range => {
         //place your code here
     },
-    onclosetaggedunion: () => {
+    onCloseTaggedUnion: () => {
         //place your code here
     },
-    onoption: (_option, _range) => {
+    onOption: (_option, _range) => {
         //place your code here
     },
-    onopenarray: (_openCharacterRange, _openCharacter) => {
+    onOpenArray: (_openCharacterRange, _openCharacter) => {
         //place your code here
     },
-    onclosearray: (_closeCharacterRange, _closeCharacter) => {
+    onCloseArray: (_closeCharacterRange, _closeCharacter) => {
         //place your code here
     },
-    onopenobject: (_startRange, _openCharacter) => {
+    onOpenObject: (_startRange, _openCharacter) => {
         //place your code here
     },
-    oncloseobject: (_endRange, _closeCharacter) => {
+    onCloseObject: (_endRange, _closeCharacter) => {
         //place your code here
     },
-    onkey: (_key, _range) => {
+    onKey: (_key, _range) => {
         //place your code here
     },
-    onend: () => {
+    onEnd: () => {
         //place your code here
+    },
+    onNewLine: () => {
+        //
+    },
+    onWhitespace: () => {
+        //
     },
 })
 

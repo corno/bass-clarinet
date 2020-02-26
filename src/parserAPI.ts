@@ -10,7 +10,7 @@ export interface IParser {
     onLineCommentBegin(range: Range, pauser: Pauser): void
     onLineCommentEnd(location: Location, pauser: Pauser): void
 
-    onBlockCommentBegin(range: Range, indent: null | string, pauser: Pauser): void
+    onBlockCommentBegin(range: Range, pauser: Pauser): void
     onBlockCommentEnd(range: Range, pauser: Pauser | null): void //pauser can be null for unterminated comments
 
     onUnquotedTokenBegin(location: Location, pauser: Pauser): void
@@ -20,6 +20,10 @@ export interface IParser {
     onQuotedStringEnd(range: Range, quote: string | null, pauser: Pauser | null): void //quote can be null for unterminated strings
 
     onPunctuation(char: number, range: Range, pauser: Pauser): void
+
+    onNewLine(location: Location): void
+    onWhitespaceBegin(location: Location, isIndent: boolean): void
+    onWhitespaceEnd(location: Location): void
 
     assertIsEnded(location: Location): void
 }

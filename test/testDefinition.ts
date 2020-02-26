@@ -27,6 +27,7 @@ export type EventDefinition =
 // [AnyEvent, string?, number?, number?]
 
 export type TestDefinition = {
+    readonly skipEqualityCheck?: boolean
     readonly text: string
     readonly testHeaders?: boolean
     readonly chunks?: string[]

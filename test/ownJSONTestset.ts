@@ -26,6 +26,7 @@ export const JSONTests: TestDefinitions = {
     },
     "newline": {
         text: '\n  "a string"',
+        skipEqualityCheck: true,
         events: [
             ["quotedstring", "a string", [2, 3, 2, 13]],
             ["end"],
@@ -128,6 +129,7 @@ export const JSONTests: TestDefinitions = {
     },
     "codepoints from unicodes": {
         text: '["\\u004d\\u0430\\u4e8c\\ud800\\udf02"]',
+        skipEqualityCheck: true,
         events: [
             ["openarray"],
             ["quotedstring", "\u004d\u0430\u4e8c\ud800\udf02"],
@@ -748,6 +750,7 @@ export const JSONTests: TestDefinitions = {
             '                            }\r\n' +
             '                    }\r\n' +
             '            }\r\n'),
+        skipEqualityCheck: true,
         events: [
             ["openobject"],
             ["key", "glossary"],
@@ -816,6 +819,7 @@ export const JSONTests: TestDefinitions = {
     },
     "multiline string": {
         text: '["a\nstring"]',
+        skipEqualityCheck: true,
         events: [
             ["openarray"],
             ["quotedstring", "a\nstring"],
@@ -882,6 +886,7 @@ export const JSONTests: TestDefinitions = {
     },
     "forbidden extension single line comment": {
         text: '[1,2//a comment\r\n]',
+        skipEqualityCheck: true,
         events: [
             ["openarray"],
             ["unquotedtoken", "1"],

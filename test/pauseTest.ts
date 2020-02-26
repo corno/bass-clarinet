@@ -25,53 +25,59 @@ function pause(pauser: Pauser) {
 }
 
 parser.ondata.subscribe({
-    oncomma: (_, pauser) => {
+    onNewLine: () => {
+        //
+    },
+    onWhitespace: () => {
+        //
+    },
+    onComma: (_, pauser) => {
         console.log("COMMA")
         pause(pauser)
     },
-    oncolon: (_, pauser) => {
+    onColon: (_, pauser) => {
         pause(pauser)
     },
-    onlinecomment: (_comment, _range, pauser) => {
+    onLineComment: (_comment, _range, pauser) => {
         pause(pauser)
     },
-    onblockcomment: (_comment, _range, _indent, pauser) => {
+    onBlockComment: (_comment, _range, pauser) => {
         pause(pauser)
     },
-    onquotedstring: (_value, _quote, _range, pauser) => {
+    onQuotedString: (_value, _quote, _range, _terminated, pauser) => {
         console.log("QUOTED")
         pause(pauser)
     },
-    onunquotedtoken: (_value, _range) => {
+    onUnquotedToken: (_value, _range) => {
         //
     },
-    onopentaggedunion: (_range, pauser) => {
+    onOpenTaggedUnion: (_range, pauser) => {
         pause(pauser)
     },
-    onclosetaggedunion: () => {
+    onCloseTaggedUnion: () => {
         //
     },
-    onoption: (_option, _range, pauser) => {
+    onOption: (_option, _quote, _range, _terminated, pauser) => {
         pause(pauser)
     },
-    onopenarray: (_openCharacterRange, _openCharacter, pauser) => {
+    onOpenArray: (_openCharacterRange, _openCharacter, pauser) => {
         console.log("OPEN ARRAY")
         pause(pauser)
     },
-    onclosearray: (_closeCharacterRange, _closeCharacter, pauser) => {
+    onCloseArray: (_closeCharacterRange, _closeCharacter, pauser) => {
         console.log("CLOSE ARRAY")
         pause(pauser)
     },
-    onopenobject: (_startRange, _openCharacter, pauser) => {
+    onOpenObject: (_startRange, _openCharacter, pauser) => {
         pause(pauser)
     },
-    oncloseobject: (_endRange, _closeCharacter, pauser) => {
+    onCloseObject: (_endRange, _closeCharacter, pauser) => {
         pause(pauser)
     },
-    onkey: (_key, _range, pauser) => {
+    onKey: (_key, _quote, _range, _terminated, pauser) => {
         pause(pauser)
     },
-    onend: () => {
+    onEnd: () => {
         console.log("Reached end")
     },
 })

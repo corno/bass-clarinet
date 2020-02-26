@@ -21,6 +21,7 @@ export const extensionTests: TestDefinitions = {
     },
     "single line comment": {
         text: '[1,"a"//a comment\r\n]',
+        skipEqualityCheck: true,
         parserOptions: {
             allow: { comments: true },
         },
@@ -181,6 +182,22 @@ export const extensionTests: TestDefinitions = {
             ["parsererror", 'expecting schema start (!)'],
             ["headerend"],
             ["unquotedtoken", "42"],
+            ["end"],
+        ],
+    },
+    "schema required but not there 2": {
+        text: "{}",
+        testHeaders: true,
+        parserOptions: {
+            require: {
+                schema: true,
+            },
+        },
+        events: [
+            ["parsererror", 'expecting schema start (!)'],
+            ["headerend"],
+            ["openobject"],
+            ["closeobject"],
             ["end"],
         ],
     },

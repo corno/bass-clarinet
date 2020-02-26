@@ -1,17 +1,19 @@
-import { Location} from "./location"
+import { Location } from "./location"
 
-export enum ContextType {
+export enum TokenType {
     COMMENT,
     QUOTED_STRING,
-    STACK,
+    NONE,
     UNQUOTED_TOKEN,
+    WHITESPACE,
 }
 
-export type Context =
-    | [ContextType.STACK]
-    | [ContextType.COMMENT, CommentContext]
-    | [ContextType.UNQUOTED_TOKEN]
-    | [ContextType.QUOTED_STRING, StringContext]
+export type CurrentToken =
+    | [TokenType.NONE, NoneContext]
+    | [TokenType.COMMENT, CommentContext]
+    | [TokenType.UNQUOTED_TOKEN]
+    | [TokenType.QUOTED_STRING, StringContext]
+    | [TokenType.WHITESPACE]
 
 export type CommentContextState =
     | [CommentState.FOUND_ASTERISK, { start: Location }]
@@ -19,6 +21,9 @@ export type CommentContextState =
     | [CommentState.FOUND_SOLIDUS, { start: Location }]
     | [CommentState.LINE_COMMENT]
 
+export type NoneContext = {
+    virginLine: boolean
+}
 export type CommentContext = {
     state: CommentContextState
 }

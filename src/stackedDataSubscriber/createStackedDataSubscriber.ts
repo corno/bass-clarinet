@@ -109,13 +109,19 @@ export function createStackedDataSubscriber(
     }
 
     return {
-        oncomma: () => {
+        onComma: () => {
             //
         },
-        oncolon: () => {
+        onColon: () => {
             //
         },
-        onlinecomment: (comment, range) => {
+        onNewLine: () => {
+            //
+        },
+        onWhitespace: () => {
+            //
+        },
+        onLineComment: (comment, range) => {
             comments.push({
                 text: comment,
                 type: "line",
@@ -123,20 +129,20 @@ export function createStackedDataSubscriber(
                 range: range,
             })
         },
-        onblockcomment: (comment, range, indent) => {
+        onBlockComment: (comment, range) => {
             comments.push({
                 text: comment,
                 type: "line",
-                indent: indent,
+                indent: null, //FIX get the right indent info
                 range: range,
             })
         },
-        onopenarray: (range, openCHaracter, pauser) => {
+        onOpenArray: (range, openCHaracter, pauser) => {
             const arrayHandler = initValueHandler(range).array(range, openCHaracter, flushComments(), pauser)
             stack.push(currentContext)
             currentContext = ["array", { arrayHandler: arrayHandler }]
         },
-        onclosearray: (range, endCharacter) => {
+        onCloseArray: (range, endCharacter) => {
             if (currentContext[0] !== "array") {
                 raiseRangeError(onError, "unexpected end of array", range)
             } else {
@@ -144,12 +150,12 @@ export function createStackedDataSubscriber(
             }
             pop(range)
         },
-        onopentaggedunion: range => {
+        onOpenTaggedUnion: range => {
             if (DEBUG) { console.log("on open tagged union") }
             stack.push(currentContext)
             currentContext = ["taggedunion", { start: range, parentValueHandler: initValueHandler(range), valueHandler: null, comments: flushComments() }]
         },
-        onoption: (option, range, pauser) => {
+        onOption: (option, _quote, range, _terminated, pauser) => {
             if (DEBUG) { console.log("on option", option) }
             if (currentContext[0] !== "taggedunion") {
                 raiseRangeError(onError, "unexpected option", range)
@@ -157,14 +163,14 @@ export function createStackedDataSubscriber(
                 currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].start, currentContext[1].comments, range, flushComments(), pauser)
             }
         },
-        onclosetaggedunion: location => {
+        onCloseTaggedUnion: location => {
             if (DEBUG) { console.log("on close tagged union") }
             if (currentContext[0] !== "taggedunion") {
                 raiseLocationError(onError, "unexpected end of tagged union", location)
             }
             pop({ start: location, end: location })
         },
-        onopenobject: (range, openCharacter, pauser) => {
+        onOpenObject: (range, openCharacter, pauser) => {
             if (DEBUG) { console.log("on open object") }
             const vh = initValueHandler(range)
             if (vh === null) {
@@ -177,7 +183,7 @@ export function createStackedDataSubscriber(
                 valueHandler: null,
             }]
         },
-        oncloseobject: (range, endCharacter) => {
+        onCloseObject: (range, endCharacter) => {
             if (DEBUG) { console.log("on close object") }
             if (currentContext[0] !== "object") {
                 raiseRangeError(onError, "unexpected end of object", range)
@@ -186,7 +192,7 @@ export function createStackedDataSubscriber(
             }
             pop(range)
         },
-        onkey: (key, range) => {
+        onKey: (key, _quote, range) => {
             if (DEBUG) { console.log("on key", key) }
             if (currentContext[0] !== "object") {
                 raiseRangeError(onError, "unexpected key", range)
@@ -194,7 +200,7 @@ export function createStackedDataSubscriber(
                 currentContext[1].valueHandler = currentContext[1].objectHandler.property(key, range, flushComments())
             }
         },
-        onquotedstring: (value, _quote, range, pauser) => {
+        onQuotedString: (value, _quote, range, _terminated, pauser) => {
             if (DEBUG) { console.log("on quoted string", value) }
             const vh = initValueHandler(range)
             if (vh === null) {
@@ -203,7 +209,7 @@ export function createStackedDataSubscriber(
             vh.string(value, range, flushComments(), pauser)
 
         },
-        onunquotedtoken: (value, range, pauser) => {
+        onUnquotedToken: (value, range, pauser) => {
             if (DEBUG) { console.log("on value", value) }
             const vh = initValueHandler(range)
             if (vh === null) {
@@ -235,7 +241,7 @@ export function createStackedDataSubscriber(
             }
             raiseRangeError(onError, `unrecognized unquoted token '${value}'`, range)
         },
-        onend: () => {
+        onEnd: () => {
             onend(flushComments())
         },
     }

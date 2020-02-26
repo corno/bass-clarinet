@@ -110,7 +110,7 @@ class StrictJSONValidator implements DataSubscriber {
     constructor(onError: OnError) {
         this.onError = onError
     }
-    public oncolon(range: Range) {
+    public onColon(range: Range) {
         if (this.currentContext[0] !== "object") {
             this.onError(`colon can only be used in objects`, range)
             return
@@ -121,7 +121,7 @@ class StrictJSONValidator implements DataSubscriber {
             this.currentContext[1].state = ObjectState.EXPECTING_OBJECT_VALUE
         }
     }
-    public oncomma(range: Range) {
+    public onComma(range: Range) {
         switch (this.currentContext[0]) {
             case "array": {
                 const $ = this.currentContext[1]
@@ -155,10 +155,10 @@ class StrictJSONValidator implements DataSubscriber {
                 return assertUnreachable(this.currentContext[0])
         }
     }
-    public onblockcomment(_comment: string, range: Range, _indent: string) {
+    public onBlockComment(_comment: string, range: Range) {
         this.onError("block comments are not allowed in strict JSON", range)
     }
-    public onclosearray(range: Range, closeCharacter: string) {
+    public onCloseArray(range: Range, closeCharacter: string) {
         if (closeCharacter !== "]") {
             this.onError("arrays should end with ']' in strict JSON", range)
         }
@@ -171,7 +171,7 @@ class StrictJSONValidator implements DataSubscriber {
         }
         this.pop(range.end)
     }
-    public oncloseobject(range: Range, closeCharacter: string) {
+    public onCloseObject(range: Range, closeCharacter: string) {
         if (closeCharacter !== "}") {
             this.onError("objects should end with '}' in strict JSON", range)
         }
@@ -184,23 +184,29 @@ class StrictJSONValidator implements DataSubscriber {
         }
         this.pop(range.end)
     }
-    public onclosetaggedunion(location: Location) {
+    public onCloseTaggedUnion(location: Location) {
         this.pop(location)
     }
-    public onend() {
+    public onEnd() {
         //
     }
-    public onkey(_key: string, range: Range) {
+    public onNewLine() {
+        //
+    }
+    public onWhitespace() {
+        //
+    }
+    public onKey(_key: string, _quote: string, range: Range) {
         if (this.currentContext[0] !== "object") {
             this.onError(`keys can only occur in objects`, range)
             return
         }
         this.currentContext[1].state = ObjectState.EXPECTING_COLON
     }
-    public onlinecomment(_comment: string, range: Range) {
+    public onLineComment(_comment: string, range: Range) {
         this.onError("line comments are not allowed in strict JSON", range)
     }
-    public onopenarray(range: Range, openCharacter: string) {
+    public onOpenArray(range: Range, openCharacter: string) {
         if (openCharacter !== "[") {
             this.onError("arrays should start with '[' in strict JSON", range)
         }
@@ -208,21 +214,21 @@ class StrictJSONValidator implements DataSubscriber {
         this.push(["array", { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
 
     }
-    public onopenobject(range: Range, openCharacter: string) {
+    public onOpenObject(range: Range, openCharacter: string) {
         if (openCharacter !== "{") {
             this.onError("objects should start with '{' in strict JSON", range)
         }
         this.onvalue(range)
         this.push(["object", { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END }])
     }
-    public onopentaggedunion(range: Range) {
+    public onOpenTaggedUnion(range: Range) {
         this.onError("tagged unions are not allowed in strict JSON", range)
         this.push(["taggedunion", {}])
     }
-    public onoption(_option: string, _range: Range) {
+    public onOption(_option: string, _quote: string, _range: Range) {
         //
     }
-    public onunquotedtoken(value: string, range: Range) {
+    public onUnquotedToken(value: string, range: Range) {
         this.onvalue(range)
         switch (value) {
             case "true": {
@@ -242,7 +248,7 @@ class StrictJSONValidator implements DataSubscriber {
         }
         this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, range)
     }
-    public onquotedstring(_value: string, quote: string, range: Range) {
+    public onQuotedString(_value: string, quote: string, range: Range) {
         if (quote !== "\"") {
             this.onError(`invalid string, should start with'"'`, range)
         }

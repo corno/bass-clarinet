@@ -63,28 +63,33 @@ export enum ExpectedType {
 }
 
 
-export enum ContextType {
+export enum TokenType {
     COMMENT,
     QUOTED_STRING,
-    STACK,
+    NONE,
     UNQUOTED_TOKEN,
+    WHITESPACE,
 }
 
-export type Context =
-    | [ContextType.STACK]
-    | [ContextType.COMMENT, CommentContext]
-    | [ContextType.UNQUOTED_TOKEN, UnquotedTokenContext]
-    | [ContextType.QUOTED_STRING, QuotedStringContext]
+export type CurrentToken =
+    | [TokenType.NONE]
+    | [TokenType.COMMENT, CommentContext]
+    | [TokenType.UNQUOTED_TOKEN, UnquotedTokenContext]
+    | [TokenType.QUOTED_STRING, QuotedStringContext]
+    | [TokenType.WHITESPACE, WhitespaceContext]
 
 
 export type CommentContext = {
     commentNode: string
     readonly start: Range
-    readonly indent: null | string
 }
 
 export type UnquotedTokenContext = {
     unquotedTokenNode: string
+    readonly start: Location
+}
+export type WhitespaceContext = {
+    whitespaceNode: string
     readonly start: Location
 }
 

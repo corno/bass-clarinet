@@ -105,13 +105,19 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
         }
 
         const subscriber: bc.DataSubscriber = {
-            oncomma: () => {
+            onComma: () => {
                 //
             },
-            oncolon: () => {
+            onColon: () => {
                 //
             },
-            onlinecomment: (v, range) => {
+            onNewLine: () => {
+                //
+            },
+            onWhitespace: () => {
+                //
+            },
+            onLineComment: (v, range) => {
                 if (DEBUG) console.log("found line comment")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "linecomment")
@@ -120,7 +126,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 checkRange(range, ee[2])
 
             },
-            onblockcomment: (v, range, _indent) => {
+            onBlockComment: (v, range, _indent) => {
                 if (DEBUG) console.log("found block comment")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "blockcomment")
@@ -128,7 +134,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
             },
-            onunquotedtoken: (v, range) => {
+            onUnquotedToken: (v, range) => {
                 if (DEBUG) console.log("found unquoted token")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "unquotedtoken")
@@ -136,7 +142,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
             },
-            onquotedstring: (v, _quote, range) => {
+            onQuotedString: (v, _quote, range) => {
                 if (DEBUG) console.log("found quoted string")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "quotedstring")
@@ -145,19 +151,19 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 checkRange(range, ee[2])
             },
 
-            onopentaggedunion: range => {
+            onOpenTaggedUnion: range => {
                 if (DEBUG) console.log("found open tagged union")
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "opentaggedunion")
                 checkRange(range, ee[2])
             },
-            onclosetaggedunion: () => {
+            onCloseTaggedUnion: () => {
                 if (DEBUG) console.log("found close tagged union")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "closetaggedunion")
             },
-            onoption: (v, range) => {
+            onOption: (v, _quote, range) => {
                 if (DEBUG) console.log("found option")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "option")
@@ -165,13 +171,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 checkRange(range, ee[2])
             },
 
-            onopenarray: range => {
+            onOpenArray: range => {
                 if (DEBUG) console.log("found open array")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "openarray")
                 checkRange(range, ee[2])
             },
-            onclosearray: range => {
+            onCloseArray: range => {
                 if (DEBUG) console.log("found close array")
 
                 const ee = getExpectedEvent()
@@ -179,28 +185,28 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 checkRange(range, ee[2])
             },
 
-            onopenobject: range => {
+            onOpenObject: range => {
                 if (DEBUG) console.log("found open object")
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "openobject")
                 checkRange(range, ee[2])
             },
-            oncloseobject: range => {
+            onCloseObject: range => {
                 if (DEBUG) console.log("found close object")
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "closeobject")
                 checkRange(range, ee[2])
             },
-            onkey: (v, range) => {
+            onKey: (v, _quote, range) => {
                 if (DEBUG) console.log("found key")
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "key")
                 assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
             },
-            onend: location => {
+            onEnd: location => {
                 if (DEBUG) console.log("found end")
 
                 const ee = getExpectedEvent()
@@ -214,6 +220,85 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
             },
         }
         parser.onschemadata.subscribe(subscriber)
+
+        /*
+        RECREATE THE ORIGINAL STRING
+        */
+        const out: string[] = []
+
+        function serialize(str: string) {
+            const escaped = JSON.stringify(str)
+            return escaped.substring(1, escaped.length - 1) //remove quotes
+        }
+        const outputter: bc.DataSubscriber = {
+            onComma: () => {
+                out.push(",")
+            },
+            onColon: () => {
+                out.push(":")
+            },
+            onLineComment: (comment, _range) => {
+                out.push("//" + comment)
+            },
+            onBlockComment: (comment, _range) => {
+                out.push("/*" + comment + "*/")
+            },
+            onQuotedString: (value, quote, _range, terminated) => {
+                out.push(quote + serialize(value) + (terminated ? quote : ""))
+            },
+            onUnquotedToken: (value, _range) => {
+                out.push(value)
+            },
+            onOpenTaggedUnion: _range => {
+                out.push("|")
+            },
+            onCloseTaggedUnion: () => {
+                //
+            },
+            onOption: (value, quote, _range, terminated) => {
+                out.push(quote + serialize(value) + (terminated ? quote : ""))
+            },
+            onOpenArray: (_openCharacterRange, openCharacter) => {
+                out.push(openCharacter)
+            },
+            onCloseArray: (_closeCharacterRange, closeCharacter) => {
+                out.push(closeCharacter)
+            },
+            onOpenObject: (_startRange, openCharacter) => {
+                out.push(openCharacter)
+            },
+            onCloseObject: (_endRange, closeCharacter) => {
+                out.push(closeCharacter)
+            },
+            onKey: (key, quote, _range, terminated) => {
+                out.push(quote + serialize(key) + (terminated ? quote : ""))
+            },
+            onNewLine: () => {
+                out.push("\n")
+            },
+            onWhitespace: value => {
+                out.push(value)
+            },
+            //do the check
+            onEnd: () => {
+                if (!test.skipEqualityCheck) {
+                    assert.equal(chunks.join(""), out.join(""))
+                }
+            },
+        }
+        parser.onschemadata.subscribe(outputter)
+        parser.onheaderdata.subscribe({
+            onheaderstart: () => {
+                out.push("!")
+            },
+            oncompact: () => {
+                out.push("#")
+            },
+            onheaderend: () => {
+                //
+            },
+        })
+        parser.ondata.subscribe(outputter)
 
         if (pureJSON) {
             parser.ondata.subscribe(bc.createStrictJSONValidator((v, range) => {
@@ -350,5 +435,6 @@ describe('bass-clarinet', () => {
                 ["property already processed: 'a'"]
             )
         })
+
     });
 });
