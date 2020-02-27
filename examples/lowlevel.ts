@@ -13,7 +13,6 @@ const data = fs.readFileSync(path, { encoding: "utf-8" })
 
 const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
-    { allow: bc.lax }
 )
 parser.ondata.subscribe({
     onComma: () => {
@@ -30,11 +29,11 @@ parser.ondata.subscribe({
     },
     onQuotedString: (_value, _quote, _range) => {
         //place your code here
-        //in pure JSON, only '"' is valid for _quote
+        //in strict JSON, only '"' is valid for _quote
     },
     onUnquotedToken: (_value, _range) => {
         //place your code here
-        //in pure JSON, only "null", "true" or "false" are valid for _value
+        //in strict JSON, only "null", "true" or "false" are valid for _value
     },
     onOpenTaggedUnion: _range => {
         //place your code here

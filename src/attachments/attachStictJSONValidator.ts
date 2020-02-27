@@ -1,9 +1,10 @@
 /* eslint
     complexity:"off",
     no-underscore-dangle:"off",
+    max-classes-per-file: "off",
 */
 
-import { DataSubscriber, Parser } from "../Parser";
+import { DataSubscriber, Parser, HeaderSubscriber } from "../Parser";
 import { Range, Location } from "../location";
 import * as Char from "./NumberCharacters";
 import { LocationError } from "../errors";
@@ -100,6 +101,24 @@ type ContextType =
         // readonly parentValueHandler: ValueHandler
         // valueHandler: null | ValueHandler
     }]
+
+class StrictJSONHeaderValidator implements HeaderSubscriber {
+    private readonly onError: OnError
+
+
+    constructor(onError: OnError) {
+        this.onError = onError
+    }
+    onHeaderStart(range: Range) {
+        this.onError(`headers are not allowed in strict JSON`, range)
+    }
+    onCompact() {
+        //
+    }
+    onHeaderEnd() {
+        //
+    }
+}
 
 class StrictJSONValidator implements DataSubscriber {
     private readonly onError: OnError
@@ -335,5 +354,6 @@ class StrictJSONValidator implements DataSubscriber {
 }
 
 export function attachStrictJSONValidator(parser: Parser, onError: OnError) {
+    parser.onheaderdata.subscribe(new StrictJSONHeaderValidator(onError))
     parser.ondata.subscribe(new StrictJSONValidator(onError))
 }

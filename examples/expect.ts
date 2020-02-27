@@ -12,7 +12,6 @@ const data = fs.readFileSync(path, { encoding: "utf-8" })
 
 const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
-    { allow: bc.lax }
 )
 const ec = new bc.ExpectContext(
     (_message, _range) => {
@@ -26,8 +25,7 @@ const ec = new bc.ExpectContext(
 /**
  * expect an object/type with 2 properties, 'prop a' and 'prop b', both numbers
  */
-bc.attachStackedDataSubscriber(
-    parser,
+parser.ondata.subscribe(bc.createStackedDataSubscriber(
     ec.expectType(
         (_range, _comments) => {
             //prepare code here
@@ -54,7 +52,7 @@ bc.attachStackedDataSubscriber(
     _comments => {
         //wrap up the document
     }
-)
+))
 
 bc.tokenizeString(
     parser,

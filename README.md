@@ -13,18 +13,17 @@ In addition to the port to TypeScript, the following changes have been made:
 * the parser accepts multiple subscribers per event type
 * `trim` and `normalize` options have been dropped. This can be handled by the consumer in the `onsimplevalue` callback
 * there is a stack based wrapper named `createStackedDataSubscriber` which pairs `onopenobject`/`oncloseobject` and `onopenarray`/`onclosearray` events in a callback
-* the following options have been added (if none are selected, `bass-clarinet` is a pure JSON-parser):
-  * `allow:angle_brackets_instead_of_brackets`
-  * `allow:apostrophes_instead_of_quotation_marks`
-  * `allow:comments`
-  * `allow:compact`
-  * `allow:missing_commas`
-  * `allow:parens_instead_of_braces`
-  * `allow:schema`
-  * `allow:trailing_commas`
-  * `allow:tagged_unions`
-  * `require:schema`
-  * `spaces_per_tab`
+* the following features have been added (to disallow them, attach the strictJSON validator `attachStictJSONValidator` to the parser):
+  * angle brackets instead of brackets
+  * apostrophes instead of quotation marks
+  * comments
+  * compact
+  * missing commas
+  * parens instead of braces
+  * schema
+  * trailing commas
+  * tagged unions
+  * tokenizer option: `spaces_per_tab`
 * stream support has been dropped for now. Can be added back upon request
 * There is an 'ExpectContext' class that helps processing documents that should conform to an expected structure.
 
@@ -121,8 +120,7 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
 }
 
 export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writer: (str: string) => void) {
-    bc.attachStackedDataSubscriber(
-        parser,
+    const datasubscriber = bc.createStackedDataSubscriber(
         createValuesPrettyPrinter(indentation, writer),
         error => {
             console.error("FOUND STACKED DATA ERROR", error.message)
@@ -131,12 +129,13 @@ export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writ
             //onEnd
         }
     )
+    parser.ondata.subscribe(datasubscriber)
+    parser.onschemadata.subscribe(datasubscriber)
 }
 
 
 const prsr = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
-    { allow: bc.lax }
 )
 
 attachPrettyPrinter(prsr, "\r\n", str => process.stdout.write(str))
@@ -165,7 +164,6 @@ const data = fs.readFileSync(path, { encoding: "utf-8" })
 
 const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
-    { allow: bc.lax }
 )
 parser.ondata.subscribe({
     onComma: () => {
@@ -182,11 +180,11 @@ parser.ondata.subscribe({
     },
     onQuotedString: (_value, _quote, _range) => {
         //place your code here
-        //in pure JSON, only '"' is valid for _quote
+        //in strict JSON, only '"' is valid for _quote
     },
     onUnquotedToken: (_value, _range) => {
         //place your code here
-        //in pure JSON, only "null", "true" or "false" are valid for _value
+        //in strict JSON, only "null", "true" or "false" are valid for _value
     },
     onOpenTaggedUnion: _range => {
         //place your code here
@@ -229,7 +227,6 @@ bc.tokenizeString(
     data,
 )
 
-
 ```
 ## if the document needs to conform to an expected structure (or schema)
 ``` TypeScript
@@ -247,7 +244,6 @@ const data = fs.readFileSync(path, { encoding: "utf-8" })
 
 const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
-    { allow: bc.lax }
 )
 const ec = new bc.ExpectContext(
     (_message, _range) => {
@@ -261,8 +257,7 @@ const ec = new bc.ExpectContext(
 /**
  * expect an object/type with 2 properties, 'prop a' and 'prop b', both numbers
  */
-bc.attachStackedDataSubscriber(
-    parser,
+parser.ondata.subscribe(bc.createStackedDataSubscriber(
     ec.expectType(
         (_range, _comments) => {
             //prepare code here
@@ -289,7 +284,7 @@ bc.attachStackedDataSubscriber(
     _comments => {
         //wrap up the document
     }
-)
+))
 
 bc.tokenizeString(
     parser,
@@ -301,59 +296,42 @@ bc.tokenizeString(
 
 ## arguments
 
+pass the following argument to the tokenizer function:
+* `spaces_per_tab` - number. needed for proper column info.: Rationale: without knowing how many spaces per tab `base-clarinet` is not able to determine the colomn of a character. Default is `4` (ofcourse)
+
+
 pass the following arguments to the parser function.  all are optional.
 
 `opt` - object bag of settings.
 
-the supported options are:
-* `spaces_per_tab` - number. needed for proper column info.: Rationale: without knowing how many spaces per tab `base-clarinet` is not able to determine the colomn of a character. Default is `4` (ofcourse)
-* `allow:missing_commas` - boolean. No comma's are required. Rationale: When manually editing documents, keeping track of the comma's is cumbersome. With this option this is no longer an issue
-* `allow:trailing_commas` - boolean. allows commas before the `}` or the `]`. Rationale: for serializers it is easier to write a comma for every property/element instead of keeping a state that tracks if a property/element is the first one.
-* `allow:comments` - boolean. allows both line comments `//` and block comments `/* */`. Rationale: when using JSON-like documents for editing, it is often useful to add comments
-* `allow:apostrophes_instead_of_quotation_marks` - boolean. Allows `'` in place of `"`. Rationale: In an editor this is less intrusive (although only slightly)
-* `allow:angle_brackets_instead_of_brackets` - boolean. Allows `<` and `>` in place of `[` and `]`. Rationale: a semantic distinction can be made between fixed length arrays (`ArrayType`) and variable length arrays (`lists`)
-* `allow:parens_instead_of_braces` - boolean. Allows `(` and `)` in place of `{` and `}`. Rationale: a semantic distinction can be made between objctes with known properties (`Type`) and objects with dynamic keys (`dictionary`)
-* `allow:schema` - boolean. If enabled, the document may start with a `!` followed by a value (`object`, `string` etc). This data can be used by a processor for schema validation. For example a string can indicate a URL of the schema.
-* `require:schema` - boolean. see `allow:schema`. In this case the schema is required. This option overrides the `allow` option.
-* `allow:compact` - boolean. At the beginning of a document, after the possible schema, a `#` may be placed. This is an indicator for a processor (code that uses `bass-clarinet`'s API) that the data is `compact`. `base-clarinet` only sends the `compact` flag but does not change any other behaviour. Rationale: If a schema is known, the keys of a  `Type` are known at design time. these types can therefor be converted to `ArrayTypes` and thus omit the keys without losing information. This trades in readability in favor of size. This option indicates that this happened in this document. The file can only be properly interpreted by a processor in combination with the schema.
-* `allow:tagged_unions` - boolean. This allows an extra value type that is not present in JSON but is very useful. tagged unions are also known as sum types or choices, see [taggedunion]. The notation is a pipe, followed by a string, followed by any other value. eg:  ```| "the chosen option" { "my data": "foo" }```. The same information can ofcourse also be written in pure JSON with an array with 2 elements of which the first element is a string.
-
-(`normalize` and `trim` have been dropped as this can equally well be handled in the onsimplevalue handler)
 
 ## methods
 
-`write` - write bytes to the parser. you don't have to do this all at
+`write` - write bytes to the tokenizer. you don't have to do this all at
 once. you can keep writing as much as you want.
 
 `end` - ends the stream. once ended, no more data may be written, it signals the  `onend` event.
 
+## additional features
+
+the parser supports the following additional (to JSON) features
+
+* optional commas - No comma's are required. Rationale: When manually editing documents, keeping track of the comma's is cumbersome. With this option this is no longer an issue
+* trailing commas - Allows commas before the `}` or the `]`. Rationale: for serializers it is easier to write a comma for every property/element instead of keeping a state that tracks if a property/element is the first one.
+* comments - Allows both line comments `//` and block comments `/* */`. Rationale: when using JSON-like documents for editing, it is often useful to add comments
+* apostrophes instead of quotation marks - Allows `'` in place of `"`. Rationale: In an editor this is less intrusive (although only slightly)
+* angle brackets instead of brackets - Allows `<` and `>` in place of `[` and `]`. Rationale: a semantic distinction can be made between fixed length arrays (`ArrayType`) and variable length arrays (`lists`)
+* parens instead of braces - Allows `(` and `)` in place of `{` and `}`. Rationale: a semantic distinction can be made between objctes with known properties (`Type`) and objects with dynamic keys (`dictionary`)
+* schema - The document may start with a `!` followed by a value (`object`, `string` etc), followed by an optional `#` (indicating `compact`).
+  * * The schema value can be used by a processor for schema validation. For example a string can indicate a URL of the schema.
+  * * `compact` is an indicator for a processor (code that uses `bass-clarinet`'s API) that the data is `compact`. `base-clarinet` only sends the `compact` flag but does not change any other behaviour. Rationale: If a schema is known, the keys of a  `Type` are known at design time. these types can therefor be converted to `ArrayTypes` and thus omit the keys without losing information. This trades in readability in favor of size. This option indicates that this happened in this document. The file can only be properly interpreted by a processor in combination with the schema.
+* tagged unions - This allows an extra value type that is not present in JSON but is very useful. tagged unions are also known as sum types or choices, see [taggedunion]. The notation is a pipe, followed by a string, followed by any other value. eg:  ```| "the chosen option" { "my data": "foo" }```. The same information can ofcourse also be written in strict JSON with an array with 2 elements of which the first element is a string.
+
 ## events
 
-`onerror` - indication that something bad happened. the error will be hanging
-out on `parser.error`, and must be deleted before parsing can continue. by
-listening to this event, you can keep an eye on that kind of stuff. note:
-this happens *much* more in strict mode. argument: instance of `Error`.
+`onerror` (passed as argument to the constructor) - indication that something bad happened. The parser will continue as good as it can
 
-`onsimplevalue` - a simple json value.
-
-`onopenobject` - object was opened. this is different from `clarinet` as the first key is not treated separately
-
-`onkey` - an object key: argument: key, a string with the current key. (Also called for the first key, unlike the behaviour of `clarinet`)
-
-`oncloseobject` - indication that an object was closed
-
-`onopenarray` - indication that an array was opened
-
-`onclosearray` - indication that an array was closed
-
-
-`onopentaggedunion` - indication that a tagged union was opened
-
-`onoption` - the value of the option (string)
-
-`onclosetaggedunion` - indication that a tagged union was closed
-
-`onend` - indication that the closed stream has ended.
+the data subscriber can be seen in the example code above:
 
 # roadmap
 

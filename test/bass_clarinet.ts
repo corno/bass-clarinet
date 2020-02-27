@@ -18,9 +18,8 @@ const selectedExtensionTests = Object.keys(extensionTests)
 // const selectedJSONTests: string[] = ["forbidden_extension_apostrophe_string"]
 // const selectedExtensionTests: string[] = []
 
-function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: boolean) {
+function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: boolean) {
     const expectedEvents = test.events.slice()
-    const parserOptions = test.parserOptions
     return function () {
         if (DEBUG) console.log("CHUNKS:", chunks)
         const parser = new bc.Parser(
@@ -32,8 +31,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 }
                 assert.ok(ee[1] === message, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${message}]`);
 
-            },
-            parserOptions
+            }
         )
         let currentExpectedEventIndex = 0
         //const env = process && process.env ? process.env : window
@@ -103,7 +101,96 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
             })
         }
 
-        const subscriber: bc.DataSubscriber = {
+        /*
+        RECREATE THE ORIGINAL STRING
+        */
+        const out: string[] = []
+
+        function serialize(str: string) {
+            const escaped = JSON.stringify(str)
+            return escaped.substring(1, escaped.length - 1) //remove quotes
+        }
+        const outputter: bc.DataSubscriber = {
+            onComma: () => {
+                out.push(",")
+            },
+            onColon: () => {
+                out.push(":")
+            },
+            onLineComment: (comment, _range) => {
+                out.push("//" + comment)
+            },
+            onBlockComment: (comment, _range) => {
+                out.push("/*" + comment + "*/")
+            },
+            onQuotedString: (value, quote, _range, terminated) => {
+                out.push(quote + serialize(value) + (terminated ? quote : ""))
+            },
+            onUnquotedToken: (value, _range) => {
+                out.push(value)
+            },
+            onOpenTaggedUnion: _range => {
+                out.push("|")
+            },
+            onCloseTaggedUnion: () => {
+                //
+            },
+            onOption: (value, quote, _range, terminated) => {
+                out.push(quote + serialize(value) + (terminated ? quote : ""))
+            },
+            onOpenArray: (_openCharacterRange, openCharacter) => {
+                out.push(openCharacter)
+            },
+            onCloseArray: (_closeCharacterRange, closeCharacter) => {
+                out.push(closeCharacter)
+            },
+            onOpenObject: (_startRange, openCharacter) => {
+                out.push(openCharacter)
+            },
+            onCloseObject: (_endRange, closeCharacter) => {
+                out.push(closeCharacter)
+            },
+            onKey: (key, quote, _range, terminated) => {
+                out.push(quote + serialize(key) + (terminated ? quote : ""))
+            },
+            onNewLine: () => {
+                out.push("\n")
+            },
+            onWhitespace: value => {
+                out.push(value)
+            },
+            //do the check
+            onEnd: () => {
+                if (!test.skipEqualityCheck) {
+                    assert.equal(chunks.join(""), out.join(""))
+                }
+            },
+        }
+        parser.onschemadata.subscribe(outputter)
+        parser.onheaderdata.subscribe({
+            onHeaderStart: () => {
+                out.push("!")
+            },
+            onCompact: () => {
+                out.push("#")
+            },
+            onHeaderEnd: () => {
+                //
+            },
+        })
+        parser.ondata.subscribe(outputter)
+
+        if (strictJSON) {
+            bc.attachStrictJSONValidator(parser, (v, range) => {
+                if (DEBUG) console.log("found JSON validation error", v)
+
+                const ee = getExpectedEvent()
+                validateEventsEqual(ee, "validationerror")
+                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
+                checkRange(range, ee[2])
+            })
+        }
+        const eventSubscriber: bc.DataSubscriber = {
             onComma: () => {
                 //
             },
@@ -218,98 +305,8 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
 
             },
         }
-        parser.onschemadata.subscribe(subscriber)
-
-        /*
-        RECREATE THE ORIGINAL STRING
-        */
-        const out: string[] = []
-
-        function serialize(str: string) {
-            const escaped = JSON.stringify(str)
-            return escaped.substring(1, escaped.length - 1) //remove quotes
-        }
-        const outputter: bc.DataSubscriber = {
-            onComma: () => {
-                out.push(",")
-            },
-            onColon: () => {
-                out.push(":")
-            },
-            onLineComment: (comment, _range) => {
-                out.push("//" + comment)
-            },
-            onBlockComment: (comment, _range) => {
-                out.push("/*" + comment + "*/")
-            },
-            onQuotedString: (value, quote, _range, terminated) => {
-                out.push(quote + serialize(value) + (terminated ? quote : ""))
-            },
-            onUnquotedToken: (value, _range) => {
-                out.push(value)
-            },
-            onOpenTaggedUnion: _range => {
-                out.push("|")
-            },
-            onCloseTaggedUnion: () => {
-                //
-            },
-            onOption: (value, quote, _range, terminated) => {
-                out.push(quote + serialize(value) + (terminated ? quote : ""))
-            },
-            onOpenArray: (_openCharacterRange, openCharacter) => {
-                out.push(openCharacter)
-            },
-            onCloseArray: (_closeCharacterRange, closeCharacter) => {
-                out.push(closeCharacter)
-            },
-            onOpenObject: (_startRange, openCharacter) => {
-                out.push(openCharacter)
-            },
-            onCloseObject: (_endRange, closeCharacter) => {
-                out.push(closeCharacter)
-            },
-            onKey: (key, quote, _range, terminated) => {
-                out.push(quote + serialize(key) + (terminated ? quote : ""))
-            },
-            onNewLine: () => {
-                out.push("\n")
-            },
-            onWhitespace: value => {
-                out.push(value)
-            },
-            //do the check
-            onEnd: () => {
-                if (!test.skipEqualityCheck) {
-                    assert.equal(chunks.join(""), out.join(""))
-                }
-            },
-        }
-        parser.onschemadata.subscribe(outputter)
-        parser.onheaderdata.subscribe({
-            onHeaderStart: () => {
-                out.push("!")
-            },
-            onCompact: () => {
-                out.push("#")
-            },
-            onHeaderEnd: () => {
-                //
-            },
-        })
-        parser.ondata.subscribe(outputter)
-
-        if (pureJSON) {
-            bc.attachStrictJSONValidator(parser, (v, range) => {
-                if (DEBUG) console.log("found JSON validation error", v)
-
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "validationerror")
-                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
-                checkRange(range, ee[2])
-            })
-        }
-        parser.ondata.subscribe(subscriber)
+        parser.onschemadata.subscribe(eventSubscriber)
+        parser.ondata.subscribe(eventSubscriber)
 
         bc.tokenizeStrings(
             parser,
@@ -388,7 +385,7 @@ class Doc implements bc.DocumentAPI {
 }
 
 describe('bass-clarinet', () => {
-    describe('#pureJSON', () => {
+    describe('#strictJSON', () => {
         selectedJSONTests.forEach(key => {
             const test = JSONTests[key]
             it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test, true));
@@ -421,11 +418,9 @@ describe('bass-clarinet', () => {
             }
             const parser = new bc.Parser(
                 onError,
-                {}
             )
             const expect = new bc.ExpectContext(onError, onWarning)
-            bc.attachStackedDataSubscriber(
-                parser,
+            parser.ondata.subscribe(bc.createStackedDataSubscriber(
                 callback(expect),
                 err => {
                     foundErrors.push(err.message)
@@ -433,7 +428,7 @@ describe('bass-clarinet', () => {
                 () => {
                     //do nothing with end
                 },
-            )
+            ))
             bc.tokenizeString(
                 parser,
                 (message, _location) => {
@@ -497,7 +492,6 @@ describe('bass-clarinet', () => {
             // }
             const parser = new bc.Parser(
                 onError,
-                {}
             )
             const doc = new Doc(unformatted)
             bc.attachFormatter(parser, doc)

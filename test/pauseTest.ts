@@ -6,7 +6,6 @@ import { Pauser } from "../src/parserAPI";
 
 const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
-    { allow: bc.lax }
 )
 
 let counter = 0

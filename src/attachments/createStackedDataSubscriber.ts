@@ -2,7 +2,7 @@
     no-console:"off",
     no-underscore-dangle: "off",
 */
-import { Parser } from "../Parser"
+import { DataSubscriber } from "../Parser"
 import { Location, Range } from "../location"
 import * as Char from "./NumberCharacters"
 import { createDummyValueHandler } from "./dummyHandlers"
@@ -55,12 +55,11 @@ function raiseLocationError(onError: (error: StackedDataError) => void, message:
  * and
  * 'onopenarray' with 'onclosearray'
  */
-export function attachStackedDataSubscriber(
-    parser: Parser,
+export function createStackedDataSubscriber(
     valueHandler: ValueHandler,
     onError: (error: StackedDataError) => void,
     onend: (comments: Comment[]) => void
-): void {
+): DataSubscriber {
     const stack: ContextType[] = []
     let comments: Comment[] = []
 
@@ -109,7 +108,7 @@ export function attachStackedDataSubscriber(
         }
     }
 
-    parser.ondata.subscribe({
+    return {
         onComma: () => {
             //
         },
@@ -245,7 +244,7 @@ export function attachStackedDataSubscriber(
         onEnd: () => {
             onend(flushComments())
         },
-    })
+    }
 }
 
 function assertUnreachable<RT>(_x: never): RT {

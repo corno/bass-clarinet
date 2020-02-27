@@ -1,4 +1,4 @@
-import { TokenizerOptions, ParserOptions } from "../src/configurationTypes"
+import { TokenizerOptions } from "../src/configurationTypes"
 
 export type TestRange = [number?, number?, number?, number?]
 export type TestLocation = [number?, number?]
@@ -31,7 +31,6 @@ export type TestDefinition = {
     readonly text: string
     readonly testHeaders?: boolean
     readonly chunks?: string[]
-    readonly parserOptions?: ParserOptions
     readonly tokenizerOptions?: TokenizerOptions
     readonly events: EventDefinition[]
 }

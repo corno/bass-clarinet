@@ -19,7 +19,6 @@ describe('parsing', () => {
                             () => {
                                 foundError = true
                             },
-                            {}
                         )
                         bc.tokenizeString(
                             parser,
@@ -42,7 +41,6 @@ describe('parsing', () => {
                             () => {
                                 foundError = true
                             },
-                            {}
                         )
                         bc.tokenizeString(
                             parser,
@@ -64,7 +62,6 @@ describe('parsing', () => {
                             () => {
                                 //do nothing with error
                             },
-                            {}
                         )
                         bc.tokenizeString(
                             parser,
@@ -94,7 +91,6 @@ describe('transform', () => {
                     () => {
                         //do nothing with error
                     },
-                    {}
                 )
                 tokenizeString(
                     parser,

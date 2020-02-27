@@ -54,8 +54,7 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
 }
 
 export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writer: (str: string) => void) {
-    bc.attachStackedDataSubscriber(
-        parser,
+    const datasubscriber = bc.createStackedDataSubscriber(
         createValuesPrettyPrinter(indentation, writer),
         error => {
             console.error("FOUND STACKED DATA ERROR", error.message)
@@ -64,12 +63,13 @@ export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writ
             //onEnd
         }
     )
+    parser.ondata.subscribe(datasubscriber)
+    parser.onschemadata.subscribe(datasubscriber)
 }
 
 
 const prsr = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
-    { allow: bc.lax }
 )
 
 attachPrettyPrinter(prsr, "\r\n", str => process.stdout.write(str))

@@ -22,7 +22,6 @@ import {
     TokenType,
 } from "./parserStateTypes"
 import { Location, Range, printRange } from "./location"
-import { ParserOptions, Allow } from "./configurationTypes"
 import { RangeError } from "./errors"
 
 const DEBUG = false
@@ -43,10 +42,8 @@ function getContextDescription(stackContext: StackContext) {
         case StackContextType.ROOT: {
             switch (stackContext[1].state) {
                 case RootState.EXPECTING_END: return "EXPECTING_END"
-                case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: return "EXPECTING_ROOTVALUE_WITHOUT_HEADER"
                 case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: return "EXPECTING_ROOTVALUE_AFTER_HEADER"
                 case RootState.EXPECTING_HASH_OR_ROOTVALUE: return "EXPECTING_ROOTVALUE_OR_HASH"
-                case RootState.EXPECTING_SCHEMA_START: return "EXPECTING_SCHEMA_START"
                 case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: return "EXPECTING_SCHEMA_START_OR_ROOT_VALUE"
                 case RootState.EXPECTING_SCHEMA: return "EXPECTING_SCHEMA"
                 default: return assertUnreachable(stackContext[1].state)
@@ -71,19 +68,6 @@ function getContextDescription(stackContext: StackContext) {
             return assertUnreachable(stackContext[0])
     }
 }
-
-export const lax: Allow = {
-    comments: true,
-    trailing_commas: true,
-    parens_instead_of_braces: true,
-    missing_commas: true,
-    apostrophes_instead_of_quotation_marks: true,
-    angle_brackets_instead_of_brackets: true,
-    tagged_unions: true,
-    schema: true,
-    compact: true,
-}
-
 
 export interface DataSubscriber {
     onComma(range: Range, pauser: Pauser): void
@@ -122,7 +106,6 @@ export interface HeaderSubscriber {
 
 export class Parser implements IParser {
     public readonly stack = new Array<StackContext>()
-    public readonly opt: ParserOptions
     public readonly onschemadata = new subscr.Subscribers<DataSubscriber>()
     public readonly ondata = new subscr.Subscribers<DataSubscriber>()
     public readonly onheaderdata = new subscr.Subscribers<HeaderSubscriber>()
@@ -131,17 +114,10 @@ export class Parser implements IParser {
     private currentToken: CurrentToken = [TokenType.NONE]
     private readonly onerror: (message: string, range: Range) => void
 
-    constructor(onerror: (message: string, range: Range) => void, opt?: ParserOptions) {
+    constructor(onerror: (message: string, range: Range) => void) {
         this.onerror = onerror
-        this.opt = opt || {}
         this.oncurrentdata = this.ondata
-        if (this.opt.require?.schema) {
-            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START }]
-        } else if (this.opt.allow?.schema) {
-            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
-        } else {
-            this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER }]
-        }
+        this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
     }
     public assertIsEnded(location: Location) {
         const range = { start: location, end: location }
@@ -165,15 +141,6 @@ export class Parser implements IParser {
                     this.raiseError("expected the root value", range)
                     break
                 }
-                case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
-                    this.raiseError("expected the root value", range)
-                    break
-                }
-                case RootState.EXPECTING_SCHEMA_START:
-                    this.raiseError("expected the schema start (!)", range)
-                    this.onheaderdata.signal(s => s.onHeaderEnd(range))
-
-                    break
                 case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                     this.raiseError("expected the schema start (!) or root value", range)
                     this.onheaderdata.signal(s => s.onHeaderEnd(range))
@@ -187,7 +154,7 @@ export class Parser implements IParser {
         this.oncurrentdata.signal(s => s.onEnd(location))
     }
     public onPunctuation(curChar: number, range: Range, pauser: Pauser) {
-        if (DEBUG) console.log(`onPunctuation`, curChar, String.fromCharCode(curChar) )
+        if (DEBUG) console.log(`onPunctuation`, curChar, String.fromCharCode(curChar))
 
         const $ = this.currentContext
 
@@ -297,12 +264,8 @@ export class Parser implements IParser {
 
                             if (curChar === Char.Header.hash) {
 
-                                if (!this.opt.allow?.compact) {
-                                    this.raiseError("compact not allowed", range)
-                                } else {
-                                    this.onheaderdata.signal(s => s.onCompact(range))
-                                    $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
-                                }
+                                this.onheaderdata.signal(s => s.onCompact(range))
+                                $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
                                 this.onheaderdata.signal(s => s.onHeaderEnd(range))
                             } else {
                                 this.onheaderdata.signal(s => s.onHeaderEnd(range))
@@ -319,25 +282,6 @@ export class Parser implements IParser {
                             this.raiseError("expected the root value", range)
                             break
                         }
-                        case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
-                            this.raiseError("expected the root value", range)
-                            if (curChar === Char.Header.exclamationMark) {
-                                this.onheaderdata.signal(s => s.onHeaderStart(range))
-                                $$.state = RootState.EXPECTING_SCHEMA
-                            } else {
-                                this.onheaderdata.signal(s => s.onHeaderEnd(range))
-                            }
-                            break
-                        }
-                        case RootState.EXPECTING_SCHEMA_START:
-                            if (curChar !== Char.Header.exclamationMark) {
-                                this.raiseError("expected schema start (!)", range)
-                            } else {
-                                this.onheaderdata.signal(s => s.onHeaderStart(range))
-                                this.oncurrentdata = this.onschemadata
-                                $$.state = RootState.EXPECTING_SCHEMA
-                            }
-                            break
                         case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                             if (curChar === Char.Header.exclamationMark) {
                                 $$.state = RootState.EXPECTING_SCHEMA
@@ -605,16 +549,6 @@ export class Parser implements IParser {
                         $$.state = RootState.EXPECTING_END
                         break
                     }
-                    case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
-                        this.onheaderdata.signal(s => s.onHeaderEnd(range))
-                        $$.state = RootState.EXPECTING_END
-                        break
-                    }
-                    case RootState.EXPECTING_SCHEMA_START:
-                        this.raiseError("expecting schema start (!)", range)
-                        this.onheaderdata.signal(s => s.onHeaderEnd(range))
-                        $$.state = RootState.EXPECTING_END // this is only expected after processing the value
-                        break
                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                         this.onheaderdata.signal(s => s.onHeaderEnd(range))
                         $$.state = RootState.EXPECTING_END

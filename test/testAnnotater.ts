@@ -10,7 +10,6 @@ Object.keys(JSONTests).forEach(testName => {
     const test = JSONTests[testName]
     const parser = new bc.Parser(
         err => console.error(err),
-        {}
     )
     attachAnnotator(parser, "", str => console.log(str))
     bc.tokenizeString(

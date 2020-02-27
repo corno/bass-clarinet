@@ -1,12 +1,10 @@
 import { Location, Range } from "./location"
 
 export enum RootState {
-    EXPECTING_SCHEMA_START,
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
     EXPECTING_SCHEMA,
     EXPECTING_HASH_OR_ROOTVALUE,
     EXPECTING_ROOTVALUE_AFTER_HEADER,
-    EXPECTING_ROOTVALUE_WITHOUT_HEADER,
     EXPECTING_END, // no more input expected
 }
 

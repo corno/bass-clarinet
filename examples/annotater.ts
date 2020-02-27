@@ -43,8 +43,7 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
 }
 
 export function attachAnnotator(parser: bc.Parser, indentation: string, writer: (str: string) => void) {
-    return bc.attachStackedDataSubscriber(
-        parser,
+    const ds = bc.createStackedDataSubscriber(
         createValuesAnnotater(indentation, writer),
         error => {
             if (error.context[0] === "range") {
@@ -58,4 +57,6 @@ export function attachAnnotator(parser: bc.Parser, indentation: string, writer: 
             //do nothing
         }
     )
+    parser.ondata.subscribe(ds)
+    parser.onschemadata.subscribe(ds)
 }

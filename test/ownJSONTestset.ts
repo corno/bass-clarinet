@@ -5,7 +5,7 @@ export const JSONTests: TestDefinitions = {
     "empty": {
         text: '',
         events: [
-            ["parsererror", "expected the root value"],
+            ["parsererror", "expected the schema start (!) or root value"],
             ["end"],
         ],
     },
@@ -912,8 +912,8 @@ export const JSONTests: TestDefinitions = {
         text: '! "foo" {}',
         testHeaders: true,
         events: [
-            ["parsererror", "expected the root value"],
             ["headerstart"],
+            ["validationerror", "headers are not allowed in strict JSON"],
             ["quotedstring", "foo"],
             ["headerend"],
             ["openobject"],
