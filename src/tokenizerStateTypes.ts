@@ -6,11 +6,13 @@ export enum TokenType {
     NONE,
     UNQUOTED_TOKEN,
     WHITESPACE,
+    NEWLINE,
 }
 
 export type CurrentToken =
-    | [TokenType.NONE, NoneContext]
     | [TokenType.COMMENT, CommentContext]
+    | [TokenType.NEWLINE, NewLineContext]
+    | [TokenType.NONE, NoneContext]
     | [TokenType.UNQUOTED_TOKEN]
     | [TokenType.QUOTED_STRING, StringContext]
     | [TokenType.WHITESPACE]
@@ -21,6 +23,15 @@ export type CommentContextState =
     | [CommentState.FOUND_SOLIDUS, { start: Location }]
     | [CommentState.LINE_COMMENT]
 
+export enum FoundNewLineCharacter {
+    CARRIAGE_RETURN,
+    LINE_FEED,
+}
+
+export type NewLineContext = {
+    foundNewLineCharacter: FoundNewLineCharacter
+    startLocation: Location
+}
 export type NoneContext = {
     virginLine: boolean
 }

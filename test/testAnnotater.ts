@@ -2,7 +2,7 @@
     no-console:"off",
 */
 import { JSONTests } from "./ownJSONTestset"
-import { createAnnotator} from "../examples/annotater"
+import { attachAnnotator} from "../examples/annotater"
 import * as bc from "../src"
 
 Object.keys(JSONTests).forEach(testName => {
@@ -12,7 +12,7 @@ Object.keys(JSONTests).forEach(testName => {
         err => console.error(err),
         {}
     )
-    parser.ondata.subscribe(createAnnotator("", str => console.log(str)))
+    attachAnnotator(parser, "", str => console.log(str))
     bc.tokenizeString(
         parser,
         err => console.error(err),

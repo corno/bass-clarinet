@@ -9,7 +9,6 @@ import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, AnyEvent, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { createStackedDataSubscriber, ExpectContext, printRange, ValueHandler } from "../src"
 
 const DEBUG = false
 
@@ -29,7 +28,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                 if (DEBUG) console.log("found error")
                 const ee = getExpectedEvent()
                 if (ee[0] !== "parsererror") {
-                    assert.fail(`unexpected parser error: ${message} @ ${printRange(range)}, expected '${ee[0]}'`)
+                    assert.fail(`unexpected parser error: ${message} @ ${bc.printRange(range)}, expected '${ee[0]}'`)
                 }
                 assert.ok(ee[1] === message, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${message}]`);
 
@@ -82,7 +81,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
 
         if (test.testHeaders) {
             parser.onheaderdata.subscribe({
-                onheaderstart: range => {
+                onHeaderStart: range => {
                     if (DEBUG) console.log("found header start")
                     const ee = getExpectedEvent()
                     if (ee[0] !== "headerstart") {
@@ -91,12 +90,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
                     checkRange(range, ee[2])
 
                 },
-                onheaderend: () => {
+                onHeaderEnd: () => {
                     if (DEBUG) console.log("found header end")
                     const ee = getExpectedEvent()
                     validateEventsEqual(ee, "headerend")
                 },
-                oncompact: () => {
+                onCompact: () => {
                     if (DEBUG) console.log("found compact")
                     const ee = getExpectedEvent()
                     validateEventsEqual(ee, "compact")
@@ -288,27 +287,27 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
         }
         parser.onschemadata.subscribe(outputter)
         parser.onheaderdata.subscribe({
-            onheaderstart: () => {
+            onHeaderStart: () => {
                 out.push("!")
             },
-            oncompact: () => {
+            onCompact: () => {
                 out.push("#")
             },
-            onheaderend: () => {
+            onHeaderEnd: () => {
                 //
             },
         })
         parser.ondata.subscribe(outputter)
 
         if (pureJSON) {
-            parser.ondata.subscribe(bc.createStrictJSONValidator((v, range) => {
+            bc.attachStrictJSONValidator(parser, (v, range) => {
                 if (DEBUG) console.log("found JSON validation error", v)
 
                 const ee = getExpectedEvent()
                 validateEventsEqual(ee, "validationerror")
                 assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
                 checkRange(range, ee[2])
-            }))
+            })
         }
         parser.ondata.subscribe(subscriber)
 
@@ -339,6 +338,55 @@ function createTestFunction(chunks: string[], test: TestDefinition, pureJSON: bo
     };
 }
 
+type Offset = {
+    position: number
+    offset: number
+}
+
+class Doc implements bc.DocumentAPI {
+    private readonly offsets: Offset[] = []
+    private content: string
+    constructor(content: string) {
+        this.content = content
+    }
+    getContent() {
+        return this.content
+    }
+    remove(begin: number, end: number) {
+        const content = this.content
+        const beginoffset = this.getOffset(begin)
+        const endoffset = this.getOffset(end)
+        this.content = content.substr(0, beginoffset) + content.substr(endoffset)
+
+        this.offsets.push({ position: end, offset: begin - end })
+    }
+    insert(position: number, value: string) {
+        const content = this.content
+        const offset = this.getOffset(position)
+        this.content = content.substr(0, offset) + value + content.substr(offset)
+
+        this.offsets.push({ position: position, offset: value.length })
+    }
+    replace(begin: number, end: number, value: string) {
+
+        const content = this.content
+        const beginoffset = this.getOffset(begin)
+        const endoffset = this.getOffset(end)
+        this.content = content.substr(0, beginoffset) + value + content.substr(endoffset)
+
+        this.offsets.push({ position: end, offset: begin - end + value.length })
+    }
+    private getOffset(position: number) {
+        let newPosition = position
+        this.offsets.forEach(offset => {
+            if (position > offset.position) {
+                newPosition += offset.offset
+            }
+        })
+        return newPosition
+    }
+}
+
 describe('bass-clarinet', () => {
     describe('#pureJSON', () => {
         selectedJSONTests.forEach(key => {
@@ -363,7 +411,7 @@ describe('bass-clarinet', () => {
         })
     });
     describe('#expect', () => {
-        function doTest(data: string, callback: (expect: ExpectContext) => ValueHandler, expectedErrors: string[]) {
+        function doTest(data: string, callback: (expect: bc.ExpectContext) => bc.ValueHandler, expectedErrors: string[]) {
             const foundErrors: string[] = []
             const onError = (message: string, _range: bc.Range) => {
                 foundErrors.push(message)
@@ -375,8 +423,9 @@ describe('bass-clarinet', () => {
                 onError,
                 {}
             )
-            const expect = new ExpectContext(onError, onWarning)
-            parser.ondata.subscribe(createStackedDataSubscriber(
+            const expect = new bc.ExpectContext(onError, onWarning)
+            bc.attachStackedDataSubscriber(
+                parser,
                 callback(expect),
                 err => {
                     foundErrors.push(err.message)
@@ -384,7 +433,7 @@ describe('bass-clarinet', () => {
                 () => {
                     //do nothing with end
                 },
-            ))
+            )
             bc.tokenizeString(
                 parser,
                 (message, _location) => {
@@ -434,6 +483,61 @@ describe('bass-clarinet', () => {
                 ),
                 ["property already processed: 'a'"]
             )
+        })
+
+    });
+    describe('#format', () => {
+        function doTest(unformatted: string, expectedFormatted: string) {
+            const foundErrors: string[] = []
+            const onError = (message: string, _range: bc.Range) => {
+                foundErrors.push(message)
+            }
+            // const onWarning = (message: string, _range: bc.Range) => {
+            //     foundErrors.push(message)
+            // }
+            const parser = new bc.Parser(
+                onError,
+                {}
+            )
+            const doc = new Doc(unformatted)
+            bc.attachFormatter(parser, doc)
+            bc.tokenizeString(
+                parser,
+                (message, _location) => {
+                    foundErrors.push(message)
+                },
+                unformatted,
+                {}
+            )
+
+            chai.assert.equal(doc.getContent(), expectedFormatted)
+        }
+
+        const tests: { [key: string]: [string, string]} = {
+            "some document": [
+                `{"a"  :( ),"a" :( ) } `,
+                `{ "a": (), "a": ()}\n`,
+            ],
+            "newline": [
+                `{\r\n"a"  :( ),"a" :( ) } `,
+                `{\r\n\t"a": (), "a": ()\n}\n`,
+            ],
+            "newline, too much indent": [
+                `{\r\n\t\t\t"a"  :( ),"a" :( ) } `,
+                `{\r\n\t"a": (), "a": ()\n}\n`,
+            ],
+            "lots of arrays": [
+                `[[[[\r\n"A"]]\r\n]\r\n\t]`,
+                `[[[[\r\n\t"A"\n]]]]\n`,
+            ],
+        }
+
+        Object.keys(tests).forEach(testName => {
+            const test = tests[testName]
+
+            it(testName, () => {
+                doTest(test[0], test[1])
+            })
         })
 
     });

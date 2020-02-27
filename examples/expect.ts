@@ -26,35 +26,34 @@ const ec = new bc.ExpectContext(
 /**
  * expect an object/type with 2 properties, 'prop a' and 'prop b', both numbers
  */
-parser.ondata.subscribe(
-    bc.createStackedDataSubscriber(
-        ec.expectType(
-            (_range, _comments) => {
-                //prepare code here
-            },
-            {
-                "prop a": (_propRange, _propComments) => ec.expectNumber((_value, _range, _comments) => {
-                    //handle 'prop a'
-                }),
-                "prop b": () => ec.expectNumber(_value => {
-                    //handle 'prop b'
-                }),
-            },
-            (_hasErrors, _range, _comments) => {
-                //wrap up the object
-            }
-        ),
-        error => {
-            if (error.context[0] === "range") {
-                throw new bc.RangeError(error.message, error.context[1])
-            } else {
-                throw new bc.LocationError(error.message, error.context[1])
-            }
+bc.attachStackedDataSubscriber(
+    parser,
+    ec.expectType(
+        (_range, _comments) => {
+            //prepare code here
         },
-        _comments => {
-            //wrap up the document
+        {
+            "prop a": (_propRange, _propComments) => ec.expectNumber((_value, _range, _comments) => {
+                //handle 'prop a'
+            }),
+            "prop b": () => ec.expectNumber(_value => {
+                //handle 'prop b'
+            }),
+        },
+        (_hasErrors, _range, _comments) => {
+            //wrap up the object
         }
-    )
+    ),
+    error => {
+        if (error.context[0] === "range") {
+            throw new bc.RangeError(error.message, error.context[1])
+        } else {
+            throw new bc.LocationError(error.message, error.context[1])
+        }
+    },
+    _comments => {
+        //wrap up the document
+    }
 )
 
 bc.tokenizeString(

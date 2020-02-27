@@ -25,8 +25,7 @@ import { Location, Range, printRange } from "./location"
 import { ParserOptions, Allow } from "./configurationTypes"
 import { RangeError } from "./errors"
 
-export const DEBUG = false
-export const INFO = false
+const DEBUG = false
 
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -107,7 +106,7 @@ export interface DataSubscriber {
     onBlockComment(comment: string, range: Range, pauser: Pauser): void
     onLineComment(comment: string, range: Range, pauser: Pauser): void
 
-    onNewLine(location: Location): void
+    onNewLine(range: Range): void
     onWhitespace(value: string, range: Range): void
     onEnd(location: Location): void
 
@@ -116,9 +115,9 @@ export interface DataSubscriber {
 export type DataSubscription = subscr.Subscribers<DataSubscriber>
 
 export interface HeaderSubscriber {
-    onheaderstart(range: Range): void
-    oncompact(range: Range): void
-    onheaderend(range: Range): void
+    onHeaderStart(range: Range): void
+    onCompact(range: Range): void
+    onHeaderEnd(range: Range): void
 }
 
 export class Parser implements IParser {
@@ -154,12 +153,12 @@ export class Parser implements IParser {
                 }
                 case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
                     this.raiseError("expected hash or rootvalue", range)
-                    this.onheaderdata.signal(s => s.onheaderend(range))
+                    this.onheaderdata.signal(s => s.onHeaderEnd(range))
                     break
                 }
                 case RootState.EXPECTING_SCHEMA: {
                     this.raiseError("expected the schema", range)
-                    this.onheaderdata.signal(s => s.onheaderend(range))
+                    this.onheaderdata.signal(s => s.onHeaderEnd(range))
                     break
                 }
                 case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
@@ -172,12 +171,12 @@ export class Parser implements IParser {
                 }
                 case RootState.EXPECTING_SCHEMA_START:
                     this.raiseError("expected the schema start (!)", range)
-                    this.onheaderdata.signal(s => s.onheaderend(range))
+                    this.onheaderdata.signal(s => s.onHeaderEnd(range))
 
                     break
                 case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                     this.raiseError("expected the schema start (!) or root value", range)
-                    this.onheaderdata.signal(s => s.onheaderend(range))
+                    this.onheaderdata.signal(s => s.onHeaderEnd(range))
                     break
                 default:
                     return assertUnreachable($$.state)
@@ -188,6 +187,8 @@ export class Parser implements IParser {
         this.oncurrentdata.signal(s => s.onEnd(location))
     }
     public onPunctuation(curChar: number, range: Range, pauser: Pauser) {
+        if (DEBUG) console.log(`onPunctuation`, curChar, String.fromCharCode(curChar) )
+
         const $ = this.currentContext
 
         function getComplexValueType(): ComplexValueType | null {
@@ -299,19 +300,19 @@ export class Parser implements IParser {
                                 if (!this.opt.allow?.compact) {
                                     this.raiseError("compact not allowed", range)
                                 } else {
-                                    this.onheaderdata.signal(s => s.oncompact(range))
+                                    this.onheaderdata.signal(s => s.onCompact(range))
                                     $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
                                 }
-                                this.onheaderdata.signal(s => s.onheaderend(range))
+                                this.onheaderdata.signal(s => s.onHeaderEnd(range))
                             } else {
-                                this.onheaderdata.signal(s => s.onheaderend(range))
+                                this.onheaderdata.signal(s => s.onHeaderEnd(range))
                                 this.raiseError("expected a hash ('#') or the root value", range)
                             }
                             break
                         }
                         case RootState.EXPECTING_SCHEMA: {
                             this.raiseError("expected the schema", range)
-                            this.onheaderdata.signal(s => s.onheaderend(range))
+                            this.onheaderdata.signal(s => s.onHeaderEnd(range))
                             break
                         }
                         case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
@@ -321,10 +322,10 @@ export class Parser implements IParser {
                         case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
                             this.raiseError("expected the root value", range)
                             if (curChar === Char.Header.exclamationMark) {
-                                this.onheaderdata.signal(s => s.onheaderstart(range))
+                                this.onheaderdata.signal(s => s.onHeaderStart(range))
                                 $$.state = RootState.EXPECTING_SCHEMA
                             } else {
-                                this.onheaderdata.signal(s => s.onheaderend(range))
+                                this.onheaderdata.signal(s => s.onHeaderEnd(range))
                             }
                             break
                         }
@@ -332,7 +333,7 @@ export class Parser implements IParser {
                             if (curChar !== Char.Header.exclamationMark) {
                                 this.raiseError("expected schema start (!)", range)
                             } else {
-                                this.onheaderdata.signal(s => s.onheaderstart(range))
+                                this.onheaderdata.signal(s => s.onHeaderStart(range))
                                 this.oncurrentdata = this.onschemadata
                                 $$.state = RootState.EXPECTING_SCHEMA
                             }
@@ -340,7 +341,7 @@ export class Parser implements IParser {
                         case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                             if (curChar === Char.Header.exclamationMark) {
                                 $$.state = RootState.EXPECTING_SCHEMA
-                                this.onheaderdata.signal(s => s.onheaderstart(range))
+                                this.onheaderdata.signal(s => s.onHeaderStart(range))
                                 this.oncurrentdata = this.onschemadata
                             } else {
                                 this.raiseError("expected an '!' (to specify a schema) or a value", range)
@@ -372,6 +373,7 @@ export class Parser implements IParser {
         }
     }
     public onSnippet(chunk: string, begin: number, end: number) {
+        if (DEBUG) console.log(`onSnippet`)
         switch (this.currentToken[0]) {
             case TokenType.COMMENT: {
                 const $ = this.currentToken[1]
@@ -400,13 +402,19 @@ export class Parser implements IParser {
                 return assertUnreachable(this.currentToken[0])
         }
     }
-    public onNewLine(location: Location) {
-        this.oncurrentdata.signal(s => s.onNewLine(location))
+    public onNewLine(range: Range) {
+        if (DEBUG) console.log(`onNewLine`)
+
+        this.oncurrentdata.signal(s => s.onNewLine(range))
     }
     public onLineCommentBegin(range: Range) {
+        if (DEBUG) console.log(`onLineCommentBegin`)
+
         this.setCurrentToken([TokenType.COMMENT, { commentNode: "", start: range }], range)
     }
     public onLineCommentEnd(location: Location, pauser: Pauser) {
+        if (DEBUG) console.log(`onLineCommentEnd`)
+
         if (this.currentToken[0] !== TokenType.COMMENT) {
             throw new ParserStackPanicError(`Unexpected line comment end`, { start: location, end: location })
         }
@@ -415,9 +423,13 @@ export class Parser implements IParser {
         this.unsetCurrentToken({ start: location, end: location })
     }
     public onBlockCommentBegin(range: Range) {
+        if (DEBUG) console.log(`onBlockCommentBegin`)
+
         this.setCurrentToken([TokenType.COMMENT, { commentNode: "", start: range }], range)
     }
     public onBlockCommentEnd(end: Range, pauser: Pauser) {
+        if (DEBUG) console.log(`onBlockCommentEnd`)
+
         if (this.currentToken[0] !== TokenType.COMMENT) {
             throw new ParserStackPanicError(`Unexpected block comment end`, end)
         }
@@ -426,9 +438,13 @@ export class Parser implements IParser {
         this.unsetCurrentToken(end)
     }
     public onUnquotedTokenBegin(location: Location) {
+        if (DEBUG) console.log(`onUnquotedTokenBegin`)
+
         this.setCurrentToken([TokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], { start: location, end: location })
     }
     public onUnquotedTokenEnd(location: Location, pauser: Pauser) {
+        if (DEBUG) console.log(`onUnquotedTokenEnd`)
+
         if (this.currentToken[0] !== TokenType.UNQUOTED_TOKEN) {
             throw new ParserStackPanicError(`Unexpected unquoted token end`, { start: location, end: location })
         }
@@ -444,9 +460,13 @@ export class Parser implements IParser {
     }
 
     public onWhitespaceBegin(location: Location) {
+        if (DEBUG) console.log(`onWhitespaceBegin`)
+
         this.setCurrentToken([TokenType.WHITESPACE, { whitespaceNode: "", start: location }], { start: location, end: location })
     }
     public onWhitespaceEnd(location: Location) {
+        if (DEBUG) console.log(`onWhitespaceEnd`)
+
         if (this.currentToken[0] !== TokenType.WHITESPACE) {
             throw new ParserStackPanicError(`Unexpected whitespace end`, { start: location, end: location })
         }
@@ -460,10 +480,12 @@ export class Parser implements IParser {
     }
 
     public onQuotedStringBegin(begin: Range, quote: string) {
+        if (DEBUG) console.log(`onQuotedStringBegin`)
         this.setCurrentToken([TokenType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
     }
 
     public onQuotedStringEnd(end: Range, quote: string | null, pauser: Pauser) {
+        if (DEBUG) console.log(`onQuotedStringEnd`)
         if (this.currentToken[0] !== TokenType.QUOTED_STRING) {
             throw new ParserStackPanicError(`Unexpected unquoted token end`, end)
         }
@@ -571,7 +593,7 @@ export class Parser implements IParser {
                     }
                     case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
                         this.oncurrentdata = this.ondata
-                        this.onheaderdata.signal(s => s.onheaderend(range))
+                        this.onheaderdata.signal(s => s.onHeaderEnd(range))
                         $$.state = RootState.EXPECTING_END
                         break
                     }
@@ -584,17 +606,17 @@ export class Parser implements IParser {
                         break
                     }
                     case RootState.EXPECTING_ROOTVALUE_WITHOUT_HEADER: {
-                        this.onheaderdata.signal(s => s.onheaderend(range))
+                        this.onheaderdata.signal(s => s.onHeaderEnd(range))
                         $$.state = RootState.EXPECTING_END
                         break
                     }
                     case RootState.EXPECTING_SCHEMA_START:
                         this.raiseError("expecting schema start (!)", range)
-                        this.onheaderdata.signal(s => s.onheaderend(range))
+                        this.onheaderdata.signal(s => s.onHeaderEnd(range))
                         $$.state = RootState.EXPECTING_END // this is only expected after processing the value
                         break
                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                        this.onheaderdata.signal(s => s.onheaderend(range))
+                        this.onheaderdata.signal(s => s.onHeaderEnd(range))
                         $$.state = RootState.EXPECTING_END
                         break
                     default:
@@ -642,8 +664,8 @@ export class Parser implements IParser {
         this.onerror(message, range)
     }
     private pushContext(context: StackContext) {
-        this.stack.push(this.currentContext)
         if (DEBUG) console.log(`pushed context ${getContextDescription(this.currentContext)}>${getContextDescription(context)}`)
+        this.stack.push(this.currentContext)
         this.currentContext = context
     }
     private popContext(location: Location) {

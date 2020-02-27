@@ -120,8 +120,9 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.DataSubscriber {
-    return bc.createStackedDataSubscriber(
+export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writer: (str: string) => void) {
+    bc.attachStackedDataSubscriber(
+        parser,
         createValuesPrettyPrinter(indentation, writer),
         error => {
             console.error("FOUND STACKED DATA ERROR", error.message)
@@ -133,24 +134,24 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
 }
 
 
-const parser = new bc.Parser(
-    err => { console.error("FOUND PARSER ERROR", err.message) },
+const prsr = new bc.Parser(
+    err => { console.error("FOUND PARSER ERROR", err) },
     { allow: bc.lax }
 )
-const tokenizer = new bc.Tokenizer(
-    parser,
-    err => { console.error("FOUND TOKENIZER ERROR", err.message) }
-)
-parser.ondata.subscribe(createPrettyPrinter("\r\n", str => process.stdout.write(str)))
-tokenizer.write(data)
-tokenizer.end()
 
+attachPrettyPrinter(prsr, "\r\n", str => process.stdout.write(str))
+
+bc.tokenizeString(
+    prsr,
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
+    data
+)
 
 ```
 ## low level
 ``` TypeScript
 import * as bc from "bass-clarinet"
-import * as fs  from "fs"
+import * as fs from "fs"
 
 const [, , path] = process.argv
 
@@ -159,70 +160,75 @@ if (path === undefined) {
     process.exit(1)
 }
 
-const data = fs.readFileSync(path, {encoding: "utf-8"})
+const data = fs.readFileSync(path, { encoding: "utf-8" })
 
 
 const parser = new bc.Parser(
-    err => { console.error("FOUND PARSER ERROR", err.message) },
+    err => { console.error("FOUND PARSER ERROR", err) },
     { allow: bc.lax }
 )
-const tokenizer = new bc.Tokenizer(
-    parser,
-    err => { console.error("FOUND TOKENIZER ERROR", err.message) }
-)
 parser.ondata.subscribe({
-    oncomma: () => {
+    onComma: () => {
         //place your code here
     },
-    oncolon: () => {
+    onColon: () => {
         //place your code here
     },
-    onlinecomment: (_comment, _range) => {
+    onLineComment: (_comment, _range) => {
         //place your code here
     },
-    onblockcomment: (_comment, _range, _indent) => {
-        //indent can be used to strip the leading whitespace of all lines of the block comment.
-        //indent indicates the indentation string found up to the `/*` characters.
-        //this is only provided if the block comment starts on a new line
+    onBlockComment: (_comment, _range) => {
+        //
     },
-    onquotedstring: (_value, _quote, _range) => {
+    onQuotedString: (_value, _quote, _range) => {
         //place your code here
         //in pure JSON, only '"' is valid for _quote
     },
-    onunquotedtoken: (_value, _range) => {
+    onUnquotedToken: (_value, _range) => {
         //place your code here
         //in pure JSON, only "null", "true" or "false" are valid for _value
     },
-    onopentaggedunion: _range => {
+    onOpenTaggedUnion: _range => {
         //place your code here
     },
-    onclosetaggedunion: () => {
+    onCloseTaggedUnion: () => {
         //place your code here
     },
-    onoption: (_option, _range) => {
+    onOption: (_option, _range) => {
         //place your code here
     },
-    onopenarray: (_openCharacterRange, _openCharacter) => {
+    onOpenArray: (_openCharacterRange, _openCharacter) => {
         //place your code here
     },
-    onclosearray: (_closeCharacterRange, _closeCharacter) => {
+    onCloseArray: (_closeCharacterRange, _closeCharacter) => {
         //place your code here
     },
-    onopenobject: (_startRange, _openCharacter) => {
+    onOpenObject: (_startRange, _openCharacter) => {
         //place your code here
     },
-    oncloseobject: (_endRange, _closeCharacter) => {
+    onCloseObject: (_endRange, _closeCharacter) => {
         //place your code here
     },
-    onkey: (_key, _range) => {
+    onKey: (_key, _range) => {
         //place your code here
     },
-    onend: () => {
+    onEnd: () => {
         //place your code here
+    },
+    onNewLine: () => {
+        //
+    },
+    onWhitespace: () => {
+        //
     },
 })
-tokenizer.write(data)
-tokenizer.end()
+
+bc.tokenizeString(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
+    data,
+)
+
 
 ```
 ## if the document needs to conform to an expected structure (or schema)
@@ -240,14 +246,9 @@ if (path === undefined) {
 const data = fs.readFileSync(path, { encoding: "utf-8" })
 
 const parser = new bc.Parser(
-    err => { console.error("FOUND PARSER ERROR", err.message) },
+    err => { console.error("FOUND PARSER ERROR", err) },
     { allow: bc.lax }
 )
-const tokenizer = new bc.Tokenizer(
-    parser,
-    err => { console.error("FOUND TOKENIZER ERROR", err.message) }
-)
-
 const ec = new bc.ExpectContext(
     (_message, _range) => {
         throw new Error("encounterd error")
@@ -260,39 +261,41 @@ const ec = new bc.ExpectContext(
 /**
  * expect an object/type with 2 properties, 'prop a' and 'prop b', both numbers
  */
-parser.ondata.subscribe(
-    bc.createStackedDataSubscriber(
-        ec.expectType(
-            (_range, _comments) => {
-                //prepare code here
-            },
-            {
-                "prop a": (_propRange, _propComments) => ec.expectNumber((_value, _range, _comments) => {
-                    //handle 'prop a'
-                }),
-                "prop b": () => ec.expectNumber(_value => {
-                    //handle 'prop b'
-                }),
-            },
-            (_hasErrors, _range, _comments) => {
-                //wrap up the object
-            }
-        ),
-        error => {
-            if (error.context[0] === "range") {
-                throw new bc.RangeError(error.message, error.context[1])
-            } else {
-                throw new bc.LocationError(error.message, error.context[1])
-            }
+bc.attachStackedDataSubscriber(
+    parser,
+    ec.expectType(
+        (_range, _comments) => {
+            //prepare code here
         },
-        _comments => {
-            //wrap up the document
+        {
+            "prop a": (_propRange, _propComments) => ec.expectNumber((_value, _range, _comments) => {
+                //handle 'prop a'
+            }),
+            "prop b": () => ec.expectNumber(_value => {
+                //handle 'prop b'
+            }),
+        },
+        (_hasErrors, _range, _comments) => {
+            //wrap up the object
         }
-    )
+    ),
+    error => {
+        if (error.context[0] === "range") {
+            throw new bc.RangeError(error.message, error.context[1])
+        } else {
+            throw new bc.LocationError(error.message, error.context[1])
+        }
+    },
+    _comments => {
+        //wrap up the document
+    }
 )
-tokenizer.write(data)
-tokenizer.end()
 
+bc.tokenizeString(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
+    data
+)
 
 ```
 

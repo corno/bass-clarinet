@@ -10,6 +10,7 @@ import {
     CurrentToken,
     CommentState,
     SimpleValueType,
+    FoundNewLineCharacter,
 } from "./tokenizerStateTypes"
 import { Location, Range } from "./location"
 import { TokenizerOptions } from "./configurationTypes"
@@ -24,9 +25,10 @@ function assertUnreachable<RT>(_x: never): RT {
 function getStateDescription(stackContext: CurrentToken): string {
     switch (stackContext[0]) {
         case TokenType.COMMENT: return "COMMENT"
-        case TokenType.UNQUOTED_TOKEN: return "UNQUOTED_STRING"
-        case TokenType.NONE: return "STACK"
+        case TokenType.NONE: return "NONE"
+        case TokenType.NEWLINE: return "NEWLINE"
         case TokenType.QUOTED_STRING: return "QUOTED_STRING"
+        case TokenType.UNQUOTED_TOKEN: return "UNQUOTED_STRING"
         case TokenType.WHITESPACE: return "WHITESPACE"
         default: return assertUnreachable(stackContext[0])
 
@@ -73,14 +75,14 @@ export class Tokenizer {
     private column = 0
     private line = 1
 
-    private state: CurrentToken
+    private currentTokenType: CurrentToken
 
     private readonly parser: IParser
 
     constructor(parser: IParser, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions) {
         this.opt = opt || {}
         this.parser = parser
-        this.state = [TokenType.NONE, { virginLine: true }]
+        this.currentTokenType = [TokenType.NONE, { virginLine: true }]
         this.onerror = onerror
     }
     public write(chunk: string, sourcePauser: Pauser) {
@@ -114,7 +116,7 @@ export class Tokenizer {
         const cc = currentChunk.next()
 
         if (DEBUG) {
-            const stateInfo = getStateDescription(this.state)
+            const stateInfo = getStateDescription(this.currentTokenType)
             const char = (cc === Char.Whitespace.tab) ? "\\t" : cc === null ? "\\0" : String.fromCharCode(cc)
 
             console.log(
@@ -161,7 +163,7 @@ export class Tokenizer {
             },
         }
         while (true) {
-            const state = this.state
+            const state = this.currentTokenType
             switch (state[0]) {
                 case TokenType.COMMENT: {
                     /**
@@ -262,7 +264,7 @@ export class Tokenizer {
                                     $.state = [CommentState.BLOCK_COMMENT]
                                 } else {
                                     this.raiseError("found dangling slash", { start: this.getBeginLocation(), end: this.getEndLocation() })
-                                    this.setCurrentTokenType([TokenType.NONE, { virginLine: false}])
+                                    this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
 
                                 }
                                 break
@@ -273,80 +275,35 @@ export class Tokenizer {
 
                     break
                 }
-                case TokenType.UNQUOTED_TOKEN: {
-                    /**
-                     * unquoted token PROCESSING (null, true, false)
-                     */
-                    let snippetStart: null | number = null
-                    const flush = () => {
-                        if (snippetStart !== null) {
-                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1, pauser)
-
-                            if (currentChunk.mustPause) {
-                                return
+                case TokenType.NEWLINE: {
+                    const nextChar = currentChunk.lookahead()
+                    const $ = state[1]
+                    switch ($.foundNewLineCharacter) {
+                        case FoundNewLineCharacter.CARRIAGE_RETURN: {
+                            if (nextChar === Char.Whitespace.lineFeed) {
+                                //windows style newlines (\r\n)
+                                this.next(currentChunk)
+                            } else {
+                                //old style Mac OS newlines (\r)
+                                //don't consume character
                             }
-                        }
-                        snippetStart = null
-                    }
-
-                    while (true) {
-                        const nextChar = currentChunk.lookahead()
-                        if (nextChar === null) {
-                            this.currentChunk = null
-                            flush()
-                            return
-                        }
-
-                        function isUnquotedTokenCharacter() {
-                            const isOtherCharacter = (false
-                                || nextChar === Char.Whitespace.carriageReturn
-                                || nextChar === Char.Whitespace.lineFeed
-                                || nextChar === Char.Whitespace.space
-                                || nextChar === Char.Whitespace.tab
-
-                                || nextChar === Char.Object.closeBrace
-                                || nextChar === Char.Object.closeParen
-                                || nextChar === Char.Object.colon
-                                || nextChar === Char.Object.comma
-                                || nextChar === Char.Object.openBrace
-                                || nextChar === Char.Object.openParen
-
-                                || nextChar === Char.Array.closeAngleBracket
-                                || nextChar === Char.Array.closeBracket
-                                || nextChar === Char.Array.comma
-                                || nextChar === Char.Array.openAngleBracket
-                                || nextChar === Char.Array.openBracket
-
-                                || nextChar === Char.Comment.solidus
-                                //|| nextChar === Char.Comment.asterisk
-
-                                || nextChar === Char.QuotedString.quotationMark
-                                || nextChar === Char.QuotedString.apostrophe
-
-                                || nextChar === Char.TaggedUnion.verticalLine
-
-                                || nextChar === Char.Header.hash
-                            )
-                            return !isOtherCharacter
-                        }
-                        //first check if we are breaking out of an unquoted token. Can only be done by checking the character that comes directly after the unquoted token
-                        if (!isUnquotedTokenCharacter()) {
-                            flush()
-
-                            this.parser.onUnquotedTokenEnd(this.getEndLocation(), pauser)
-
-                            this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
-                            //this character does not belong to the keyword so don't go to the next character by breaking
                             break
-                        } else {
-                            //normal character
-                            //don't flush
-                            this.next(currentChunk)
-                            if (snippetStart === null) {
-                                snippetStart = currentChunk.index
-                            }
                         }
+                        case FoundNewLineCharacter.LINE_FEED: {
+                            if (nextChar === Char.Whitespace.carriageReturn) {
+                                //strange style newline (\n\r)
+                                this.next(currentChunk)
+                            } else {
+                                //unix style newlines (\n)
+                                //don't consume character
+                            }
+                            break
+                        }
+                        default:
+                            return assertUnreachable($.foundNewLineCharacter)
                     }
+                    this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
+                    this.setCurrentTokenType([TokenType.NONE, { virginLine: true }])
                     break
                 }
                 case TokenType.NONE: {
@@ -354,11 +311,12 @@ export class Tokenizer {
                     const currentChar = this.next(currentChunk)
 
                     if (currentChar === Char.Whitespace.carriageReturn) {
-                        this.parser.onNewLine(this.getBeginLocation())
+                        this.setCurrentTokenType([TokenType.NEWLINE, { foundNewLineCharacter: FoundNewLineCharacter.CARRIAGE_RETURN, startLocation: this.getBeginLocation() }])
                         continue
                     }
 
                     if (currentChar === Char.Whitespace.lineFeed) {
+                        this.setCurrentTokenType([TokenType.NEWLINE, { foundNewLineCharacter: FoundNewLineCharacter.LINE_FEED, startLocation: this.getBeginLocation() }])
                         continue
                     }
                     if (
@@ -539,6 +497,82 @@ export class Tokenizer {
                     }
                     break
                 }
+                case TokenType.UNQUOTED_TOKEN: {
+                    /**
+                     * unquoted token PROCESSING (null, true, false)
+                     */
+                    let snippetStart: null | number = null
+                    const flush = () => {
+                        if (snippetStart !== null) {
+                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1, pauser)
+
+                            if (currentChunk.mustPause) {
+                                return
+                            }
+                        }
+                        snippetStart = null
+                    }
+
+                    while (true) {
+                        const nextChar = currentChunk.lookahead()
+                        if (nextChar === null) {
+                            this.currentChunk = null
+                            flush()
+                            return
+                        }
+
+                        function isUnquotedTokenCharacter() {
+                            const isOtherCharacter = (false
+                                || nextChar === Char.Whitespace.carriageReturn
+                                || nextChar === Char.Whitespace.lineFeed
+                                || nextChar === Char.Whitespace.space
+                                || nextChar === Char.Whitespace.tab
+
+                                || nextChar === Char.Object.closeBrace
+                                || nextChar === Char.Object.closeParen
+                                || nextChar === Char.Object.colon
+                                || nextChar === Char.Object.comma
+                                || nextChar === Char.Object.openBrace
+                                || nextChar === Char.Object.openParen
+
+                                || nextChar === Char.Array.closeAngleBracket
+                                || nextChar === Char.Array.closeBracket
+                                || nextChar === Char.Array.comma
+                                || nextChar === Char.Array.openAngleBracket
+                                || nextChar === Char.Array.openBracket
+
+                                || nextChar === Char.Comment.solidus
+                                //|| nextChar === Char.Comment.asterisk
+
+                                || nextChar === Char.QuotedString.quotationMark
+                                || nextChar === Char.QuotedString.apostrophe
+
+                                || nextChar === Char.TaggedUnion.verticalLine
+
+                                || nextChar === Char.Header.hash
+                            )
+                            return !isOtherCharacter
+                        }
+                        //first check if we are breaking out of an unquoted token. Can only be done by checking the character that comes directly after the unquoted token
+                        if (!isUnquotedTokenCharacter()) {
+                            flush()
+
+                            this.parser.onUnquotedTokenEnd(this.getEndLocation(), pauser)
+
+                            this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
+                            //this character does not belong to the keyword so don't go to the next character by breaking
+                            break
+                        } else {
+                            //normal character
+                            //don't flush
+                            this.next(currentChunk)
+                            if (snippetStart === null) {
+                                snippetStart = currentChunk.index
+                            }
+                        }
+                    }
+                    break
+                }
                 case TokenType.WHITESPACE: {
                     /**
                      * unquoted token PROCESSING (null, true, false)
@@ -570,7 +604,7 @@ export class Tokenizer {
                         if (!isWhiteSpaceCharacter()) {
                             flush()
 
-                            this.parser.onWhitespaceEnd(this.getBeginLocation())
+                            this.parser.onWhitespaceEnd(this.getEndLocation())
 
                             this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
                             //this character does not belong to the whitespace so don't go to the next character by breaking
@@ -601,9 +635,9 @@ export class Tokenizer {
         }
     }
     private onEnd() {
-        switch (this.state[0]) {
+        switch (this.currentTokenType[0]) {
             case TokenType.COMMENT: {
-                const $ = this.state[1]
+                const $ = this.currentTokenType[1]
                 if ($.state[0] === CommentState.BLOCK_COMMENT) {
                     this.raiseError("unterminated block comment", { start: this.getEndLocation(), end: this.getEndLocation() })
                     const locationInfo = {
@@ -611,15 +645,13 @@ export class Tokenizer {
                         end: this.getEndLocation(),
                     }
                     this.parser.onBlockCommentEnd(locationInfo, null)
-                    this.setCurrentTokenType([TokenType.NONE, { virginLine: false}])
+                    this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
                 }
                 break
             }
-            case TokenType.UNQUOTED_TOKEN:
-                this.parser.onUnquotedTokenEnd(this.getEndLocation(), null)
-
-                this.setCurrentTokenType([TokenType.NONE, { virginLine: false}])
-
+            case TokenType.NEWLINE:
+                const $ = this.currentTokenType[1]
+                this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation()})
                 break
             case TokenType.NONE:
                 break
@@ -631,17 +663,23 @@ export class Tokenizer {
                     end: this.getEndLocation(),
                 }
                 this.parser.onQuotedStringEnd(locationInfo, null, null)
-                this.setCurrentTokenType([TokenType.NONE, { virginLine: false}])
+                this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
                 break
             }
+            case TokenType.UNQUOTED_TOKEN:
+                this.parser.onUnquotedTokenEnd(this.getEndLocation(), null)
+
+                this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
+
+                break
             case TokenType.WHITESPACE:
                 this.parser.onWhitespaceEnd(this.getEndLocation())
 
-                this.setCurrentTokenType([TokenType.NONE, { virginLine: false}])
+                this.setCurrentTokenType([TokenType.NONE, { virginLine: false }])
 
                 break
             default:
-                return assertUnreachable(this.state[0])
+                return assertUnreachable(this.currentTokenType[0])
         }
         this.parser.assertIsEnded(this.getEndLocation())
 
@@ -665,9 +703,9 @@ export class Tokenizer {
         if (DEBUG) { console.log("error raised:", message) }
         this.onerror(message, range)
     }
-    private setCurrentTokenType(newState: CurrentToken) {
-        if (DEBUG) console.log("setting state to", getStateDescription(newState))
-        this.state = newState
+    private setCurrentTokenType(tokenType: CurrentToken) {
+        if (DEBUG) console.log("setting state to", getStateDescription(tokenType))
+        this.currentTokenType = tokenType
     }
 }
 

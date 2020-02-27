@@ -2,9 +2,9 @@
     no-console:"off",
     no-underscore-dangle: "off",
 */
-import { DataSubscriber } from "../Parser"
+import { Parser } from "../Parser"
 import { Location, Range } from "../location"
-import * as Char from "../NumberCharacters"
+import * as Char from "./NumberCharacters"
 import { createDummyValueHandler } from "./dummyHandlers"
 import { ValueHandler, ObjectHandler, ArrayHandler, Comment } from "./handlers"
 
@@ -50,16 +50,17 @@ function raiseLocationError(onError: (error: StackedDataError) => void, message:
 }
 
 /**
- * createStackedDataSubscriber allows for capturing objects and arrays in a callback, so that the consumer does not have to match
+ * attachStackedDataSubscriber allows for capturing objects and arrays in a callback, so that the consumer does not have to match
  * 'onopenobject' with 'oncloseobject'
  * and
  * 'onopenarray' with 'onclosearray'
  */
-export function createStackedDataSubscriber(
+export function attachStackedDataSubscriber(
+    parser: Parser,
     valueHandler: ValueHandler,
     onError: (error: StackedDataError) => void,
     onend: (comments: Comment[]) => void
-): DataSubscriber {
+): void {
     const stack: ContextType[] = []
     let comments: Comment[] = []
 
@@ -108,7 +109,7 @@ export function createStackedDataSubscriber(
         }
     }
 
-    return {
+    parser.ondata.subscribe({
         onComma: () => {
             //
         },
@@ -244,7 +245,7 @@ export function createStackedDataSubscriber(
         onEnd: () => {
             onend(flushComments())
         },
-    }
+    })
 }
 
 function assertUnreachable<RT>(_x: never): RT {

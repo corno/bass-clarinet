@@ -3,10 +3,10 @@
     no-underscore-dangle:"off",
 */
 
-import { DataSubscriber } from "./Parser";
-import { Range, Location } from "./location";
+import { DataSubscriber, Parser } from "../Parser";
+import { Range, Location } from "../location";
 import * as Char from "./NumberCharacters";
-import { LocationError } from "./errors";
+import { LocationError } from "../errors";
 
 type OnError = (message: string, range: Range) => void
 
@@ -334,6 +334,6 @@ class StrictJSONValidator implements DataSubscriber {
     }
 }
 
-export function createStrictJSONValidator(onError: OnError): DataSubscriber {
-    return new StrictJSONValidator(onError)
+export function attachStrictJSONValidator(parser: Parser, onError: OnError) {
+    parser.ondata.subscribe(new StrictJSONValidator(onError))
 }

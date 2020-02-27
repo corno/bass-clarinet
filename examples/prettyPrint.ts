@@ -53,8 +53,9 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.DataSubscriber {
-    return bc.createStackedDataSubscriber(
+export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writer: (str: string) => void) {
+    bc.attachStackedDataSubscriber(
+        parser,
         createValuesPrettyPrinter(indentation, writer),
         error => {
             console.error("FOUND STACKED DATA ERROR", error.message)
@@ -65,14 +66,16 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
     )
 }
 
-const parser = new bc.Parser(
+
+const prsr = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
     { allow: bc.lax }
 )
-parser.ondata.subscribe(createPrettyPrinter("\r\n", str => process.stdout.write(str)))
+
+attachPrettyPrinter(prsr, "\r\n", str => process.stdout.write(str))
 
 bc.tokenizeString(
-    parser,
+    prsr,
     err => { console.error("FOUND TOKENIZER ERROR", err) },
     data
 )

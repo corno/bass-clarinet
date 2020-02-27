@@ -14,7 +14,7 @@ import {
     OnNull,
     OnTaggedUnion,
     Comment,
-} from "./stackedDataSubscriber"
+} from "./attachments"
 import { Range } from "./location"
 
 export type IssueHandler = (message: string, range: Range) => void

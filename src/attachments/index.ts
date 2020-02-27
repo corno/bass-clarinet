@@ -1,3 +1,3 @@
-export * from "./createStackedDataSubscriber"
+export * from "./attachStackedDataSubscriber"
 export * from "./handlers"
 export * from "./dummyHandlers"
