@@ -303,6 +303,7 @@ export class Formatter implements DataSubscriber, HeaderSubscriber {
         this.stack.push(this.currentCollection)
     }
     private onCloseToken(range: Range) {
+        this.currentCollection = null
         const coll = this.stack.pop()
         if (coll === undefined) {
             console.error("missing collection")
