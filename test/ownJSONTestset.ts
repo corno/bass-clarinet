@@ -720,6 +720,7 @@ export const JSONTests: TestDefinitions = {
             ["unquotedtoken", "42", [1, 11, 1, 13]],
             ["unquotedtoken", "0", [1, 14, 1, 15]],
             ['parsererror', 'unexpected end of document, still in nested type'],
+            ['parsererror', 'unexpected end of document, still in nested type'],
             ["end", [1, 15]],
         ],
     },

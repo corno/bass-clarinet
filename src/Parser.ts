@@ -120,6 +120,15 @@ export class Parser implements IParser {
     }
     public assertIsEnded(location: Location) {
         const range = { start: location, end: location }
+        while (this.currentContext[0] !== StackContextType.ROOT) {
+            this.raiseError("unexpected end of document, still in nested type", range)
+            const popped = this.stack.pop()
+            if (popped === undefined) {
+                throw new ParserStackPanicError("unexpected end of stack", range)
+            } else {
+                this.currentContext = popped
+            }
+        }
         if (this.currentContext[0] === StackContextType.ROOT) {
             const $$ = this.currentContext[1]
             switch ($$.state) {
@@ -148,7 +157,7 @@ export class Parser implements IParser {
                     return assertUnreachable($$.state)
             }
         } else {
-            this.raiseError("unexpected end of document, still in nested type", range)
+            this.raiseError("unexpected end of document, in nested type", range)
         }
         this.oncurrentdata.signal(s => s.onEnd(location))
     }

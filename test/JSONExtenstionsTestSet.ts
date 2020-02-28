@@ -117,6 +117,7 @@ export const extensionTests: TestDefinitions = {
             ["parsererror", "not in an object"],
             ["closeobject", "}", undefined],
             ["parsererror", "unexpected end of document, still in nested type"],
+            ["parsererror", "unexpected end of document, still in nested type"],
             ["end", undefined],
         ],
     },
@@ -259,6 +260,105 @@ export const extensionTests: TestDefinitions = {
             ["key", "c", undefined],
             ["quotedstring", "C", undefined],
             ["closeobject", "}", undefined],
+            ["end", undefined],
+        ],
+    },
+    "invalid internal schema": {
+        text: `! (
+            'component types': {
+                'x': (
+                    'node': (
+                        'properties': {
+                            'foo': (
+                                'type': | 'value' (
+                                    'type': | 'number'
+                                )
+                            )
+                            'bar': (
+                                'type': | 'taggedunion' (
+                                    'type': | 'number'
+                                )
+                            )
+                        }
+                    )
+                )
+            }
+            'root type': "x"
+        )
+        (
+            'foov': 42
+        )
+        `,
+        testHeaders: true,
+        events: [
+            ["headerstart"],
+            ["openobject", "(", undefined],
+            ["key", "component types", undefined],
+            ["openobject", "{", undefined],
+            ["key", "x", undefined],
+            ["openobject", "(", undefined],
+            ["key", "node", undefined],
+            ["openobject", "(", undefined],
+            ["key", "properties", undefined],
+            ["openobject", "{", undefined],
+            ["key", "foo", undefined],
+            ["openobject", "(", undefined],
+            ["key", "type", undefined],
+            ["opentaggedunion", undefined],
+            ["option", "value", undefined],
+            ["openobject", "(", undefined],
+            ["key", "type", undefined],
+            ["opentaggedunion", undefined],
+            ["option", "number", undefined],
+            ["parsererror", "not in an object"],
+            ["closeobject", ")", undefined],
+            ["parsererror", "not in an object"],
+            ["closeobject", ")", undefined],
+            ["quotedstring", "bar", undefined],
+            ["closetaggedunion"],
+            ["parsererror", "expected key"],
+            ["openobject", "(", undefined],
+            ["key", "type", undefined],
+            ["opentaggedunion", undefined],
+            ["option", "taggedunion", undefined],
+            ["openobject", "(", undefined],
+            ["key", "type", undefined],
+            ["opentaggedunion", undefined],
+            ["option", "number", undefined],
+            ["parsererror", "not in an object"],
+            ["closeobject", ")", undefined],
+            ["parsererror", "not in an object"],
+            ["closeobject", ")", undefined],
+            ["parsererror", "not in an object"],
+            ["closeobject", "}", undefined],
+            ["parsererror", "not in an object"],
+            ["closeobject", ")", undefined],
+            ["parsererror", "not in an object"],
+            ["closeobject", ")", undefined],
+            ["parsererror", "not in an object"],
+            ["closeobject", "}", undefined],
+            ["quotedstring", "root type", undefined],
+            ["closetaggedunion"],
+            ["key", "x", undefined],
+            ["parsererror", "missing property value"],
+            ["closeobject", ")", undefined],
+            ["closetaggedunion"],
+            ["parsererror", "expected key"],
+            ["openobject", "(", undefined],
+            ["key", "foov", undefined],
+            ["unquotedtoken", "42", undefined],
+            ["closeobject", ")", undefined],
+            ["parsererror", "unexpected end of document, still in nested type"],
+            ["parsererror", "unexpected end of document, still in nested type"],
+            ["parsererror", "unexpected end of document, still in nested type"],
+            ["parsererror", "unexpected end of document, still in nested type"],
+            ["parsererror", "unexpected end of document, still in nested type"],
+            ["parsererror", "unexpected end of document, still in nested type"],
+            ["parsererror", "unexpected end of document, still in nested type"],
+            ["parsererror", "unexpected end of document, still in nested type"],
+            ["parsererror", "unexpected end of document, still in nested type"],
+            ["parsererror", "expected hash or rootvalue"],
+            ["headerend"],
             ["end", undefined],
         ],
     },
