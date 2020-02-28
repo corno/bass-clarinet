@@ -151,4 +151,115 @@ export const extensionTests: TestDefinitions = {
             ["end", undefined],
         ],
     },
+    "internal schema": {
+        text: `! (
+            'component types': {
+                'root': (
+                    'node': (
+                        'properties': {
+                            'a1': (
+                                'type': | 'value' (
+                                    'type': | 'number' (
+                                    )
+                                )
+                            )
+                            'b': (
+                                'type': | 'value' (
+                                    'type': | 'number' (
+                                    )
+                                )
+                            )
+                            'c': (
+                                'type': | 'value' (
+                                    'type': | 'text' (
+                                    )
+                                )
+                            )
+                        }
+                    )
+                )
+            }
+            'root type': 'root'
+        )
+        {
+            "a": "B"
+            "b": "X"
+            "c": "C"
+        }`,
+        testHeaders: true,
+        events: [
+            ["headerstart"],
+            ["openobject", "(", undefined],
+            ["key", "component types", undefined],
+            ["openobject", "{", undefined],
+            ["key", "root", undefined],
+            ["openobject", "(", undefined],
+            ["key", "node", undefined],
+            ["openobject", "(", undefined],
+            ["key", "properties", undefined],
+            ["openobject", "{", undefined],
+            ["key", "a1", undefined],
+            ["openobject", "(", undefined],
+            ["key", "type", undefined],
+            ["opentaggedunion", undefined],
+            ["option", "value", undefined],
+            ["openobject", "(", undefined],
+            ["key", "type", undefined],
+            ["opentaggedunion", undefined],
+            ["option", "number", undefined],
+            ["openobject", "(", undefined],
+            ["closetaggedunion"],
+            ["closeobject", ")", undefined],
+            ["closetaggedunion"],
+            ["closeobject", ")", undefined],
+            ["closeobject", ")", undefined],
+            ["key", "b", undefined],
+            ["openobject", "(", undefined],
+            ["key", "type", undefined],
+            ["opentaggedunion", undefined],
+            ["option", "value", undefined],
+            ["openobject", "(", undefined],
+            ["key", "type", undefined],
+            ["opentaggedunion", undefined],
+            ["option", "number", undefined],
+            ["openobject", "(", undefined],
+            ["closetaggedunion"],
+            ["closeobject", ")", undefined],
+            ["closetaggedunion"],
+            ["closeobject", ")", undefined],
+            ["closeobject", ")", undefined],
+            ["key", "c", undefined],
+            ["openobject", "(", undefined],
+            ["key", "type", undefined],
+            ["opentaggedunion", undefined],
+            ["option", "value", undefined],
+            ["openobject", "(", undefined],
+            ["key", "type", undefined],
+            ["opentaggedunion", undefined],
+            ["option", "text", undefined],
+            ["openobject", "(", undefined],
+            ["closetaggedunion"],
+            ["closeobject", ")", undefined],
+            ["closetaggedunion"],
+            ["closeobject", ")", undefined],
+            ["closeobject", ")", undefined],
+            ["closeobject", "}", undefined],
+            ["closeobject", ")", undefined],
+            ["closeobject", ")", undefined],
+            ["closeobject", "}", undefined],
+            ["key", "root type", undefined],
+            ["quotedstring", "root", undefined],
+            ["closeobject", ")", undefined],
+            ["headerend"],
+            ["openobject", "{", undefined],
+            ["key", "a", undefined],
+            ["quotedstring", "B", undefined],
+            ["key", "b", undefined],
+            ["quotedstring", "X", undefined],
+            ["key", "c", undefined],
+            ["quotedstring", "C", undefined],
+            ["closeobject", "}", undefined],
+            ["end", undefined],
+        ],
+    },
 }
