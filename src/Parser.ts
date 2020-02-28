@@ -484,13 +484,14 @@ export class Parser implements IParser {
     private onObjectClose(curChar: number, range: Range, pauser: Pauser) {
         if (this.currentContext[0] !== StackContextType.OBJECT) {
             this.raiseError("not in an object", range)
+            this.oncurrentdata.signal(s => s.onCloseObject(range, String.fromCharCode(curChar), pauser))
         } else {
             if (this.currentContext[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
                 this.raiseError("missing property value", range)
             }
+            this.oncurrentdata.signal(s => s.onCloseObject(range, String.fromCharCode(curChar), pauser))
             this.popContext(range)
         }
-        this.oncurrentdata.signal(s => s.onCloseObject(range, String.fromCharCode(curChar), pauser))
     }
     private onArrayOpen(curChar: number, range: Range, pauser: Pauser) {
         this.onNonStringValue(range)

@@ -385,6 +385,40 @@ describe('bass-clarinet', () => {
                 ["property already processed: 'a'"]
             )
         })
+        it('tagged union', () => {
+            doTest(
+                `( "a": | "foo" () )`,
+                expect => expect.expectType(
+                    () => {
+                        //
+                    },
+                    {
+                        a: () => expect.expectTaggedUnion(
+                            {
+                                foo: () => expect.expectType(
+                                    () => {
+                                        //
+                                    },
+                                    {
+                                        //
+                                    },
+                                    () => {
+                                        //
+                                    }
+                                ),
+                            },
+                            () => {
+                                //
+                            }
+                        ),
+                    },
+                    () => {
+                        //
+                    },
+                ),
+                []
+            )
+        })
 
     });
     describe('#format', () => {

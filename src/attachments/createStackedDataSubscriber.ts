@@ -171,6 +171,7 @@ export function createStackedDataSubscriber(
             pop({ start: location, end: location })
         },
         onOpenObject: (range, openCharacter, pauser) => {
+
             if (DEBUG) { console.log("on open object") }
             const vh = initValueHandler(range)
             if (vh === null) {
@@ -184,6 +185,7 @@ export function createStackedDataSubscriber(
             }]
         },
         onCloseObject: (range, endCharacter) => {
+
             if (DEBUG) { console.log("on close object") }
             if (currentContext[0] !== "object") {
                 raiseRangeError(onError, "unexpected end of object", range)
