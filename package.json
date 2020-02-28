@@ -54,7 +54,7 @@
     "mocha": "^7.1.0",
     "should": "13.2.x",
     "tslint": "^6.0.0",
-    "typescript": "^3.8.2"
+    "typescript": "^3.8.3"
   },
   "scripts": {
     "build": "rd /s /q .\\dist & tsc",
