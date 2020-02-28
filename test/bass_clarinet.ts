@@ -494,7 +494,9 @@ describe('bass-clarinet', () => {
                 onError,
             )
             const doc = new Doc(unformatted)
-            bc.attachFormatter(parser, doc)
+            bc.attachFormatter(parser, doc, () => {
+                chai.assert.equal(doc.getContent(), expectedFormatted)
+            })
             bc.tokenizeString(
                 parser,
                 (message, _location) => {
@@ -504,7 +506,6 @@ describe('bass-clarinet', () => {
                 {}
             )
 
-            chai.assert.equal(doc.getContent(), expectedFormatted)
         }
 
         const tests: { [key: string]: [string, string]} = {

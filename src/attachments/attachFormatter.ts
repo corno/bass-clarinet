@@ -60,8 +60,10 @@ export class Formatter implements DataSubscriber, HeaderSubscriber {
     private indentationLevel = 0
 
     private previous: PreviousData = [Previous.BEGIN_OF_DOCUMENT, {}]
-    constructor(documentAPI: DocumentAPI) {
+    private readonly onEndCallback: () => void
+    constructor(documentAPI: DocumentAPI, onEnd: () => void) {
         this.documentAPI = documentAPI
+        this.onEndCallback = onEnd
     }
     public onEnd(location: Location) {
         switch (this.previous[0]) {
@@ -93,6 +95,7 @@ export class Formatter implements DataSubscriber, HeaderSubscriber {
             default:
                 return assertUnreachable(this.previous)
         }
+        this.onEndCallback()
     }
     public onNewLine(range: Range) {
         if (this.currentCollection !== null) {
@@ -382,9 +385,9 @@ export class Formatter implements DataSubscriber, HeaderSubscriber {
     }
 }
 
-export function attachFormatter(parser: Parser, document: DocumentAPI) {
+export function attachFormatter(parser: Parser, document: DocumentAPI, onEnd: () => void) {
 
-    const formatter = new Formatter(document)
+    const formatter = new Formatter(document, onEnd)
     parser.ondata.subscribe(formatter)
     parser.onschemadata.subscribe(formatter)
     parser.onheaderdata.subscribe(formatter)
