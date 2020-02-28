@@ -335,22 +335,21 @@ export class Tokenizer {
                     function getSimpleValueType(): SimpleValueType | null {
                         if (currentChar === Char.QuotedString.quotationMark || currentChar === Char.QuotedString.apostrophe) {
                             return SimpleValueType.QUOTED_STRING
-                        } else if (currentChar === Char.Object.openBrace || currentChar === Char.Object.openParen) {
-                            return null
-                        } else if (currentChar === Char.Array.openBracket || currentChar === Char.Array.openAngleBracket) {
-                            return null
-                        } else if (currentChar === Char.TaggedUnion.verticalLine) { //extension to strict JSON specifications
-                            return null
                         } else {
                             if (
-                                currentChar === Char.Array.comma ||
-                                currentChar === Char.Array.closeBracket ||
-                                currentChar === Char.Array.closeAngleBracket ||
-                                currentChar === Char.Object.closeParen ||
-                                currentChar === Char.Object.closeBrace ||
-                                currentChar === Char.Object.colon ||
-                                currentChar === Char.Header.exclamationMark ||
-                                currentChar === Char.Header.hash
+                                currentChar === Char.Punctuation.openBracket ||
+                                currentChar === Char.Punctuation.openAngleBracket ||
+                                currentChar === Char.Punctuation.comma ||
+                                currentChar === Char.Punctuation.closeBracket ||
+                                currentChar === Char.Punctuation.closeAngleBracket ||
+                                currentChar === Char.Punctuation.openBrace ||
+                                currentChar === Char.Punctuation.openParen ||
+                                currentChar === Char.Punctuation.closeParen ||
+                                currentChar === Char.Punctuation.closeBrace ||
+                                currentChar === Char.Punctuation.colon ||
+                                currentChar === Char.Punctuation.exclamationMark ||
+                                currentChar === Char.Punctuation.hash ||
+                                currentChar === Char.Punctuation.verticalLine
                             ) {
                                 return null
                             }
@@ -528,28 +527,23 @@ export class Tokenizer {
                                 || nextChar === Char.Whitespace.space
                                 || nextChar === Char.Whitespace.tab
 
-                                || nextChar === Char.Object.closeBrace
-                                || nextChar === Char.Object.closeParen
-                                || nextChar === Char.Object.colon
-                                || nextChar === Char.Object.comma
-                                || nextChar === Char.Object.openBrace
-                                || nextChar === Char.Object.openParen
-
-                                || nextChar === Char.Array.closeAngleBracket
-                                || nextChar === Char.Array.closeBracket
-                                || nextChar === Char.Array.comma
-                                || nextChar === Char.Array.openAngleBracket
-                                || nextChar === Char.Array.openBracket
+                                || nextChar === Char.Punctuation.closeBrace
+                                || nextChar === Char.Punctuation.closeParen
+                                || nextChar === Char.Punctuation.colon
+                                || nextChar === Char.Punctuation.comma
+                                || nextChar === Char.Punctuation.openBrace
+                                || nextChar === Char.Punctuation.openParen
+                                || nextChar === Char.Punctuation.closeAngleBracket
+                                || nextChar === Char.Punctuation.closeBracket
+                                || nextChar === Char.Punctuation.openAngleBracket
+                                || nextChar === Char.Punctuation.openBracket
+                                || nextChar === Char.Punctuation.verticalLine
+                                || nextChar === Char.Punctuation.hash
 
                                 || nextChar === Char.Comment.solidus
-                                //|| nextChar === Char.Comment.asterisk
 
                                 || nextChar === Char.QuotedString.quotationMark
                                 || nextChar === Char.QuotedString.apostrophe
-
-                                || nextChar === Char.TaggedUnion.verticalLine
-
-                                || nextChar === Char.Header.hash
                             )
                             return !isOtherCharacter
                         }
@@ -651,7 +645,7 @@ export class Tokenizer {
             }
             case TokenType.NEWLINE:
                 const $ = this.currentTokenType[1]
-                this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation()})
+                this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
                 break
             case TokenType.NONE:
                 break

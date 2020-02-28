@@ -1,13 +1,4 @@
 
-export const Header = {
-    exclamationMark: 0x21,   // !
-    hash: 0x23,              // #
-}
-
-export const TaggedUnion = {
-    verticalLine: 0x7C,      // |
-}
-
 export const Comment = {
     solidus: 0x2F,           // /
     asterisk: 0x2A,          // *
@@ -34,19 +25,18 @@ export const QuotedString = {
     u: 0x75,                 // u
 }
 
-export const Array = {
-    comma: 0x2C,             // ,
-    openBracket: 0x5B,       // [
-    closeBracket: 0x5D,      // ]
-    openAngleBracket: 0x3C,  // <
-    closeAngleBracket: 0x3E, // >
-}
-
-export const Object = {
+export const Punctuation = {
+    exclamationMark: 0x21,   // !
+    hash: 0x23,              // #
+    verticalLine: 0x7C,      // |
     comma: 0x2C,             // ,
     colon: 0x3A,             // :
     openBrace: 0x7B,         // {
     closeBrace: 0x7D,        // }
     openParen: 0x28,         // )
     closeParen: 0x29,        // )
+    openBracket: 0x5B,       // [
+    closeBracket: 0x5D,      // ]
+    openAngleBracket: 0x3C,  // <
+    closeAngleBracket: 0x3E, // >
 }

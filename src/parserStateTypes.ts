@@ -18,12 +18,6 @@ export enum TaggedUnionState {
     EXPECTING_VALUE,
 }
 
-export enum ComplexValueType {
-    OBJECT,
-    ARRAY,
-    TAGGED_UNION,
-}
-
 export type StackContext =
     | [StackContextType.ROOT, RootContext]
     | [StackContextType.ARRAY, {}]
@@ -53,13 +47,6 @@ export type RootContext = {
 export type TaggedUnionContext = {
     state: TaggedUnionState
 }
-
-export enum ExpectedType {
-    VALUE,
-    KEY,
-    OPTION,
-}
-
 
 export enum TokenType {
     COMMENT,

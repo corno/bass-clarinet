@@ -8,95 +8,65 @@ import * as chai from "chai"
 import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
-import { EventDefinition, AnyEvent, TestRange, TestLocation, TestDefinition } from "./testDefinition"
+import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
 
 const DEBUG = false
 
 const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
 
-// const selectedJSONTests: string[] = ["forbidden_extension_apostrophe_string"]
-// const selectedExtensionTests: string[] = []
+//const selectedJSONTests: string[] = ["two keys"]
+//const selectedExtensionTests: string[] = []
 
 function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: boolean) {
-    const expectedEvents = test.events.slice()
+    const expectedEvents = test.events
     return function () {
         if (DEBUG) console.log("CHUNKS:", chunks)
         const parser = new bc.Parser(
-            (message, range) => {
+            (message, _range) => {
                 if (DEBUG) console.log("found error")
-                const ee = getExpectedEvent()
-                if (ee[0] !== "parsererror") {
-                    assert.fail(`unexpected parser error: ${message} @ ${bc.printRange(range)}, expected '${ee[0]}'`)
-                }
-                assert.ok(ee[1] === message, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${message}]`);
-
+                actualEvents.push(["parsererror", message])
             }
         )
-        let currentExpectedEventIndex = 0
-        //const env = process && process.env ? process.env : window
-        //const record: [AnyEvent, string][] = []
-        function validateEventsEqual(expectedEvent: EventDefinition, event: AnyEvent) {
-            assert.ok(expectedEvent[0] === event, `event: ${currentExpectedEventIndex}, expected type: [${expectedEvent[0]}] got: [${event}]`)
-        }
-        function eventsNotEqual(expectedEvent: EventDefinition, event: AnyEvent) {
-            assert.fail(`event: ${currentExpectedEventIndex}, expected type: [${expectedEvent[0]}] got: [${event}]`)
-        }
-        function checkRange(range: bc.Range, expectedEventRange?: TestRange) {
-            if (expectedEventRange !== undefined) {
-                assert.ok(expectedEventRange[0] === range.start.line, `expected start linenumber ${expectedEventRange[0]} but found ${range.start.line}`)
-                assert.ok(expectedEventRange[1] === range.start.column, `expected start column ${expectedEventRange[1]} but found ${range.start.column}`)
-                assert.ok(expectedEventRange[2] === range.end.line, `expected end linenumber ${expectedEventRange[2]} but found ${range.end.line}`)
-                assert.ok(expectedEventRange[3] === range.end.column, `expected end column ${expectedEventRange[3]} but found ${range.end.column}`)
+
+        const actualEvents: EventDefinition[] = []
+
+        function getRange(mustCheck: boolean | undefined, range: bc.Range): TestRange | undefined {
+            if (mustCheck) {
+                return [
+                    range.start.line,
+                    range.start.column,
+                    range.end.line,
+                    range.end.column,
+                ]
+            } else {
+                return undefined
             }
         }
-        function checkLocation(location: bc.Location, expectedEventLocation?: TestLocation) {
-            if (expectedEventLocation !== undefined) {
-                assert.ok(expectedEventLocation[0] === location.line, `expected linenumber ${expectedEventLocation[0]} but found ${location.line}`)
-                assert.ok(expectedEventLocation[1] === location.column, `expected column ${expectedEventLocation[1]} but found ${location.column}`)
+        function getLocation(mustCheck: boolean | undefined, location: bc.Location): TestLocation | undefined {
+            if (mustCheck) {
+                return [
+                    location.line,
+                    location.column,
+                ]
+            } else {
+                return undefined
             }
-        }
-        function getExpectedEvent() {
-            // const temp_env: any = env
-            // if (temp_env.CRECORD) { // for really big json we dont want to type all
-            //     record.push([event, value]);
-            //     if (event === "end") console.log(JSON.stringify(record, null, 2));
-            // } else {
-            const currentExpectedEvent = expectedEvents.shift();
-            ++currentExpectedEventIndex;
-            if (currentExpectedEvent === undefined) {
-                assert.fail(`more events than expected, expected ${currentExpectedEventIndex - 1}`)
-            }
-            return currentExpectedEvent
-
-
-            // if (currentExpectedEvent[3] !== undefined) {
-            //     //check line numbers
-
-            // }
-            //}
         }
 
         if (test.testHeaders) {
             parser.onheaderdata.subscribe({
-                onHeaderStart: range => {
+                onHeaderStart: _range => {
                     if (DEBUG) console.log("found header start")
-                    const ee = getExpectedEvent()
-                    if (ee[0] !== "headerstart") {
-                        eventsNotEqual(ee, "headerstart")
-                    }
-                    checkRange(range, ee[2])
-
+                    actualEvents.push(["headerstart"])
                 },
                 onHeaderEnd: () => {
                     if (DEBUG) console.log("found header end")
-                    const ee = getExpectedEvent()
-                    validateEventsEqual(ee, "headerend")
+                    actualEvents.push(["headerend"])
                 },
                 onCompact: () => {
                     if (DEBUG) console.log("found compact")
-                    const ee = getExpectedEvent()
-                    validateEventsEqual(ee, "compact")
+                    actualEvents.push(["compact"])
                 },
             })
         }
@@ -161,7 +131,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
             //do the check
             onEnd: () => {
-                if (!test.skipEqualityCheck) {
+                if (!test.skipRoundTripCheck) {
                     assert.equal(chunks.join(""), out.join(""))
                 }
             },
@@ -181,13 +151,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         parser.ondata.subscribe(outputter)
 
         if (strictJSON) {
-            bc.attachStrictJSONValidator(parser, (v, range) => {
+            bc.attachStrictJSONValidator(parser, (v, _range) => {
                 if (DEBUG) console.log("found JSON validation error", v)
-
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "validationerror")
-                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
-                checkRange(range, ee[2])
+                actualEvents.push(["validationerror", v])
             })
         }
         const eventSubscriber: bc.DataSubscriber = {
@@ -205,104 +171,59 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
             onLineComment: (v, range) => {
                 if (DEBUG) console.log("found line comment")
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "linecomment")
-
-                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
-                checkRange(range, ee[2])
-
+                actualEvents.push(["linecomment", v, getRange(test.testForLocation, range)])
             },
             onBlockComment: (v, range, _indent) => {
                 if (DEBUG) console.log("found block comment")
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "blockcomment")
-
-                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
-                checkRange(range, ee[2])
+                actualEvents.push(["blockcomment", v, getRange(test.testForLocation, range)])
             },
             onUnquotedToken: (v, range) => {
                 if (DEBUG) console.log("found unquoted token")
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "unquotedtoken")
-
-                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
-                checkRange(range, ee[2])
+                actualEvents.push(["unquotedtoken", v, getRange(test.testForLocation, range)])
             },
             onQuotedString: (v, _quote, range) => {
                 if (DEBUG) console.log("found quoted string")
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "quotedstring")
-
-                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
-                checkRange(range, ee[2])
+                actualEvents.push(["quotedstring", v, getRange(test.testForLocation, range)])
             },
 
             onOpenTaggedUnion: range => {
                 if (DEBUG) console.log("found open tagged union")
-
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "opentaggedunion")
-                checkRange(range, ee[2])
+                actualEvents.push(["opentaggedunion", getRange(test.testForLocation, range)])
             },
             onCloseTaggedUnion: () => {
                 if (DEBUG) console.log("found close tagged union")
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "closetaggedunion")
+                actualEvents.push(["closetaggedunion"])
             },
             onOption: (v, _quote, range) => {
                 if (DEBUG) console.log("found option")
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "option")
-                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
-                checkRange(range, ee[2])
+                actualEvents.push(["option", v, getRange(test.testForLocation, range)])
             },
 
-            onOpenArray: range => {
+            onOpenArray: (range, v) => {
                 if (DEBUG) console.log("found open array")
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "openarray")
-                checkRange(range, ee[2])
+                actualEvents.push(["openarray", v, getRange(test.testForLocation, range)])
             },
-            onCloseArray: range => {
+            onCloseArray: (range, v) => {
                 if (DEBUG) console.log("found close array")
-
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "closearray")
-                checkRange(range, ee[2])
+                actualEvents.push(["closearray", v, getRange(test.testForLocation, range)])
             },
 
-            onOpenObject: range => {
+            onOpenObject: (range, v) => {
                 if (DEBUG) console.log("found open object")
-
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "openobject")
-                checkRange(range, ee[2])
+                actualEvents.push(["openobject", v, getRange(test.testForLocation, range)])
             },
-            onCloseObject: range => {
+            onCloseObject: (range, v) => {
                 if (DEBUG) console.log("found close object")
-
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "closeobject")
-                checkRange(range, ee[2])
+                actualEvents.push(["closeobject", v, getRange(test.testForLocation, range)])
             },
             onKey: (v, _quote, range) => {
                 if (DEBUG) console.log("found key")
-                const ee = getExpectedEvent()
-                validateEventsEqual(ee, "key")
-                assert.ok(ee[1] === v, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${v}]`);
-                checkRange(range, ee[2])
+                actualEvents.push(["key", v, getRange(test.testForLocation, range)])
             },
             onEnd: location => {
                 if (DEBUG) console.log("found end")
-
-                const ee = getExpectedEvent()
-
-                if (ee[0] !== "end") {
-                    eventsNotEqual(ee, "end")
-                } else {
-                    checkLocation(location, ee[1])
-                }
-
+                actualEvents.push(["end", getLocation(test.testForLocation, location)])
+                chai.assert.deepEqual(actualEvents, expectedEvents)
             },
         }
         parser.onschemadata.subscribe(eventSubscriber)
@@ -312,26 +233,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             parser,
             (message, _location) => {
                 if (DEBUG) console.log("found error")
-                const ee = getExpectedEvent()
-                if (ee[0] !== "tokenizererror") {
-                    assert.fail(`unexpected tokenizer error: ${message}, expected '${ee[0]}'`)
-                }
-                assert.ok(ee[1] === message, `event:${currentExpectedEventIndex} expected value: [${ee[1]}] got: [${message}]`);
+
+                actualEvents.push(["tokenizererror", message])
             },
             chunks
         )
-
-        if (expectedEvents.length !== 0) {
-            //console.log("expected more events.")
-            while (true) {
-                const ee = expectedEvents.pop()
-                if (ee === undefined) {
-                    break
-                }
-                //console.log(ee)
-            }
-            throw new Error("expected more events.")
-        }
     };
 }
 
@@ -508,7 +414,7 @@ describe('bass-clarinet', () => {
 
         }
 
-        const tests: { [key: string]: [string, string]} = {
+        const tests: { [key: string]: [string, string] } = {
             "some document": [
                 `{"a"  :( ),"a" :( ) } `,
                 `{ "a": (), "a": ()}\n`,

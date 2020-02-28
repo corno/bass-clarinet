@@ -10,26 +10,26 @@ export type EventDefinition =
     | ["closearray", string?, TestRange?]
     | ["openobject", string?, TestRange?]
     | ["closeobject", string?, TestRange?]
-    | ["key", string]
-    | ["opentaggedunion"]
-    | ["option", string]
-    | ["closetaggedunion"]
+    | ["key", string, TestRange?]
+    | ["opentaggedunion", TestRange?]
+    | ["option", string, TestRange?]
+    | ["closetaggedunion", TestRange?]
     | ["end", TestLocation?]
-    | ["ready"]
     | ["linecomment", string, TestRange?]
     | ["blockcomment", string, TestRange?]
     | ["parsererror", string]
     | ["tokenizererror", string]
-    | ["headerstart"]
-    | ["compact"]
+    | ["headerstart", TestRange?]
+    | ["compact", TestRange?]
     | ["headerend"]
     | ["validationerror", string]
 // [AnyEvent, string?, number?, number?]
 
 export type TestDefinition = {
-    readonly skipEqualityCheck?: boolean
+    readonly skipRoundTripCheck?: boolean
     readonly text: string
     readonly testHeaders?: boolean
+    readonly testForLocation?: boolean
     readonly chunks?: string[]
     readonly tokenizerOptions?: TokenizerOptions
     readonly events: EventDefinition[]

@@ -13,13 +13,12 @@ import { IParser, Pauser } from "./parserAPI"
 import {
     RootState,
     ObjectState,
-    ComplexValueType,
     TaggedUnionState,
     StackContext,
     StackContextType,
-    ExpectedType,
     CurrentToken,
     TokenType,
+    RootContext,
 } from "./parserStateTypes"
 import { Location, Range, printRange } from "./location"
 import { RangeError } from "./errors"
@@ -59,7 +58,7 @@ function getContextDescription(stackContext: StackContext) {
         case StackContextType.ARRAY: return "EXPECTING_ARRAYVALUE"
         case StackContextType.TAGGED_UNION: {
             switch (stackContext[1].state) {
-                case TaggedUnionState.EXPECTING_OPTION: return "EXPECTING_STRING"
+                case TaggedUnionState.EXPECTING_OPTION: return "EXPECTING_OPTION"
                 case TaggedUnionState.EXPECTING_VALUE: return "EXPECTING_VALUE"
                 default: return assertUnreachable(stackContext[1].state)
             }
@@ -129,12 +128,12 @@ export class Parser implements IParser {
                 }
                 case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
                     this.raiseError("expected hash or rootvalue", range)
-                    this.onheaderdata.signal(s => s.onHeaderEnd(range))
+                    this.onHeaderEnd(range)
                     break
                 }
                 case RootState.EXPECTING_SCHEMA: {
                     this.raiseError("expected the schema", range)
-                    this.onheaderdata.signal(s => s.onHeaderEnd(range))
+                    this.onHeaderEnd(range)
                     break
                 }
                 case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
@@ -143,7 +142,7 @@ export class Parser implements IParser {
                 }
                 case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                     this.raiseError("expected the schema start (!) or root value", range)
-                    this.onheaderdata.signal(s => s.onHeaderEnd(range))
+                    this.onHeaderEnd(range)
                     break
                 default:
                     return assertUnreachable($$.state)
@@ -155,165 +154,149 @@ export class Parser implements IParser {
     }
     public onPunctuation(curChar: number, range: Range, pauser: Pauser) {
         if (DEBUG) console.log(`onPunctuation`, curChar, String.fromCharCode(curChar))
-
         const $ = this.currentContext
 
-        function getComplexValueType(): ComplexValueType | null {
-            if (curChar === Char.Object.openBrace || curChar === Char.Object.openParen) {
-                return ComplexValueType.OBJECT
-            } else if (curChar === Char.Array.openBracket || curChar === Char.Array.openAngleBracket) {
-                return ComplexValueType.ARRAY
-            } else if (curChar === Char.TaggedUnion.verticalLine) { //extension to strict JSON specifications
-                return ComplexValueType.TAGGED_UNION
-            } else {
-                return null
-            }
-        }
-        const vt = getComplexValueType()
-        if (curChar === Char.Object.comma) {
-            this.oncurrentdata.signal(s => s.onComma(range, pauser))
-        } else if (curChar === Char.Object.colon) {
-            this.oncurrentdata.signal(s => s.onColon(range, pauser))
-        } else if (curChar === Char.Array.closeBracket || curChar === Char.Array.closeAngleBracket) {
-            if ($[0] !== StackContextType.ARRAY) {
-                this.raiseError("not in an array", range)
-            } else {
-                this.oncurrentdata.signal(s => s.onCloseArray(range, String.fromCharCode(curChar), pauser))
-                this.popContext(range.end)
-            }
-        } else if (curChar === Char.Object.closeBrace || curChar === Char.Object.closeParen) {
-            if ($[0] !== StackContextType.OBJECT) {
-                this.raiseError("not in an object", range)
-            } else {
-                if ($[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
-                    this.raiseError("missing property value", range)
-                }
-                this.oncurrentdata.signal(s => s.onCloseObject(range, String.fromCharCode(curChar), pauser))
-                this.popContext(range.end)
-            }
-        } else if (vt !== null) {
-            const expected = this.getExpected()
-            switch (expected) {
-                case ExpectedType.KEY: {
-                    this.raiseError("expected key", range)
-                    break
-                }
-                case ExpectedType.OPTION: {
-                    this.raiseError("expected option", range)
-                    break
-                }
-                case ExpectedType.VALUE: {
-                    break
-                }
-                default:
-                    return assertUnreachable(expected)
-            }
-            this.setStateBeforeValue(range)
-
-            switch (vt) {
-                case ComplexValueType.ARRAY: {
-                    this.oncurrentdata.signal(s => s.onOpenArray(range, String.fromCharCode(curChar), pauser))
-                    this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
-                    break
-                }
-                case ComplexValueType.OBJECT: {
-                    this.oncurrentdata.signal(s => s.onOpenObject(range, String.fromCharCode(curChar), pauser))
-                    this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
-                    break
-                }
-                case ComplexValueType.TAGGED_UNION: {
-                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                    this.oncurrentdata.signal(s => s.onOpenTaggedUnion(range, pauser))
-                    break
-                }
-                default:
-                    return assertUnreachable(vt)
-            }
-        } else {
-            switch ($[0]) {
-                case StackContextType.ARRAY: {
-                    this.raiseError("expected a value after a comma", range)
-                    break
-                }
-                case StackContextType.OBJECT: {
-                    const $$ = $[1]
-                    switch ($$.state) {
-                        case ObjectState.EXPECTING_KEY:
-                            this.raiseError(`Malformed key, should start with '"' or '''`, range)
-                            break
-                        case ObjectState.EXPECTING_OBJECT_VALUE:
-                            this.raiseError("expected a value after a ':'", range)
-                            break
-                        default:
-                            return assertUnreachable($$.state)
+        switch (curChar) {
+            case Char.Punctuation.exclamationMark:
+                switch ($[0]) {
+                    case StackContextType.ARRAY: {
+                        this.raiseError("unexpected !", range)
+                        break
                     }
-                    break
-                }
-                case StackContextType.ROOT: {
-                    /**
-                     * ROOT PROCESSING
-                     */
-                    const $$ = $[1]
-                    switch ($$.state) {
-                        case RootState.EXPECTING_END: {
-                            this.raiseError(`Unexpected data after end`, range)
-                            break
-                        }
-                        case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                            this.oncurrentdata = this.ondata
-
-                            if (curChar === Char.Header.hash) {
-
-                                this.onheaderdata.signal(s => s.onCompact(range))
-                                $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
-                                this.onheaderdata.signal(s => s.onHeaderEnd(range))
-                            } else {
-                                this.onheaderdata.signal(s => s.onHeaderEnd(range))
-                                this.raiseError("expected a hash ('#') or the root value", range)
+                    case StackContextType.OBJECT: {
+                        this.raiseError("unexpected !", range)
+                        break
+                    }
+                    case StackContextType.ROOT: {
+                        /**
+                         * ROOT PROCESSING
+                         */
+                        const $$ = $[1]
+                        switch ($$.state) {
+                            case RootState.EXPECTING_END: {
+                                this.raiseError(`Unexpected data after end`, range)
+                                break
                             }
-                            break
-                        }
-                        case RootState.EXPECTING_SCHEMA: {
-                            this.raiseError("expected the schema", range)
-                            this.onheaderdata.signal(s => s.onHeaderEnd(range))
-                            break
-                        }
-                        case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                            this.raiseError("expected the root value", range)
-                            break
-                        }
-                        case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                            if (curChar === Char.Header.exclamationMark) {
+                            case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
+                                this.raiseError("unexpected '!', expected '#' or value", range)
+                                break
+                            }
+                            case RootState.EXPECTING_SCHEMA: {
+                                this.raiseError("unexpected '!', expected schema value", range)
+                                break
+                            }
+                            case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                                this.raiseError("unexpected '!', expected root value", range)
+                                break
+                            }
+                            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                                 $$.state = RootState.EXPECTING_SCHEMA
-                                this.onheaderdata.signal(s => s.onHeaderStart(range))
                                 this.oncurrentdata = this.onschemadata
-                            } else {
-                                this.raiseError("expected an '!' (to specify a schema) or a value", range)
-                            }
-                            break
-                        default:
-                            return assertUnreachable($$.state)
-                    }
-                    break
-                }
-                case StackContextType.TAGGED_UNION: {
-                    const $$ = $[1]
-                    switch ($$.state) {
-                        case TaggedUnionState.EXPECTING_OPTION:
-                            this.raiseError("missing tagged union string", range)
-                            break
-                        case TaggedUnionState.EXPECTING_VALUE: {
-                            this.raiseError("expected the data of the union type", range)
-                            break
+                                break
+                            default:
+                                return assertUnreachable($$.state)
                         }
-                        default:
-                            return assertUnreachable($$.state)
+                        break
                     }
-                    break
+                    case StackContextType.TAGGED_UNION: {
+                        this.raiseError("unexpected !", range)
+                        break
+                    }
+                    default:
+                        return assertUnreachable($[0])
                 }
-                default:
-                    return assertUnreachable($[0])
-            }
+                this.onheaderdata.signal(s => s.onHeaderStart(range))
+                break
+            case Char.Punctuation.hash:
+                switch ($[0]) {
+                    case StackContextType.ARRAY: {
+                        this.raiseError("unexpected '#', expected a value after a comma", range)
+                        break
+                    }
+                    case StackContextType.OBJECT: {
+                        this.raiseError("unexpected '#'", range)
+                        break
+                    }
+                    case StackContextType.ROOT: {
+                        /**
+                         * ROOT PROCESSING
+                         */
+                        const $$ = $[1]
+                        switch ($$.state) {
+                            case RootState.EXPECTING_END: {
+                                this.raiseError("unexpected '#', expected no more data", range)
+                                break
+                            }
+                            case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
+                                this.oncurrentdata = this.ondata
+                                $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
+                                break
+                            }
+                            case RootState.EXPECTING_SCHEMA: {
+                                this.raiseError("unexpected '#', expected the schema", range)
+                                break
+                            }
+                            case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                                this.raiseError("unexpected '#', expected the root value", range)
+                                break
+                            }
+                            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                                this.raiseError("unexpected '#', expected an '!' (to specify a schema) or a value", range)
+                                break
+                            default:
+                                return assertUnreachable($$.state)
+                        }
+                        break
+                    }
+                    case StackContextType.TAGGED_UNION: {
+                        this.raiseError("unexpected '#'", range)
+                        break
+                    }
+                    default:
+                        return assertUnreachable($[0])
+                }
+                this.onheaderdata.signal(s => s.onCompact(range))
+                this.onHeaderEnd(range)
+                break
+            case Char.Punctuation.closeAngleBracket:
+                this.onArrayClose(curChar, range, pauser)
+                break
+            case Char.Punctuation.closeBracket:
+                this.onArrayClose(curChar, range, pauser)
+                break
+            case Char.Punctuation.comma:
+                //
+                this.oncurrentdata.signal(s => s.onComma(range, pauser))
+                break
+            case Char.Punctuation.openAngleBracket:
+                this.onArrayOpen(curChar, range, pauser)
+                break
+            case Char.Punctuation.openBracket:
+                this.onArrayOpen(curChar, range, pauser)
+                break
+            case Char.Punctuation.closeBrace:
+                this.onObjectClose(curChar, range, pauser)
+                break
+            case Char.Punctuation.closeParen:
+                this.onObjectClose(curChar, range, pauser)
+                break
+            case Char.Punctuation.colon:
+                //
+                this.oncurrentdata.signal(s => s.onColon(range, pauser))
+                break
+            case Char.Punctuation.openBrace:
+                this.onObjectOpen(curChar, range, pauser)
+                break
+            case Char.Punctuation.openParen:
+                this.onObjectOpen(curChar, range, pauser)
+                break
+            case Char.Punctuation.verticalLine:
+                this.onNonStringValue(range)
+                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
+                this.oncurrentdata.signal(s => s.onOpenTaggedUnion(range, pauser))
+                break
+            default:
+                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
         }
     }
     public onSnippet(chunk: string, begin: number, end: number) {
@@ -397,9 +380,9 @@ export class Parser implements IParser {
             start: $.start,
             end: location,
         }
-        this.setStateBeforeValue(range)
+        this.onNonStringValue(range)
         this.oncurrentdata.signal(s => s.onUnquotedToken($.unquotedTokenNode, range, pauser))
-        this.setStateAfterValue(range.end)
+        this.wrapupAfterValue(range)
         this.unsetCurrentToken({ start: location, end: location })
     }
 
@@ -433,82 +416,98 @@ export class Parser implements IParser {
         if (this.currentToken[0] !== TokenType.QUOTED_STRING) {
             throw new ParserStackPanicError(`Unexpected unquoted token end`, end)
         }
-        const $ = this.currentToken[1]
-        const value = $.quotedStringNode
+        const $tok = this.currentToken[1]
+        const value = $tok.quotedStringNode
         const range = {
-            start: $.start.start,
+            start: $tok.start.start,
             end: end.end,
         }
-        const expected = this.getExpected()
-        this.setStateBeforeValue(range)
-        switch (expected) {
-            case ExpectedType.KEY: {
-                this.oncurrentdata.signal(s => s.onKey(value, $.startCharacter, range, quote !== null, pauser))
-                break
-            }
-            case ExpectedType.OPTION: {
-                this.oncurrentdata.signal(s => s.onOption(value, $.startCharacter, range, quote !== null, pauser))
-                break
-            }
-            case ExpectedType.VALUE: {
-                this.oncurrentdata.signal(s => s.onQuotedString(value, $.startCharacter, range, quote !== null, pauser))
-                this.setStateAfterValue(range.end)
-                break
-            }
-            default:
-                return assertUnreachable(expected)
-        }
-        this.unsetCurrentToken(end)
-    }
-    private setCurrentToken(contextType: CurrentToken, range: Range) {
-        if (this.currentToken[0] !== TokenType.NONE) {
-            throw new ParserStackPanicError(`unexpected start of token`, range)
-        }
-        this.currentToken = contextType
-    }
-    private unsetCurrentToken(range: Range) {
-        if (this.currentToken[0] === TokenType.NONE) {
-            throw new ParserStackPanicError(`unexpected, parser is already in 'none' mode`, range)
-        }
-        this.currentToken = [TokenType.NONE]
-    }
-    private getExpected(): ExpectedType {
+        this.wrapupBeforeValue(range)
         const $ = this.currentContext
+        const onStringValue = () => {
+            this.oncurrentdata.signal(s => s.onQuotedString(value, $tok.startCharacter, range, quote !== null, pauser))
+            this.wrapupAfterValue(range)
+        }
         switch ($[0]) {
             case StackContextType.ARRAY: {
-                return ExpectedType.VALUE
+                onStringValue()
+                break
             }
             case StackContextType.OBJECT: {
                 const $$ = $[1]
                 switch ($$.state) {
                     case ObjectState.EXPECTING_KEY:
-                        return ExpectedType.KEY
+                        this.oncurrentdata.signal(s => s.onKey(value, $tok.startCharacter, range, quote !== null, pauser))
+                        $$.state = ObjectState.EXPECTING_OBJECT_VALUE
+
+                        break
                     case ObjectState.EXPECTING_OBJECT_VALUE:
-                        return ExpectedType.VALUE
+                        onStringValue()
+                        $$.state = ObjectState.EXPECTING_KEY
+                        break
                     default:
-                        return assertUnreachable($$.state)
+                        assertUnreachable($$.state)
                 }
+                break
             }
             case StackContextType.ROOT: {
-                return ExpectedType.VALUE
+                onStringValue()
+                this.setRootStateAfterValue($[1])
+                break
             }
             case StackContextType.TAGGED_UNION: {
                 const $$ = $[1]
                 switch ($$.state) {
                     case TaggedUnionState.EXPECTING_OPTION:
-                        return ExpectedType.OPTION
+                        this.oncurrentdata.signal(s => s.onOption(value, $tok.startCharacter, range, quote !== null, pauser))
+                        $$.state = TaggedUnionState.EXPECTING_VALUE
+                        break
                     case TaggedUnionState.EXPECTING_VALUE: {
-                        return ExpectedType.VALUE
+                        onStringValue()
+                        break
                     }
                     default:
-                        return assertUnreachable($$.state)
+                        assertUnreachable($$.state)
                 }
+                break
             }
             default:
-                return assertUnreachable($[0])
+                assertUnreachable($[0])
         }
+        this.unsetCurrentToken(end)
     }
-    private setStateBeforeValue(range: Range) {
+    private onObjectOpen(curChar: number, range: Range, pauser: Pauser) {
+        this.onNonStringValue(range)
+        this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
+        this.oncurrentdata.signal(s => s.onOpenObject(range, String.fromCharCode(curChar), pauser))
+    }
+    private onObjectClose(curChar: number, range: Range, pauser: Pauser) {
+        if (this.currentContext[0] !== StackContextType.OBJECT) {
+            this.raiseError("not in an object", range)
+        } else {
+            if (this.currentContext[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
+                this.raiseError("missing property value", range)
+            }
+            this.popContext(range)
+        }
+        this.oncurrentdata.signal(s => s.onCloseObject(range, String.fromCharCode(curChar), pauser))
+    }
+    private onArrayOpen(curChar: number, range: Range, pauser: Pauser) {
+        this.onNonStringValue(range)
+        this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
+        this.oncurrentdata.signal(s => s.onOpenArray(range, String.fromCharCode(curChar), pauser))
+    }
+    private onArrayClose(curChar: number, range: Range, pauser: Pauser) {
+        const $ = this.currentContext
+        if ($[0] !== StackContextType.ARRAY) {
+            this.raiseError("not in an array", range)
+        } else {
+            this.popContext(range)
+        }
+        this.oncurrentdata.signal(s => s.onCloseArray(range, String.fromCharCode(curChar), pauser))
+    }
+    private onNonStringValue(range: Range) {
+        this.wrapupBeforeValue(range)
         const $ = this.currentContext
         switch ($[0]) {
             case StackContextType.ARRAY: {
@@ -518,7 +517,7 @@ export class Parser implements IParser {
                 const $$ = $[1]
                 switch ($$.state) {
                     case ObjectState.EXPECTING_KEY:
-                        $$.state = ObjectState.EXPECTING_OBJECT_VALUE
+                        this.raiseError("expected key", range)
                         break
                     case ObjectState.EXPECTING_OBJECT_VALUE:
                         $$.state = ObjectState.EXPECTING_KEY
@@ -529,40 +528,14 @@ export class Parser implements IParser {
                 break
             }
             case StackContextType.ROOT: {
-                const $$ = $[1]
-                switch ($$.state) {
-                    case RootState.EXPECTING_END: {
-                        this.raiseError(`Unexpected data after end`, range)
-                        break
-                    }
-                    case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                        this.oncurrentdata = this.ondata
-                        this.onheaderdata.signal(s => s.onHeaderEnd(range))
-                        $$.state = RootState.EXPECTING_END
-                        break
-                    }
-                    case RootState.EXPECTING_SCHEMA: {
-                        $$.state = RootState.EXPECTING_HASH_OR_ROOTVALUE
-                        break
-                    }
-                    case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                        $$.state = RootState.EXPECTING_END
-                        break
-                    }
-                    case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                        this.onheaderdata.signal(s => s.onHeaderEnd(range))
-                        $$.state = RootState.EXPECTING_END
-                        break
-                    default:
-                        assertUnreachable($$.state)
-                }
+                this.setRootStateAfterValue($[1])
                 break
             }
             case StackContextType.TAGGED_UNION: {
                 const $$ = $[1]
                 switch ($$.state) {
                     case TaggedUnionState.EXPECTING_OPTION:
-                        $$.state = TaggedUnionState.EXPECTING_VALUE
+                        this.raiseError("expected option", range)
                         break
                     case TaggedUnionState.EXPECTING_VALUE: {
                         break
@@ -576,7 +549,90 @@ export class Parser implements IParser {
                 assertUnreachable($[0])
         }
     }
-    public setStateAfterValue(location: Location) {
+
+    private setCurrentToken(contextType: CurrentToken, range: Range) {
+        if (this.currentToken[0] !== TokenType.NONE) {
+            throw new ParserStackPanicError(`unexpected start of token`, range)
+        }
+        this.currentToken = contextType
+    }
+    private unsetCurrentToken(range: Range) {
+        if (this.currentToken[0] === TokenType.NONE) {
+            throw new ParserStackPanicError(`unexpected, parser is already in 'none' mode`, range)
+        }
+        this.currentToken = [TokenType.NONE]
+    }
+    private onHeaderEnd(range: Range) {
+        this.oncurrentdata = this.ondata
+        this.onheaderdata.signal(s => s.onHeaderEnd(range))
+    }
+    private wrapupBeforeValue(range: Range) {
+        const $ = this.currentContext
+        switch ($[0]) {
+            case StackContextType.ARRAY: {
+                break
+            }
+            case StackContextType.OBJECT: {
+                break
+            }
+            case StackContextType.ROOT: {
+                const $$ = $[1]
+                switch ($$.state) {
+                    case RootState.EXPECTING_END: {
+                        this.raiseError(`Unexpected data after end`, range)
+                        break
+                    }
+                    case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
+                        this.onHeaderEnd(range)
+                        break
+                    }
+                    case RootState.EXPECTING_SCHEMA: {
+                        break
+                    }
+                    case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                        break
+                    }
+                    case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                        this.onHeaderEnd(range)
+                        break
+                    default:
+                        assertUnreachable($$.state)
+                }
+                break
+            }
+            case StackContextType.TAGGED_UNION: {
+                break
+            }
+            default:
+                assertUnreachable($[0])
+        }
+    }
+    private setRootStateAfterValue(rootContext: RootContext) {
+        const $$ = rootContext
+        switch ($$.state) {
+            case RootState.EXPECTING_END: {
+                break
+            }
+            case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
+                $$.state = RootState.EXPECTING_END
+                break
+            }
+            case RootState.EXPECTING_SCHEMA: {
+                $$.state = RootState.EXPECTING_HASH_OR_ROOTVALUE
+                break
+            }
+            case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                $$.state = RootState.EXPECTING_END
+                break
+            }
+            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                $$.state = RootState.EXPECTING_END
+                break
+            default:
+                assertUnreachable($$.state)
+        }
+    }
+    public wrapupAfterValue(range: Range) {
         const currentContext = this.currentContext
         switch (currentContext[0]) {
             case StackContextType.ARRAY:
@@ -586,8 +642,8 @@ export class Parser implements IParser {
             case StackContextType.ROOT:
                 break
             case StackContextType.TAGGED_UNION:
-                this.oncurrentdata.signal(s => s.onCloseTaggedUnion(location))
-                this.popContext(location)
+                this.oncurrentdata.signal(s => s.onCloseTaggedUnion(range.end))
+                this.popContext(range)
                 break
             default:
                 assertUnreachable(currentContext[0])
@@ -602,14 +658,14 @@ export class Parser implements IParser {
         this.stack.push(this.currentContext)
         this.currentContext = context
     }
-    private popContext(location: Location) {
+    private popContext(range: Range) {
         const popped = this.stack.pop()
         if (popped === undefined) {
-            throw new ParserStackPanicError("unexpected end of stack", { start: location, end: location })
+            throw new ParserStackPanicError("unexpected end of stack", range)
         } else {
             if (DEBUG) console.log(`popped context ${getContextDescription(popped)}<${getContextDescription(this.currentContext)}`)
             this.currentContext = popped
-            this.setStateAfterValue(location)
+            this.wrapupAfterValue(range)
         }
     }
 }
