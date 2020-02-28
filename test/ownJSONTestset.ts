@@ -823,7 +823,7 @@ export const JSONTests: TestDefinitions = {
     "forbidden extension apostrophe string": {
         text: "'a string'",
         events: [
-            ["validationerror", "invalid string, should start with'\"'"],
+            ["validationerror", "invalid string, should start with'\"' in strict JSON"],
             ["quotedstring", "a string", undefined],
             ["end", undefined],
         ],
@@ -878,7 +878,7 @@ export const JSONTests: TestDefinitions = {
         events: [
             ["openarray", "[", undefined],
             ["quotedstring", "foo", undefined],
-            ["validationerror", "expected comma or array end"],
+            ["validationerror", "commas are required between elements in strict JSON"],
             ["quotedstring", "bar", undefined],
             ["closearray", "]", undefined],
             ["end", undefined],

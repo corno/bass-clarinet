@@ -23,7 +23,7 @@ export const extensionTests: TestDefinitions = {
             ["openarray", "[", undefined],
             ["unquotedtoken", "1", undefined],
             ["quotedstring", "a", undefined],
-            ["linecomment", "a comment", undefined],//FIX this location, [ 1, 7, 1, 18 ], undefined],
+            ["linecomment", "a comment", undefined],
             ["closearray", "]", undefined],
             ["end", undefined],
         ],

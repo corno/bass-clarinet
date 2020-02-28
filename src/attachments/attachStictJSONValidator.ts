@@ -198,7 +198,7 @@ class StrictJSONValidator implements DataSubscriber {
             this.onError("unpaired '}'", range)
         } else {
             if (this.currentContext[1].state === ObjectState.EXPECTING_KEY) {
-                this.onError("trailing commas are not allowed", range)
+                this.onError("trailing commas are not allowed in strict JSON", range)
             }
         }
         this.pop(range.end)
@@ -269,7 +269,7 @@ class StrictJSONValidator implements DataSubscriber {
     }
     public onQuotedString(_value: string, quote: string, range: Range) {
         if (quote !== "\"") {
-            this.onError(`invalid string, should start with'"'`, range)
+            this.onError(`invalid string, should start with'"' in strict JSON`, range)
         }
         this.onvalue(range)
     }
@@ -295,7 +295,7 @@ class StrictJSONValidator implements DataSubscriber {
                         break
                     }
                     case ArrayState.EXPECTING_COMMA_OR_ARRAY_END: {
-                        this.onError(`expected comma or array end`, range)
+                        this.onError(`commas are required between elements in strict JSON`, range)
 
                         break
                     }
@@ -313,7 +313,7 @@ class StrictJSONValidator implements DataSubscriber {
                 const $ = this.currentContext[1]
                 switch ($.state) {
                     case ObjectState.EXPECTING_COLON: {
-                        this.onError(`expected colon`, range)
+                        this.onError(`colon is required in strict JSON`, range)
                         break
                     }
                     case ObjectState.EXPECTING_COMMA_OR_OBJECT_END: {
@@ -339,8 +339,6 @@ class StrictJSONValidator implements DataSubscriber {
                 break
             }
             case "root": {
-                //const $ = this.currentContext[1]
-
                 break
             }
             case "taggedunion": {
