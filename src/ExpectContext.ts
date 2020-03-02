@@ -256,27 +256,27 @@ export class ExpectContext {
         }
     }
     public createUnexpectedunquotedTokenHandler(expected: string): OnUnquotedToken {
-        return (_value, range) => this.raiseError(`expected '${expected}' but found 'unquoted token' `, range)
+        return (_value, range) => this.raiseError(`expected '${expected}' but found 'unquoted token'`, range)
     }
     public createUnexpectedQuotedStringHandler(expected: string): OnQuotedString {
-        return (_value, range) => this.raiseError(`expected '${expected}' but found 'string' `, range)
+        return (_value, range) => this.raiseError(`expected '${expected}' but found 'string'`, range)
     }
     public createUnexpectedTaggedUnionHandler(expected: string): OnTaggedUnion {
         return (_option, location) => {
-            this.raiseError(`expected '${expected}' but found 'tagged union' `, location)
+            this.raiseError(`expected '${expected}' but found 'tagged union'`, location)
             return createDummyValueHandler()
         }
     }
     public createUnexpectedObjectHandler(expected: string): OnObject {
         return startLocation => {
-            this.raiseError(`expected '${expected}' but found 'object' `, startLocation)
+            this.raiseError(`expected '${expected}' but found 'object'`, startLocation)
             return createDummyObjectHandler()
         }
 
     }
     public createUnexpectedArrayHandler(expected: string): OnArray {
         return startLocation => {
-            this.raiseError(`expected '${expected}' but found 'array' `, startLocation)
+            this.raiseError(`expected '${expected}' but found 'array'`, startLocation)
             return createDummyArrayHandler()
 
         }
