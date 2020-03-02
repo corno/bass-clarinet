@@ -4,7 +4,7 @@
     max-classes-per-file: "off",
 */
 
-import { DataSubscriber, Parser, HeaderSubscriber } from "../Parser";
+import { DataSubscriber, Parser, HeaderSubscriber, SimpleValueRole } from "../Parser";
 import { Range, Location } from "../location";
 import * as Char from "./NumberCharacters";
 import { LocationError } from "../errors";
@@ -215,13 +215,6 @@ class StrictJSONValidator implements DataSubscriber {
     public onWhitespace() {
         //
     }
-    public onKey(_key: string, _quote: string, range: Range) {
-        if (this.currentContext[0] !== "object") {
-            this.onError(`keys can only occur in objects`, range)
-            return
-        }
-        this.currentContext[1].state = ObjectState.EXPECTING_COLON
-    }
     public onLineComment(_comment: string, range: Range) {
         this.onError("line comments are not allowed in strict JSON", range)
     }
@@ -229,7 +222,7 @@ class StrictJSONValidator implements DataSubscriber {
         if (openCharacter !== "[") {
             this.onError("arrays should start with '[' in strict JSON", range)
         }
-        this.onvalue(range)
+        this.onValue(range)
         this.push(["array", { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
 
     }
@@ -237,18 +230,15 @@ class StrictJSONValidator implements DataSubscriber {
         if (openCharacter !== "{") {
             this.onError("objects should start with '{' in strict JSON", range)
         }
-        this.onvalue(range)
+        this.onValue(range)
         this.push(["object", { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END }])
     }
     public onOpenTaggedUnion(range: Range) {
         this.onError("tagged unions are not allowed in strict JSON", range)
         this.push(["taggedunion", {}])
     }
-    public onOption(_option: string, _quote: string, _range: Range) {
-        //
-    }
     public onUnquotedToken(value: string, range: Range) {
-        this.onvalue(range)
+        this.onValue(range)
         switch (value) {
             case "true": {
                 return
@@ -267,11 +257,29 @@ class StrictJSONValidator implements DataSubscriber {
         }
         this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, range)
     }
-    public onQuotedString(_value: string, quote: string, range: Range) {
+    public onQuotedString(_value: string, role: SimpleValueRole, quote: string, range: Range) {
         if (quote !== "\"") {
             this.onError(`invalid string, should start with'"' in strict JSON`, range)
         }
-        this.onvalue(range)
+        switch (role) {
+            case SimpleValueRole.KEY: {
+                if (this.currentContext[0] !== "object") {
+                    this.onError(`keys can only occur in objects`, range)
+                    return
+                }
+                this.currentContext[1].state = ObjectState.EXPECTING_COLON
+                break
+            }
+            case SimpleValueRole.OPTION: {
+                break
+            }
+            case SimpleValueRole.VALUE: {
+                this.onValue(range)
+                break
+            }
+            default:
+                return assertUnreachable(role)
+        }
     }
     private push(newContext: ContextType) {
         this.stack.push(this.currentContext)
@@ -285,7 +293,7 @@ class StrictJSONValidator implements DataSubscriber {
         }
         this.currentContext = previousContext
     }
-    private onvalue(range: Range) {
+    private onValue(range: Range) {
         switch (this.currentContext[0]) {
             case "array": {
                 const $ = this.currentContext[1]

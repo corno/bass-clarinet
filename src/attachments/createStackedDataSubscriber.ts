@@ -2,9 +2,8 @@
     no-console:"off",
     no-underscore-dangle: "off",
 */
-import { DataSubscriber } from "../Parser"
+import { DataSubscriber, SimpleValueRole } from "../Parser"
 import { Location, Range } from "../location"
-import * as Char from "./NumberCharacters"
 import { createDummyValueHandler } from "./dummyHandlers"
 import { ValueHandler, ObjectHandler, ArrayHandler, Comment } from "./handlers"
 
@@ -155,14 +154,6 @@ export function createStackedDataSubscriber(
             stack.push(currentContext)
             currentContext = ["taggedunion", { start: range, parentValueHandler: initValueHandler(range), valueHandler: null, comments: flushComments() }]
         },
-        onOption: (option, _quote, range, _terminated, pauser) => {
-            if (DEBUG) { console.log("on option", option) }
-            if (currentContext[0] !== "taggedunion") {
-                raiseRangeError(onError, "unexpected option", range)
-            } else {
-                currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(option, currentContext[1].start, currentContext[1].comments, range, flushComments(), pauser)
-            }
-        },
         onCloseTaggedUnion: location => {
             if (DEBUG) { console.log("on close tagged union") }
             if (currentContext[0] !== "taggedunion") {
@@ -194,22 +185,39 @@ export function createStackedDataSubscriber(
             }
             pop(range)
         },
-        onKey: (key, _quote, range) => {
-            if (DEBUG) { console.log("on key", key) }
-            if (currentContext[0] !== "object") {
-                raiseRangeError(onError, "unexpected key", range)
-            } else {
-                currentContext[1].valueHandler = currentContext[1].objectHandler.property(key, range, flushComments())
-            }
-        },
-        onQuotedString: (value, _quote, range, _terminated, pauser) => {
-            if (DEBUG) { console.log("on quoted string", value) }
-            const vh = initValueHandler(range)
-            if (vh === null) {
-                raiseRangeError(onError, "unexpected value", range)
-            }
-            vh.string(value, range, flushComments(), pauser)
+        onQuotedString: (value, role, _quote, range, _terminated, pauser) => {
+            switch (role) {
+                case SimpleValueRole.KEY: {
+                    if (DEBUG) { console.log("on key", value) }
+                    if (currentContext[0] !== "object") {
+                        raiseRangeError(onError, "unexpected key", range)
+                    } else {
+                        currentContext[1].valueHandler = currentContext[1].objectHandler.property(value, range, flushComments())
+                    }
+                    break
+                }
+                case SimpleValueRole.OPTION: {
+                    if (DEBUG) { console.log("on option", value) }
+                    if (currentContext[0] !== "taggedunion") {
+                        raiseRangeError(onError, "unexpected option", range)
+                    } else {
+                        currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(value, currentContext[1].start, currentContext[1].comments, range, flushComments(), pauser)
+                    }
+                    break
+                }
+                case SimpleValueRole.VALUE: {
 
+                    if (DEBUG) { console.log("on quoted string", value) }
+                    const vh = initValueHandler(range)
+                    if (vh === null) {
+                        raiseRangeError(onError, "unexpected value", range)
+                    }
+                    vh.quotedString(value, range, flushComments(), pauser)
+                    break
+                }
+                default:
+                    return assertUnreachable(role)
+            }
         },
         onUnquotedToken: (value, range, pauser) => {
             if (DEBUG) { console.log("on value", value) }
@@ -217,31 +225,7 @@ export function createStackedDataSubscriber(
             if (vh === null) {
                 raiseRangeError(onError, "unexpected value", range)
             }
-            switch (value) {
-                case "true": {
-                    vh.boolean(true, range, flushComments(), pauser)
-                    return
-                }
-                case "false": {
-                    vh.boolean(false, range, flushComments(), pauser)
-                    return
-                }
-                case "null": {
-                    vh.null(range, flushComments(), pauser)
-                    return
-                }
-            }
-            const curChar = value.charCodeAt(0)
-            if (curChar === Char.Number.minus || Char.Number._0 <= curChar && curChar <= Char.Number._9) {
-                //eslint-disable-next-line
-                const nr = new Number(value).valueOf()
-                if (isNaN(nr)) {
-                    raiseRangeError(onError, `invalid number: ${value}`, range)
-                }
-                vh.number(nr, range, flushComments(), pauser)
-                return
-            }
-            raiseRangeError(onError, `unrecognized unquoted token '${value}'`, range)
+            vh.unquotedToken(value, range, flushComments(), pauser)
         },
         onEnd: () => {
             onend(flushComments())

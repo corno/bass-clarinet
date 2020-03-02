@@ -8,18 +8,14 @@ import {
     createDummyValueHandler,
     OnObject,
     OnArray,
-    OnBoolean,
-    OnNumber,
-    OnString,
-    OnNull,
+    OnQuotedString,
+    OnUnquotedToken,
     OnTaggedUnion,
     Comment,
 } from "./attachments"
 import { Range } from "./location"
 
 export type IssueHandler = (message: string, range: Range) => void
-
-type NullHandler = (range: Range) => void
 
 /**
  * ExpectContext is a class that helps processing a document that conforms to an expected structure
@@ -189,22 +185,14 @@ export class ExpectContext {
                             dataHandler = null
                             return dh.object(startLocation, openCharacter, dataComments, pauser)
                         },
-                        boolean: (value, dataRange, dataComments, pauser) => {
-                            if (dataHandler === null) {
-                                return this.raiseError(`expected string`, dataRange)
-
-                            } else {
-                                dataHandler.boolean(value, dataRange, dataComments, pauser)
-                            }
-                        },
-                        number: (value, dataRange, dataComments, pauser) => {
+                        unquotedToken: (value, dataRange, dataComments, pauser) => {
                             if (dataHandler === null) {
                                 return this.raiseError(`expected string`, dataRange)
                             } else {
-                                dataHandler.number(value, dataRange, dataComments, pauser)
+                                dataHandler.unquotedToken(value, dataRange, dataComments, pauser)
                             }
                         },
-                        string: (value, range, dataComments, pauser) => {
+                        quotedString: (value, range, dataComments, pauser) => {
                             if (dataHandler === null) {
                                 //found the option
                                 const optionHandler = options[value]
@@ -213,17 +201,8 @@ export class ExpectContext {
                                 }
                                 dataHandler = optionHandler(startRange, tuComments, range, dataComments)
                             } else {
-                                dataHandler.string(value, range, dataComments, pauser)
+                                dataHandler.quotedString(value, range, dataComments, pauser)
                             }
-                        },
-                        null: (dataRange, dataComments, pauser) => {
-                            if (dataHandler === null) {
-                                this.raiseError(`unexected null`, dataRange)
-                                return createDummyObjectHandler()
-                            }
-                            const dh = dataHandler
-                            dataHandler = null
-                            return dh.null(dataRange, dataComments, pauser)
                         },
                         taggedUnion: (option, subTuRange, subTuComments, dataRange, dataComments, pauser) => {
                             if (dataHandler === null) {
@@ -276,17 +255,11 @@ export class ExpectContext {
             }
         }
     }
-    public createUnexpectedBooleanHandler(expected: string): OnBoolean {
-        return (_value, range) => this.raiseError(`expected '${expected}' but found 'boolean' `, range)
+    public createUnexpectedunquotedTokenHandler(expected: string): OnUnquotedToken {
+        return (_value, range) => this.raiseError(`expected '${expected}' but found 'unquoted token' `, range)
     }
-    public createUnexpectedNumberHandler(expected: string): OnNumber {
-        return (_value, range) => this.raiseError(`expected '${expected}' but found 'number' `, range)
-    }
-    public createUnexpectedStringHandler(expected: string): OnString {
+    public createUnexpectedQuotedStringHandler(expected: string): OnQuotedString {
         return (_value, range) => this.raiseError(`expected '${expected}' but found 'string' `, range)
-    }
-    public createUnexpectedNullHandler(expected: string): OnNull {
-        return range => this.raiseError(`expected '${expected}' but found 'null' `, range)
     }
     public createUnexpectedTaggedUnionHandler(expected: string): OnTaggedUnion {
         return (_option, location) => {
@@ -309,61 +282,73 @@ export class ExpectContext {
         }
     }
 
-    public expectNothing(onNull?: NullHandler): ValueHandler {
+    public expectNothing(): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("nothing"),
             object: this.createUnexpectedObjectHandler("nothing"),
-            boolean: this.createUnexpectedBooleanHandler("nothing"),
-            number: this.createUnexpectedNumberHandler("nothing"),
-            string: this.createUnexpectedStringHandler("nothing"),
-            null: onNull ? onNull : this.createUnexpectedNullHandler("nothing"),
+            unquotedToken: this.createUnexpectedunquotedTokenHandler("nothing"),
+            quotedString: this.createUnexpectedQuotedStringHandler("nothing"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("nothing"),
         }
     }
-    public expectString(callback: (value: string, range: Range, comments: Comment[]) => void, onNull?: NullHandler): ValueHandler {
+    public expectQuotedString(callback: (value: string, range: Range, comments: Comment[]) => void): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("string"),
             object: this.createUnexpectedObjectHandler("string"),
-            boolean: this.createUnexpectedBooleanHandler("string"),
-            number: this.createUnexpectedNumberHandler("string"),
-            string: callback,
-            null: onNull ? onNull : this.createUnexpectedNullHandler("string"),
+            unquotedToken: this.createUnexpectedunquotedTokenHandler("string"),
+            quotedString: callback,
             taggedUnion: this.createUnexpectedTaggedUnionHandler("string"),
         }
     }
 
-    public expectNumber(callback: (value: number, range: Range, comments: Comment[]) => void, onNull?: NullHandler): ValueHandler {
+    public expectUnquotedToken(callback: (value: string, range: Range, comments: Comment[]) => void): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("number"),
             object: this.createUnexpectedObjectHandler("number"),
-            boolean: this.createUnexpectedBooleanHandler("number"),
-            number: callback,
-            string: this.createUnexpectedStringHandler("number"),
-            null: onNull ? onNull : this.createUnexpectedNullHandler("number"),
+            unquotedToken: callback,
+            quotedString: this.createUnexpectedQuotedStringHandler("number"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("number"),
         }
     }
-
-    public expectBoolean(callback: (value: boolean, range: Range, comments: Comment[]) => void, onNull?: NullHandler): ValueHandler {
-        return {
-            array: this.createUnexpectedArrayHandler("boolean"),
-            object: this.createUnexpectedObjectHandler("boolean"),
-            number: this.createUnexpectedNumberHandler("boolean"),
-            string: this.createUnexpectedStringHandler("boolean"),
-            boolean: callback,
-            null: onNull ? onNull : this.createUnexpectedNullHandler("booelan"),
-            taggedUnion: this.createUnexpectedTaggedUnionHandler("boolean"),
-        }
+    public expectBoolean(callback: (value: boolean, range: Range, comments: Comment[]) => void): ValueHandler {
+        return this.expectUnquotedToken((rawValue, range, comments) => {
+            switch (rawValue) {
+                case "true" : {
+                    return callback(true, range, comments)
+                }
+                case "false" : {
+                    return callback(false, range, comments)
+                }
+                default:
+                    return this.createUnexpectedunquotedTokenHandler("boolean")
+            }
+        })
+    }
+    public expectNull(callback: (range: Range, comments: Comment[]) => void): ValueHandler {
+        return this.expectUnquotedToken((rawValue, range, comments) => {
+            if (rawValue === "null") {
+                return callback(range, comments)
+            }
+            return this.createUnexpectedunquotedTokenHandler("null")
+        })
+    }
+    public expectNumber(callback: (value: number, range: Range, comments: Comment[]) => void): ValueHandler {
+        return this.expectUnquotedToken((rawValue, range, comments) => {
+            //eslint-disable-next-line
+            const nr = new Number(rawValue).valueOf()
+            if (isNaN(nr)) {
+                return this.createUnexpectedunquotedTokenHandler("number")
+            }
+            return callback(nr, range, comments)
+        })
     }
 
-    public expectDictionary(onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectDictionary(onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("dictionary"),
             object: this.createDictionaryHandler(onProperty),
-            boolean: this.createUnexpectedBooleanHandler("dictionary"),
-            number: this.createUnexpectedNumberHandler("dictionary"),
-            string: this.createUnexpectedStringHandler("dictionary"),
-            null: onNull ? onNull : this.createUnexpectedNullHandler("dictionary"),
+            unquotedToken: this.createUnexpectedunquotedTokenHandler("dictionary"),
+            quotedString: this.createUnexpectedQuotedStringHandler("dictionary"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("dictionary"),
         }
     }
@@ -372,27 +357,23 @@ export class ExpectContext {
     public expectType(
         onBegin: (range: Range, comments: Comment[]) => void,
         expectedProperties: { [key: string]: (range: Range, comments: Comment[]) => ValueHandler },
-        onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void, onNull?: NullHandler
+        onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void
     ): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("type"),
             object: this.createTypeHandler(onBegin, expectedProperties, onEnd),
-            boolean: this.createUnexpectedBooleanHandler("type"),
-            number: this.createUnexpectedNumberHandler("type"),
-            string: this.createUnexpectedStringHandler("type"),
-            null: onNull ? onNull : this.createUnexpectedNullHandler("type"),
+            unquotedToken: this.createUnexpectedunquotedTokenHandler("type"),
+            quotedString: this.createUnexpectedQuotedStringHandler("type"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("type"),
         }
     }
 
-    public expectList(onElement: (startLocation: Range, comments: Comment[]) => ValueHandler, onNull?: NullHandler): ValueHandler {
+    public expectList(onElement: (startLocation: Range, comments: Comment[]) => ValueHandler): ValueHandler {
         return {
             array: this.createListHandler(onElement),
             object: this.createUnexpectedObjectHandler("list"),
-            boolean: this.createUnexpectedBooleanHandler("list"),
-            number: this.createUnexpectedNumberHandler("list"),
-            string: this.createUnexpectedStringHandler("list"),
-            null: onNull ? onNull : this.createUnexpectedNullHandler("list"),
+            unquotedToken: this.createUnexpectedunquotedTokenHandler("list"),
+            quotedString: this.createUnexpectedQuotedStringHandler("list"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("list"),
         }
     }
@@ -401,27 +382,22 @@ export class ExpectContext {
         onBegin: (range: Range, comments: Comment[]) => void,
         expectedElements: ((range: Range, comments: Comment[]) => ValueHandler)[],
         onEnd: (range: Range, comments: Comment[]) => void,
-        onNull?: NullHandler
     ): ValueHandler {
         return {
             array: this.createArrayTypeHandler(onBegin, expectedElements, onEnd),
             object: this.createUnexpectedObjectHandler("array type"),
-            boolean: this.createUnexpectedBooleanHandler("array type"),
-            number: this.createUnexpectedNumberHandler("array type"),
-            string: this.createUnexpectedStringHandler("array type"),
-            null: onNull ? onNull : this.createUnexpectedNullHandler("array type"),
+            unquotedToken: this.createUnexpectedunquotedTokenHandler("array type"),
+            quotedString: this.createUnexpectedQuotedStringHandler("array type"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("array type"),
         }
     }
 
-    public expectTaggedUnion(options: { [key: string]: (tuStartRange: Range, tuComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }, onNull?: NullHandler): ValueHandler {
+    public expectTaggedUnion(options: { [key: string]: (tuStartRange: Range, tuComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("tagged union"),
             object: this.createUnexpectedObjectHandler("tagged union"),
-            boolean: this.createUnexpectedBooleanHandler("tagged union"),
-            number: this.createUnexpectedNumberHandler("tagged union"),
-            string: this.createUnexpectedStringHandler("tagged union"),
-            null: onNull ? onNull : this.createUnexpectedNullHandler("tagged union"),
+            unquotedToken: this.createUnexpectedunquotedTokenHandler("tagged union"),
+            quotedString: this.createUnexpectedQuotedStringHandler("tagged union"),
             taggedUnion: this.createTaggedUnionHandler(options),
         }
     }
@@ -431,15 +407,13 @@ export class ExpectContext {
      * @param callback
      */
     public expectTaggedUnionOrArraySurrogate(
-        options: { [key: string]: (tuStartRange: Range, tuComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }, onNull?: NullHandler
+        options: { [key: string]: (tuStartRange: Range, tuComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }
     ): ValueHandler {
         return {
             array: this.createTaggedUnionSurrogateHandler(options),
             object: this.createUnexpectedObjectHandler("tagged union"),
-            boolean: this.createUnexpectedBooleanHandler("tagged union"),
-            number: this.createUnexpectedNumberHandler("tagged union"),
-            string: this.createUnexpectedStringHandler("tagged union"),
-            null: onNull ? onNull : this.createUnexpectedNullHandler("tagged union"),
+            unquotedToken: this.createUnexpectedunquotedTokenHandler("tagged union"),
+            quotedString: this.createUnexpectedQuotedStringHandler("tagged union"),
             taggedUnion: this.createTaggedUnionHandler(options),
         }
     }

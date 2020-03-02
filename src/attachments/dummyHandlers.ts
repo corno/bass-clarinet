@@ -4,16 +4,10 @@ export function createDummyValueHandler(): ValueHandler {
     return {
         array: () => createDummyArrayHandler(),
         object: () => createDummyObjectHandler(),
-        boolean: () => {
+        unquotedToken: () => {
             //do nothing
         },
-        number: () => {
-            //do nothing
-        },
-        string: () => {
-            //do nothing
-        },
-        null: () => {
+        quotedString: () => {
             //do nothing
         },
         taggedUnion: () => createDummyValueHandler(),

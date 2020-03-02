@@ -9,11 +9,16 @@ import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
+import { SimpleValueRole } from "../src"
 
 const DEBUG = false
 
 const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
+
+function assertUnreachable(_x: never) {
+    throw new Error("unreachable")
+}
 
 //const selectedJSONTests: string[] = ["two keys"]
 //const selectedExtensionTests: string[] = []
@@ -93,8 +98,23 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             onBlockComment: (comment, _range) => {
                 out.push("/*" + comment + "*/")
             },
-            onQuotedString: (value, quote, _range, terminated) => {
-                out.push(quote + serialize(value) + (terminated ? quote : ""))
+            onQuotedString: (value, role, quote, _range, terminated) => {
+                switch (role) {
+                    case SimpleValueRole.KEY: {
+                        out.push(quote + serialize(value) + (terminated ? quote : ""))
+                        break
+                    }
+                    case SimpleValueRole.OPTION: {
+                        out.push(quote + serialize(value) + (terminated ? quote : ""))
+                        break
+                    }
+                    case SimpleValueRole.VALUE: {
+                        out.push(quote + serialize(value) + (terminated ? quote : ""))
+                        break
+                    }
+                    default:
+                        return assertUnreachable(role)
+                }
             },
             onUnquotedToken: (value, _range) => {
                 out.push(value)
@@ -104,9 +124,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
             onCloseTaggedUnion: () => {
                 //
-            },
-            onOption: (value, quote, _range, terminated) => {
-                out.push(quote + serialize(value) + (terminated ? quote : ""))
             },
             onOpenArray: (_openCharacterRange, openCharacter) => {
                 out.push(openCharacter)
@@ -119,9 +136,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
             onCloseObject: (_endRange, closeCharacter) => {
                 out.push(closeCharacter)
-            },
-            onKey: (key, quote, _range, terminated) => {
-                out.push(quote + serialize(key) + (terminated ? quote : ""))
             },
             onNewLine: () => {
                 out.push("\n")
@@ -181,9 +195,26 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (DEBUG) console.log("found unquoted token")
                 actualEvents.push(["unquotedtoken", v, getRange(test.testForLocation, range)])
             },
-            onQuotedString: (v, _quote, range) => {
-                if (DEBUG) console.log("found quoted string")
-                actualEvents.push(["quotedstring", v, getRange(test.testForLocation, range)])
+            onQuotedString: (v, role, _quote, range) => {
+                switch (role) {
+                    case SimpleValueRole.KEY: {
+                        if (DEBUG) console.log("found key")
+                        actualEvents.push(["key", v, getRange(test.testForLocation, range)])
+                        break
+                    }
+                    case SimpleValueRole.OPTION: {
+                        if (DEBUG) console.log("found option")
+                        actualEvents.push(["option", v, getRange(test.testForLocation, range)])
+                        break
+                    }
+                    case SimpleValueRole.VALUE: {
+                        if (DEBUG) console.log("found quoted string with role ''")
+                        actualEvents.push(["quotedstring", v, getRange(test.testForLocation, range)])
+                        break
+                    }
+                    default:
+                        return assertUnreachable(role)
+                }
             },
 
             onOpenTaggedUnion: range => {
@@ -194,11 +225,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (DEBUG) console.log("found close tagged union")
                 actualEvents.push(["closetaggedunion"])
             },
-            onOption: (v, _quote, range) => {
-                if (DEBUG) console.log("found option")
-                actualEvents.push(["option", v, getRange(test.testForLocation, range)])
-            },
-
             onOpenArray: (range, v) => {
                 if (DEBUG) console.log("found open array")
                 actualEvents.push(["openarray", v, getRange(test.testForLocation, range)])
@@ -207,7 +233,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (DEBUG) console.log("found close array")
                 actualEvents.push(["closearray", v, getRange(test.testForLocation, range)])
             },
-
             onOpenObject: (range, v) => {
                 if (DEBUG) console.log("found open object")
                 actualEvents.push(["openobject", v, getRange(test.testForLocation, range)])
@@ -215,10 +240,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             onCloseObject: (range, v) => {
                 if (DEBUG) console.log("found close object")
                 actualEvents.push(["closeobject", v, getRange(test.testForLocation, range)])
-            },
-            onKey: (v, _quote, range) => {
-                if (DEBUG) console.log("found key")
-                actualEvents.push(["key", v, getRange(test.testForLocation, range)])
             },
             onEnd: location => {
                 if (DEBUG) console.log("found end")
@@ -407,9 +428,6 @@ describe('bass-clarinet', () => {
                                     }
                                 ),
                             },
-                            () => {
-                                //
-                            }
                         ),
                     },
                     () => {

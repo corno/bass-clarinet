@@ -34,17 +34,11 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
                 },
             }
         },
-        boolean: (isTrue, _range, _comments) => {
-            writer(`${isTrue ? "true":"false"}`)
+        unquotedToken: (value, _range, _comments) => {
+            writer(`${value}`)
         },
-        number: (value, _range, _comments) => {
-            writer(`${value.toString(10)}`)//JSON.stringify(value)
-        },
-        string: (value, _range, _comments) => {
-            writer(`${JSON.stringify(value)}`)//JSON.stringify(value)
-        },
-        null: _comments => {
-            writer(`null`)
+        quotedString: (value, _range, _comments) => {
+            writer(`${JSON.stringify(value)}`)
         },
         taggedUnion: (option, _unionStart, _optionRange, _comments) => {
             writer(`| "${option}" `)

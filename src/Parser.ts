@@ -68,6 +68,12 @@ function getContextDescription(stackContext: StackContext) {
     }
 }
 
+export enum SimpleValueRole {
+    VALUE,
+    OPTION,
+    KEY,
+}
+
 export interface DataSubscriber {
     onComma(range: Range, pauser: Pauser): void
     onColon(range: Range, pauser: Pauser): void
@@ -77,13 +83,11 @@ export interface DataSubscriber {
 
     onOpenTaggedUnion(range: Range, pauser: Pauser): void
     onCloseTaggedUnion(location: Location): void
-    onOption(option: string, quote: string, range: Range, terminated: boolean, pauser: Pauser): void
 
     onOpenObject(range: Range, openCharacter: string, pauser: Pauser): void
     onCloseObject(range: Range, closeCharacter: string, pauser: Pauser): void
-    onKey(key: string, quote: string, range: Range, terminated: boolean, pauser: Pauser): void
 
-    onQuotedString(value: string, quote: string, range: Range, terminated: boolean, pauser: Pauser): void
+    onQuotedString(value: string, type: SimpleValueRole, quote: string, range: Range, terminated: boolean, pauser: Pauser): void
     onUnquotedToken(value: string, range: Range, pauser: Pauser): void
 
     onBlockComment(comment: string, range: Range, pauser: Pauser): void
@@ -434,7 +438,7 @@ export class Parser implements IParser {
         this.wrapupBeforeValue(range)
         const $ = this.currentContext
         const onStringValue = () => {
-            this.oncurrentdata.signal(s => s.onQuotedString(value, $tok.startCharacter, range, quote !== null, pauser))
+            this.oncurrentdata.signal(s => s.onQuotedString(value, SimpleValueRole.VALUE, $tok.startCharacter, range, quote !== null, pauser))
             this.wrapupAfterValue(range)
         }
         switch ($[0]) {
@@ -446,7 +450,7 @@ export class Parser implements IParser {
                 const $$ = $[1]
                 switch ($$.state) {
                     case ObjectState.EXPECTING_KEY:
-                        this.oncurrentdata.signal(s => s.onKey(value, $tok.startCharacter, range, quote !== null, pauser))
+                        this.oncurrentdata.signal(s => s.onQuotedString(value, SimpleValueRole.KEY, $tok.startCharacter, range, quote !== null, pauser))
                         $$.state = ObjectState.EXPECTING_OBJECT_VALUE
 
                         break
@@ -468,7 +472,7 @@ export class Parser implements IParser {
                 const $$ = $[1]
                 switch ($$.state) {
                     case TaggedUnionState.EXPECTING_OPTION:
-                        this.oncurrentdata.signal(s => s.onOption(value, $tok.startCharacter, range, quote !== null, pauser))
+                        this.oncurrentdata.signal(s => s.onQuotedString(value, SimpleValueRole.OPTION, $tok.startCharacter, range, quote !== null, pauser))
                         $$.state = TaggedUnionState.EXPECTING_VALUE
                         break
                     case TaggedUnionState.EXPECTING_VALUE: {

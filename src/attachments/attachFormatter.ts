@@ -1,4 +1,4 @@
-import { DataSubscriber, HeaderSubscriber, Parser } from "../Parser";
+import { DataSubscriber, HeaderSubscriber, Parser, SimpleValueRole } from "../Parser";
 import { Range, Location, printRange } from "../location";
 
 function assertUnreachable(_x: never) {
@@ -220,7 +220,7 @@ export class Formatter implements DataSubscriber, HeaderSubscriber {
     public onUnquotedToken(value: string, range: Range) {
         this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
     }
-    public onQuotedString(_value: string, quote: string, range: Range) {
+    public onQuotedString(_value: string, type: SimpleValueRole, quote: string, range: Range) {
         this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
     }
     /**

@@ -43,7 +43,7 @@ parser.ondata.subscribe({
     onBlockComment: (_comment, _range, pauser) => {
         pause(pauser)
     },
-    onQuotedString: (_value, _quote, _range, _terminated, pauser) => {
+    onQuotedString: (_value, _role, _quote, _range, _terminated, pauser) => {
         console.log("QUOTED")
         pause(pauser)
     },
@@ -55,9 +55,6 @@ parser.ondata.subscribe({
     },
     onCloseTaggedUnion: () => {
         //
-    },
-    onOption: (_option, _quote, _range, _terminated, pauser) => {
-        pause(pauser)
     },
     onOpenArray: (_openCharacterRange, _openCharacter, pauser) => {
         console.log("OPEN ARRAY")
@@ -71,9 +68,6 @@ parser.ondata.subscribe({
         pause(pauser)
     },
     onCloseObject: (_endRange, _closeCharacter, pauser) => {
-        pause(pauser)
-    },
-    onKey: (_key, _quote, _range, _terminated, pauser) => {
         pause(pauser)
     },
     onEnd: () => {

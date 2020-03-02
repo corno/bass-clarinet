@@ -23,17 +23,11 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
                 },
             }
         },
-        string: (value, range) => {
+        quotedString: (value, range) => {
             writer(`${indentation}${JSON.stringify(value)} // ${bc.printRange(range)}`)
         },
-        boolean: (value, range) => {
-            writer(`${indentation}${value ? "true" : "false"} // ${bc.printRange(range)}`)
-        },
-        number: (value, range) => {
-            writer(`${indentation}${value.toString(10)} // ${bc.printRange(range)}`)
-        },
-        null: range => {
-            writer(`${indentation}null // ${bc.printRange(range)}`)
+        unquotedToken: (value, range) => {
+            writer(`${indentation}${value} // ${bc.printRange(range)}`)
         },
         taggedUnion: (option, startRange, _tuComments, optionRange, _optionComments) => {
             writer(`| ${indentation}"${JSON.stringify(option)}" // ${bc.printRange(startRange)} ${bc.printRange(optionRange)}`)
