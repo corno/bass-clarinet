@@ -301,17 +301,17 @@ export class ExpectContext {
         }
     }
 
-    public expectUnquotedToken(callback: (value: string, range: Range, comments: Comment[]) => void): ValueHandler {
+    public expectUnquotedToken(expectString: string, callback: (value: string, range: Range, comments: Comment[]) => void): ValueHandler {
         return {
-            array: this.createUnexpectedArrayHandler("number"),
-            object: this.createUnexpectedObjectHandler("number"),
+            array: this.createUnexpectedArrayHandler(expectString),
+            object: this.createUnexpectedObjectHandler(expectString),
             unquotedToken: callback,
-            quotedString: this.createUnexpectedQuotedStringHandler("number"),
-            taggedUnion: this.createUnexpectedTaggedUnionHandler("number"),
+            quotedString: this.createUnexpectedQuotedStringHandler(expectString),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler(expectString),
         }
     }
     public expectBoolean(callback: (value: boolean, range: Range, comments: Comment[]) => void): ValueHandler {
-        return this.expectUnquotedToken((rawValue, range, comments) => {
+        return this.expectUnquotedToken("boolean", (rawValue, range, comments) => {
             switch (rawValue) {
                 case "true" : {
                     return callback(true, range, comments)
@@ -325,7 +325,7 @@ export class ExpectContext {
         })
     }
     public expectNull(callback: (range: Range, comments: Comment[]) => void): ValueHandler {
-        return this.expectUnquotedToken((rawValue, range, comments) => {
+        return this.expectUnquotedToken("null", (rawValue, range, comments) => {
             if (rawValue === "null") {
                 return callback(range, comments)
             }
@@ -333,11 +333,11 @@ export class ExpectContext {
         })
     }
     public expectNumber(callback: (value: number, range: Range, comments: Comment[]) => void): ValueHandler {
-        return this.expectUnquotedToken((rawValue, range, comments) => {
+        return this.expectUnquotedToken("number", (rawValue, range, comments) => {
             //eslint-disable-next-line
             const nr = new Number(rawValue).valueOf()
             if (isNaN(nr)) {
-                return this.createUnexpectedunquotedTokenHandler("number")
+                return this.createUnexpectedunquotedTokenHandler("unquoted token")
             }
             return callback(nr, range, comments)
         })
