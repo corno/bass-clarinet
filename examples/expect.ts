@@ -31,12 +31,18 @@ parser.ondata.subscribe(bc.createStackedDataSubscriber(
             //prepare code here
         },
         {
-            "prop a": (_propRange, _propComments) => ec.expectNumber((_value, _range, _comments) => {
-                //handle 'prop a'
-            }),
-            "prop b": () => ec.expectNumber(_value => {
-                //handle 'prop b'
-            }),
+            "prop a": {
+                onExists: (_propRange, _propComments) => ec.expectNumber((_value, _range, _comments) => {
+                    //handle 'prop a'
+                }),
+                onNotExists: null,
+            },
+            "prop b": {
+                onExists: () => ec.expectNumber(_value => {
+                    //handle 'prop b'
+                }),
+                onNotExists: null,
+            },
         },
         (_hasErrors, _range, _comments) => {
             //wrap up the object

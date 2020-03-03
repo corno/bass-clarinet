@@ -395,9 +395,12 @@ describe('bass-clarinet', () => {
                         //
                     },
                     {
-                        a: () => expect.expectNumber(() => {
-                            //
-                        }),
+                        a: {
+                            onExists: () => expect.expectNumber(() => {
+                                //
+                            }),
+                            onNotExists: null,
+                        },
                     },
                     () => {
                         //
@@ -414,21 +417,24 @@ describe('bass-clarinet', () => {
                         //
                     },
                     {
-                        a: () => expect.expectTaggedUnion(
-                            {
-                                foo: () => expect.expectType(
-                                    () => {
-                                        //
-                                    },
-                                    {
-                                        //
-                                    },
-                                    () => {
-                                        //
-                                    }
-                                ),
-                            },
-                        ),
+                        a: {
+                            onExists: () => expect.expectTaggedUnion(
+                                {
+                                    foo: () => expect.expectType(
+                                        () => {
+                                            //
+                                        },
+                                        {
+                                            //
+                                        },
+                                        () => {
+                                            //
+                                        }
+                                    ),
+                                },
+                            ),
+                            onNotExists: null,
+                        },
                     },
                     () => {
                         //

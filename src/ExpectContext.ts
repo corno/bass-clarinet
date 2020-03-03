@@ -17,6 +17,13 @@ import { Range } from "./location"
 
 export type IssueHandler = (message: string, range: Range) => void
 
+export type ExpectedProperties = {
+    [key: string]: {
+        onExists: (range: Range, comments: Comment[]) => ValueHandler
+        onNotExists: null | (() => void) //if onNotExists is null and the property does not exist, an error will be raised
+    }
+}
+
 /**
  * ExpectContext is a class that helps processing a document that conforms to an expected structure
  * for example; if you expect and object with 2 properties, 'a' and 'b', both numbers, you could write it like this:
@@ -76,7 +83,7 @@ export class ExpectContext {
 
     public createTypeHandler(
         onBegin: (range: Range, comments: Comment[]) => void,
-        expectedProperties: { [key: string]: (range: Range, comments: Comment[]) => ValueHandler },
+        expectedProperties: ExpectedProperties,
         onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void
     ): OnObject {
         return (startRange, openCharacter, beginComments) => {
@@ -100,16 +107,21 @@ export class ExpectContext {
                         this.raiseError(`unexpected property: '${key}'`, range)//FIX print range properly
                         return createDummyValueHandler()
                     }
-                    return expected(range, comments)
+                    return expected.onExists(range, comments)
                 },
                 end: (endRange, closeCharacter, comments) => {
                     if (closeCharacter !== ")") {
                         this.raiseWarning(`expected ')' but found '${closeCharacter}'`, endRange)
                     }
-                    Object.keys(expectedProperties).forEach(ep => {
-                        if (!foundProperies.includes(ep)) {
-                            hasErrors = true
-                            this.raiseError(`missing property: '${ep}'`, startRange)//FIX print location properly
+                    Object.keys(expectedProperties).forEach(epName => {
+                        if (!foundProperies.includes(epName)) {
+                            const ep = expectedProperties[epName]
+                            if (ep.onNotExists === null) {
+                                hasErrors = true
+                                this.raiseError(`missing property: '${epName}'`, startRange)//FIX print location properly
+                            } else {
+                                ep.onNotExists()
+                            }
                         }
                     })
                     onEnd(hasErrors, endRange, comments)
@@ -311,10 +323,10 @@ export class ExpectContext {
     public expectBoolean(callback: (value: boolean, range: Range, comments: Comment[]) => void): ValueHandler {
         return this.expectUnquotedToken("boolean", (rawValue, range, comments) => {
             switch (rawValue) {
-                case "true" : {
+                case "true": {
                     return callback(true, range, comments)
                 }
-                case "false" : {
+                case "false": {
                     return callback(false, range, comments)
                 }
                 default:
@@ -351,7 +363,7 @@ export class ExpectContext {
     }
     public expectType(
         onBegin: (range: Range, comments: Comment[]) => void,
-        expectedProperties: { [key: string]: (range: Range, comments: Comment[]) => ValueHandler },
+        expectedProperties: ExpectedProperties,
         onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void
     ): ValueHandler {
         return {
