@@ -51,7 +51,6 @@ export class ExpectContext {
     public raiseError(message: string, range: Range): void {
         this.errorHandler(message, range)
     }
-
     public createDictionaryHandler(onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler): OnObject {
         return (start, openCharacter) => {
             if (openCharacter !== "{") {
@@ -60,7 +59,6 @@ export class ExpectContext {
             const foundEntries: string[] = []
             return {
                 property: (key, range, comments) => {
-
                     if (foundEntries.includes(key)) {
                         this.raiseWarning(`duplicate key '${key}'`, range)
                     }
@@ -105,7 +103,6 @@ export class ExpectContext {
                     return expected(range, comments)
                 },
                 end: (endRange, closeCharacter, comments) => {
-
                     if (closeCharacter !== ")") {
                         this.raiseWarning(`expected ')' but found '${closeCharacter}'`, endRange)
                     }
@@ -139,7 +136,6 @@ export class ExpectContext {
                     if (ee === undefined) {
                         this.raiseError(`found more than the expected ${expectedElements.length} element(s)`, startRange)//FIX print range properly
                         return createDummyValueHandler()
-
                     }
                     return ee(range, comments)
                 },
@@ -156,7 +152,6 @@ export class ExpectContext {
             }
         }
     }
-
     public createTaggedUnionSurrogateHandler(
         options: { [key: string]: (startRange: Range, unionComments: Comment[], optionRange: Range, optionComments: Comment[]) => ValueHandler }
     ): OnArray {
@@ -169,7 +164,6 @@ export class ExpectContext {
                             if (dataHandler === null) {
                                 this.raiseError(`unexected array`, startLocation)
                                 return createDummyArrayHandler()
-
                             }
                             const dh = dataHandler
                             dataHandler = null
@@ -179,7 +173,6 @@ export class ExpectContext {
                             if (dataHandler === null) {
                                 this.raiseError(`unexected object`, startLocation)
                                 return createDummyObjectHandler()
-
                             }
                             const dh = dataHandler
                             dataHandler = null
@@ -208,12 +201,10 @@ export class ExpectContext {
                             if (dataHandler === null) {
                                 this.raiseError(`unexected tagged union`, startRange)
                                 return createDummyValueHandler()
-
                             }
                             const dh = dataHandler
                             dataHandler = null
                             return dh.taggedUnion(option, subTuRange, subTuComments, dataRange, dataComments, pauser)
-
                         },
                     }
                 },
@@ -225,7 +216,6 @@ export class ExpectContext {
             }
         }
     }
-
     public createTaggedUnionHandler(
         options: { [key: string]: (startRange: Range, unionComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }
     ): OnTaggedUnion {
@@ -239,7 +229,6 @@ export class ExpectContext {
             }
         }
     }
-
     public createListHandler(onElement: (start: Range, comments: Comment[]) => ValueHandler): OnArray {
         return (startRange, openCharacter) => {
             if (openCharacter !== "[") {
@@ -272,16 +261,13 @@ export class ExpectContext {
             this.raiseError(`expected '${expected}' but found 'object'`, startLocation)
             return createDummyObjectHandler()
         }
-
     }
     public createUnexpectedArrayHandler(expected: string): OnArray {
         return startLocation => {
             this.raiseError(`expected '${expected}' but found 'array'`, startLocation)
             return createDummyArrayHandler()
-
         }
     }
-
     public expectNothing(): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("nothing"),
@@ -300,7 +286,6 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("string"),
         }
     }
-
     public expectUnquotedToken(expectString: string, callback: (value: string, range: Range, comments: Comment[]) => void): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler(expectString),
@@ -308,6 +293,19 @@ export class ExpectContext {
             unquotedToken: callback,
             quotedString: this.createUnexpectedQuotedStringHandler(expectString),
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expectString),
+        }
+    }
+    public expectSimpleValue(callback: (value: string, quoted: boolean, range: Range, comments: Comment[]) => void): ValueHandler {
+        return {
+            array: this.createUnexpectedArrayHandler("simple value"),
+            object: this.createUnexpectedObjectHandler("simple value"),
+            unquotedToken: (value, range, comments) => {
+                return callback(value, false, range, comments)
+            },
+            quotedString: (value, range, comments) => {
+                return callback(value, true, range, comments)
+            },
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("simple value"),
         }
     }
     public expectBoolean(callback: (value: boolean, range: Range, comments: Comment[]) => void): ValueHandler {
@@ -342,7 +340,6 @@ export class ExpectContext {
             return callback(nr, range, comments)
         })
     }
-
     public expectDictionary(onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("dictionary"),
@@ -352,8 +349,6 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("dictionary"),
         }
     }
-
-
     public expectType(
         onBegin: (range: Range, comments: Comment[]) => void,
         expectedProperties: { [key: string]: (range: Range, comments: Comment[]) => ValueHandler },
@@ -367,7 +362,6 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("type"),
         }
     }
-
     public expectList(onElement: (startLocation: Range, comments: Comment[]) => ValueHandler): ValueHandler {
         return {
             array: this.createListHandler(onElement),
@@ -377,7 +371,6 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("list"),
         }
     }
-
     public expectArrayType(
         onBegin: (range: Range, comments: Comment[]) => void,
         expectedElements: ((range: Range, comments: Comment[]) => ValueHandler)[],
@@ -391,7 +384,6 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("array type"),
         }
     }
-
     public expectTaggedUnion(options: { [key: string]: (tuStartRange: Range, tuComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("tagged union"),
@@ -401,7 +393,6 @@ export class ExpectContext {
             taggedUnion: this.createTaggedUnionHandler(options),
         }
     }
-
     /**
      * this parses values in the form of `| "option" <data value>` or `[ "option", <data value> ]`
      * @param callback
