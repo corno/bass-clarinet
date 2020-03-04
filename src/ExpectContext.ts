@@ -58,10 +58,15 @@ export class ExpectContext {
     public raiseError(message: string, range: Range): void {
         this.errorHandler(message, range)
     }
-    public createDictionaryHandler(onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler): OnObject {
-        return (start, openCharacter) => {
+    public createDictionaryHandler(
+        onBegin: (range: Range, comments: Comment[]) => void,
+        onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler,
+        onEnd: (endRange: Range, comments: Comment[]) => void,
+    ): OnObject {
+        return (startRange, openCharacter, beginComments) => {
+            onBegin(startRange, beginComments)
             if (openCharacter !== "{") {
-                this.raiseWarning(`expected '{' but found '${openCharacter}'`, start)
+                this.raiseWarning(`expected '{' but found '${openCharacter}'`, startRange)
             }
             const foundEntries: string[] = []
             return {
@@ -72,10 +77,11 @@ export class ExpectContext {
                     foundEntries.push(key)
                     return onProperty(key, range, comments)
                 },
-                end: (endRange, closeCharacter) => {
+                end: (endRange, closeCharacter, comments) => {
                     if (closeCharacter !== "}") {
                         this.raiseWarning(`expected '}' but found '${closeCharacter}'`, endRange)
                     }
+                    onEnd(endRange, comments)
                 },
             }
         }
@@ -129,7 +135,6 @@ export class ExpectContext {
             }
         }
     }
-
     public createArrayTypeHandler(
         onBegin: (range: Range, comments: Comment[]) => void,
         expectedElements: ((range: Range, comments: Comment[]) => ValueHandler)[],
@@ -158,6 +163,27 @@ export class ExpectContext {
                     const missing = expectedElements.length - index
                     if (missing > 0) {
                         this.raiseError(`elements missing`, endRange)
+                    }
+                    onEnd(endRange, endComments)
+                },
+            }
+        }
+    }
+    public createListHandler(
+        onBegin: (range: Range, comments: Comment[]) => void,
+        onElement: (start: Range, comments: Comment[]) => ValueHandler,
+        onEnd: (range: Range, comments: Comment[]) => void,
+    ): OnArray {
+        return (startRange, openCharacter, startComments) => {
+            onBegin(startRange, startComments)
+            if (openCharacter !== "[") {
+                this.raiseWarning(`expected '[' but found '${openCharacter}'`, startRange)
+            }
+            return {
+                element: (elementStartRange, comments) => onElement(elementStartRange, comments),
+                end: (endRange, closeCharacter, endComments) => {
+                    if (closeCharacter !== "]") {
+                        this.raiseWarning(`expected ']' but found '${closeCharacter}'`, endRange)
                     }
                     onEnd(endRange, endComments)
                 },
@@ -238,21 +264,6 @@ export class ExpectContext {
                 return createDummyValueHandler()
             } else {
                 return optionHandler(tuStartRange, tuComments, optionRange, optionComments)
-            }
-        }
-    }
-    public createListHandler(onElement: (start: Range, comments: Comment[]) => ValueHandler): OnArray {
-        return (startRange, openCharacter) => {
-            if (openCharacter !== "[") {
-                this.raiseWarning(`expected '[' but found '${openCharacter}'`, startRange)
-            }
-            return {
-                element: (elementStartRange, comments) => onElement(elementStartRange, comments),
-                end: (endRange, closeCharacter) => {
-                    if (closeCharacter !== "]") {
-                        this.raiseWarning(`expected ']' but found '${closeCharacter}'`, endRange)
-                    }
-                },
             }
         }
     }
@@ -352,10 +363,14 @@ export class ExpectContext {
             return callback(nr, range, comments)
         })
     }
-    public expectDictionary(onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler): ValueHandler {
+    public expectDictionary(
+        onBegin: (range: Range, comments: Comment[]) => void,
+        onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler,
+        onEnd: (endRange: Range, comments: Comment[]) => void,
+    ): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("dictionary"),
-            object: this.createDictionaryHandler(onProperty),
+            object: this.createDictionaryHandler(onBegin, onProperty, onEnd),
             unquotedToken: this.createUnexpectedunquotedTokenHandler("dictionary"),
             quotedString: this.createUnexpectedQuotedStringHandler("dictionary"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("dictionary"),
@@ -364,7 +379,7 @@ export class ExpectContext {
     public expectType(
         onBegin: (range: Range, comments: Comment[]) => void,
         expectedProperties: ExpectedProperties,
-        onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void
+        onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void,
     ): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("type"),
@@ -374,9 +389,13 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("type"),
         }
     }
-    public expectList(onElement: (startLocation: Range, comments: Comment[]) => ValueHandler): ValueHandler {
+    public expectList(
+        onBegin: (range: Range, comments: Comment[]) => void,
+        onElement: (startLocation: Range, comments: Comment[]) => ValueHandler,
+        onEnd: (endRange: Range, comments: Comment[]) => void,
+    ): ValueHandler {
         return {
-            array: this.createListHandler(onElement),
+            array: this.createListHandler(onBegin, onElement, onEnd),
             object: this.createUnexpectedObjectHandler("list"),
             unquotedToken: this.createUnexpectedunquotedTokenHandler("list"),
             quotedString: this.createUnexpectedQuotedStringHandler("list"),

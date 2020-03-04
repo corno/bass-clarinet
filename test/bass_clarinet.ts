@@ -372,6 +372,9 @@ describe('bass-clarinet', () => {
             doTest(
                 `{ "a": (), "a": () }`,
                 expect => expect.expectDictionary(
+                    () => {
+                        //
+                    },
                     (_key, _range) => {
                         return expect.expectType(
                             () => {
@@ -382,7 +385,10 @@ describe('bass-clarinet', () => {
                                 //
                             }
                         )
-                    }
+                    },
+                    () => {
+                        //
+                    },
                 ),
                 ["duplicate key 'a'"]
             )
