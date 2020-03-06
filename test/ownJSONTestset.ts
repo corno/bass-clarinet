@@ -101,6 +101,22 @@ export const JSONTests: TestDefinitions = {
             ["end", undefined],
         ],
     },
+    "invalid key": {
+        text: '{"foo": "bar", {}: "baz"}',
+        events: [
+            ["openobject", "{", undefined],
+            ["key", "foo", undefined],
+            ["quotedstring", "bar", undefined],
+            ["parsererror", "expected key"],
+            ["openobject", "{", undefined],
+            ["closeobject", "}", undefined],
+            ["validationerror", "did not expect a colon"],
+            ["key", "baz", undefined],
+            ["parsererror", "missing property value"],
+            ["closeobject", "}", undefined],
+            ["end", undefined],
+        ],
+    },
     "three byte utf8": {
         text: '{"matzue": "松江", "asakusa": "浅草"}',
         events: [
