@@ -3,15 +3,18 @@
 */
 import {
     ValueHandler,
-    createDummyObjectHandler,
-    createDummyArrayHandler,
-    createDummyValueHandler,
     OnObject,
     OnArray,
-    OnQuotedString,
-    OnUnquotedToken,
+    SimpleValueData,
     OnTaggedUnion,
     Comment,
+    ObjectHandler,
+    ArrayHandler,
+    OnSimpleValue,
+    EndData,
+    PropertyData,
+    BeginData,
+    TaggedUnionData,
 } from "./attachments"
 import { Range } from "./location"
 
@@ -19,10 +22,14 @@ export type IssueHandler = (message: string, range: Range) => void
 
 export type ExpectedProperties = {
     [key: string]: {
-        onExists: (range: Range, comments: Comment[]) => ValueHandler
+        onExists: (metaData: PropertyData) => ValueHandler
         onNotExists: null | (() => void) //if onNotExists is null and the property does not exist, an error will be raised
     }
 }
+
+export type ExpectedElements = (() => ValueHandler)[]
+
+export type Options = { [key: string]: (optionMetaData: TaggedUnionData) => ValueHandler }
 
 /**
  * ExpectContext is a class that helps processing a document that conforms to an expected structure
@@ -48,9 +55,24 @@ export type ExpectedProperties = {
 export class ExpectContext {
     private readonly errorHandler: IssueHandler
     private readonly warningHandler: IssueHandler
-    constructor(errorHandler: IssueHandler, warningHandler: IssueHandler) {
+    private readonly createDummyArrayHandler: (metaData: BeginData) => ArrayHandler
+    private readonly createDummyObjectHandler: (metaData: BeginData) => ObjectHandler
+    private readonly createDummyPropertyHandler: (key: string, metaData: PropertyData) => ValueHandler
+    private readonly createDummyValueHandler: () => ValueHandler
+    constructor(
+        errorHandler: IssueHandler,
+        warningHandler: IssueHandler,
+        createDummyArrayHandler: (metaData: BeginData) => ArrayHandler,
+        createDummyObjectHandler: (metaData: BeginData) => ObjectHandler,
+        createDummyPropertyHandler: (key: string, metaData: PropertyData) => ValueHandler,
+        createDummyValueHandler: () => ValueHandler,
+    ) {
         this.errorHandler = errorHandler
         this.warningHandler = warningHandler
+        this.createDummyArrayHandler = createDummyArrayHandler
+        this.createDummyObjectHandler = createDummyObjectHandler
+        this.createDummyPropertyHandler = createDummyPropertyHandler
+        this.createDummyValueHandler = createDummyValueHandler
     }
     public raiseWarning(message: string, range: Range) {
         this.warningHandler(message, range)
@@ -59,29 +81,29 @@ export class ExpectContext {
         this.errorHandler(message, range)
     }
     public createDictionaryHandler(
-        onBegin: (range: Range, comments: Comment[]) => void,
-        onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler,
-        onEnd: (endRange: Range, comments: Comment[]) => void,
+        onBegin: (metaData: BeginData) => void,
+        onProperty: (key: string, metaData: PropertyData) => ValueHandler,
+        onEnd: (metaData: EndData) => void,
     ): OnObject {
-        return (startRange, openCharacter, beginComments) => {
-            onBegin(startRange, beginComments)
-            if (openCharacter !== "{") {
-                this.raiseWarning(`expected '{' but found '${openCharacter}'`, startRange)
+        return beginMetaData => {
+            onBegin(beginMetaData)
+            if (beginMetaData.openCharacter !== "{") {
+                this.raiseWarning(`expected '{' but found '${beginMetaData.openCharacter}'`, beginMetaData.start)
             }
             const foundEntries: string[] = []
             return {
-                property: (key, range, comments) => {
+                property: (key, metaData) => {
                     if (foundEntries.includes(key)) {
-                        this.raiseWarning(`duplicate key '${key}'`, range)
+                        this.raiseWarning(`duplicate key '${key}'`, metaData.keyRange)
                     }
                     foundEntries.push(key)
-                    return onProperty(key, range, comments)
+                    return onProperty(key, metaData)
                 },
-                end: (endRange, closeCharacter, comments) => {
-                    if (closeCharacter !== "}") {
-                        this.raiseWarning(`expected '}' but found '${closeCharacter}'`, endRange)
+                end: endMetaData => {
+                    if (endMetaData.closeCharacter !== "}") {
+                        this.raiseWarning(`expected '}' but found '${endMetaData.closeCharacter}'`, endMetaData.end)
                     }
-                    onEnd(endRange, comments)
+                    onEnd(endMetaData)
                 },
             }
         }
@@ -92,287 +114,274 @@ export class ExpectContext {
         expectedProperties: ExpectedProperties,
         onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void
     ): OnObject {
-        return (startRange, openCharacter, beginComments) => {
-            onBegin(startRange, beginComments)
-            if (openCharacter !== "(") {
-                this.raiseWarning(`expected '(' but found '${openCharacter}'`, startRange)
+        return beginMetaData => {
+            onBegin(beginMetaData.start, beginMetaData.comments)
+            if (beginMetaData.openCharacter !== "(") {
+                this.raiseWarning(`expected '(' but found '${beginMetaData.openCharacter}'`, beginMetaData.start)
             }
             const foundProperies: string[] = []
             let hasErrors = false
             return {
-                property: (key, range, comments) => {
+                property: (key, propMetaData) => {
                     if (foundProperies.includes(key)) {
                         hasErrors = true
-                        this.raiseError(`property already processed: '${key}'`, range)//FIX print range properly
-                        return createDummyValueHandler()
+                        this.raiseError(`property already processed: '${key}'`, propMetaData.keyRange)//FIX print range properly
+                        return this.createDummyValueHandler()
                     }
                     foundProperies.push(key)
                     const expected = expectedProperties[key]
                     if (expected === undefined) {
                         hasErrors = true
-                        this.raiseError(`unexpected property: '${key}'`, range)//FIX print range properly
-                        return createDummyValueHandler()
+                        this.raiseError(`unexpected property: '${key}'`, propMetaData.keyRange)//FIX print range properly
+                        return this.createDummyPropertyHandler(key, propMetaData)
                     }
-                    return expected.onExists(range, comments)
+                    return expected.onExists(propMetaData)
                 },
-                end: (endRange, closeCharacter, comments) => {
-                    if (closeCharacter !== ")") {
-                        this.raiseWarning(`expected ')' but found '${closeCharacter}'`, endRange)
+                end: endMetaData => {
+                    if (endMetaData.closeCharacter !== ")") {
+                        this.raiseWarning(`expected ')' but found '${endMetaData.closeCharacter}'`, endMetaData.end)
                     }
                     Object.keys(expectedProperties).forEach(epName => {
                         if (!foundProperies.includes(epName)) {
                             const ep = expectedProperties[epName]
                             if (ep.onNotExists === null) {
                                 hasErrors = true
-                                this.raiseError(`missing property: '${epName}'`, startRange)//FIX print location properly
+                                this.raiseError(`missing property: '${epName}'`, beginMetaData.start)//FIX print location properly
                             } else {
                                 ep.onNotExists()
                             }
                         }
                     })
-                    onEnd(hasErrors, endRange, comments)
+                    onEnd(hasErrors, endMetaData.end, endMetaData.comments)
                 },
             }
         }
     }
     public createArrayTypeHandler(
-        onBegin: (range: Range, comments: Comment[]) => void,
-        expectedElements: ((range: Range, comments: Comment[]) => ValueHandler)[],
-        onEnd: (range: Range, comments: Comment[]) => void
+        onBegin: (metaData: BeginData) => void,
+        expectedElements: ExpectedElements,
+        onEnd: (metaData: EndData) => void
     ): OnArray {
-        return (startRange, openCharacter, startComments) => {
-            onBegin(startRange, startComments)
-            if (openCharacter !== "<") {
-                this.raiseWarning(`expected '<' but found '${openCharacter}'`, startRange)
+        return beginMetaData => {
+            onBegin(beginMetaData)
+            if (beginMetaData.openCharacter !== "<") {
+                this.raiseWarning(`expected '<' but found '${beginMetaData.openCharacter}'`, beginMetaData.start)
             }
             let index = 0
             return {
-                element: (range, comments) => {
+                element: () => {
                     const ee = expectedElements[index]
                     index++
                     if (ee === undefined) {
-                        this.raiseError(`found more than the expected ${expectedElements.length} element(s)`, startRange)//FIX print range properly
-                        return createDummyValueHandler()
+                        this.raiseError(`found more than the expected ${expectedElements.length} element(s)`, beginMetaData.start)//FIX print range properly
+                        return this.createDummyValueHandler()
                     }
-                    return ee(range, comments)
+                    return ee()
                 },
-                end: (endRange, closeCharacter, endComments) => {
-                    if (closeCharacter !== ">") {
-                        this.raiseWarning(`expected '>' but found '${closeCharacter}'`, endRange)
+                end: endMetaData => {
+                    if (endMetaData.closeCharacter !== ">") {
+                        this.raiseWarning(`expected '>' but found '${endMetaData.closeCharacter}'`, endMetaData.end)
                     }
                     const missing = expectedElements.length - index
                     if (missing > 0) {
-                        this.raiseError(`elements missing`, endRange)
+                        this.raiseError(`elements missing`, endMetaData.end)
                     }
-                    onEnd(endRange, endComments)
+                    onEnd(endMetaData)
                 },
             }
         }
     }
     public createListHandler(
-        onBegin: (range: Range, comments: Comment[]) => void,
-        onElement: (start: Range, comments: Comment[]) => ValueHandler,
-        onEnd: (range: Range, comments: Comment[]) => void,
+        onBegin: (metaData: BeginData) => void,
+        onElement: () => ValueHandler,
+        onEnd: (metaData: EndData) => void,
     ): OnArray {
-        return (startRange, openCharacter, startComments) => {
-            onBegin(startRange, startComments)
-            if (openCharacter !== "[") {
-                this.raiseWarning(`expected '[' but found '${openCharacter}'`, startRange)
+        return beginMetaData => {
+            onBegin(beginMetaData)
+            if (beginMetaData.openCharacter !== "[") {
+                this.raiseWarning(`expected '[' but found '${beginMetaData.openCharacter}'`, beginMetaData.start)
             }
             return {
-                element: (elementStartRange, comments) => onElement(elementStartRange, comments),
-                end: (endRange, closeCharacter, endComments) => {
-                    if (closeCharacter !== "]") {
-                        this.raiseWarning(`expected ']' but found '${closeCharacter}'`, endRange)
+                element: () => onElement(),
+                end: endMetaData => {
+                    if (endMetaData.closeCharacter !== "]") {
+                        this.raiseWarning(`expected ']' but found '${endMetaData.closeCharacter}'`, endMetaData.end)
                     }
-                    onEnd(endRange, endComments)
+                    onEnd(endMetaData)
                 },
             }
         }
     }
     public createTaggedUnionSurrogateHandler(
-        options: { [key: string]: (startRange: Range, unionComments: Comment[], optionRange: Range, optionComments: Comment[]) => ValueHandler }
+        options: Options
     ): OnArray {
-        return () => {
+        return beginMetaData => {
             let dataHandler: ValueHandler | null = null
             return {
-                element: (startRange, tuComments) => {
+                element: () => {
                     return {
-                        array: (startLocation, openCharacter, dataComments, pauser) => {
+                        array: metaData => {
                             if (dataHandler === null) {
-                                this.raiseError(`unexected array`, startLocation)
-                                return createDummyArrayHandler()
+                                this.raiseError(`unexected array`, metaData.start)
+                                return this.createDummyArrayHandler(metaData)
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.array(startLocation, openCharacter, dataComments, pauser)
+                            return dh.array(metaData)
                         },
-                        object: (startLocation, openCharacter, dataComments, pauser) => {
+                        object: metaData => {
                             if (dataHandler === null) {
-                                this.raiseError(`unexected object`, startLocation)
-                                return createDummyObjectHandler()
+                                this.raiseError(`unexected object`, metaData.start)
+                                return this.createDummyObjectHandler(metaData)
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.object(startLocation, openCharacter, dataComments, pauser)
+                            return dh.object(metaData)
                         },
-                        unquotedToken: (value, dataRange, dataComments, pauser) => {
-                            if (dataHandler === null) {
-                                return this.raiseError(`expected string`, dataRange)
-                            } else {
-                                dataHandler.unquotedToken(value, dataRange, dataComments, pauser)
-                            }
-                        },
-                        quotedString: (value, range, dataComments, pauser) => {
+                        // unquotedToken: (value, metaData) => {
+                        //     if (dataHandler === null) {
+                        //         return this.raiseError(`expected string`, dataRange)
+                        //     } else {
+                        //         dataHandler.unquotedToken(value, dataRange, dataComments, pauser)
+                        //     }
+                        // },
+                        simpleValue: (value, metaData) => {
                             if (dataHandler === null) {
                                 //found the option
                                 const optionHandler = options[value]
                                 if (optionHandler === undefined) {
-                                    return this.raiseError(`unknown option: '${value}'`, range)
+                                    return this.raiseError(`unknown option: '${value}'`, metaData.range)
                                 }
-                                dataHandler = optionHandler(startRange, tuComments, range, dataComments)
+                                dataHandler = optionHandler({
+                                    start: beginMetaData.start,
+                                    tuComments: beginMetaData.comments,
+                                    optionRange: metaData.range,
+                                    optionComments: beginMetaData.comments,
+                                    pauser: metaData.pauser,
+                                })
                             } else {
-                                dataHandler.quotedString(value, range, dataComments, pauser)
+                                dataHandler.simpleValue(value, metaData)
                             }
                         },
-                        taggedUnion: (option, subTuRange, subTuComments, dataRange, dataComments, pauser) => {
+                        taggedUnion: (option, metaData) => {
                             if (dataHandler === null) {
-                                this.raiseError(`unexected tagged union`, startRange)
-                                return createDummyValueHandler()
+                                this.raiseError(`unexected tagged union`, metaData.start)
+                                return this.createDummyValueHandler()
                             }
                             const dh = dataHandler
                             dataHandler = null
-                            return dh.taggedUnion(option, subTuRange, subTuComments, dataRange, dataComments, pauser)
+                            return dh.taggedUnion(option, metaData)
                         },
                     }
                 },
-                end: endRange => {
+                end: endMetaData => {
                     if (dataHandler === null) {
-                        this.raiseError(`missing option`, endRange)
+                        this.raiseError(`missing option`, endMetaData.end)
                     }
                 },
             }
         }
     }
     public createTaggedUnionHandler(
-        options: { [key: string]: (startRange: Range, unionComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }
+        options: Options
     ): OnTaggedUnion {
-        return (option: string, tuStartRange: Range, tuComments: Comment[], optionRange: Range, optionComments: Comment[]) => {
+        return (option: string, metaData: TaggedUnionData) => {
             const optionHandler = options[option]
             if (optionHandler === undefined) {
-                this.raiseError(`unknown option '${option}'`, optionRange)
-                return createDummyValueHandler()
+                this.raiseError(`unknown option '${option}'`, metaData.optionRange)
+                return this.createDummyValueHandler()
             } else {
-                return optionHandler(tuStartRange, tuComments, optionRange, optionComments)
+                return optionHandler(metaData)
             }
         }
     }
-    public createUnexpectedunquotedTokenHandler(expected: string): OnUnquotedToken {
-        return (_value, range) => this.raiseError(`expected '${expected}' but found 'unquoted token'`, range)
-    }
-    public createUnexpectedQuotedStringHandler(expected: string): OnQuotedString {
-        return (_value, range) => this.raiseError(`expected '${expected}' but found 'string'`, range)
+    public createUnexpectedSimpleValueHandler(expected: string): OnSimpleValue {
+        return (_value, metaData) => this.raiseError(`expected '${expected}' but found simple value`, metaData.range)
     }
     public createUnexpectedTaggedUnionHandler(expected: string): OnTaggedUnion {
-        return (_option, location) => {
-            this.raiseError(`expected '${expected}' but found 'tagged union'`, location)
-            return createDummyValueHandler()
+        return (_option, metaData) => {
+            this.raiseError(`expected '${expected}' but found 'tagged union'`, metaData.start)
+            return this.createDummyValueHandler()
         }
     }
     public createUnexpectedObjectHandler(expected: string): OnObject {
-        return startLocation => {
-            this.raiseError(`expected '${expected}' but found 'object'`, startLocation)
-            return createDummyObjectHandler()
+        return beginMetaData => {
+            this.raiseError(`expected '${expected}' but found 'object'`, beginMetaData.start)
+            return this.createDummyObjectHandler(beginMetaData)
         }
     }
     public createUnexpectedArrayHandler(expected: string): OnArray {
-        return startLocation => {
-            this.raiseError(`expected '${expected}' but found 'array'`, startLocation)
-            return createDummyArrayHandler()
+        return beginMetaData => {
+            this.raiseError(`expected '${expected}' but found 'array'`, beginMetaData.start)
+            return this.createDummyArrayHandler(beginMetaData)
         }
     }
     public expectNothing(): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("nothing"),
             object: this.createUnexpectedObjectHandler("nothing"),
-            unquotedToken: this.createUnexpectedunquotedTokenHandler("nothing"),
-            quotedString: this.createUnexpectedQuotedStringHandler("nothing"),
+            simpleValue: this.createUnexpectedSimpleValueHandler("nothing"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("nothing"),
         }
     }
-    public expectQuotedString(callback: (value: string, range: Range, comments: Comment[]) => void): ValueHandler {
+    public expectSimpleValueImp(expected: string, callback: (value: string, metaData: SimpleValueData) => void): ValueHandler {
         return {
-            array: this.createUnexpectedArrayHandler("string"),
-            object: this.createUnexpectedObjectHandler("string"),
-            unquotedToken: this.createUnexpectedunquotedTokenHandler("string"),
-            quotedString: callback,
-            taggedUnion: this.createUnexpectedTaggedUnionHandler("string"),
+            array: this.createUnexpectedArrayHandler(expected),
+            object: this.createUnexpectedObjectHandler(expected),
+            simpleValue: callback,
+            taggedUnion: this.createUnexpectedTaggedUnionHandler(expected),
         }
     }
-    public expectUnquotedToken(expectString: string, callback: (value: string, range: Range, comments: Comment[]) => void): ValueHandler {
-        return {
-            array: this.createUnexpectedArrayHandler(expectString),
-            object: this.createUnexpectedObjectHandler(expectString),
-            unquotedToken: callback,
-            quotedString: this.createUnexpectedQuotedStringHandler(expectString),
-            taggedUnion: this.createUnexpectedTaggedUnionHandler(expectString),
-        }
+    public expectSimpleValue(callback: (value: string, metaData: SimpleValueData) => void): ValueHandler {
+        return this.expectSimpleValueImp("simple value", callback)
     }
-    public expectSimpleValue(callback: (value: string, quoted: boolean, range: Range, comments: Comment[]) => void): ValueHandler {
-        return {
-            array: this.createUnexpectedArrayHandler("simple value"),
-            object: this.createUnexpectedObjectHandler("simple value"),
-            unquotedToken: (value, range, comments) => {
-                return callback(value, false, range, comments)
-            },
-            quotedString: (value, range, comments) => {
-                return callback(value, true, range, comments)
-            },
-            taggedUnion: this.createUnexpectedTaggedUnionHandler("simple value"),
-        }
-    }
-    public expectBoolean(callback: (value: boolean, range: Range, comments: Comment[]) => void): ValueHandler {
-        return this.expectUnquotedToken("boolean", (rawValue, range, comments) => {
+    public expectBoolean(callback: (value: boolean, metaData: SimpleValueData) => void): ValueHandler {
+        return this.expectSimpleValueImp("boolean", (rawValue, metaData) => {
+            if (metaData.quoted) {
+                this.createUnexpectedSimpleValueHandler("boolean")
+                return
+            }
             switch (rawValue) {
                 case "true": {
-                    return callback(true, range, comments)
+                    callback(true, metaData)
+                    break
                 }
                 case "false": {
-                    return callback(false, range, comments)
+                    callback(false, metaData)
+                    break
                 }
                 default:
-                    return this.createUnexpectedunquotedTokenHandler("boolean")
+                    this.createUnexpectedSimpleValueHandler("boolean")
             }
         })
     }
-    public expectNull(callback: (range: Range, comments: Comment[]) => void): ValueHandler {
-        return this.expectUnquotedToken("null", (rawValue, range, comments) => {
+    public expectNull(callback: (metaData: SimpleValueData) => void): ValueHandler {
+        return this.expectSimpleValueImp("null", (rawValue, metaData) => {
             if (rawValue === "null") {
-                return callback(range, comments)
+                return callback(metaData)
             }
-            return this.createUnexpectedunquotedTokenHandler("null")
+            return this.createUnexpectedSimpleValueHandler("null")
         })
     }
-    public expectNumber(callback: (value: number, range: Range, comments: Comment[]) => void): ValueHandler {
-        return this.expectUnquotedToken("number", (rawValue, range, comments) => {
+    public expectNumber(callback: (value: number, metaData: SimpleValueData) => void): ValueHandler {
+        return this.expectSimpleValueImp("number", (rawValue, metaData) => {
             //eslint-disable-next-line
             const nr = new Number(rawValue).valueOf()
             if (isNaN(nr)) {
-                return this.createUnexpectedunquotedTokenHandler("unquoted token")
+                return this.createUnexpectedSimpleValueHandler("unquoted token")
             }
-            return callback(nr, range, comments)
+            return callback(nr, metaData)
         })
     }
     public expectDictionary(
-        onBegin: (range: Range, comments: Comment[]) => void,
-        onProperty: (key: string, range: Range, comments: Comment[]) => ValueHandler,
-        onEnd: (endRange: Range, comments: Comment[]) => void,
+        onBegin: (metaData: BeginData) => void,
+        onProperty: (key: string, metaData: PropertyData) => ValueHandler,
+        onEnd: (metaData: EndData) => void,
     ): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("dictionary"),
             object: this.createDictionaryHandler(onBegin, onProperty, onEnd),
-            unquotedToken: this.createUnexpectedunquotedTokenHandler("dictionary"),
-            quotedString: this.createUnexpectedQuotedStringHandler("dictionary"),
+            simpleValue: this.createUnexpectedSimpleValueHandler("dictionary"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("dictionary"),
         }
     }
@@ -384,43 +393,39 @@ export class ExpectContext {
         return {
             array: this.createUnexpectedArrayHandler("type"),
             object: this.createTypeHandler(onBegin, expectedProperties, onEnd),
-            unquotedToken: this.createUnexpectedunquotedTokenHandler("type"),
-            quotedString: this.createUnexpectedQuotedStringHandler("type"),
+            simpleValue: this.createUnexpectedSimpleValueHandler("type"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("type"),
         }
     }
     public expectList(
-        onBegin: (range: Range, comments: Comment[]) => void,
-        onElement: (startLocation: Range, comments: Comment[]) => ValueHandler,
-        onEnd: (endRange: Range, comments: Comment[]) => void,
+        onBegin: (metaData: BeginData) => void,
+        onElement: () => ValueHandler,
+        onEnd: (metaData: EndData) => void,
     ): ValueHandler {
         return {
             array: this.createListHandler(onBegin, onElement, onEnd),
             object: this.createUnexpectedObjectHandler("list"),
-            unquotedToken: this.createUnexpectedunquotedTokenHandler("list"),
-            quotedString: this.createUnexpectedQuotedStringHandler("list"),
+            simpleValue: this.createUnexpectedSimpleValueHandler("list"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("list"),
         }
     }
     public expectArrayType(
-        onBegin: (range: Range, comments: Comment[]) => void,
-        expectedElements: ((range: Range, comments: Comment[]) => ValueHandler)[],
-        onEnd: (range: Range, comments: Comment[]) => void,
+        onBegin: (metaData: BeginData) => void,
+        expectedElements: ExpectedElements,
+        onEnd: (metaData: EndData) => void,
     ): ValueHandler {
         return {
             array: this.createArrayTypeHandler(onBegin, expectedElements, onEnd),
             object: this.createUnexpectedObjectHandler("array type"),
-            unquotedToken: this.createUnexpectedunquotedTokenHandler("array type"),
-            quotedString: this.createUnexpectedQuotedStringHandler("array type"),
+            simpleValue: this.createUnexpectedSimpleValueHandler("array type"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("array type"),
         }
     }
-    public expectTaggedUnion(options: { [key: string]: (tuStartRange: Range, tuComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }): ValueHandler {
+    public expectTaggedUnion(options: Options): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("tagged union"),
             object: this.createUnexpectedObjectHandler("tagged union"),
-            unquotedToken: this.createUnexpectedunquotedTokenHandler("tagged union"),
-            quotedString: this.createUnexpectedQuotedStringHandler("tagged union"),
+            simpleValue: this.createUnexpectedSimpleValueHandler("tagged union"),
             taggedUnion: this.createTaggedUnionHandler(options),
         }
     }
@@ -429,13 +434,12 @@ export class ExpectContext {
      * @param callback
      */
     public expectTaggedUnionOrArraySurrogate(
-        options: { [key: string]: (tuStartRange: Range, tuComments: Comment[], optionRange: Range, comments: Comment[]) => ValueHandler }
+        options: Options
     ): ValueHandler {
         return {
             array: this.createTaggedUnionSurrogateHandler(options),
             object: this.createUnexpectedObjectHandler("tagged union"),
-            unquotedToken: this.createUnexpectedunquotedTokenHandler("tagged union"),
-            quotedString: this.createUnexpectedQuotedStringHandler("tagged union"),
+            simpleValue: this.createUnexpectedSimpleValueHandler("tagged union"),
             taggedUnion: this.createTaggedUnionHandler(options),
         }
     }

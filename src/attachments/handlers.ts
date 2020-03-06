@@ -1,27 +1,61 @@
 import { Range } from "../location"
 import { Pauser } from "../parserAPI"
 
+export type EndData = {
+    end: Range
+    closeCharacter: string
+    comments: Comment[]
+}
+
+export type PropertyData = {
+    keyRange: Range
+    comments: Comment[]
+}
+
 export type ObjectHandler = {
-    property: (key: string, keyRange: Range, comments: Comment[]) => ValueHandler
-    end: (end: Range, closeCharacter: string, comments: Comment[]) => void
+    property: (key: string, metaData: PropertyData) => ValueHandler
+    end: (metaData: EndData) => void
 }
 
 export type ArrayHandler = {
-    element: (start: Range, comments: Comment[]) => ValueHandler
-    end: (end: Range, closeCharacter: string, comments: Comment[]) => void
+    element: () => ValueHandler
+    end: (metaData: EndData) => void
 }
 
-export type OnObject = (start: Range, openCharacter: string, comments: Comment[], pauser: Pauser) => ObjectHandler
-export type OnArray = (start: Range, openCharacter: string, comments: Comment[], pauser: Pauser) => ArrayHandler
-export type OnQuotedString = (value: string, range: Range, comments: Comment[], pauser: Pauser) => void
-export type OnUnquotedToken = (value: string, range: Range, comments: Comment[], pauser: Pauser) => void
-export type OnTaggedUnion = (option: string, start: Range, tuComments: Comment[], optionRange: Range, optionComments: Comment[], pauser: Pauser) => ValueHandler
+export type BeginData = {
+    start: Range
+    openCharacter: string
+    comments: Comment[]
+    pauser: Pauser
+}
+
+export type OnObject = (metaData: BeginData) => ObjectHandler
+
+export type OnArray = (metaData: BeginData) => ArrayHandler
+
+export type SimpleValueData = {
+    quoted: boolean
+    range: Range
+    comments: Comment[]
+    pauser: Pauser
+}
+
+export type OnSimpleValue = (value: string, metaData: SimpleValueData) => void
+
+export type TaggedUnionData = {
+    start: Range
+    tuComments: Comment[]
+    optionRange: Range
+    optionComments: Comment[]
+    pauser: Pauser
+}
+
+export type OnTaggedUnion = (option: string, metaData: TaggedUnionData) => ValueHandler
 
 export interface ValueHandler {
     object: OnObject
     array: OnArray
-    quotedString: OnQuotedString
-    unquotedToken: OnUnquotedToken
+    simpleValue: OnSimpleValue
     taggedUnion: OnTaggedUnion
 }
 

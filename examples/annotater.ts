@@ -2,35 +2,36 @@ import * as bc from "../src"
 
 export function createValuesAnnotater(indentation: string, writer: (str: string) => void): bc.ValueHandler {
     return {
-        array: start => {
-            writer(`${indentation}[ // ${bc.printRange(start)}`)
+        array: beginMetaData => {
+            writer(`${indentation}[ // ${bc.printRange(beginMetaData.start)}`)
             return {
                 element: () => createValuesAnnotater(`${indentation}\t`, writer),
-                end: (end => {
-                    writer(`${indentation}] // ${bc.printRange(end)}`)
-                }),
+                end: endMetaData => {
+                    writer(`${indentation}] // ${bc.printRange(endMetaData.end)}`)
+                },
             }
         },
-        object: start => {
-            writer(`${indentation}{ // ${bc.printRange(start)}`)
+        object: beginMetaData => {
+            writer(`${indentation}{ // ${bc.printRange(beginMetaData.start)}`)
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}"${key}": `)
                     return createValuesAnnotater(`${indentation}\t`, writer)
                 },
-                end: end => {
-                    writer(`${indentation}} // ${bc.printRange(end)}`)
+                end: endMetaData => {
+                    writer(`${indentation}} // ${bc.printRange(endMetaData.end)}`)
                 },
             }
         },
-        quotedString: (value, range) => {
-            writer(`${indentation}${JSON.stringify(value)} // ${bc.printRange(range)}`)
+        simpleValue: (value, metaData) => {
+            if (metaData.quoted) {
+                writer(`${indentation}${JSON.stringify(value)} // ${bc.printRange(metaData.range)}`)
+            } else {
+                writer(`${indentation}${value} // ${bc.printRange(metaData.range)}`)
+            }
         },
-        unquotedToken: (value, range) => {
-            writer(`${indentation}${value} // ${bc.printRange(range)}`)
-        },
-        taggedUnion: (option, startRange, _tuComments, optionRange, _optionComments) => {
-            writer(`| ${indentation}"${JSON.stringify(option)}" // ${bc.printRange(startRange)} ${bc.printRange(optionRange)}`)
+        taggedUnion: (option, metaData) => {
+            writer(`| ${indentation}"${JSON.stringify(option)}" // ${bc.printRange(metaData.start)} ${bc.printRange(metaData.optionRange)}`)
             return createValuesAnnotater(`${indentation}\t`, writer)
         },
     }

@@ -1,5 +1,10 @@
 import * as bc from "../src"
 import * as fs from "fs"
+import {
+    createDummyArrayHandler,
+    createDummyObjectHandler,
+    createDummyValueHandler,
+} from "../src"
 
 const [, , path] = process.argv
 
@@ -19,7 +24,11 @@ const ec = new bc.ExpectContext(
     },
     (_message, _range) => {
         throw new Error("encounterd warning")
-    }
+    },
+    () => createDummyArrayHandler(),
+    () => createDummyObjectHandler(),
+    () => createDummyValueHandler(),
+    () => createDummyValueHandler(),
 )
 
 /**
@@ -32,7 +41,7 @@ parser.ondata.subscribe(bc.createStackedDataSubscriber(
         },
         {
             "prop a": {
-                onExists: (_propRange, _propComments) => ec.expectNumber((_value, _range, _comments) => {
+                onExists: _propertyMetaData => ec.expectNumber((_value, _metaData) => {
                     //handle 'prop a'
                 }),
                 onNotExists: null,

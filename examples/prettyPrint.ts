@@ -12,35 +12,36 @@ const data = fs.readFileSync(path, {encoding: "utf-8"})
 
 export function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
     return {
-        array: (_startLocation, openCharacter, _comments) => {
-            writer(openCharacter)
+        array: beginMetaData => {
+            writer(beginMetaData.openCharacter)
             return {
                 element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
-                end: ((_endLocation, endCharacter) => {
-                    writer(`${indentation}${endCharacter}`)
-                }),
+                end: endMetaData => {
+                    writer(`${indentation}${endMetaData.end}`)
+                },
             }
 
         },
-        object: (_startlocation, openCharacter, _comments) => {
-            writer(openCharacter)
+        object: metaData => {
+            writer(metaData.openCharacter)
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}\t"${key}": `)
                     return createValuesPrettyPrinter(`${indentation}\t`, writer)
                 },
-                end: (_endLocation, endCharacter) => {
-                    writer(`${indentation}${endCharacter}`)
+                end: endMetaData => {
+                    writer(`${indentation}${endMetaData.end}`)
                 },
             }
         },
-        unquotedToken: (value, _range, _comments) => {
-            writer(`${value}`)
+        simpleValue: (value, metaData) => {
+            if (metaData.quoted) {
+                writer(`${JSON.stringify(value)}`)
+            } else {
+                writer(`${value}`)
+            }
         },
-        quotedString: (value, _range, _comments) => {
-            writer(`${JSON.stringify(value)}`)
-        },
-        taggedUnion: (option, _unionStart, _optionRange, _comments) => {
+        taggedUnion: (option, _metaData) => {
             writer(`| "${option}" `)
             return createValuesPrettyPrinter(`${indentation}`, writer)
         },
