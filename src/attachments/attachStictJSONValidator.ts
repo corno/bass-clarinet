@@ -321,7 +321,7 @@ class StrictJSONValidator implements DataSubscriber {
                 const $ = this.currentContext[1]
                 switch ($.state) {
                     case ObjectState.EXPECTING_COLON: {
-                        this.onError(`colon is required in strict JSON`, range)
+                        this.onError(`a colon is required in strict JSON`, range)
                         break
                     }
                     case ObjectState.EXPECTING_COMMA_OR_OBJECT_END: {
