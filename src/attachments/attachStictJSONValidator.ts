@@ -237,48 +237,50 @@ class StrictJSONValidator implements IDataSubscriber {
         this.onError("tagged unions are not allowed in strict JSON", range)
         this.push(["taggedunion", {}])
     }
-    public onUnquotedToken(value: string, metaData: SimpleValueData) {
-        this.onValue(metaData.range)
-        switch (value) {
-            case "true": {
-                return
+    public onSimpleValue(value: string, metaData: SimpleValueData) {
+        if (metaData.quote !== null) {
+            //a string
+            if (metaData.quote !== "\"") {
+                this.onError(`invalid string, should start with'"' in strict JSON`, metaData.range)
             }
-            case "false": {
-                return
+            switch (metaData.role) {
+                case SimpleValueRole.KEY: {
+                    if (this.currentContext[0] !== "object") {
+                        this.onError(`keys can only occur in objects`, metaData.range)
+                        return
+                    }
+                    this.currentContext[1].state = ObjectState.EXPECTING_COLON
+                    break
+                }
+                case SimpleValueRole.OPTION: {
+                    break
+                }
+                case SimpleValueRole.VALUE: {
+                    this.onValue(metaData.range)
+                    break
+                }
+                default:
+                    return assertUnreachable(metaData.role)
             }
-            case "null": {
-                return
-            }
-        }
-        const firstChar = value.charCodeAt(0)
-        if (firstChar === Char.Number.minus || Char.Number._0 <= firstChar && firstChar <= Char.Number._9) {
-            validateIsJSONNumber(value, message => this.onError(message, metaData.range))
-            return
-        }
-        this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, metaData.range)
-    }
-    public onQuotedString(_value: string, metaData: SimpleValueData) {
-        if (metaData.quote !== "\"") {
-            this.onError(`invalid string, should start with'"' in strict JSON`, metaData.range)
-        }
-        switch (metaData.role) {
-            case SimpleValueRole.KEY: {
-                if (this.currentContext[0] !== "object") {
-                    this.onError(`keys can only occur in objects`, metaData.range)
+        } else {
+            this.onValue(metaData.range)
+            switch (value) {
+                case "true": {
                     return
                 }
-                this.currentContext[1].state = ObjectState.EXPECTING_COLON
-                break
+                case "false": {
+                    return
+                }
+                case "null": {
+                    return
+                }
             }
-            case SimpleValueRole.OPTION: {
-                break
+            const firstChar = value.charCodeAt(0)
+            if (firstChar === Char.Number.minus || Char.Number._0 <= firstChar && firstChar <= Char.Number._9) {
+                validateIsJSONNumber(value, message => this.onError(message, metaData.range))
+                return
             }
-            case SimpleValueRole.VALUE: {
-                this.onValue(metaData.range)
-                break
-            }
-            default:
-                return assertUnreachable(metaData.role)
+            this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, metaData.range)
         }
     }
     private push(newContext: ContextType) {

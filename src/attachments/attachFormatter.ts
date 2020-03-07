@@ -200,9 +200,6 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
     public onCloseTaggedUnion(_location: Location) {
         //
     }
-    public onKey(_key: string, _quote: string, range: Range) {
-        this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
-    }
     public onLineComment(_comment: string, range: Range) {
         this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
     }
@@ -215,13 +212,7 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
     public onOpenTaggedUnion(range: Range) {
         this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
     }
-    public onOption(_option: string, _quote: string, range: Range) {
-        this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
-    }
-    public onUnquotedToken(_value: string, metaData: SimpleValueData) {
-        this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)
-    }
-    public onQuotedString(_value: string, metaData: SimpleValueData) {
+    public onSimpleValue(_value: string, metaData: SimpleValueData) {
         this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)
     }
     /**

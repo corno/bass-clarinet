@@ -216,7 +216,7 @@ export function createStackedDataSubscriber(
             }
             pop(metaData.range)
         },
-        onQuotedString: (value, metaData) => {
+        onSimpleValue: (value, metaData) => {
             switch (metaData.role) {
                 case SimpleValueRole.KEY: {
                     if (DEBUG) { console.log("on key", value) }
@@ -253,7 +253,7 @@ export function createStackedDataSubscriber(
                 }
                 case SimpleValueRole.VALUE: {
 
-                    if (DEBUG) { console.log("on quoted string", value) }
+                    if (DEBUG) { console.log("on simple value", value) }
                     const vh = initValueHandler()
                     vh.simpleValue(
                         value,
@@ -265,15 +265,6 @@ export function createStackedDataSubscriber(
                 default:
                     return assertUnreachable(metaData.role)
             }
-        },
-        onUnquotedToken: (value, metaData) => {
-            if (DEBUG) { console.log("on value", value) }
-            const vh = initValueHandler()
-            vh.simpleValue(
-                value,
-                metaData,
-                flushComments()
-            )
         },
         onEnd: () => {
             onend(flushComments())

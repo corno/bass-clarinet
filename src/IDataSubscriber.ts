@@ -50,8 +50,7 @@ export interface IDataSubscriber {
     onOpenObject(metaData: OpenData): void
     onCloseObject(metaData: CloseData): void
 
-    onQuotedString(value: string, metaData: SimpleValueData): void
-    onUnquotedToken(value: string, metaData: SimpleValueData): void
+    onSimpleValue(value: string, metaData: SimpleValueData): void
 
     onBlockComment(comment: string, range: Range, pauser: Pauser): void
     onLineComment(comment: string, range: Range, pauser: Pauser): void

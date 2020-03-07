@@ -363,7 +363,7 @@ export class Parser implements IParser {
             end: location,
         }
         this.onNonStringValue(range)
-        this.oncurrentdata.signal(s => s.onUnquotedToken(
+        this.oncurrentdata.signal(s => s.onSimpleValue(
             $.unquotedTokenNode,
             {
                 quote: null,
@@ -416,7 +416,7 @@ export class Parser implements IParser {
         this.wrapupBeforeValue(range)
         const $ = this.currentContext
         const onStringValue = () => {
-            this.oncurrentdata.signal(s => s.onQuotedString(
+            this.oncurrentdata.signal(s => s.onSimpleValue(
                 value,
                 {
                     role: SimpleValueRole.VALUE,
@@ -438,7 +438,7 @@ export class Parser implements IParser {
                 const $$ = $[1]
                 switch ($$.state) {
                     case ObjectState.EXPECTING_KEY:
-                        this.oncurrentdata.signal(s => s.onQuotedString(
+                        this.oncurrentdata.signal(s => s.onSimpleValue(
                             value,
                             {
                                 role: SimpleValueRole.KEY,
@@ -469,7 +469,7 @@ export class Parser implements IParser {
                 const $$ = $[1]
                 switch ($$.state) {
                     case TaggedUnionState.EXPECTING_OPTION:
-                        this.oncurrentdata.signal(s => s.onQuotedString(
+                        this.oncurrentdata.signal(s => s.onSimpleValue(
                             value,
                             {
                                 role: SimpleValueRole.OPTION,

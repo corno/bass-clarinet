@@ -27,13 +27,9 @@ parser.ondata.subscribe({
     onBlockComment: (_comment, _range) => {
         //
     },
-    onQuotedString: _metaData => {
+    onSimpleValue: (_value, _metaData) => {
         //place your code here
-        //in strict JSON, only '"' is valid for _quote
-    },
-    onUnquotedToken: (_value, _range) => {
-        //place your code here
-        //in strict JSON, only "null", "true" or "false" are valid for _value
+        //in strict JSON, the value is a string, a number, null, true or false
     },
     onOpenTaggedUnion: _range => {
         //place your code here

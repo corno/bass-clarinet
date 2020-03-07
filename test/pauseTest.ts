@@ -43,12 +43,9 @@ parser.ondata.subscribe({
     onBlockComment: (_comment, _range, pauser) => {
         pause(pauser)
     },
-    onQuotedString: (_value, metaData) => {
-        console.log("QUOTED")
+    onSimpleValue: (_value, metaData) => {
+        console.log("SIMPLE VALUE")
         pause(metaData.pauser)
-    },
-    onUnquotedToken: (_value, _range) => {
-        //
     },
     onOpenTaggedUnion: (_range, pauser) => {
         pause(pauser)

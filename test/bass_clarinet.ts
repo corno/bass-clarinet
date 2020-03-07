@@ -98,26 +98,27 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             onBlockComment: (comment, _range) => {
                 out.push("/*" + comment + "*/")
             },
-            onQuotedString: (value, metaData) => {
-                switch (metaData.role) {
-                    case SimpleValueRole.KEY: {
-                        out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
-                        break
+            onSimpleValue: (value, metaData) => {
+                if (metaData.quote !== null) {
+                    switch (metaData.role) {
+                        case SimpleValueRole.KEY: {
+                            out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
+                            break
+                        }
+                        case SimpleValueRole.OPTION: {
+                            out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
+                            break
+                        }
+                        case SimpleValueRole.VALUE: {
+                            out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
+                            break
+                        }
+                        default:
+                            return assertUnreachable(metaData.role)
                     }
-                    case SimpleValueRole.OPTION: {
-                        out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
-                        break
-                    }
-                    case SimpleValueRole.VALUE: {
-                        out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
-                        break
-                    }
-                    default:
-                        return assertUnreachable(metaData.role)
+                } else {
+                    out.push(value)
                 }
-            },
-            onUnquotedToken: (value, _range) => {
-                out.push(value)
             },
             onOpenTaggedUnion: _range => {
                 out.push("|")
@@ -191,29 +192,30 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (DEBUG) console.log("found block comment")
                 actualEvents.push(["blockcomment", v, getRange(test.testForLocation, range)])
             },
-            onUnquotedToken: (v, metaData) => {
-                if (DEBUG) console.log("found unquoted token")
-                actualEvents.push(["unquotedtoken", v, getRange(test.testForLocation, metaData.range)])
-            },
-            onQuotedString: (v, metaData) => {
-                switch (metaData.role) {
-                    case SimpleValueRole.KEY: {
-                        if (DEBUG) console.log("found key")
-                        actualEvents.push(["key", v, getRange(test.testForLocation, metaData.range)])
-                        break
+            onSimpleValue: (v, metaData) => {
+                if (metaData.quote === null) {
+                    if (DEBUG) console.log("found unquoted token")
+                    actualEvents.push(["unquotedtoken", v, getRange(test.testForLocation, metaData.range)])
+                } else {
+                    switch (metaData.role) {
+                        case SimpleValueRole.KEY: {
+                            if (DEBUG) console.log("found key")
+                            actualEvents.push(["key", v, getRange(test.testForLocation, metaData.range)])
+                            break
+                        }
+                        case SimpleValueRole.OPTION: {
+                            if (DEBUG) console.log("found option")
+                            actualEvents.push(["option", v, getRange(test.testForLocation, metaData.range)])
+                            break
+                        }
+                        case SimpleValueRole.VALUE: {
+                            if (DEBUG) console.log("found quoted string with role ''")
+                            actualEvents.push(["quotedstring", v, getRange(test.testForLocation, metaData.range)])
+                            break
+                        }
+                        default:
+                            return assertUnreachable(metaData.role)
                     }
-                    case SimpleValueRole.OPTION: {
-                        if (DEBUG) console.log("found option")
-                        actualEvents.push(["option", v, getRange(test.testForLocation, metaData.range)])
-                        break
-                    }
-                    case SimpleValueRole.VALUE: {
-                        if (DEBUG) console.log("found quoted string with role ''")
-                        actualEvents.push(["quotedstring", v, getRange(test.testForLocation, metaData.range)])
-                        break
-                    }
-                    default:
-                        return assertUnreachable(metaData.role)
                 }
             },
 
