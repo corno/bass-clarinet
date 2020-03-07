@@ -1,12 +1,6 @@
 import { Pauser } from "./parserAPI"
 import { Location, Range } from "./location"
 
-export enum SimpleValueRole {
-    VALUE,
-    OPTION,
-    KEY,
-}
-
 export type OpenData = {
     start: Range
     openCharacter: string
@@ -23,12 +17,11 @@ export type PropertyData = {
     keyRange: Range
 }
 
-export type SimpleValueData = {
+export type StringData = {
     quote: string | null
     terminated: boolean | null
     range: Range
     pauser: Pauser
-    role: SimpleValueRole
 }
 
 export type TaggedUnionData = {
@@ -45,12 +38,11 @@ export interface IDataSubscriber {
     onCloseArray(metaData: CloseData): void
 
     onOpenTaggedUnion(range: Range, pauser: Pauser): void
-    onCloseTaggedUnion(location: Location): void
 
     onOpenObject(metaData: OpenData): void
     onCloseObject(metaData: CloseData): void
 
-    onSimpleValue(value: string, metaData: SimpleValueData): void
+    onString(value: string, metaData: StringData): void
 
     onBlockComment(comment: string, range: Range, pauser: Pauser): void
     onLineComment(comment: string, range: Range, pauser: Pauser): void

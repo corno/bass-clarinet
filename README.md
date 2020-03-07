@@ -189,9 +189,6 @@ parser.ondata.subscribe({
     onOpenTaggedUnion: _range => {
         //place your code here
     },
-    onCloseTaggedUnion: () => {
-        //place your code here
-    },
     onOption: (_option, _range) => {
         //place your code here
     },

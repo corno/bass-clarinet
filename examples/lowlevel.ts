@@ -27,14 +27,11 @@ parser.ondata.subscribe({
     onBlockComment: (_comment, _range) => {
         //
     },
-    onSimpleValue: (_value, _metaData) => {
+    onString: (_value, _metaData) => {
         //place your code here
         //in strict JSON, the value is a string, a number, null, true or false
     },
     onOpenTaggedUnion: _range => {
-        //place your code here
-    },
-    onCloseTaggedUnion: () => {
         //place your code here
     },
     onOpenArray: _metaData => {

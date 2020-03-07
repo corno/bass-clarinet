@@ -3,7 +3,7 @@ import {
     OpenData,
     CloseData,
     PropertyData,
-    SimpleValueData,
+    StringData,
     TaggedUnionData,
 } from "../IDataSubscriber"
 
@@ -27,7 +27,7 @@ export type OnObject = (metaData: OpenData, comments: Comment[]) => ObjectHandle
 
 export type OnArray = (metaData: OpenData, comments: Comment[]) => ArrayHandler
 
-export type OnSimpleValue = (value: string, metaData: SimpleValueData, comments: Comment[]) => void
+export type OnSimpleValue = (value: string, metaData: StringData, comments: Comment[]) => void
 
 export type OnTaggedUnion = (option: string, metaData: TaggedUnionData, beginComments: Comment[], optionComments: Comment[]) => ValueHandler
 

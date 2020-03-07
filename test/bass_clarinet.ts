@@ -9,16 +9,12 @@ import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { SimpleValueRole, createDummyArrayHandler, createDummyObjectHandler, createDummyValueHandler } from "../src"
+import { createDummyArrayHandler, createDummyObjectHandler, createDummyValueHandler } from "../src"
 
 const DEBUG = false
 
 const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
-
-function assertUnreachable(_x: never) {
-    throw new Error("unreachable")
-}
 
 //const selectedJSONTests: string[] = ["two keys"]
 //const selectedExtensionTests: string[] = []
@@ -98,33 +94,15 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             onBlockComment: (comment, _range) => {
                 out.push("/*" + comment + "*/")
             },
-            onSimpleValue: (value, metaData) => {
+            onString: (value, metaData) => {
                 if (metaData.quote !== null) {
-                    switch (metaData.role) {
-                        case SimpleValueRole.KEY: {
-                            out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
-                            break
-                        }
-                        case SimpleValueRole.OPTION: {
-                            out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
-                            break
-                        }
-                        case SimpleValueRole.VALUE: {
-                            out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
-                            break
-                        }
-                        default:
-                            return assertUnreachable(metaData.role)
-                    }
+                    out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
                 } else {
                     out.push(value)
                 }
             },
             onOpenTaggedUnion: _range => {
                 out.push("|")
-            },
-            onCloseTaggedUnion: () => {
-                //
             },
             onOpenArray: metaData => {
                 out.push(metaData.openCharacter)
@@ -192,40 +170,19 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (DEBUG) console.log("found block comment")
                 actualEvents.push(["blockcomment", v, getRange(test.testForLocation, range)])
             },
-            onSimpleValue: (v, metaData) => {
+            onString: (v, metaData) => {
                 if (metaData.quote === null) {
                     if (DEBUG) console.log("found unquoted token")
                     actualEvents.push(["unquotedtoken", v, getRange(test.testForLocation, metaData.range)])
                 } else {
-                    switch (metaData.role) {
-                        case SimpleValueRole.KEY: {
-                            if (DEBUG) console.log("found key")
-                            actualEvents.push(["key", v, getRange(test.testForLocation, metaData.range)])
-                            break
-                        }
-                        case SimpleValueRole.OPTION: {
-                            if (DEBUG) console.log("found option")
-                            actualEvents.push(["option", v, getRange(test.testForLocation, metaData.range)])
-                            break
-                        }
-                        case SimpleValueRole.VALUE: {
-                            if (DEBUG) console.log("found quoted string with role ''")
-                            actualEvents.push(["quotedstring", v, getRange(test.testForLocation, metaData.range)])
-                            break
-                        }
-                        default:
-                            return assertUnreachable(metaData.role)
-                    }
+                    if (DEBUG) console.log("found quoted string")
+                    actualEvents.push(["quotedstring", v, getRange(test.testForLocation, metaData.range)])
                 }
             },
 
             onOpenTaggedUnion: range => {
                 if (DEBUG) console.log("found open tagged union")
                 actualEvents.push(["opentaggedunion", getRange(test.testForLocation, range)])
-            },
-            onCloseTaggedUnion: () => {
-                if (DEBUG) console.log("found close tagged union")
-                actualEvents.push(["closetaggedunion"])
             },
             onOpenArray: metaData => {
                 if (DEBUG) console.log("found open array")

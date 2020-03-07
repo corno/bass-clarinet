@@ -2,7 +2,7 @@
     no-console:"off",
     no-underscore-dangle: "off",
 */
-import { IDataSubscriber, SimpleValueRole } from "../IDataSubscriber"
+import { IDataSubscriber, StringData } from "../IDataSubscriber"
 import { Location, Range } from "../location"
 import { createDummyValueHandler } from "./dummyHandlers"
 import { ValueHandler, ObjectHandler, ArrayHandler, Comment } from "./handlers"
@@ -16,7 +16,7 @@ export type ContextType =
     }]
     | ["object", {
         readonly objectHandler: ObjectHandler
-        valueHandler: null | ValueHandler
+        propertyValueHandler: null | ValueHandler
     }]
     | ["array", {
         readonly arrayHandler: ArrayHandler
@@ -24,7 +24,7 @@ export type ContextType =
     | ["taggedunion", {
         readonly start: Range
         readonly parentValueHandler: ValueHandler
-        valueHandler: null | ValueHandler
+        dataHandler: null | ValueHandler
         comments: Comment[]
     }]
 
@@ -39,12 +39,6 @@ function raiseRangeError(onError: (error: StackedDataError) => void, message: st
     onError({
         message: message,
         context: ["range", range],
-    })
-}
-function raiseLocationError(onError: (error: StackedDataError) => void, message: string, location: Location) {
-    onError({
-        message: message,
-        context: ["location", location],
     })
 }
 
@@ -84,22 +78,58 @@ export function createStackedDataSubscriber(
                 return currentContext[1].arrayHandler.element()
             }
             case "object": {
-                if (currentContext[1].valueHandler === null) {
+                if (currentContext[1].propertyValueHandler === null) {
                     //error is already reported by parser
                     return createDummyValueHandler()
                 } else {
-                    return currentContext[1].valueHandler
+                    return currentContext[1].propertyValueHandler
                 }
             }
             case "root": {
                 return currentContext[1].valueHandler
             }
             case "taggedunion": {
-                if (currentContext[1].valueHandler === null) {
+                if (currentContext[1].dataHandler === null) {
                     //error is already reported by parser
                     return createDummyValueHandler()
                 } else {
-                    return currentContext[1].valueHandler
+                    return currentContext[1].dataHandler
+                }
+            }
+            default:
+                return assertUnreachable(currentContext[0])
+        }
+    }
+    function onSimpleValue(value: string, metaData: StringData) {
+        if (DEBUG) { console.log("on simple value", value) }
+        const vh = initValueHandler()
+        vh.simpleValue(
+            value,
+            metaData,
+            flushComments()
+        )
+        wrapupValue(metaData.range)
+    }
+    function wrapupValue(range: Range): void {
+        switch (currentContext[0]) {
+            case "array": {
+                break
+            }
+            case "object": {
+                currentContext[1].propertyValueHandler = null
+                break
+            }
+            case "root": {
+                break
+            }
+            case "taggedunion": {
+                if (currentContext[1].dataHandler === null) {
+                    //error is already reported by parser
+                    break
+                } else {
+                    pop(range)
+                    wrapupValue(range)
+                    break
                 }
             }
             default:
@@ -171,24 +201,18 @@ export function createStackedDataSubscriber(
             if (currentContext[0] !== "array") {
                 raiseRangeError(onError, "unexpected end of array", metaData.range)
             } else {
-                pop(metaData.range)
                 currentContext[1].arrayHandler.end(
                     metaData,
                     flushComments()
                 )
+                pop(metaData.range)
+                wrapupValue(metaData.range)
             }
         },
         onOpenTaggedUnion: range => {
             if (DEBUG) { console.log("on open tagged union") }
             stack.push(currentContext)
-            currentContext = ["taggedunion", { start: range, parentValueHandler: initValueHandler(), valueHandler: null, comments: flushComments() }]
-        },
-        onCloseTaggedUnion: location => {
-            if (DEBUG) { console.log("on close tagged union") }
-            if (currentContext[0] !== "taggedunion") {
-                raiseLocationError(onError, "unexpected end of tagged union", location)
-            }
-            pop({ start: location, end: location })
+            currentContext = ["taggedunion", { start: range, parentValueHandler: initValueHandler(), dataHandler: null, comments: flushComments() }]
         },
         onOpenObject: metaData => {
 
@@ -201,7 +225,7 @@ export function createStackedDataSubscriber(
             stack.push(currentContext)
             currentContext = ["object", {
                 objectHandler: objectHandler,
-                valueHandler: null,
+                propertyValueHandler: null,
             }]
         },
         onCloseObject: metaData => {
@@ -213,57 +237,66 @@ export function createStackedDataSubscriber(
                     metaData,
                     flushComments()
                 )
+                pop(metaData.range)
+                wrapupValue(metaData.range)
             }
-            pop(metaData.range)
-        },
-        onSimpleValue: (value, metaData) => {
-            switch (metaData.role) {
-                case SimpleValueRole.KEY: {
-                    if (DEBUG) { console.log("on key", value) }
-                    if (currentContext[0] !== "object") {
-                        raiseRangeError(onError, "unexpected key", metaData.range)
-                    } else {
-                        currentContext[1].valueHandler = currentContext[1].objectHandler.property(
-                            value,
-                            {
-                                keyRange: metaData.range,
-                            },
-                            flushComments()
-                        )
-                    }
-                    break
-                }
-                case SimpleValueRole.OPTION: {
-                    if (DEBUG) { console.log("on option", value) }
-                    if (currentContext[0] !== "taggedunion") {
-                        raiseRangeError(onError, "unexpected option", metaData.range)
-                    } else {
-                        currentContext[1].valueHandler = currentContext[1].parentValueHandler.taggedUnion(
-                            value,
-                            {
-                                startRange: currentContext[1].start,
-                                optionRange: metaData.range,
-                                pauser: metaData.pauser,
-                            },
-                            currentContext[1].comments,
-                            flushComments()
-                        )
-                    }
-                    break
-                }
-                case SimpleValueRole.VALUE: {
 
-                    if (DEBUG) { console.log("on simple value", value) }
-                    const vh = initValueHandler()
-                    vh.simpleValue(
-                        value,
-                        metaData,
-                        flushComments()
-                    )
+        },
+        onString: (value, metaData) => {
+            switch (currentContext[0]) {
+                case "array": {
+                    onSimpleValue(value, metaData)
+                    break
+                }
+                case "object": {
+                    const $ = currentContext[1]
+                    if ($.propertyValueHandler === null) {
+                        if (DEBUG) { console.log("on key", value) }
+                        if (currentContext[0] !== "object") {
+                            raiseRangeError(onError, "unexpected key", metaData.range)
+                        } else {
+                            currentContext[1].propertyValueHandler = currentContext[1].objectHandler.property(
+                                value,
+                                {
+                                    keyRange: metaData.range,
+                                },
+                                flushComments()
+                            )
+                        }
+                    } else {
+                        onSimpleValue(value, metaData)
+                    }
+                    break
+                }
+                case "root": {
+                    onSimpleValue(value, metaData)
+                    break
+                }
+                case "taggedunion": {
+                    const $ = currentContext[1]
+                    if ($.dataHandler === null) {
+                        if (DEBUG) { console.log("on option", value) }
+                        if (currentContext[0] !== "taggedunion") {
+                            raiseRangeError(onError, "unexpected option", metaData.range)
+                        } else {
+                            currentContext[1].dataHandler = currentContext[1].parentValueHandler.taggedUnion(
+                                value,
+                                {
+                                    startRange: currentContext[1].start,
+                                    optionRange: metaData.range,
+                                    pauser: metaData.pauser,
+                                },
+                                currentContext[1].comments,
+                                flushComments()
+                            )
+                        }
+                    } else {
+                        onSimpleValue(value, metaData)
+                    }
                     break
                 }
                 default:
-                    return assertUnreachable(metaData.role)
+                    return assertUnreachable(currentContext[0])
             }
         },
         onEnd: () => {

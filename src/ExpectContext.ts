@@ -5,7 +5,7 @@ import {
     OpenData,
     CloseData,
     PropertyData,
-    SimpleValueData,
+    StringData,
     TaggedUnionData,
 } from "./IDataSubscriber"
 import {
@@ -329,7 +329,7 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("nothing"),
         }
     }
-    public expectSimpleValueImp(expected: string, callback: (value: string, metaData: SimpleValueData) => void): ValueHandler {
+    public expectSimpleValueImp(expected: string, callback: (value: string, metaData: StringData) => void): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler(expected),
             object: this.createUnexpectedObjectHandler(expected),
@@ -337,10 +337,10 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expected),
         }
     }
-    public expectSimpleValue(callback: (value: string, metaData: SimpleValueData) => void): ValueHandler {
+    public expectSimpleValue(callback: (value: string, metaData: StringData) => void): ValueHandler {
         return this.expectSimpleValueImp("simple value", callback)
     }
-    public expectBoolean(callback: (value: boolean, metaData: SimpleValueData) => void): ValueHandler {
+    public expectBoolean(callback: (value: boolean, metaData: StringData) => void): ValueHandler {
         return this.expectSimpleValueImp("boolean", (rawValue, metaData) => {
             if (metaData.quote !== null) {
                 this.createUnexpectedSimpleValueHandler("boolean")
@@ -360,7 +360,7 @@ export class ExpectContext {
             }
         })
     }
-    public expectNull(callback: (metaData: SimpleValueData) => void): ValueHandler {
+    public expectNull(callback: (metaData: StringData) => void): ValueHandler {
         return this.expectSimpleValueImp("null", (rawValue, metaData) => {
             if (rawValue === "null") {
                 return callback(metaData)
@@ -368,7 +368,7 @@ export class ExpectContext {
             return this.createUnexpectedSimpleValueHandler("null")
         })
     }
-    public expectNumber(callback: (value: number, metaData: SimpleValueData) => void): ValueHandler {
+    public expectNumber(callback: (value: number, metaData: StringData) => void): ValueHandler {
         return this.expectSimpleValueImp("number", (rawValue, metaData) => {
             //eslint-disable-next-line
             const nr = new Number(rawValue).valueOf()

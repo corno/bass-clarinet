@@ -21,7 +21,7 @@ import {
 } from "./parserStateTypes"
 import { Location, Range, printRange } from "./location"
 import { RangeError } from "./errors"
-import { IDataSubscriber, SimpleValueRole } from "./IDataSubscriber"
+import { IDataSubscriber } from "./IDataSubscriber"
 
 const DEBUG = false
 
@@ -363,14 +363,13 @@ export class Parser implements IParser {
             end: location,
         }
         this.onNonStringValue(range)
-        this.oncurrentdata.signal(s => s.onSimpleValue(
+        this.oncurrentdata.signal(s => s.onString(
             $.unquotedTokenNode,
             {
                 quote: null,
                 terminated: null,
                 pauser: pauser,
                 range: range,
-                role: SimpleValueRole.VALUE,
             }
         ))
         this.wrapupAfterValue(range)
@@ -416,10 +415,9 @@ export class Parser implements IParser {
         this.wrapupBeforeValue(range)
         const $ = this.currentContext
         const onStringValue = () => {
-            this.oncurrentdata.signal(s => s.onSimpleValue(
+            this.oncurrentdata.signal(s => s.onString(
                 value,
                 {
-                    role: SimpleValueRole.VALUE,
                     //startCharacter: $tok.startCharacter,
                     terminated: quote !== null,
                     range: range,
@@ -438,10 +436,9 @@ export class Parser implements IParser {
                 const $$ = $[1]
                 switch ($$.state) {
                     case ObjectState.EXPECTING_KEY:
-                        this.oncurrentdata.signal(s => s.onSimpleValue(
+                        this.oncurrentdata.signal(s => s.onString(
                             value,
                             {
-                                role: SimpleValueRole.KEY,
                                 range: range,
                                 quote: $tok.startCharacter,
                                 terminated: quote !== null,
@@ -469,10 +466,9 @@ export class Parser implements IParser {
                 const $$ = $[1]
                 switch ($$.state) {
                     case TaggedUnionState.EXPECTING_OPTION:
-                        this.oncurrentdata.signal(s => s.onSimpleValue(
+                        this.oncurrentdata.signal(s => s.onString(
                             value,
                             {
-                                role: SimpleValueRole.OPTION,
                                 range: range,
                                 quote: $tok.startCharacter,
                                 terminated: quote !== null,
@@ -557,7 +553,7 @@ export class Parser implements IParser {
                 const $$ = $[1]
                 switch ($$.state) {
                     case ObjectState.EXPECTING_KEY:
-                        this.raiseError("expected key", range)
+                        //this.raiseError("expected key", range)
                         break
                     case ObjectState.EXPECTING_OBJECT_VALUE:
                         $$.state = ObjectState.EXPECTING_KEY
@@ -682,7 +678,6 @@ export class Parser implements IParser {
             case StackContextType.ROOT:
                 break
             case StackContextType.TAGGED_UNION:
-                this.oncurrentdata.signal(s => s.onCloseTaggedUnion(range.end))
                 this.popContext(range)
                 break
             default:

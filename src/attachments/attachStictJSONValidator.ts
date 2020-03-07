@@ -3,11 +3,11 @@
     no-underscore-dangle:"off",
     max-classes-per-file: "off",
 */
-import { IDataSubscriber, SimpleValueRole, OpenData, CloseData, SimpleValueData } from "../IDataSubscriber"
+import { IDataSubscriber, OpenData, CloseData, StringData } from "../IDataSubscriber"
 import { Parser, HeaderSubscriber } from "../Parser"
-import { Range, Location } from "../location"
+import { Range } from "../location"
 import * as Char from "./NumberCharacters"
-import { LocationError } from "../errors"
+import { RangeError } from "../errors"
 
 type OnError = (message: string, range: Range) => void
 
@@ -85,6 +85,11 @@ export enum ArrayState {
     EXPECTING_COMMA_OR_ARRAY_END, // , or ]
 }
 
+export enum TaggedUnionState {
+    EXPECTING_OPTION,
+    EXPECTING_DATA,
+}
+
 type ContextType =
     | ["root", {
         //readonly valueHandler: ValueHandler
@@ -97,6 +102,7 @@ type ContextType =
         state: ArrayState
     }]
     | ["taggedunion", {
+        state: TaggedUnionState
         // readonly start: Range
         // readonly parentValueHandler: ValueHandler
         // valueHandler: null | ValueHandler
@@ -136,9 +142,8 @@ class StrictJSONValidator implements IDataSubscriber {
         }
         if (this.currentContext[1].state !== ObjectState.EXPECTING_COLON) {
             this.onError(`did not expect a colon`, range)
-        } else {
-            this.currentContext[1].state = ObjectState.EXPECTING_OBJECT_VALUE
         }
+        this.currentContext[1].state = ObjectState.EXPECTING_OBJECT_VALUE
     }
     public onComma(range: Range) {
         switch (this.currentContext[0]) {
@@ -146,18 +151,16 @@ class StrictJSONValidator implements IDataSubscriber {
                 const $ = this.currentContext[1]
                 if ($.state !== ArrayState.EXPECTING_COMMA_OR_ARRAY_END) {
                     this.onError(`did not expect a comma`, range)
-                } else {
-                    $.state = ArrayState.EXPECTING_ARRAYVALUE
                 }
+                $.state = ArrayState.EXPECTING_ARRAYVALUE
                 break
             }
             case "object": {
                 const $ = this.currentContext[1]
                 if ($.state !== ObjectState.EXPECTING_COMMA_OR_OBJECT_END) {
                     this.onError(`did not expect a comma`, range)
-                } else {
-                    $.state = ObjectState.EXPECTING_OBJECT_VALUE
                 }
+                $.state = ObjectState.EXPECTING_KEY_OR_OBJECT_END
                 break
             }
             case "root": {
@@ -188,7 +191,8 @@ class StrictJSONValidator implements IDataSubscriber {
                 this.onError("trailing commas are not allowed", metaData.range)
             }
         }
-        this.pop(metaData.range.end)
+        this.pop(metaData.range)
+        this.wrapupValue(metaData.range)
     }
     public onCloseObject(metaData: CloseData) {
         if (metaData.closeCharacter !== "}") {
@@ -201,10 +205,8 @@ class StrictJSONValidator implements IDataSubscriber {
                 this.onError("trailing commas are not allowed in strict JSON", metaData.range)
             }
         }
-        this.pop(metaData.range.end)
-    }
-    public onCloseTaggedUnion(location: Location) {
-        this.pop(location)
+        this.pop(metaData.range)
+        this.wrapupValue(metaData.range)
     }
     public onEnd() {
         //
@@ -235,32 +237,76 @@ class StrictJSONValidator implements IDataSubscriber {
     }
     public onOpenTaggedUnion(range: Range) {
         this.onError("tagged unions are not allowed in strict JSON", range)
-        this.push(["taggedunion", {}])
+        this.push(["taggedunion", { state: TaggedUnionState.EXPECTING_OPTION }])
     }
-    public onSimpleValue(value: string, metaData: SimpleValueData) {
+    public onString(value: string, metaData: StringData) {
         if (metaData.quote !== null) {
             //a string
             if (metaData.quote !== "\"") {
                 this.onError(`invalid string, should start with'"' in strict JSON`, metaData.range)
             }
-            switch (metaData.role) {
-                case SimpleValueRole.KEY: {
-                    if (this.currentContext[0] !== "object") {
-                        this.onError(`keys can only occur in objects`, metaData.range)
-                        return
-                    }
-                    this.currentContext[1].state = ObjectState.EXPECTING_COLON
-                    break
-                }
-                case SimpleValueRole.OPTION: {
-                    break
-                }
-                case SimpleValueRole.VALUE: {
+            switch (this.currentContext[0]) {
+                case "array": {
                     this.onValue(metaData.range)
+                    this.wrapupValue(metaData.range)
+                    break
+                }
+                case "object": {
+                    const $ = this.currentContext[1]
+                    switch ($.state) {
+                        case ObjectState.EXPECTING_COLON: {
+                            this.onValue(metaData.range)
+                            this.wrapupValue(metaData.range)
+                            break
+                        }
+                        case ObjectState.EXPECTING_COMMA_OR_OBJECT_END: {
+                            this.onError("missing comma", metaData.range)
+                            this.currentContext[1].state = ObjectState.EXPECTING_COLON
+                            break
+                        }
+                        case ObjectState.EXPECTING_KEY: {
+                            this.currentContext[1].state = ObjectState.EXPECTING_COLON
+                            break
+                        }
+                        case ObjectState.EXPECTING_KEY_OR_OBJECT_END: {
+                            this.currentContext[1].state = ObjectState.EXPECTING_COLON
+                            break
+                        }
+                        case ObjectState.EXPECTING_OBJECT_VALUE: {
+                            this.onValue(metaData.range)
+                            this.wrapupValue(metaData.range)
+                            break
+                        }
+                        default:
+                            return assertUnreachable($.state[0])
+                    }
+                    break
+                }
+                case "root": {
+                    //const $ = this.currentContext[1]
+                    this.onValue(metaData.range)
+                    this.wrapupValue(metaData.range)
+                    break
+                }
+                case "taggedunion": {
+                    const $ = this.currentContext[1]
+                    switch ($.state) {
+                        case TaggedUnionState.EXPECTING_OPTION: {
+                            $.state = TaggedUnionState.EXPECTING_DATA
+                            break
+                        }
+                        case TaggedUnionState.EXPECTING_DATA: {
+
+                            break
+                        }
+                        default:
+                            return assertUnreachable($.state)
+                    }
+
                     break
                 }
                 default:
-                    return assertUnreachable(metaData.role)
+                    return assertUnreachable(this.currentContext[0])
             }
         } else {
             this.onValue(metaData.range)
@@ -281,6 +327,7 @@ class StrictJSONValidator implements IDataSubscriber {
                 return
             }
             this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, metaData.range)
+            this.wrapupValue(metaData.range)
         }
     }
     private push(newContext: ContextType) {
@@ -288,12 +335,36 @@ class StrictJSONValidator implements IDataSubscriber {
         this.currentContext = newContext
     }
 
-    private pop(location: Location) {
+    private pop(range: Range) {
         const previousContext = this.stack.pop()
         if (previousContext === undefined) {
-            throw new LocationError("stack panic; lost context", location)
+            throw new RangeError("stack panic; lost context", range)
         }
         this.currentContext = previousContext
+    }
+    private wrapupValue(range: Range) {
+        switch (this.currentContext[0]) {
+            case "array": {
+                const $ = this.currentContext[1]
+                $.state = ArrayState.EXPECTING_COMMA_OR_ARRAY_END
+                break
+            }
+            case "object": {
+                const $ = this.currentContext[1]
+                $.state = ObjectState.EXPECTING_COMMA_OR_OBJECT_END
+                break
+            }
+            case "root": {
+                break
+            }
+            case "taggedunion": {
+                //don't report. Tagged unions are not supported at all
+                this.pop(range)
+                break
+            }
+            default:
+                return assertUnreachable(this.currentContext[0])
+        }
     }
     private onValue(range: Range) {
         switch (this.currentContext[0]) {
@@ -335,7 +406,7 @@ class StrictJSONValidator implements IDataSubscriber {
                         break
                     }
                     case ObjectState.EXPECTING_KEY_OR_OBJECT_END: {
-                        this.onError(`expected key or array end`, range)
+                        this.onError(`expected key or object end`, range)
                         break
                     }
                     case ObjectState.EXPECTING_OBJECT_VALUE: {
@@ -343,7 +414,7 @@ class StrictJSONValidator implements IDataSubscriber {
                         break
                     }
                     default:
-                        return assertUnreachable($.state)
+                        assertUnreachable($.state)
                 }
                 $.state = ObjectState.EXPECTING_COMMA_OR_OBJECT_END
                 break

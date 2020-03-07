@@ -1,4 +1,4 @@
-import { IDataSubscriber, OpenData, CloseData, SimpleValueData } from "../IDataSubscriber"
+import { IDataSubscriber, OpenData, CloseData, StringData } from "../IDataSubscriber"
 import { HeaderSubscriber, Parser } from "../Parser"
 import { Range, Location, printRange } from "../location"
 
@@ -197,9 +197,6 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
     public onCloseObject(metaData: CloseData) {
         this.onCloseToken(metaData.range)
     }
-    public onCloseTaggedUnion(_location: Location) {
-        //
-    }
     public onLineComment(_comment: string, range: Range) {
         this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
     }
@@ -212,7 +209,7 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
     public onOpenTaggedUnion(range: Range) {
         this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
     }
-    public onSimpleValue(_value: string, metaData: SimpleValueData) {
+    public onString(_value: string, metaData: StringData) {
         this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)
     }
     /**

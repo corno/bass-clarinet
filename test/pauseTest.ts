@@ -43,15 +43,12 @@ parser.ondata.subscribe({
     onBlockComment: (_comment, _range, pauser) => {
         pause(pauser)
     },
-    onSimpleValue: (_value, metaData) => {
+    onString: (_value, metaData) => {
         console.log("SIMPLE VALUE")
         pause(metaData.pauser)
     },
     onOpenTaggedUnion: (_range, pauser) => {
         pause(pauser)
-    },
-    onCloseTaggedUnion: () => {
-        //
     },
     onOpenArray: metaData => {
         console.log("OPEN ARRAY")
