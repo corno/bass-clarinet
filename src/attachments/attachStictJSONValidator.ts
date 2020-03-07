@@ -3,11 +3,11 @@
     no-underscore-dangle:"off",
     max-classes-per-file: "off",
 */
-
-import { DataSubscriber, Parser, HeaderSubscriber, SimpleValueRole } from "../Parser";
-import { Range, Location } from "../location";
-import * as Char from "./NumberCharacters";
-import { LocationError } from "../errors";
+import { IDataSubscriber, SimpleValueRole, OpenData, CloseData, SimpleValueData } from "../IDataSubscriber"
+import { Parser, HeaderSubscriber } from "../Parser"
+import { Range, Location } from "../location"
+import * as Char from "./NumberCharacters"
+import { LocationError } from "../errors"
 
 type OnError = (message: string, range: Range) => void
 
@@ -120,7 +120,7 @@ class StrictJSONHeaderValidator implements HeaderSubscriber {
     }
 }
 
-class StrictJSONValidator implements DataSubscriber {
+class StrictJSONValidator implements IDataSubscriber {
     private readonly onError: OnError
     private readonly stack: ContextType[] = []
     private currentContext: ContextType = ["root", {}]
@@ -177,31 +177,31 @@ class StrictJSONValidator implements DataSubscriber {
     public onBlockComment(_comment: string, range: Range) {
         this.onError("block comments are not allowed in strict JSON", range)
     }
-    public onCloseArray(range: Range, closeCharacter: string) {
-        if (closeCharacter !== "]") {
-            this.onError("arrays should end with ']' in strict JSON", range)
+    public onCloseArray(metaData: CloseData) {
+        if (metaData.closeCharacter !== "]") {
+            this.onError("arrays should end with ']' in strict JSON", metaData.range)
         }
         if (this.currentContext[0] !== "array") {
-            this.onError("unpaired ']'", range)
+            this.onError("unpaired ']'", metaData.range)
         } else {
             if (this.currentContext[1].state === ArrayState.EXPECTING_ARRAYVALUE) {
-                this.onError("trailing commas are not allowed", range)
+                this.onError("trailing commas are not allowed", metaData.range)
             }
         }
-        this.pop(range.end)
+        this.pop(metaData.range.end)
     }
-    public onCloseObject(range: Range, closeCharacter: string) {
-        if (closeCharacter !== "}") {
-            this.onError("objects should end with '}' in strict JSON", range)
+    public onCloseObject(metaData: CloseData) {
+        if (metaData.closeCharacter !== "}") {
+            this.onError("objects should end with '}' in strict JSON", metaData.range)
         }
         if (this.currentContext[0] !== "object") {
-            this.onError("unpaired '}'", range)
+            this.onError("unpaired '}'", metaData.range)
         } else {
             if (this.currentContext[1].state === ObjectState.EXPECTING_KEY) {
-                this.onError("trailing commas are not allowed in strict JSON", range)
+                this.onError("trailing commas are not allowed in strict JSON", metaData.range)
             }
         }
-        this.pop(range.end)
+        this.pop(metaData.range.end)
     }
     public onCloseTaggedUnion(location: Location) {
         this.pop(location)
@@ -218,27 +218,27 @@ class StrictJSONValidator implements DataSubscriber {
     public onLineComment(_comment: string, range: Range) {
         this.onError("line comments are not allowed in strict JSON", range)
     }
-    public onOpenArray(range: Range, openCharacter: string) {
-        if (openCharacter !== "[") {
-            this.onError("arrays should start with '[' in strict JSON", range)
+    public onOpenArray(metaData: OpenData) {
+        if (metaData.openCharacter !== "[") {
+            this.onError("arrays should start with '[' in strict JSON", metaData.start)
         }
-        this.onValue(range)
+        this.onValue(metaData.start)
         this.push(["array", { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
 
     }
-    public onOpenObject(range: Range, openCharacter: string) {
-        if (openCharacter !== "{") {
-            this.onError("objects should start with '{' in strict JSON", range)
+    public onOpenObject(metaData: OpenData) {
+        if (metaData.openCharacter !== "{") {
+            this.onError("objects should start with '{' in strict JSON", metaData.start)
         }
-        this.onValue(range)
+        this.onValue(metaData.start)
         this.push(["object", { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END }])
     }
     public onOpenTaggedUnion(range: Range) {
         this.onError("tagged unions are not allowed in strict JSON", range)
         this.push(["taggedunion", {}])
     }
-    public onUnquotedToken(value: string, range: Range) {
-        this.onValue(range)
+    public onUnquotedToken(value: string, metaData: SimpleValueData) {
+        this.onValue(metaData.range)
         switch (value) {
             case "true": {
                 return
@@ -252,19 +252,19 @@ class StrictJSONValidator implements DataSubscriber {
         }
         const firstChar = value.charCodeAt(0)
         if (firstChar === Char.Number.minus || Char.Number._0 <= firstChar && firstChar <= Char.Number._9) {
-            validateIsJSONNumber(value, message => this.onError(message, range))
+            validateIsJSONNumber(value, message => this.onError(message, metaData.range))
             return
         }
-        this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, range)
+        this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, metaData.range)
     }
-    public onQuotedString(_value: string, role: SimpleValueRole, quote: string, range: Range) {
-        if (quote !== "\"") {
-            this.onError(`invalid string, should start with'"' in strict JSON`, range)
+    public onQuotedString(_value: string, metaData: SimpleValueData) {
+        if (metaData.quote !== "\"") {
+            this.onError(`invalid string, should start with'"' in strict JSON`, metaData.range)
         }
-        switch (role) {
+        switch (metaData.role) {
             case SimpleValueRole.KEY: {
                 if (this.currentContext[0] !== "object") {
-                    this.onError(`keys can only occur in objects`, range)
+                    this.onError(`keys can only occur in objects`, metaData.range)
                     return
                 }
                 this.currentContext[1].state = ObjectState.EXPECTING_COLON
@@ -274,11 +274,11 @@ class StrictJSONValidator implements DataSubscriber {
                 break
             }
             case SimpleValueRole.VALUE: {
-                this.onValue(range)
+                this.onValue(metaData.range)
                 break
             }
             default:
-                return assertUnreachable(role)
+                return assertUnreachable(metaData.role)
         }
     }
     private push(newContext: ContextType) {

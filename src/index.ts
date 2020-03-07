@@ -1,5 +1,6 @@
 export * from "./errors"
 export * from "./subscription"
+export * from "./IDataSubscriber"
 export * from "./Parser"
 export * from "./Tokenizer"
 export * from "./configurationTypes"

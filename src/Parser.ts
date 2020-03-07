@@ -9,7 +9,6 @@
 import * as subscr from "./subscription"
 import * as Char from "./Characters"
 import { IParser, Pauser } from "./parserAPI"
-
 import {
     RootState,
     ObjectState,
@@ -22,6 +21,7 @@ import {
 } from "./parserStateTypes"
 import { Location, Range, printRange } from "./location"
 import { RangeError } from "./errors"
+import { IDataSubscriber, SimpleValueRole } from "./IDataSubscriber"
 
 const DEBUG = false
 
@@ -68,38 +68,7 @@ function getContextDescription(stackContext: StackContext) {
     }
 }
 
-export enum SimpleValueRole {
-    VALUE,
-    OPTION,
-    KEY,
-}
-
-export interface DataSubscriber {
-    onComma(range: Range, pauser: Pauser): void
-    onColon(range: Range, pauser: Pauser): void
-
-    onOpenArray(range: Range, openCharacter: string, pauser: Pauser): void
-    onCloseArray(range: Range, closeCharacter: string, pauser: Pauser): void
-
-    onOpenTaggedUnion(range: Range, pauser: Pauser): void
-    onCloseTaggedUnion(location: Location): void
-
-    onOpenObject(range: Range, openCharacter: string, pauser: Pauser): void
-    onCloseObject(range: Range, closeCharacter: string, pauser: Pauser): void
-
-    onQuotedString(value: string, type: SimpleValueRole, quote: string, range: Range, terminated: boolean, pauser: Pauser): void
-    onUnquotedToken(value: string, range: Range, pauser: Pauser): void
-
-    onBlockComment(comment: string, range: Range, pauser: Pauser): void
-    onLineComment(comment: string, range: Range, pauser: Pauser): void
-
-    onNewLine(range: Range): void
-    onWhitespace(value: string, range: Range): void
-    onEnd(location: Location): void
-
-}
-
-export type DataSubscription = subscr.Subscribers<DataSubscriber>
+export type DataSubscription = subscr.Subscribers<IDataSubscriber>
 
 export interface HeaderSubscriber {
     onHeaderStart(range: Range): void
@@ -109,11 +78,11 @@ export interface HeaderSubscriber {
 
 export class Parser implements IParser {
     public readonly stack = new Array<StackContext>()
-    public readonly onschemadata = new subscr.Subscribers<DataSubscriber>()
-    public readonly ondata = new subscr.Subscribers<DataSubscriber>()
+    public readonly onschemadata = new subscr.Subscribers<IDataSubscriber>()
+    public readonly ondata = new subscr.Subscribers<IDataSubscriber>()
     public readonly onheaderdata = new subscr.Subscribers<HeaderSubscriber>()
     private currentContext: StackContext
-    private oncurrentdata: subscr.Subscribers<DataSubscriber>
+    private oncurrentdata: subscr.Subscribers<IDataSubscriber>
     private currentToken: CurrentToken = [TokenType.NONE]
     private readonly onerror: (message: string, range: Range) => void
 
@@ -394,7 +363,16 @@ export class Parser implements IParser {
             end: location,
         }
         this.onNonStringValue(range)
-        this.oncurrentdata.signal(s => s.onUnquotedToken($.unquotedTokenNode, range, pauser))
+        this.oncurrentdata.signal(s => s.onUnquotedToken(
+            $.unquotedTokenNode,
+            {
+                quote: null,
+                terminated: null,
+                pauser: pauser,
+                range: range,
+                role: SimpleValueRole.VALUE,
+            }
+        ))
         this.wrapupAfterValue(range)
         this.unsetCurrentToken({ start: location, end: location })
     }
@@ -438,7 +416,17 @@ export class Parser implements IParser {
         this.wrapupBeforeValue(range)
         const $ = this.currentContext
         const onStringValue = () => {
-            this.oncurrentdata.signal(s => s.onQuotedString(value, SimpleValueRole.VALUE, $tok.startCharacter, range, quote !== null, pauser))
+            this.oncurrentdata.signal(s => s.onQuotedString(
+                value,
+                {
+                    role: SimpleValueRole.VALUE,
+                    //startCharacter: $tok.startCharacter,
+                    terminated: quote !== null,
+                    range: range,
+                    quote: $tok.startCharacter,
+                    pauser: pauser,
+                }
+            ))
             this.wrapupAfterValue(range)
         }
         switch ($[0]) {
@@ -450,7 +438,16 @@ export class Parser implements IParser {
                 const $$ = $[1]
                 switch ($$.state) {
                     case ObjectState.EXPECTING_KEY:
-                        this.oncurrentdata.signal(s => s.onQuotedString(value, SimpleValueRole.KEY, $tok.startCharacter, range, quote !== null, pauser))
+                        this.oncurrentdata.signal(s => s.onQuotedString(
+                            value,
+                            {
+                                role: SimpleValueRole.KEY,
+                                range: range,
+                                quote: $tok.startCharacter,
+                                terminated: quote !== null,
+                                pauser: pauser,
+                            }
+                        ))
                         $$.state = ObjectState.EXPECTING_OBJECT_VALUE
 
                         break
@@ -472,7 +469,16 @@ export class Parser implements IParser {
                 const $$ = $[1]
                 switch ($$.state) {
                     case TaggedUnionState.EXPECTING_OPTION:
-                        this.oncurrentdata.signal(s => s.onQuotedString(value, SimpleValueRole.OPTION, $tok.startCharacter, range, quote !== null, pauser))
+                        this.oncurrentdata.signal(s => s.onQuotedString(
+                            value,
+                            {
+                                role: SimpleValueRole.OPTION,
+                                range: range,
+                                quote: $tok.startCharacter,
+                                terminated: quote !== null,
+                                pauser: pauser,
+                            }
+                        ))
                         $$.state = TaggedUnionState.EXPECTING_VALUE
                         break
                     case TaggedUnionState.EXPECTING_VALUE: {
@@ -492,24 +498,40 @@ export class Parser implements IParser {
     private onObjectOpen(curChar: number, range: Range, pauser: Pauser) {
         this.onNonStringValue(range)
         this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
-        this.oncurrentdata.signal(s => s.onOpenObject(range, String.fromCharCode(curChar), pauser))
+        this.oncurrentdata.signal(s => s.onOpenObject({
+            start: range,
+            openCharacter: String.fromCharCode(curChar),
+            pauser: pauser,
+        }))
     }
     private onObjectClose(curChar: number, range: Range, pauser: Pauser) {
         if (this.currentContext[0] !== StackContextType.OBJECT) {
             this.raiseError("not in an object", range)
-            this.oncurrentdata.signal(s => s.onCloseObject(range, String.fromCharCode(curChar), pauser))
+            this.oncurrentdata.signal(s => s.onCloseObject({
+                range: range,
+                closeCharacter: String.fromCharCode(curChar),
+                pauser: pauser,
+            }))
         } else {
             if (this.currentContext[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
                 this.raiseError("missing property value", range)
             }
-            this.oncurrentdata.signal(s => s.onCloseObject(range, String.fromCharCode(curChar), pauser))
+            this.oncurrentdata.signal(s => s.onCloseObject({
+                range: range,
+                closeCharacter: String.fromCharCode(curChar),
+                pauser: pauser,
+            }))
             this.popContext(range)
         }
     }
     private onArrayOpen(curChar: number, range: Range, pauser: Pauser) {
         this.onNonStringValue(range)
         this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
-        this.oncurrentdata.signal(s => s.onOpenArray(range, String.fromCharCode(curChar), pauser))
+        this.oncurrentdata.signal(s => s.onOpenArray({
+            start: range,
+            openCharacter: String.fromCharCode(curChar),
+            pauser: pauser,
+        }))
     }
     private onArrayClose(curChar: number, range: Range, pauser: Pauser) {
         const $ = this.currentContext
@@ -518,7 +540,11 @@ export class Parser implements IParser {
         } else {
             this.popContext(range)
         }
-        this.oncurrentdata.signal(s => s.onCloseArray(range, String.fromCharCode(curChar), pauser))
+        this.oncurrentdata.signal(s => s.onCloseArray({
+            range: range,
+            closeCharacter: String.fromCharCode(curChar),
+            pauser: pauser,
+        }))
     }
     private onNonStringValue(range: Range) {
         this.wrapupBeforeValue(range)

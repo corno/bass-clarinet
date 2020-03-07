@@ -85,7 +85,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             const escaped = JSON.stringify(str)
             return escaped.substring(1, escaped.length - 1) //remove quotes
         }
-        const outputter: bc.DataSubscriber = {
+        const outputter: bc.IDataSubscriber = {
             onComma: () => {
                 out.push(",")
             },
@@ -98,22 +98,22 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             onBlockComment: (comment, _range) => {
                 out.push("/*" + comment + "*/")
             },
-            onQuotedString: (value, role, quote, _range, terminated) => {
-                switch (role) {
+            onQuotedString: (value, metaData) => {
+                switch (metaData.role) {
                     case SimpleValueRole.KEY: {
-                        out.push(quote + serialize(value) + (terminated ? quote : ""))
+                        out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
                         break
                     }
                     case SimpleValueRole.OPTION: {
-                        out.push(quote + serialize(value) + (terminated ? quote : ""))
+                        out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
                         break
                     }
                     case SimpleValueRole.VALUE: {
-                        out.push(quote + serialize(value) + (terminated ? quote : ""))
+                        out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
                         break
                     }
                     default:
-                        return assertUnreachable(role)
+                        return assertUnreachable(metaData.role)
                 }
             },
             onUnquotedToken: (value, _range) => {
@@ -125,17 +125,17 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             onCloseTaggedUnion: () => {
                 //
             },
-            onOpenArray: (_openCharacterRange, openCharacter) => {
-                out.push(openCharacter)
+            onOpenArray: metaData => {
+                out.push(metaData.openCharacter)
             },
-            onCloseArray: (_closeCharacterRange, closeCharacter) => {
-                out.push(closeCharacter)
+            onCloseArray: metaData => {
+                out.push(metaData.closeCharacter)
             },
-            onOpenObject: (_startRange, openCharacter) => {
-                out.push(openCharacter)
+            onOpenObject: metaData => {
+                out.push(metaData.openCharacter)
             },
-            onCloseObject: (_endRange, closeCharacter) => {
-                out.push(closeCharacter)
+            onCloseObject: metaData => {
+                out.push(metaData.closeCharacter)
             },
             onNewLine: () => {
                 out.push("\n")
@@ -170,7 +170,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 actualEvents.push(["validationerror", v])
             })
         }
-        const eventSubscriber: bc.DataSubscriber = {
+        const eventSubscriber: bc.IDataSubscriber = {
             onComma: () => {
                 //
             },
@@ -191,29 +191,29 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (DEBUG) console.log("found block comment")
                 actualEvents.push(["blockcomment", v, getRange(test.testForLocation, range)])
             },
-            onUnquotedToken: (v, range) => {
+            onUnquotedToken: (v, metaData) => {
                 if (DEBUG) console.log("found unquoted token")
-                actualEvents.push(["unquotedtoken", v, getRange(test.testForLocation, range)])
+                actualEvents.push(["unquotedtoken", v, getRange(test.testForLocation, metaData.range)])
             },
-            onQuotedString: (v, role, _quote, range) => {
-                switch (role) {
+            onQuotedString: (v, metaData) => {
+                switch (metaData.role) {
                     case SimpleValueRole.KEY: {
                         if (DEBUG) console.log("found key")
-                        actualEvents.push(["key", v, getRange(test.testForLocation, range)])
+                        actualEvents.push(["key", v, getRange(test.testForLocation, metaData.range)])
                         break
                     }
                     case SimpleValueRole.OPTION: {
                         if (DEBUG) console.log("found option")
-                        actualEvents.push(["option", v, getRange(test.testForLocation, range)])
+                        actualEvents.push(["option", v, getRange(test.testForLocation, metaData.range)])
                         break
                     }
                     case SimpleValueRole.VALUE: {
                         if (DEBUG) console.log("found quoted string with role ''")
-                        actualEvents.push(["quotedstring", v, getRange(test.testForLocation, range)])
+                        actualEvents.push(["quotedstring", v, getRange(test.testForLocation, metaData.range)])
                         break
                     }
                     default:
-                        return assertUnreachable(role)
+                        return assertUnreachable(metaData.role)
                 }
             },
 
@@ -225,21 +225,21 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (DEBUG) console.log("found close tagged union")
                 actualEvents.push(["closetaggedunion"])
             },
-            onOpenArray: (range, v) => {
+            onOpenArray: metaData => {
                 if (DEBUG) console.log("found open array")
-                actualEvents.push(["openarray", v, getRange(test.testForLocation, range)])
+                actualEvents.push(["openarray", metaData.openCharacter, getRange(test.testForLocation, metaData.start)])
             },
-            onCloseArray: (range, v) => {
+            onCloseArray: metaData => {
                 if (DEBUG) console.log("found close array")
-                actualEvents.push(["closearray", v, getRange(test.testForLocation, range)])
+                actualEvents.push(["closearray", metaData.closeCharacter, getRange(test.testForLocation, metaData.range)])
             },
-            onOpenObject: (range, v) => {
+            onOpenObject: metaData => {
                 if (DEBUG) console.log("found open object")
-                actualEvents.push(["openobject", v, getRange(test.testForLocation, range)])
+                actualEvents.push(["openobject", metaData.openCharacter, getRange(test.testForLocation, metaData.start)])
             },
-            onCloseObject: (range, v) => {
+            onCloseObject: metaData => {
                 if (DEBUG) console.log("found close object")
-                actualEvents.push(["closeobject", v, getRange(test.testForLocation, range)])
+                actualEvents.push(["closeobject", metaData.closeCharacter, getRange(test.testForLocation, metaData.range)])
             },
             onEnd: location => {
                 if (DEBUG) console.log("found end")

@@ -7,7 +7,7 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
             return {
                 element: () => createValuesAnnotater(`${indentation}\t`, writer),
                 end: endMetaData => {
-                    writer(`${indentation}] // ${bc.printRange(endMetaData.end)}`)
+                    writer(`${indentation}] // ${bc.printRange(endMetaData.range)}`)
                 },
             }
         },
@@ -19,19 +19,19 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
                     return createValuesAnnotater(`${indentation}\t`, writer)
                 },
                 end: endMetaData => {
-                    writer(`${indentation}} // ${bc.printRange(endMetaData.end)}`)
+                    writer(`${indentation}} // ${bc.printRange(endMetaData.range)}`)
                 },
             }
         },
         simpleValue: (value, metaData) => {
-            if (metaData.quoted) {
+            if (metaData.quote !== null) {
                 writer(`${indentation}${JSON.stringify(value)} // ${bc.printRange(metaData.range)}`)
             } else {
                 writer(`${indentation}${value} // ${bc.printRange(metaData.range)}`)
             }
         },
         taggedUnion: (option, metaData) => {
-            writer(`| ${indentation}"${JSON.stringify(option)}" // ${bc.printRange(metaData.start)} ${bc.printRange(metaData.optionRange)}`)
+            writer(`| ${indentation}"${JSON.stringify(option)}" // ${bc.printRange(metaData.startRange)} ${bc.printRange(metaData.optionRange)}`)
             return createValuesAnnotater(`${indentation}\t`, writer)
         },
     }

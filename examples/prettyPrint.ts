@@ -17,7 +17,7 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
             return {
                 element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
                 end: endMetaData => {
-                    writer(`${indentation}${endMetaData.end}`)
+                    writer(`${indentation}${endMetaData.range}`)
                 },
             }
 
@@ -30,12 +30,12 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
                     return createValuesPrettyPrinter(`${indentation}\t`, writer)
                 },
                 end: endMetaData => {
-                    writer(`${indentation}${endMetaData.end}`)
+                    writer(`${indentation}${endMetaData.range}`)
                 },
             }
         },
         simpleValue: (value, metaData) => {
-            if (metaData.quoted) {
+            if (metaData.quote !== null) {
                 writer(`${JSON.stringify(value)}`)
             } else {
                 writer(`${value}`)

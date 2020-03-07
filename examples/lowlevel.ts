@@ -27,7 +27,7 @@ parser.ondata.subscribe({
     onBlockComment: (_comment, _range) => {
         //
     },
-    onQuotedString: (_value, _role, _quote, _range) => {
+    onQuotedString: _metaData => {
         //place your code here
         //in strict JSON, only '"' is valid for _quote
     },
@@ -41,16 +41,16 @@ parser.ondata.subscribe({
     onCloseTaggedUnion: () => {
         //place your code here
     },
-    onOpenArray: (_openCharacterRange, _openCharacter) => {
+    onOpenArray: _metaData => {
         //place your code here
     },
-    onCloseArray: (_closeCharacterRange, _closeCharacter) => {
+    onCloseArray: _metaData => {
         //place your code here
     },
-    onOpenObject: (_startRange, _openCharacter) => {
+    onOpenObject: _metaData => {
         //place your code here
     },
-    onCloseObject: (_endRange, _closeCharacter) => {
+    onCloseObject: _metaData => {
         //place your code here
     },
     onEnd: () => {

@@ -1,5 +1,6 @@
-import { DataSubscriber, HeaderSubscriber, Parser, SimpleValueRole } from "../Parser";
-import { Range, Location, printRange } from "../location";
+import { IDataSubscriber, OpenData, CloseData, SimpleValueData } from "../IDataSubscriber"
+import { HeaderSubscriber, Parser } from "../Parser"
+import { Range, Location, printRange } from "../location"
 
 function assertUnreachable(_x: never) {
     throw new Error("unreachable")
@@ -53,7 +54,7 @@ function getIndent(indentationLevel: number) {
 
 type Collection = { contentStartsOnNewLine: boolean }
 
-export class Formatter implements DataSubscriber, HeaderSubscriber {
+export class Formatter implements IDataSubscriber, HeaderSubscriber {
     private readonly documentAPI: DocumentAPI
     private readonly stack: Collection[] = []
     private currentCollection: Collection | null = null
@@ -190,11 +191,11 @@ export class Formatter implements DataSubscriber, HeaderSubscriber {
     public onBlockComment(_comment: string, range: Range) {
         this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
     }
-    public onCloseArray(range: Range) {
-        this.onCloseToken(range)
+    public onCloseArray(metaData: CloseData) {
+        this.onCloseToken(metaData.range)
     }
-    public onCloseObject(range: Range) {
-        this.onCloseToken(range)
+    public onCloseObject(metaData: CloseData) {
+        this.onCloseToken(metaData.range)
     }
     public onCloseTaggedUnion(_location: Location) {
         //
@@ -205,11 +206,11 @@ export class Formatter implements DataSubscriber, HeaderSubscriber {
     public onLineComment(_comment: string, range: Range) {
         this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
     }
-    public onOpenArray(range: Range) {
-        this.onOpenToken(range)
+    public onOpenArray(metaData: OpenData) {
+        this.onOpenToken(metaData.start)
     }
-    public onOpenObject(range: Range) {
-        this.onOpenToken(range)
+    public onOpenObject(metaData: OpenData) {
+        this.onOpenToken(metaData.start)
     }
     public onOpenTaggedUnion(range: Range) {
         this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
@@ -217,11 +218,11 @@ export class Formatter implements DataSubscriber, HeaderSubscriber {
     public onOption(_option: string, _quote: string, range: Range) {
         this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
     }
-    public onUnquotedToken(value: string, range: Range) {
-        this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
+    public onUnquotedToken(_value: string, metaData: SimpleValueData) {
+        this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)
     }
-    public onQuotedString(_value: string, type: SimpleValueRole, quote: string, range: Range) {
-        this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
+    public onQuotedString(_value: string, metaData: SimpleValueData) {
+        this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)
     }
     /**
      * Private methods
