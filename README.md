@@ -78,41 +78,36 @@ const data = fs.readFileSync(path, {encoding: "utf-8"})
 
 export function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
     return {
-        array: (_startLocation, openCharacter, _comments) => {
-            writer(openCharacter)
+        array: beginMetaData => {
+            writer(beginMetaData.openCharacter)
             return {
                 element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
-                end: ((_endLocation, endCharacter) => {
-                    writer(`${indentation}${endCharacter}`)
-                }),
+                end: endMetaData => {
+                    writer(`${indentation}${endMetaData.range}`)
+                },
             }
 
         },
-        object: (_startlocation, openCharacter, _comments) => {
-            writer(openCharacter)
+        object: metaData => {
+            writer(metaData.openCharacter)
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}\t"${key}": `)
                     return createValuesPrettyPrinter(`${indentation}\t`, writer)
                 },
-                end: (_endLocation, endCharacter) => {
-                    writer(`${indentation}${endCharacter}`)
+                end: endMetaData => {
+                    writer(`${indentation}${endMetaData.range}`)
                 },
             }
         },
-        boolean: (isTrue, _range, _comments) => {
-            writer(`${isTrue ? "true":"false"}`)
+        simpleValue: (value, metaData) => {
+            if (metaData.quote !== null) {
+                writer(`${JSON.stringify(value)}`)
+            } else {
+                writer(`${value}`)
+            }
         },
-        number: (value, _range, _comments) => {
-            writer(`${value.toString(10)}`)//JSON.stringify(value)
-        },
-        string: (value, _range, _comments) => {
-            writer(`${JSON.stringify(value)}`)//JSON.stringify(value)
-        },
-        null: _comments => {
-            writer(`null`)
-        },
-        taggedUnion: (option, _unionStart, _optionRange, _comments) => {
+        taggedUnion: (option, _metaData) => {
             writer(`| "${option}" `)
             return createValuesPrettyPrinter(`${indentation}`, writer)
         },
@@ -178,33 +173,23 @@ parser.ondata.subscribe({
     onBlockComment: (_comment, _range) => {
         //
     },
-    onQuotedString: (_value, _quote, _range) => {
+    onString: (_value, _metaData) => {
         //place your code here
-        //in strict JSON, only '"' is valid for _quote
-    },
-    onUnquotedToken: (_value, _range) => {
-        //place your code here
-        //in strict JSON, only "null", "true" or "false" are valid for _value
+        //in strict JSON, the value is a string, a number, null, true or false
     },
     onOpenTaggedUnion: _range => {
         //place your code here
     },
-    onOption: (_option, _range) => {
+    onOpenArray: _metaData => {
         //place your code here
     },
-    onOpenArray: (_openCharacterRange, _openCharacter) => {
+    onCloseArray: _metaData => {
         //place your code here
     },
-    onCloseArray: (_closeCharacterRange, _closeCharacter) => {
+    onOpenObject: _metaData => {
         //place your code here
     },
-    onOpenObject: (_startRange, _openCharacter) => {
-        //place your code here
-    },
-    onCloseObject: (_endRange, _closeCharacter) => {
-        //place your code here
-    },
-    onKey: (_key, _range) => {
+    onCloseObject: _metaData => {
         //place your code here
     },
     onEnd: () => {
@@ -229,6 +214,11 @@ bc.tokenizeString(
 ``` TypeScript
 import * as bc from "bass-clarinet"
 import * as fs from "fs"
+import {
+    createDummyArrayHandler,
+    createDummyObjectHandler,
+    createDummyValueHandler,
+} from "../src"
 
 const [, , path] = process.argv
 
@@ -248,7 +238,11 @@ const ec = new bc.ExpectContext(
     },
     (_message, _range) => {
         throw new Error("encounterd warning")
-    }
+    },
+    () => createDummyArrayHandler(),
+    () => createDummyObjectHandler(),
+    () => createDummyValueHandler(),
+    () => createDummyValueHandler(),
 )
 
 /**
@@ -260,12 +254,18 @@ parser.ondata.subscribe(bc.createStackedDataSubscriber(
             //prepare code here
         },
         {
-            "prop a": (_propRange, _propComments) => ec.expectNumber((_value, _range, _comments) => {
-                //handle 'prop a'
-            }),
-            "prop b": () => ec.expectNumber(_value => {
-                //handle 'prop b'
-            }),
+            "prop a": {
+                onExists: _propertyMetaData => ec.expectNumber((_value, _metaData) => {
+                    //handle 'prop a'
+                }),
+                onNotExists: null,
+            },
+            "prop b": {
+                onExists: () => ec.expectNumber(_value => {
+                    //handle 'prop b'
+                }),
+                onNotExists: null,
+            },
         },
         (_hasErrors, _range, _comments) => {
             //wrap up the object
