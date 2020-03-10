@@ -382,7 +382,7 @@ describe('bass-clarinet', () => {
                         //
                     },
                 ),
-                ["property already processed: 'a'"]
+                ["duplicate property: 'a'"]
             )
         })
         it('tagged union', () => {
