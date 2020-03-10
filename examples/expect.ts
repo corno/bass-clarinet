@@ -1,10 +1,5 @@
 import * as bc from "../src"
 import * as fs from "fs"
-import {
-    createDummyArrayHandler,
-    createDummyObjectHandler,
-    createDummyValueHandler,
-} from "../src"
 
 const [, , path] = process.argv
 
@@ -25,10 +20,10 @@ const ec = new bc.ExpectContext(
     (_message, _range) => {
         throw new Error("encounterd warning")
     },
-    () => createDummyArrayHandler(),
-    () => createDummyObjectHandler(),
-    () => createDummyValueHandler(),
-    () => createDummyValueHandler(),
+    () => bc.createDummyArrayHandler(),
+    () => bc.createDummyObjectHandler(),
+    () => bc.createDummyValueHandler(),
+    () => bc.createDummyValueHandler(),
 )
 
 /**

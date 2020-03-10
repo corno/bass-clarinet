@@ -1,4 +1,4 @@
-import { TokenizerOptions } from "../src/configurationTypes"
+import * as bc from "../src"
 
 export type TestRange = [number?, number?, number?, number?]
 export type TestLocation = [number?, number?]
@@ -28,7 +28,7 @@ export type TestDefinition = {
     readonly testHeaders?: boolean
     readonly testForLocation?: boolean
     readonly chunks?: string[]
-    readonly tokenizerOptions?: TokenizerOptions
+    readonly tokenizerOptions?: bc.TokenizerOptions
     readonly events: EventDefinition[]
 }
 

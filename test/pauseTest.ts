@@ -2,7 +2,6 @@
     no-console: "off",
 */
 import * as bc from "../src";
-import { Pauser } from "../src/parserAPI";
 
 const parser = new bc.Parser(
     err => { console.error("FOUND PARSER ERROR", err) },
@@ -10,7 +9,7 @@ const parser = new bc.Parser(
 
 let counter = 0
 
-function pause(pauser: Pauser) {
+function pause(pauser: bc.Pauser) {
     counter += 1
     console.log("pausing", counter)
     pauser.pause()

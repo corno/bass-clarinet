@@ -9,7 +9,6 @@ import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { createDummyArrayHandler, createDummyObjectHandler, createDummyValueHandler } from "../src"
 
 const DEBUG = false
 
@@ -312,10 +311,10 @@ describe('bass-clarinet', () => {
             const expect = new bc.ExpectContext(
                 onError,
                 onWarning,
-                createDummyArrayHandler,
-                createDummyObjectHandler,
-                createDummyValueHandler,
-                createDummyValueHandler,
+                bc.createDummyArrayHandler,
+                bc.createDummyObjectHandler,
+                bc.createDummyValueHandler,
+                bc.createDummyValueHandler,
             )
             parser.ondata.subscribe(bc.createStackedDataSubscriber(
                 callback(expect),

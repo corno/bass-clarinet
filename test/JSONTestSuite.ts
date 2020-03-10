@@ -3,7 +3,6 @@ import { describe } from "mocha"
 import assert from "assert"
 import * as path from "path"
 import * as bc from "../src"
-import { tokenizeString } from "../src"
 
 const parsingDir = path.join(__dirname, "/../../JSONTestSuite/test_parsing")
 describe('parsing', () => {
@@ -92,7 +91,7 @@ describe('transform', () => {
                         //do nothing with error
                     },
                 )
-                tokenizeString(
+                bc.tokenizeString(
                     parser,
                     () => {
                         //do nothing with error
