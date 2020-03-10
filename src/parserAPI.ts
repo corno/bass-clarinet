@@ -22,8 +22,8 @@ export interface IParser {
     onPunctuation(char: number, range: Range, pauser: Pauser): void
 
     onNewLine(range: Range): void
-    onWhitespaceBegin(location: Location, isIndent: boolean): void
+    onWhitespaceBegin(location: Location): void
     onWhitespaceEnd(location: Location): void
 
-    assertIsEnded(location: Location): void
+    onEnd(location: Location): void
 }

@@ -5,10 +5,16 @@
 import { IDataSubscriber, StringData } from "../IDataSubscriber"
 import { Location, Range } from "../location"
 import { createDummyValueHandler } from "./dummyHandlers"
-import { ValueHandler, ObjectHandler, ArrayHandler, Comment } from "./handlers"
+import { ValueHandler, ObjectHandler, ArrayHandler, Comment, PreData } from "./handlers"
+import { RangeError } from "../errors"
 
 const DEBUG = false
 
+class StackedDataSubscriberPanic extends RangeError {
+    constructor(message: string, range: Range) {
+        super(`stack panic: ${message}`, range)
+    }
+}
 
 export type ContextType =
     | ["root", {
@@ -25,7 +31,7 @@ export type ContextType =
         readonly start: Range
         readonly parentValueHandler: ValueHandler
         dataHandler: null | ValueHandler
-        comments: Comment[]
+        preData: PreData
     }]
 
 type StackedDataError = {
@@ -51,17 +57,24 @@ function raiseRangeError(onError: (error: StackedDataError) => void, message: st
 export function createStackedDataSubscriber(
     valueHandler: ValueHandler,
     onError: (error: StackedDataError) => void,
-    onend: (comments: Comment[]) => void
+    onend: (preData: PreData) => void
 ): IDataSubscriber {
     const stack: ContextType[] = []
     let comments: Comment[] = []
+    let indentation = ""
+    let lineIsDirty = false
 
     let currentContext: ContextType = ["root", { valueHandler: valueHandler }]
 
-    function flushComments() {
-        const comm = comments
+    function flushPreData(): PreData {
+        const preData = {
+            comments: comments,
+            indentation: indentation,
+        }
         comments = []
-        return comm
+        indentation = ""
+        lineIsDirty = false
+        return preData
     }
 
     function pop(range: Range) {
@@ -106,7 +119,7 @@ export function createStackedDataSubscriber(
         vh.simpleValue(
             value,
             metaData,
-            flushComments()
+            flushPreData()
         )
         wrapupValue(metaData.range)
     }
@@ -162,18 +175,27 @@ export function createStackedDataSubscriber(
 
     return {
         onComma: () => {
+            lineIsDirty = true
             //
         },
         onColon: () => {
+            lineIsDirty = true
             //
         },
         onNewLine: () => {
+            lineIsDirty = false
+            indentation = ""
+
             //
         },
-        onWhitespace: () => {
+        onWhitespace: (value: string) => {
+            if (!lineIsDirty) {
+                indentation = value
+            }
             //
         },
         onLineComment: (comment, range) => {
+            lineIsDirty = true
             comments.push({
                 text: comment,
                 type: "line",
@@ -182,6 +204,7 @@ export function createStackedDataSubscriber(
             })
         },
         onBlockComment: (comment, range) => {
+            lineIsDirty = true
             comments.push({
                 text: comment,
                 type: "line",
@@ -190,37 +213,40 @@ export function createStackedDataSubscriber(
             })
         },
         onOpenArray: metaData => {
+            lineIsDirty = true
             const arrayHandler = initValueHandler().array(
                 metaData,
-                flushComments()
+                flushPreData()
             )
             stack.push(currentContext)
             currentContext = ["array", { arrayHandler: arrayHandler }]
         },
         onCloseArray: metaData => {
+            lineIsDirty = true
             if (currentContext[0] !== "array") {
                 raiseRangeError(onError, "unexpected end of array", metaData.range)
             } else {
                 currentContext[1].arrayHandler.end(
                     metaData,
-                    flushComments()
+                    flushPreData()
                 )
                 pop(metaData.range)
                 wrapupValue(metaData.range)
             }
         },
         onOpenTaggedUnion: range => {
+            lineIsDirty = true
             if (DEBUG) { console.log("on open tagged union") }
             stack.push(currentContext)
-            currentContext = ["taggedunion", { start: range, parentValueHandler: initValueHandler(), dataHandler: null, comments: flushComments() }]
+            currentContext = ["taggedunion", { start: range, parentValueHandler: initValueHandler(), dataHandler: null, preData: flushPreData() }]
         },
         onOpenObject: metaData => {
-
+            lineIsDirty = true
             if (DEBUG) { console.log("on open object") }
             const vh = initValueHandler()
             const objectHandler = vh.object(
                 metaData,
-                flushComments()
+                flushPreData()
             )
             stack.push(currentContext)
             currentContext = ["object", {
@@ -230,12 +256,13 @@ export function createStackedDataSubscriber(
         },
         onCloseObject: metaData => {
             if (DEBUG) { console.log("on close object") }
+            lineIsDirty = true
             if (currentContext[0] !== "object") {
                 raiseRangeError(onError, "unexpected end of object", metaData.range)
             } else {
                 currentContext[1].objectHandler.end(
                     metaData,
-                    flushComments()
+                    flushPreData()
                 )
                 pop(metaData.range)
                 wrapupValue(metaData.range)
@@ -243,6 +270,7 @@ export function createStackedDataSubscriber(
 
         },
         onString: (value, metaData) => {
+            lineIsDirty = true
             switch (currentContext[0]) {
                 case "array": {
                     onSimpleValue(value, metaData)
@@ -260,7 +288,7 @@ export function createStackedDataSubscriber(
                                 {
                                     keyRange: metaData.range,
                                 },
-                                flushComments()
+                                flushPreData()
                             )
                         }
                     } else {
@@ -286,8 +314,8 @@ export function createStackedDataSubscriber(
                                     optionRange: metaData.range,
                                     pauser: metaData.pauser,
                                 },
-                                currentContext[1].comments,
-                                flushComments()
+                                currentContext[1].preData,
+                                flushPreData()
                             )
                         }
                     } else {
@@ -299,8 +327,18 @@ export function createStackedDataSubscriber(
                     return assertUnreachable(currentContext[0])
             }
         },
-        onEnd: () => {
-            onend(flushComments())
+        onEnd: (location: Location) => {
+            const range = { start: location, end: location }
+            while (currentContext[0] !== "root") {
+                raiseRangeError(onError, "unexpected end of document, still in nested type", range)
+                const popped = stack.pop()
+                if (popped === undefined) {
+                    throw new StackedDataSubscriberPanic("unexpected end of stack", range)
+                } else {
+                    currentContext = popped
+                }
+            }
+            onend(flushPreData())
         },
     }
 }

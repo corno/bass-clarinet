@@ -56,13 +56,17 @@ parser.ondata.subscribe({
     },
     onCloseArray: metaData => {
         console.log("CLOSE ARRAY")
-        pause(metaData.pauser)
+        if (metaData.pauser !== undefined) {
+            pause(metaData.pauser)
+        }
     },
     onOpenObject: metaData => {
         pause(metaData.pauser)
     },
     onCloseObject: metaData => {
-        pause(metaData.pauser)
+        if (metaData.pauser !== undefined) {
+            pause(metaData.pauser)
+        }
     },
     onEnd: () => {
         console.log("Reached end")

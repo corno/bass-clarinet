@@ -13,10 +13,10 @@ import {
     OnObject,
     OnArray,
     OnTaggedUnion,
-    Comment,
     ObjectHandler,
     ArrayHandler,
     OnSimpleValue,
+    PreData,
 } from "./attachments"
 import { Range } from "./location"
 
@@ -24,49 +24,28 @@ export type IssueHandler = (message: string, range: Range) => void
 
 export type ExpectedProperties = {
     [key: string]: {
-        onExists: (metaData: PropertyData) => ValueHandler
+        onExists: (metaData: PropertyData, preData: PreData) => ValueHandler
         onNotExists: null | (() => void) //if onNotExists is null and the property does not exist, an error will be raised
     }
 }
 
 export type ExpectedElements = (() => ValueHandler)[]
 
-export type Options = { [key: string]: (optionMetaData: TaggedUnionData, beginComments: Comment[], optionComments: Comment[]) => ValueHandler }
-
-/**
- * ExpectContext is a class that helps processing a document that conforms to an expected structure
- * for example; if you expect and object with 2 properties, 'a' and 'b', both numbers, you could write it like this:
- *
- * const ec = new ExpectContext()
- * const handler = ec.expectType(
- *     {
- *         "a": ec.expectNumber(value => {
- *             //handle a
- *         }),
- *         "b": ec.expectNumber(value => {
- *             //handle b
- *         })
- *     },
- *     () => {
- *         //wrapup of type
- *     }
- * )
- * parser.
- */
+export type Options = { [key: string]: (optionMetaData: TaggedUnionData, beginPreData: PreData, optionPreData: PreData) => ValueHandler }
 
 export class ExpectContext {
     private readonly errorHandler: IssueHandler
     private readonly warningHandler: IssueHandler
-    private readonly createDummyArrayHandler: (metaData: OpenData) => ArrayHandler
-    private readonly createDummyObjectHandler: (metaData: OpenData) => ObjectHandler
-    private readonly createDummyPropertyHandler: (key: string, metaData: PropertyData) => ValueHandler
+    private readonly createDummyArrayHandler: (metaData: OpenData, preData: PreData) => ArrayHandler
+    private readonly createDummyObjectHandler: (metaData: OpenData, preData: PreData) => ObjectHandler
+    private readonly createDummyPropertyHandler: (key: string, metaData: PropertyData, preData: PreData) => ValueHandler
     private readonly createDummyValueHandler: () => ValueHandler
     constructor(
         errorHandler: IssueHandler,
         warningHandler: IssueHandler,
-        createDummyArrayHandler: (metaData: OpenData) => ArrayHandler,
-        createDummyObjectHandler: (metaData: OpenData) => ObjectHandler,
-        createDummyPropertyHandler: (key: string, metaData: PropertyData) => ValueHandler,
+        createDummyArrayHandler: (metaData: OpenData, preData: PreData) => ArrayHandler,
+        createDummyObjectHandler: (metaData: OpenData, preData: PreData) => ObjectHandler,
+        createDummyPropertyHandler: (key: string, metaData: PropertyData, preData: PreData) => ValueHandler,
         createDummyValueHandler: () => ValueHandler,
     ) {
         this.errorHandler = errorHandler
@@ -83,61 +62,65 @@ export class ExpectContext {
         this.errorHandler(message, range)
     }
     public createDictionaryHandler(
-        onBegin: (metaData: OpenData) => void,
-        onProperty: (key: string, metaData: PropertyData) => ValueHandler,
-        onEnd: (metaData: CloseData) => void,
+        onBegin: (metaData: OpenData, preData: PreData) => void,
+        onProperty: (key: string, metaData: PropertyData, preData: PreData) => ValueHandler,
+        onEnd: (metaData: CloseData, preData: PreData) => void,
     ): OnObject {
-        return beginMetaData => {
-            onBegin(beginMetaData)
+        return (beginMetaData, beginPreData) => {
+            onBegin(beginMetaData, beginPreData)
             if (beginMetaData.openCharacter !== "{") {
                 this.raiseWarning(`expected '{' but found '${beginMetaData.openCharacter}'`, beginMetaData.start)
             }
             const foundEntries: string[] = []
             return {
-                property: (key, metaData) => {
+                property: (key, metaData, preData) => {
                     if (foundEntries.includes(key)) {
                         this.raiseWarning(`duplicate key '${key}'`, metaData.keyRange)
                     }
                     foundEntries.push(key)
-                    return onProperty(key, metaData)
+                    return onProperty(key, metaData, preData)
                 },
-                end: endMetaData => {
+                end: (endMetaData, endPreData) => {
                     if (endMetaData.closeCharacter !== "}") {
                         this.raiseWarning(`expected '}' but found '${endMetaData.closeCharacter}'`, endMetaData.range)
                     }
-                    onEnd(endMetaData)
+                    onEnd(endMetaData, endPreData)
                 },
             }
         }
     }
 
     public createTypeHandler(
-        onBegin: (range: Range, comments: Comment[]) => void,
+        onBegin: (range: Range, preData: PreData) => void,
         expectedProperties: ExpectedProperties,
-        onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void
+        onEnd: (hasErrors: boolean, endRange: Range, preData: PreData) => void,
+        onUnexpectedProperty?: (key: string, metaData: PropertyData, preData: PreData) => void,
     ): OnObject {
-        return (beginMetaData, comments) => {
-            onBegin(beginMetaData.start, comments)
+        return (beginMetaData, preData) => {
+            onBegin(beginMetaData.start, preData)
             if (beginMetaData.openCharacter !== "(") {
                 this.raiseWarning(`expected '(' but found '${beginMetaData.openCharacter}'`, beginMetaData.start)
             }
             const foundProperies: string[] = []
             let hasErrors = false
             return {
-                property: (key, propMetaData) => {
+                property: (key, propMetaData, propertyPreData) => {
                     if (foundProperies.includes(key)) {
                         hasErrors = true
-                        this.raiseError(`property already processed: '${key}'`, propMetaData.keyRange)//FIX print range properly
+                        this.raiseError(`duplicate property: '${key}'`, propMetaData.keyRange)//FIX print range properly
                         return this.createDummyValueHandler()
                     }
                     foundProperies.push(key)
                     const expected = expectedProperties[key]
                     if (expected === undefined) {
                         hasErrors = true
+                        if (onUnexpectedProperty !== undefined) {
+                            onUnexpectedProperty(key, propMetaData, propertyPreData)
+                        }
                         this.raiseError(`unexpected property: '${key}'`, propMetaData.keyRange)//FIX print range properly
-                        return this.createDummyPropertyHandler(key, propMetaData)
+                        return this.createDummyPropertyHandler(key, propMetaData, propertyPreData)
                     }
-                    return expected.onExists(propMetaData)
+                    return expected.onExists(propMetaData, propertyPreData)
                 },
                 end: (endMetaData, endComments) => {
                     if (endMetaData.closeCharacter !== ")") {
@@ -146,10 +129,9 @@ export class ExpectContext {
                     Object.keys(expectedProperties).forEach(epName => {
                         if (!foundProperies.includes(epName)) {
                             const ep = expectedProperties[epName]
-                            if (ep.onNotExists === null) {
-                                hasErrors = true
-                                this.raiseError(`missing property: '${epName}'`, beginMetaData.start)//FIX print location properly
-                            } else {
+                            this.raiseError(`missing property: '${epName}'`, beginMetaData.start)//FIX print location properly
+                            hasErrors = true
+                            if (ep.onNotExists !== null) {
                                 ep.onNotExists()
                             }
                         }
@@ -160,12 +142,12 @@ export class ExpectContext {
         }
     }
     public createArrayTypeHandler(
-        onBegin: (metaData: OpenData) => void,
+        onBegin: (metaData: OpenData, preData: PreData) => void,
         expectedElements: ExpectedElements,
-        onEnd: (metaData: CloseData) => void
+        onEnd: (metaData: CloseData, preData: PreData) => void
     ): OnArray {
-        return beginMetaData => {
-            onBegin(beginMetaData)
+        return (beginMetaData, beginPreData) => {
+            onBegin(beginMetaData, beginPreData)
             if (beginMetaData.openCharacter !== "<") {
                 this.raiseWarning(`expected '<' but found '${beginMetaData.openCharacter}'`, beginMetaData.start)
             }
@@ -180,7 +162,7 @@ export class ExpectContext {
                     }
                     return ee()
                 },
-                end: endMetaData => {
+                end: (endMetaData, endPreData) => {
                     if (endMetaData.closeCharacter !== ">") {
                         this.raiseWarning(`expected '>' but found '${endMetaData.closeCharacter}'`, endMetaData.range)
                     }
@@ -188,28 +170,28 @@ export class ExpectContext {
                     if (missing > 0) {
                         this.raiseError(`elements missing`, endMetaData.range)
                     }
-                    onEnd(endMetaData)
+                    onEnd(endMetaData, endPreData)
                 },
             }
         }
     }
     public createListHandler(
-        onBegin: (metaData: OpenData) => void,
+        onBegin: (metaData: OpenData, preData: PreData) => void,
         onElement: () => ValueHandler,
-        onEnd: (metaData: CloseData) => void,
+        onEnd: (metaData: CloseData, preData: PreData) => void,
     ): OnArray {
-        return beginMetaData => {
-            onBegin(beginMetaData)
+        return (beginMetaData, beginPreData) => {
+            onBegin(beginMetaData, beginPreData)
             if (beginMetaData.openCharacter !== "[") {
                 this.raiseWarning(`expected '[' but found '${beginMetaData.openCharacter}'`, beginMetaData.start)
             }
             return {
                 element: () => onElement(),
-                end: endMetaData => {
+                end: (endMetaData, endPreData) => {
                     if (endMetaData.closeCharacter !== "]") {
                         this.raiseWarning(`expected ']' but found '${endMetaData.closeCharacter}'`, endMetaData.range)
                     }
-                    onEnd(endMetaData)
+                    onEnd(endMetaData, endPreData)
                 },
             }
         }
@@ -288,15 +270,19 @@ export class ExpectContext {
     //     }
     // }
     public createTaggedUnionHandler(
-        options: Options
+        options: Options,
+        onUnexpectedOption?: (option: string, metaData: TaggedUnionData, beginPreData: PreData, optionPreData: PreData) => void,
     ): OnTaggedUnion {
-        return (option: string, metaData: TaggedUnionData, beginComments: Comment[], optionComments: Comment[]) => {
+        return (option: string, metaData: TaggedUnionData, beginPreData: PreData, optionPreData: PreData) => {
             const optionHandler = options[option]
             if (optionHandler === undefined) {
-                this.raiseError(`unknown option '${option}'`, metaData.optionRange)
+                this.raiseError(`unknown option '${option}', choose from ${Object.keys(options).map(opt => `'${opt}'`).join(", ")} `, metaData.optionRange)
+                if (onUnexpectedOption !== undefined) {
+                    onUnexpectedOption(option, metaData, beginPreData, optionPreData)
+                }
                 return this.createDummyValueHandler()
             } else {
-                return optionHandler(metaData, beginComments, optionComments)
+                return optionHandler(metaData, beginPreData, optionPreData)
             }
         }
     }
@@ -310,15 +296,15 @@ export class ExpectContext {
         }
     }
     public createUnexpectedObjectHandler(expected: string): OnObject {
-        return beginMetaData => {
+        return (beginMetaData, comments) => {
             this.raiseError(`expected '${expected}' but found 'object'`, beginMetaData.start)
-            return this.createDummyObjectHandler(beginMetaData)
+            return this.createDummyObjectHandler(beginMetaData, comments)
         }
     }
     public createUnexpectedArrayHandler(expected: string): OnArray {
-        return beginMetaData => {
+        return (beginMetaData, comments) => {
             this.raiseError(`expected '${expected}' but found 'array'`, beginMetaData.start)
-            return this.createDummyArrayHandler(beginMetaData)
+            return this.createDummyArrayHandler(beginMetaData, comments)
         }
     }
     public expectNothing(): ValueHandler {
@@ -329,7 +315,7 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("nothing"),
         }
     }
-    public expectSimpleValueImp(expected: string, callback: (value: string, metaData: StringData) => void): ValueHandler {
+    public expectSimpleValueImp(expected: string, callback: (value: string, metaData: StringData, preData: PreData) => void): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler(expected),
             object: this.createUnexpectedObjectHandler(expected),
@@ -337,22 +323,22 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expected),
         }
     }
-    public expectSimpleValue(callback: (value: string, metaData: StringData) => void): ValueHandler {
+    public expectSimpleValue(callback: (value: string, metaData: StringData, preData: PreData) => void): ValueHandler {
         return this.expectSimpleValueImp("simple value", callback)
     }
-    public expectBoolean(callback: (value: boolean, metaData: StringData) => void): ValueHandler {
-        return this.expectSimpleValueImp("boolean", (rawValue, metaData) => {
+    public expectBoolean(callback: (value: boolean, metaData: StringData, preData: PreData) => void): ValueHandler {
+        return this.expectSimpleValueImp("boolean", (rawValue, metaData, preData) => {
             if (metaData.quote !== null) {
                 this.createUnexpectedSimpleValueHandler("boolean")
                 return
             }
             switch (rawValue) {
                 case "true": {
-                    callback(true, metaData)
+                    callback(true, metaData, preData)
                     break
                 }
                 case "false": {
-                    callback(false, metaData)
+                    callback(false, metaData, preData)
                     break
                 }
                 default:
@@ -360,28 +346,28 @@ export class ExpectContext {
             }
         })
     }
-    public expectNull(callback: (metaData: StringData) => void): ValueHandler {
-        return this.expectSimpleValueImp("null", (rawValue, metaData) => {
+    public expectNull(callback: (metaData: StringData, preData: PreData) => void): ValueHandler {
+        return this.expectSimpleValueImp("null", (rawValue, metaData, preData) => {
             if (rawValue === "null") {
-                return callback(metaData)
+                return callback(metaData, preData)
             }
             return this.createUnexpectedSimpleValueHandler("null")
         })
     }
-    public expectNumber(callback: (value: number, metaData: StringData) => void): ValueHandler {
-        return this.expectSimpleValueImp("number", (rawValue, metaData) => {
+    public expectNumber(callback: (value: number, metaData: StringData, preData: PreData) => void): ValueHandler {
+        return this.expectSimpleValueImp("number", (rawValue, metaData, preData) => {
             //eslint-disable-next-line
             const nr = new Number(rawValue).valueOf()
             if (isNaN(nr)) {
                 return this.createUnexpectedSimpleValueHandler("unquoted token")
             }
-            return callback(nr, metaData)
+            return callback(nr, metaData, preData)
         })
     }
     public expectDictionary(
-        onBegin: (metaData: OpenData) => void,
-        onProperty: (key: string, metaData: PropertyData) => ValueHandler,
-        onEnd: (metaData: CloseData) => void,
+        onBegin: (metaData: OpenData, preData: PreData) => void,
+        onProperty: (key: string, metaData: PropertyData, preData: PreData) => ValueHandler,
+        onEnd: (metaData: CloseData, preData: PreData) => void,
     ): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("dictionary"),
@@ -391,21 +377,22 @@ export class ExpectContext {
         }
     }
     public expectType(
-        onBegin: (range: Range, comments: Comment[]) => void,
+        onBegin: (range: Range, preData: PreData) => void,
         expectedProperties: ExpectedProperties,
-        onEnd: (hasErrors: boolean, endRange: Range, comments: Comment[]) => void,
+        onEnd: (hasErrors: boolean, endRange: Range, preData: PreData) => void,
+        onUnexpectedProperty?: (key: string, metaData: PropertyData, preData: PreData) => void,
     ): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("type"),
-            object: this.createTypeHandler(onBegin, expectedProperties, onEnd),
+            object: this.createTypeHandler(onBegin, expectedProperties, onEnd, onUnexpectedProperty),
             simpleValue: this.createUnexpectedSimpleValueHandler("type"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("type"),
         }
     }
     public expectList(
-        onBegin: (metaData: OpenData) => void,
+        onBegin: (metaData: OpenData, preData: PreData) => void,
         onElement: () => ValueHandler,
-        onEnd: (metaData: CloseData) => void,
+        onEnd: (metaData: CloseData, preData: PreData) => void,
     ): ValueHandler {
         return {
             array: this.createListHandler(onBegin, onElement, onEnd),
@@ -415,9 +402,9 @@ export class ExpectContext {
         }
     }
     public expectArrayType(
-        onBegin: (metaData: OpenData) => void,
+        onBegin: (metaData: OpenData, preData: PreData) => void,
         expectedElements: ExpectedElements,
-        onEnd: (metaData: CloseData) => void,
+        onEnd: (metaData: CloseData, preData: PreData) => void,
     ): ValueHandler {
         return {
             array: this.createArrayTypeHandler(onBegin, expectedElements, onEnd),
@@ -426,12 +413,15 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("array type"),
         }
     }
-    public expectTaggedUnion(options: Options): ValueHandler {
+    public expectTaggedUnion(
+        options: Options,
+        onUnexpectedOption?: (option: string, metaData: TaggedUnionData, beginPreData: PreData, optionPreData: PreData) => void,
+    ): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("tagged union"),
             object: this.createUnexpectedObjectHandler("tagged union"),
             simpleValue: this.createUnexpectedSimpleValueHandler("tagged union"),
-            taggedUnion: this.createTaggedUnionHandler(options),
+            taggedUnion: this.createTaggedUnionHandler(options, onUnexpectedOption),
         }
     }
     // /**

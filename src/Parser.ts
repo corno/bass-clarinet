@@ -91,7 +91,7 @@ export class Parser implements IParser {
         this.oncurrentdata = this.ondata
         this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
     }
-    public assertIsEnded(location: Location) {
+    public onEnd(location: Location) {
         const range = { start: location, end: location }
         while (this.currentContext[0] !== StackContextType.ROOT) {
             this.raiseError("unexpected end of document, still in nested type", range)
@@ -100,6 +100,38 @@ export class Parser implements IParser {
                 throw new ParserStackPanicError("unexpected end of stack", range)
             } else {
                 this.currentContext = popped
+                switch (popped[0]) {
+                    case StackContextType.ARRAY: {
+                        //const $ = popped[1]
+                        this.oncurrentdata.signal(s => s.onCloseArray({
+                            range: range,
+                            closeCharacter: undefined,
+                            pauser: undefined,
+                        }))
+                        break
+                    }
+                    case StackContextType.OBJECT: {
+                        //const $ = popped[1]
+                        this.oncurrentdata.signal(s => s.onCloseObject({
+                            range: range,
+                            closeCharacter: undefined,
+                            pauser: undefined,
+                        }))
+                        break
+                    }
+                    case StackContextType.ROOT: {
+                        //const $ = popped[1]
+
+                        break
+                    }
+                    case StackContextType.TAGGED_UNION: {
+                        //const $ = popped[1]
+
+                        break
+                    }
+                    default:
+                        return assertUnreachable(popped[0])
+                }
             }
         }
         if (this.currentContext[0] === StackContextType.ROOT) {

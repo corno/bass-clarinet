@@ -9,8 +9,8 @@ export type OpenData = {
 
 export type CloseData = {
     range: Range
-    closeCharacter: string
-    pauser: Pauser
+    closeCharacter?: string
+    pauser?: Pauser
 }
 
 export type PropertyData = {
@@ -35,12 +35,12 @@ export interface IDataSubscriber {
     onColon(range: Range, pauser: Pauser): void
 
     onOpenArray(metaData: OpenData): void
-    onCloseArray(metaData: CloseData): void
+    onCloseArray(metaData: CloseData): void //there is only metadata if the array is properly closed
 
     onOpenTaggedUnion(range: Range, pauser: Pauser): void
 
     onOpenObject(metaData: OpenData): void
-    onCloseObject(metaData: CloseData): void
+    onCloseObject(metaData: CloseData): void //there is only metadata if the object is properly closed
 
     onString(value: string, metaData: StringData): void
 

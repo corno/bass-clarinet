@@ -33,8 +33,8 @@ export type NewLineContext = {
     startLocation: Location
 }
 export type NoneContext = {
-    virginLine: boolean
 }
+
 export type CommentContext = {
     state: CommentContextState
 }

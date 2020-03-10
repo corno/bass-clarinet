@@ -108,13 +108,17 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 out.push(metaData.openCharacter)
             },
             onCloseArray: metaData => {
-                out.push(metaData.closeCharacter)
+                if (metaData.closeCharacter !== undefined) {
+                    out.push(metaData.closeCharacter)
+                }
             },
             onOpenObject: metaData => {
                 out.push(metaData.openCharacter)
             },
             onCloseObject: metaData => {
-                out.push(metaData.closeCharacter)
+                if (metaData.closeCharacter !== undefined) {
+                    out.push(metaData.closeCharacter)
+                }
             },
             onNewLine: () => {
                 out.push("\n")
