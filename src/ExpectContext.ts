@@ -348,8 +348,13 @@ export class ExpectContext {
     }
     public expectNull(callback: (metaData: StringData, preData: PreData) => void): ValueHandler {
         return this.expectSimpleValueImp("null", (rawValue, metaData, preData) => {
+            if (metaData.quote !== null) {
+                this.createUnexpectedSimpleValueHandler("null")
+                return
+            }
             if (rawValue === "null") {
-                return callback(metaData, preData)
+                callback(metaData, preData)
+                return
             }
             return this.createUnexpectedSimpleValueHandler("null")
         })
