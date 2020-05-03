@@ -20,6 +20,10 @@ import {
 } from "./attachments"
 import { Range } from "./location"
 
+function assertUnreachable<RT>(_x: never): RT {
+    throw new Error("unreachable")
+}
+
 export type IssueHandler = (message: string, range: Range) => void
 
 export type ExpectedProperties = {
@@ -33,6 +37,16 @@ export type ExpectedElements = (() => ValueHandler)[]
 
 export type Options = { [key: string]: (optionMetaData: TaggedUnionData, beginPreData: PreData, optionPreData: PreData) => ValueHandler }
 
+export enum Severity {
+    warning,
+    error,
+    nothing
+}
+export enum OnDuplicateEntry {
+    ignore,
+    overwrite
+}
+
 export class ExpectContext {
     private readonly errorHandler: IssueHandler
     private readonly warningHandler: IssueHandler
@@ -40,6 +54,8 @@ export class ExpectContext {
     private readonly createDummyObjectHandler: (metaData: OpenData, preData: PreData) => ObjectHandler
     private readonly createDummyPropertyHandler: (key: string, metaData: PropertyData, preData: PreData) => ValueHandler
     private readonly createDummyValueHandler: () => ValueHandler
+    private readonly duplicateEntrySeverity: Severity
+    private readonly onDuplicateEntry: OnDuplicateEntry
     constructor(
         errorHandler: IssueHandler,
         warningHandler: IssueHandler,
@@ -47,6 +63,8 @@ export class ExpectContext {
         createDummyObjectHandler: (metaData: OpenData, preData: PreData) => ObjectHandler,
         createDummyPropertyHandler: (key: string, metaData: PropertyData, preData: PreData) => ValueHandler,
         createDummyValueHandler: () => ValueHandler,
+        duplcateEntrySeverity: Severity,
+        onDuplicateEntry: OnDuplicateEntry,
     ) {
         this.errorHandler = errorHandler
         this.warningHandler = warningHandler
@@ -54,6 +72,8 @@ export class ExpectContext {
         this.createDummyObjectHandler = createDummyObjectHandler
         this.createDummyPropertyHandler = createDummyPropertyHandler
         this.createDummyValueHandler = createDummyValueHandler
+        this.duplicateEntrySeverity = duplcateEntrySeverity
+        this.onDuplicateEntry = onDuplicateEntry
     }
     public raiseWarning(message: string, range: Range) {
         this.warningHandler(message, range)
@@ -63,7 +83,7 @@ export class ExpectContext {
     }
     public createDictionaryHandler(
         onBegin: (metaData: OpenData, preData: PreData) => void,
-        onProperty: (key: string, metaData: PropertyData, preData: PreData) => ValueHandler,
+        onEntry: (key: string, metaData: PropertyData, preData: PreData) => ValueHandler,
         onEnd: (metaData: CloseData, preData: PreData) => void,
     ): OnObject {
         return (beginMetaData, beginPreData) => {
@@ -74,11 +94,36 @@ export class ExpectContext {
             const foundEntries: string[] = []
             return {
                 property: (key, metaData, preData) => {
-                    if (foundEntries.includes(key)) {
-                        this.raiseWarning(`duplicate key '${key}'`, metaData.keyRange)
+                    const process = (): ValueHandler => {
+                        if (foundEntries.includes(key)) {
+                            switch (this.duplicateEntrySeverity) {
+                                case Severity.error:
+                                    this.raiseError(`duplicate entry: '${key}'`, metaData.keyRange)
+                                    break
+                                case Severity.nothing:
+                                    break
+                                case Severity.warning:
+                                    this.raiseWarning(`duplicate entry: '${key}'`, metaData.keyRange)
+                                    break
+                                default:
+                                    return assertUnreachable(this.duplicateEntrySeverity)
+                            }
+                            switch (this.onDuplicateEntry) {
+                                case OnDuplicateEntry.ignore:
+                                    return this.createDummyValueHandler()
+                                case OnDuplicateEntry.overwrite:
+                                    return onEntry(key, metaData, preData)
+                                default:
+                                    return assertUnreachable(this.onDuplicateEntry)
+                            }
+                        } else {
+                            return onEntry(key, metaData, preData)
+                        }
+
                     }
+                    const vh = process()
                     foundEntries.push(key)
-                    return onProperty(key, metaData, preData)
+                    return vh
                 },
                 end: (endMetaData, endPreData) => {
                     if (endMetaData.closeCharacter !== "}") {
@@ -89,7 +134,6 @@ export class ExpectContext {
             }
         }
     }
-
     public createTypeHandler(
         onBegin: (range: Range, preData: PreData) => void,
         expectedProperties: ExpectedProperties,
@@ -105,22 +149,48 @@ export class ExpectContext {
             let hasErrors = false
             return {
                 property: (key, propMetaData, propertyPreData) => {
-                    if (foundProperies.includes(key)) {
-                        hasErrors = true
-                        this.raiseError(`duplicate property: '${key}'`, propMetaData.keyRange)//FIX print range properly
-                        return this.createDummyValueHandler()
-                    }
-                    foundProperies.push(key)
-                    const expected = expectedProperties[key]
-                    if (expected === undefined) {
-                        hasErrors = true
-                        if (onUnexpectedProperty !== undefined) {
-                            onUnexpectedProperty(key, propMetaData, propertyPreData)
+                    const onProperty = () => {
+                        const expected = expectedProperties[key]
+                        if (expected === undefined) {
+                            hasErrors = true
+                            if (onUnexpectedProperty !== undefined) {
+                                onUnexpectedProperty(key, propMetaData, propertyPreData)
+                            }
+                            this.raiseError(`unexpected property: '${key}'`, propMetaData.keyRange)//FIX print range properly
+                            return this.createDummyPropertyHandler(key, propMetaData, propertyPreData)
                         }
-                        this.raiseError(`unexpected property: '${key}'`, propMetaData.keyRange)//FIX print range properly
-                        return this.createDummyPropertyHandler(key, propMetaData, propertyPreData)
+                        return expected.onExists(propMetaData, propertyPreData)
                     }
-                    return expected.onExists(propMetaData, propertyPreData)
+                    const process = (): ValueHandler => {
+                        if (foundProperies.includes(key)) {
+                            switch (this.duplicateEntrySeverity) {
+                                case Severity.error:
+                                    this.raiseError(`duplicate property: '${key}'`, propMetaData.keyRange)
+                                    break
+                                case Severity.nothing:
+                                    break
+                                case Severity.warning:
+                                    this.raiseWarning(`duplicate property: '${key}'`, propMetaData.keyRange)
+                                    break
+                                default:
+                                    return assertUnreachable(this.duplicateEntrySeverity)
+                            }
+                            switch (this.onDuplicateEntry) {
+                                case OnDuplicateEntry.ignore:
+                                    return this.createDummyValueHandler()
+                                case OnDuplicateEntry.overwrite:
+                                    return onProperty()
+                                default:
+                                    return assertUnreachable(this.onDuplicateEntry)
+                            }
+                        } else {
+                            return onProperty()
+                        }
+
+                    }
+                    const vh = process()
+                    foundProperies.push(key)
+                    return vh
                 },
                 end: (endMetaData, endComments) => {
                     if (endMetaData.closeCharacter !== ")") {
@@ -389,7 +459,12 @@ export class ExpectContext {
     ): ValueHandler {
         return {
             array: this.createUnexpectedArrayHandler("type"),
-            object: this.createTypeHandler(onBegin, expectedProperties, onEnd, onUnexpectedProperty),
+            object: this.createTypeHandler(
+                onBegin,
+                expectedProperties,
+                onEnd,
+                onUnexpectedProperty
+            ),
             simpleValue: this.createUnexpectedSimpleValueHandler("type"),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("type"),
         }

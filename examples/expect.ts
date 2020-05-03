@@ -1,5 +1,6 @@
 import * as bc from "../src"
 import * as fs from "fs"
+import { OnDuplicateEntry, Severity } from "../src"
 
 const [, , path] = process.argv
 
@@ -24,6 +25,8 @@ const ec = new bc.ExpectContext(
     () => bc.createDummyObjectHandler(),
     () => bc.createDummyValueHandler(),
     () => bc.createDummyValueHandler(),
+    Severity.warning,
+    OnDuplicateEntry.ignore,
 )
 
 /**

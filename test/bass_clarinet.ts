@@ -9,6 +9,7 @@ import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
+import { OnDuplicateEntry, Severity } from "../src"
 
 const DEBUG = false
 
@@ -315,6 +316,8 @@ describe('bass-clarinet', () => {
                 bc.createDummyObjectHandler,
                 bc.createDummyValueHandler,
                 bc.createDummyValueHandler,
+                Severity.warning,
+                OnDuplicateEntry.ignore,
             )
             parser.ondata.subscribe(bc.createStackedDataSubscriber(
                 callback(expect),
@@ -337,7 +340,7 @@ describe('bass-clarinet', () => {
             chai.assert.deepEqual(foundErrors, expectedErrors)
         }
 
-        it('duplicate key', () => {
+        it('duplicate entry', () => {
             doTest(
                 `{ "a": (), "a": () }`,
                 expect => expect.expectDictionary(
@@ -359,7 +362,7 @@ describe('bass-clarinet', () => {
                         //
                     },
                 ),
-                ["duplicate key 'a'"]
+                ["duplicate entry: 'a'"]
             )
         })
         it('duplicate property', () => {
