@@ -93,8 +93,27 @@ export class Parser implements IParser {
     }
     public onEnd(location: Location) {
         const range = { start: location, end: location }
-        while (this.currentContext[0] !== StackContextType.ROOT) {
-            this.raiseError("unexpected end of document, still in nested type", range)
+        unwindLoop:
+        while (true) {
+            switch (this.currentContext[0]) {
+                case StackContextType.ARRAY: {
+                    this.raiseError("unexpected end of document, still in array", range)
+                    break
+                }
+                case StackContextType.OBJECT: {
+                    this.raiseError("unexpected end of document, still in object", range)
+                    break
+                }
+                case StackContextType.ROOT: {
+                    break unwindLoop
+                }
+                case StackContextType.TAGGED_UNION: {
+                    this.raiseError("unexpected end of document, still in tagged union", range)
+                    break
+                }
+                default:
+                    assertUnreachable(this.currentContext[0])
+            }
             const popped = this.stack.pop()
             if (popped === undefined) {
                 throw new ParserStackPanicError("unexpected end of stack", range)
