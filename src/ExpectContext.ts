@@ -29,7 +29,7 @@ export type IssueHandler = (message: string, range: Range) => void
 export type ExpectedProperties = {
     [key: string]: {
         onExists: (metaData: PropertyData, preData: PreData) => ValueHandler
-        onNotExists: null | (() => void) //if onNotExists is null and the property does not exist, an error will be raised
+        onNotExists: null | ((openData: OpenData, closeData: CloseData) => void) //if onNotExists is null and the property does not exist, an error will be raised
     }
 }
 
@@ -140,8 +140,8 @@ export class ExpectContext {
         onEnd: (hasErrors: boolean, endRange: Range, preData: PreData) => void,
         onUnexpectedProperty?: (key: string, metaData: PropertyData, preData: PreData) => void,
     ): OnObject {
-        return (beginMetaData, preData) => {
-            onBegin(beginMetaData.start, preData)
+        return (beginMetaData, beginPreData) => {
+            onBegin(beginMetaData.start, beginPreData)
             if (beginMetaData.openCharacter !== "(") {
                 this.raiseWarning(`expected '(' but found '${beginMetaData.openCharacter}'`, beginMetaData.start)
             }
@@ -192,21 +192,22 @@ export class ExpectContext {
                     foundProperies.push(key)
                     return vh
                 },
-                end: (endMetaData, endComments) => {
+                end: (endMetaData, endPreData) => {
                     if (endMetaData.closeCharacter !== ")") {
                         this.raiseWarning(`expected ')' but found '${endMetaData.closeCharacter}'`, endMetaData.range)
                     }
                     Object.keys(expectedProperties).forEach(epName => {
                         if (!foundProperies.includes(epName)) {
                             const ep = expectedProperties[epName]
-                            this.raiseError(`missing property: '${epName}'`, beginMetaData.start)//FIX print location properly
-                            hasErrors = true
                             if (ep.onNotExists !== null) {
-                                ep.onNotExists()
+                                ep.onNotExists(beginMetaData, endMetaData)
+                            } else {
+                                this.raiseError(`missing property: '${epName}'`, beginMetaData.start)//FIX print location properly
+                                hasErrors = true
                             }
                         }
                     })
-                    onEnd(hasErrors, endMetaData.range, endComments)
+                    onEnd(hasErrors, endMetaData.range, endPreData)
                 },
             }
         }
