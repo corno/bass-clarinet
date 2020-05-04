@@ -5,6 +5,7 @@ import {
     PropertyData,
     StringData,
     TaggedUnionData,
+    OptionData,
 } from "../IDataSubscriber"
 
 export type PreData = {
@@ -19,13 +20,23 @@ export enum AfterValueContext {
 }
 
 export type ObjectHandler = {
-    property: (key: string, metaData: PropertyData, preData: PreData) => ValueHandler
+    property: (key: string, metaData: PropertyData, preData: PreData) => ExpectedValueHandler
     end: (metaData: CloseData, preData: PreData) => void
+}
+
+export type ExpectedValueHandler = {
+    onValue: ValueHandler
+    onMissing: () => void
 }
 
 export type ArrayHandler = {
     element: () => ValueHandler
     end: (metaData: CloseData, preData: PreData) => void
+}
+
+export type TaggedUnionHandler = {
+    onOption: OnOption
+    onMissingOption: () => void
 }
 
 export type OnObject = (metaData: OpenData, preData: PreData) => ObjectHandler
@@ -34,7 +45,8 @@ export type OnArray = (metaData: OpenData, preData: PreData) => ArrayHandler
 
 export type OnSimpleValue = (value: string, metaData: StringData, preData: PreData) => void
 
-export type OnTaggedUnion = (option: string, metaData: TaggedUnionData, beginpreData: PreData, optionpreData: PreData) => ValueHandler
+export type OnTaggedUnion = (metaData: TaggedUnionData, beginpreData: PreData) => TaggedUnionHandler
+export type OnOption = (option: string, optionData: OptionData, optionpreData: PreData) => ExpectedValueHandler
 
 export interface ValueHandler {
     object: OnObject

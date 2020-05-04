@@ -1,4 +1,4 @@
-import { ArrayHandler, ObjectHandler, ValueHandler } from "./handlers"
+import { ArrayHandler, ObjectHandler, ValueHandler, ExpectedValueHandler } from "./handlers"
 
 export function createDummyValueHandler(): ValueHandler {
     return {
@@ -7,7 +7,14 @@ export function createDummyValueHandler(): ValueHandler {
         simpleValue: () => {
             //do nothing
         },
-        taggedUnion: () => createDummyValueHandler(),
+        taggedUnion: () => {
+            return {
+                onOption: () => createDummyExpectedValueHandler(),
+                onMissingOption: () => {
+                    //
+                },
+            }
+        },
     }
 }
 
@@ -22,8 +29,24 @@ export function createDummyArrayHandler(): ArrayHandler {
 
 export function createDummyObjectHandler(): ObjectHandler {
     return {
-        property: () => createDummyValueHandler(),
+        property: () => {
+            return {
+                onValue: createDummyValueHandler(),
+                onMissing: () => {
+                    //
+                },
+            }
+        },
         end: () => {
+            //do nothing
+        },
+    }
+}
+
+export function createDummyExpectedValueHandler(): ExpectedValueHandler {
+    return {
+        onValue: createDummyValueHandler(),
+        onMissing: () => {
             //do nothing
         },
     }

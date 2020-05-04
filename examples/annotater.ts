@@ -16,7 +16,12 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}"${key}": `)
-                    return createValuesAnnotater(`${indentation}\t`, writer)
+                    return {
+                        onMissing: () => {
+                            //write out an empty string to fix this missing data?
+                        },
+                        onValue: createValuesAnnotater(`${indentation}\t`, writer),
+                    }
                 },
                 end: endMetaData => {
                     writer(`${indentation}} // ${bc.printRange(endMetaData.range)}`)
@@ -30,9 +35,23 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
                 writer(`${indentation}${value} // ${bc.printRange(metaData.range)}`)
             }
         },
-        taggedUnion: (option, metaData) => {
-            writer(`| ${indentation}"${JSON.stringify(option)}" // ${bc.printRange(metaData.startRange)} ${bc.printRange(metaData.optionRange)}`)
-            return createValuesAnnotater(`${indentation}\t`, writer)
+        taggedUnion: taggedUnionData => {
+            writer(`| ${indentation}`)
+            return {
+                onOption: (option, optionData) => {
+                    writer(`"${JSON.stringify(option)}" // ${bc.printRange(taggedUnionData.startRange)} ${bc.printRange(optionData.range)}`)
+
+                    return {
+                        onValue: createValuesAnnotater(`${indentation}\t`, writer),
+                        onMissing: () => {
+                            //
+                        },
+                    }
+                },
+                onMissingOption: () => {
+                    //
+                },
+            }
         },
     }
 }

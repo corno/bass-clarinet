@@ -26,7 +26,11 @@ export type StringData = {
 
 export type TaggedUnionData = {
     startRange: Range
-    optionRange: Range
+    pauser: Pauser
+}
+
+export type OptionData = {
+    range: Range
     pauser: Pauser
 }
 

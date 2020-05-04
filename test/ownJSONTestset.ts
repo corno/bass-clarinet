@@ -951,4 +951,14 @@ export const JSONTests: TestDefinitions = {
             ["end", undefined],
         ],
     },
+    "unclosed object": {
+        text: '{',
+        testHeaders: true,
+        events: [
+            ["headerend"],
+            ["openobject", "{", undefined],
+            ["parsererror", "unexpected end of document, still in nested type"],
+            ["end", undefined],
+        ],
+    },
 }

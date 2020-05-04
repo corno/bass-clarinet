@@ -27,7 +27,12 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}\t"${key}": `)
-                    return createValuesPrettyPrinter(`${indentation}\t`, writer)
+                    return {
+                        onValue: createValuesPrettyPrinter(`${indentation}\t`, writer),
+                        onMissing: () => {
+                            //write out an empty string to fix this missing data?
+                        },
+                    }
                 },
                 end: endMetaData => {
                     writer(`${indentation}${endMetaData.range}`)
@@ -41,9 +46,21 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
                 writer(`${value}`)
             }
         },
-        taggedUnion: (option, _metaData) => {
-            writer(`| "${option}" `)
-            return createValuesPrettyPrinter(`${indentation}`, writer)
+        taggedUnion: () => {
+            return {
+                onOption: option => {
+                    writer(`| "${option}" `)
+                    return {
+                        onValue: createValuesPrettyPrinter(`${indentation}`, writer),
+                        onMissing: () => {
+                            //
+                        },
+                    }
+                },
+                onMissingOption: () => {
+                    //
+                },
+            }
         },
     }
 }
