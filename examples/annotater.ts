@@ -60,12 +60,7 @@ export function attachAnnotator(parser: bc.Parser, indentation: string, writer: 
     const ds = bc.createStackedDataSubscriber(
         createValuesAnnotater(indentation, writer),
         error => {
-            if (error.context[0] === "range") {
-                throw new bc.RangeError(error.message, error.context[1])
-            } else {
-                throw new bc.LocationError(error.message, error.context[1])
-
-            }
+            throw new bc.RangeError(error.message, error.range)
         },
         () => {
             //do nothing

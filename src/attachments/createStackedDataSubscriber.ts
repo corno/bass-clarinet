@@ -41,18 +41,8 @@ export type ContextType =
         dataHandler: ExpectedValueHandler | null //if null, the option still needs to be parsed
     }]
 
-type StackedDataError = {
-    message: string
-    context:
-    | ["range", Range]
-    | ["location", Location]
-}
-
-function raiseRangeError(onError: (error: StackedDataError) => void, message: string, range: Range) {
-    onError({
-        message: message,
-        context: ["range", range],
-    })
+function raiseError(onError: (error: RangeError) => void, message: string, range: Range) {
+    onError(new RangeError(message, range))
 }
 
 /**
@@ -63,7 +53,7 @@ function raiseRangeError(onError: (error: StackedDataError) => void, message: st
  */
 export function createStackedDataSubscriber(
     valueHandler: ValueHandler,
-    onError: (error: StackedDataError) => void,
+    onError: (error: RangeError) => void,
     onend: (preData: PreData) => void
 ): IDataSubscriber {
     const stack: ContextType[] = []
@@ -87,7 +77,7 @@ export function createStackedDataSubscriber(
     function pop(range: Range) {
         const previousContext = stack.pop()
         if (previousContext === undefined) {
-            raiseRangeError(onError, "lost context", range)
+            raiseError(onError, "lost context", range)
         } else {
             currentContext = previousContext
         }
@@ -221,7 +211,7 @@ export function createStackedDataSubscriber(
         onCloseArray: metaData => {
             lineIsDirty = true
             if (currentContext[0] !== "array") {
-                raiseRangeError(onError, "unexpected end of array", metaData.range)
+                raiseError(onError, "unexpected end of array", metaData.range)
             } else {
                 currentContext[1].arrayHandler.end(
                     metaData,
@@ -267,7 +257,7 @@ export function createStackedDataSubscriber(
             if (DEBUG) { console.log("on close object") }
             lineIsDirty = true
             if (currentContext[0] !== "object") {
-                raiseRangeError(onError, "unexpected end of object", metaData.range)
+                raiseError(onError, "unexpected end of object", metaData.range)
             } else {
                 currentContext[1].objectHandler.end(
                     metaData,
@@ -300,7 +290,7 @@ export function createStackedDataSubscriber(
                     if ($.propertyHandler === null) {
                         if (DEBUG) { console.log("on key", value) }
                         if (currentContext[0] !== "object") {
-                            raiseRangeError(onError, "unexpected key", metaData.range)
+                            raiseError(onError, "unexpected key", metaData.range)
                         } else {
                             currentContext[1].propertyHandler = currentContext[1].objectHandler.property(
                                 value,
@@ -325,7 +315,7 @@ export function createStackedDataSubscriber(
                     if ($.dataHandler === null) {
                         if (DEBUG) { console.log("on option", value) }
                         if (currentContext[0] !== "taggedunion") {
-                            raiseRangeError(onError, "unexpected option", metaData.range)
+                            raiseError(onError, "unexpected option", metaData.range)
                         } else {
                             currentContext[1].dataHandler = currentContext[1].taggedUnionHandler.onOption(
                                 value,
@@ -362,7 +352,7 @@ export function createStackedDataSubscriber(
                         break unfoldLoop
                     }
                     case "array": {
-                        raiseRangeError(onError, "unexpected end of document, still in array", range)
+                        raiseError(onError, "unexpected end of document, still in array", range)
                         popStack()
                         break
                     }
@@ -371,7 +361,7 @@ export function createStackedDataSubscriber(
                         if ($.propertyHandler !== null) {
                             $.propertyHandler.onMissing()
                         }
-                        raiseRangeError(onError, "unexpected end of document, still in object", range)
+                        raiseError(onError, "unexpected end of document, still in object", range)
                         popStack()
                         break
                     }
@@ -383,7 +373,7 @@ export function createStackedDataSubscriber(
                         } else {
                             $.dataHandler.onMissing()
                         }
-                        raiseRangeError(onError, "unexpected end of document, still in tagged union", range)
+                        raiseError(onError, "unexpected end of document, still in tagged union", range)
                         popStack()
 
                         break
