@@ -2,7 +2,7 @@
     no-console:"off",
     no-underscore-dangle: "off",
 */
-import { IDataSubscriber, StringData } from "../IDataSubscriber"
+import { IDataSubscriber } from "../IDataSubscriber"
 import { Location, Range } from "../location"
 import { createDummyValueHandler } from "./dummyHandlers"
 import {
