@@ -64,8 +64,8 @@
     "pubMin": "npm run validatePublishReadiness && npm version minor && git push && npm publish",
     "pubPatch": "npm run validatePublishReadiness && npm version patch && git push && npm publish",
     "test": "tsc && node ./node_modules/mocha/bin/mocha dist/test/bass_clarinet.js && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
-    "testOwnSuite": "node ./node_modules/mocha/bin/mocha dist/test/bass_clarinet.js",
-    "testJSONTestSuite": "node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
+    "testOwnSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/bass_clarinet.js",
+    "testJSONTestSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
     "update2latest": "ncu -u --packageFile package.json && nsi"
   },
   "engines": {
