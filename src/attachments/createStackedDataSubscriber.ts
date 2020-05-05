@@ -100,7 +100,6 @@ export function createStackedDataSubscriber(
             }
             case "root": {
                 const vh = currentContext[1].rootValueHandler
-                currentContext[1].rootValueHandler = null
                 if (vh === null) {
                     //expected end of document
                     //error is already reported by parser
@@ -132,6 +131,8 @@ export function createStackedDataSubscriber(
             }
             case "root": {
                 endIsSignalled = true
+                currentContext[1].rootValueHandler = null
+
                 onend(flushPreData())
                 break
             }
@@ -223,15 +224,50 @@ export function createStackedDataSubscriber(
         },
         onCloseArray: metaData => {
             lineIsDirty = true
-            if (currentContext[0] !== "array") {
-                raiseError(onError, "unexpected end of array", metaData.range)
-            } else {
-                currentContext[1].arrayHandler.end(
-                    metaData,
-                    flushPreData()
-                )
-                pop(metaData.range)
-                wrapupValue(metaData.range)
+            unwindLoop: while (true) {
+                switch (currentContext[0]) {
+                    case "array": {
+                        //const $ = currentContext[1]
+                        currentContext[1].arrayHandler.end(
+                            metaData,
+                            flushPreData()
+                        )
+                        pop(metaData.range)
+                        wrapupValue(metaData.range)
+                        break unwindLoop
+                    }
+                    case "object": {
+                        const $ = currentContext[1]
+                        if ($.propertyHandler !== null) {
+                            raiseError(onError, "missing property data", metaData.range)
+                            $.propertyHandler.onMissing()
+                            $.propertyHandler = null
+                        }
+                        raiseError(onError, "missing object close", metaData.range)
+                        pop(metaData.range)
+
+                        break
+                    }
+                    case "root": {
+                        //const $ = currentContext[1]
+                        raiseError(onError, "unexpected end of array", metaData.range)
+
+                        break unwindLoop
+                    }
+                    case "taggedunion": {
+                        const $ = currentContext[1]
+                        raiseError(onError, "missing tagged union data", metaData.range)
+                        if ($.dataHandler) {
+                            $.dataHandler.onMissing()
+                            $.dataHandler = null
+                        }
+                        wrapupValue(metaData.range)
+
+                        break unwindLoop
+                    }
+                    default:
+                        assertUnreachable(currentContext[0])
+                }
             }
         },
         onOpenTaggedUnion: (range, pauser) => {
@@ -269,20 +305,50 @@ export function createStackedDataSubscriber(
         onCloseObject: metaData => {
             if (DEBUG) { console.log("on close object") }
             lineIsDirty = true
-            if (currentContext[0] !== "object") {
-                raiseError(onError, "unexpected end of object", metaData.range)
-            } else {
-                if (currentContext[1].propertyHandler !== null) {
-                    //was in the middle of processing a property
-                    //the key was parsed, but the data was not
-                    currentContext[1].propertyHandler.onMissing()
+            unwindLoop: while (true) {
+                switch (currentContext[0]) {
+                    case "array": {
+                        //const $ = currentContext[1]
+                        raiseError(onError, "missing array close", metaData.range)
+                        pop(metaData.range)
+                        break
+                    }
+                    case "object": {
+                        const $ = currentContext[1]
+                        if ($.propertyHandler !== null) {
+                            //was in the middle of processing a property
+                            //the key was parsed, but the data was not
+                            $.propertyHandler.onMissing()
+                            $.propertyHandler = null
+                        }
+                        currentContext[1].objectHandler.end(
+                            metaData,
+                            flushPreData()
+                        )
+                        pop(metaData.range)
+                        wrapupValue(metaData.range)
+                        break unwindLoop
+                    }
+                    case "root": {
+                        //const $ = currentContext[1]
+                        raiseError(onError, "unexpected end of object", metaData.range)
+
+                        break unwindLoop
+                    }
+                    case "taggedunion": {
+                        const $ = currentContext[1]
+                        raiseError(onError, "missing tagged union data", metaData.range)
+
+                        if ($.dataHandler) {
+                            $.dataHandler.onMissing()
+                            $.dataHandler = null
+                        }
+                        wrapupValue(metaData.range)
+                        break unwindLoop
+                    }
+                    default:
+                        assertUnreachable(currentContext[0])
                 }
-                currentContext[1].objectHandler.end(
-                    metaData,
-                    flushPreData()
-                )
-                pop(metaData.range)
-                wrapupValue(metaData.range)
             }
 
         },
@@ -374,6 +440,7 @@ export function createStackedDataSubscriber(
                         const $ = currentContext[1]
                         if ($.rootValueHandler !== null) {
                             $.rootValueHandler.onMissing()
+                            $.rootValueHandler = null
                         }
                         break unfoldLoop
                     }
@@ -386,6 +453,7 @@ export function createStackedDataSubscriber(
                         const $ = currentContext[1]
                         if ($.propertyHandler !== null) {
                             $.propertyHandler.onMissing()
+                            $.propertyHandler = null
                         }
                         raiseError(onError, "unexpected end of document, still in object", range)
                         popStack()
@@ -398,6 +466,7 @@ export function createStackedDataSubscriber(
                             $.onMissingOption()
                         } else {
                             $.dataHandler.onMissing()
+                            $.dataHandler = null
                         }
                         raiseError(onError, "unexpected end of document, still in tagged union", range)
                         popStack()

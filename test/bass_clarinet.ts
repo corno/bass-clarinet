@@ -154,7 +154,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             return {
                 valueHandler: createTestValueHandler(),
                 onMissing: () => {
-                    actualEvents.push(["stacked error", "TBD"])
+                    actualEvents.push(["stacked error", "missing value"])
 
                 },
             }
