@@ -20,13 +20,8 @@ export enum AfterValueContext {
 }
 
 export type ObjectHandler = {
-    property: (key: string, metaData: PropertyData, preData: PreData) => ExpectedValueHandler
+    property: (key: string, metaData: PropertyData, preData: PreData) => RequiredValueHandler
     end: (metaData: CloseData, preData: PreData) => void
-}
-
-export type ExpectedValueHandler = {
-    onValue: ValueHandler
-    onMissing: () => void
 }
 
 export type ArrayHandler = {
@@ -35,8 +30,8 @@ export type ArrayHandler = {
 }
 
 export type TaggedUnionHandler = {
-    onOption: OnOption
-    onMissingOption: () => void
+    option: OnOption
+    missingOption: () => void
 }
 
 export type OnObject = (metaData: OpenData, preData: PreData) => ObjectHandler
@@ -46,8 +41,14 @@ export type OnArray = (metaData: OpenData, preData: PreData) => ArrayHandler
 export type OnSimpleValue = (value: string, metaData: StringData, preData: PreData) => void
 
 export type OnTaggedUnion = (metaData: TaggedUnionData, beginpreData: PreData) => TaggedUnionHandler
-export type OnOption = (option: string, optionData: OptionData, optionpreData: PreData) => ExpectedValueHandler
+export type OnOption = (option: string, optionData: OptionData, optionpreData: PreData) => RequiredValueHandler
 
+export type OnMissing = () => void
+
+export interface RequiredValueHandler {
+    valueHandler: ValueHandler
+    onMissing: OnMissing
+}
 export interface ValueHandler {
     object: OnObject
     array: OnArray

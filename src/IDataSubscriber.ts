@@ -9,7 +9,7 @@ export type OpenData = {
 
 export type CloseData = {
     range: Range
-    closeCharacter?: string
+    closeCharacter: string
     pauser?: Pauser
 }
 

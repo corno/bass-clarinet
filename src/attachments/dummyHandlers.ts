@@ -1,6 +1,15 @@
-import { ArrayHandler, ObjectHandler, ValueHandler, ExpectedValueHandler } from "./handlers"
+import { ArrayHandler, ObjectHandler, ValueHandler, RequiredValueHandler } from "./handlers"
 
-export function createDummyValueHandler(): ValueHandler {
+export function createDummyRequiredValueHandler(): RequiredValueHandler {
+    return {
+        valueHandler: createDummyValueHandler(),
+        onMissing: () => {
+            //
+        },
+    }
+}
+
+    export function createDummyValueHandler(): ValueHandler {
     return {
         array: () => createDummyArrayHandler(),
         object: () => createDummyObjectHandler(),
@@ -9,8 +18,8 @@ export function createDummyValueHandler(): ValueHandler {
         },
         taggedUnion: () => {
             return {
-                onOption: () => createDummyExpectedValueHandler(),
-                onMissingOption: () => {
+                option: () => createDummyRequiredValueHandler(),
+                missingOption: () => {
                     //
                 },
             }
@@ -30,23 +39,9 @@ export function createDummyArrayHandler(): ArrayHandler {
 export function createDummyObjectHandler(): ObjectHandler {
     return {
         property: () => {
-            return {
-                onValue: createDummyValueHandler(),
-                onMissing: () => {
-                    //
-                },
-            }
+            return createDummyRequiredValueHandler()
         },
         end: () => {
-            //do nothing
-        },
-    }
-}
-
-export function createDummyExpectedValueHandler(): ExpectedValueHandler {
-    return {
-        onValue: createDummyValueHandler(),
-        onMissing: () => {
             //do nothing
         },
     }

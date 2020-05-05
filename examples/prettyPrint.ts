@@ -1,5 +1,5 @@
 import * as bc from "../src"
-import * as fs  from "fs"
+import * as fs from "fs"
 
 const [, , path] = process.argv
 
@@ -8,9 +8,18 @@ if (path === undefined) {
     process.exit(1)
 }
 
-const data = fs.readFileSync(path, {encoding: "utf-8"})
+const data = fs.readFileSync(path, { encoding: "utf-8" })
 
-export function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
+function createRequiredValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
+    return {
+        valueHandler: createValuesPrettyPrinter(indentation, writer),
+        onMissing: () => {
+            //write out an empty string to fix this missing data?
+        },
+    }
+}
+
+function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
     return {
         array: beginMetaData => {
             writer(beginMetaData.openCharacter)
@@ -27,12 +36,7 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}\t"${key}": `)
-                    return {
-                        onValue: createValuesPrettyPrinter(`${indentation}\t`, writer),
-                        onMissing: () => {
-                            //write out an empty string to fix this missing data?
-                        },
-                    }
+                    return createRequiredValuesPrettyPrinter(`${indentation}\t`, writer)
                 },
                 end: endMetaData => {
                     writer(`${indentation}${endMetaData.range}`)
@@ -48,16 +52,11 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
         },
         taggedUnion: () => {
             return {
-                onOption: option => {
+                option: option => {
                     writer(`| "${option}" `)
-                    return {
-                        onValue: createValuesPrettyPrinter(`${indentation}`, writer),
-                        onMissing: () => {
-                            //
-                        },
-                    }
+                    return createRequiredValuesPrettyPrinter(`${indentation}`, writer)
                 },
-                onMissingOption: () => {
+                missingOption: () => {
                     //
                 },
             }
@@ -67,7 +66,12 @@ export function createValuesPrettyPrinter(indentation: string, writer: (str: str
 
 export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writer: (str: string) => void) {
     const datasubscriber = bc.createStackedDataSubscriber(
-        createValuesPrettyPrinter(indentation, writer),
+        {
+            valueHandler: createValuesPrettyPrinter(indentation, writer),
+            onMissing: () => {
+                //
+            },
+        },
         error => {
             console.error("FOUND STACKED DATA ERROR", error.message)
         },

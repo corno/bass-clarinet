@@ -9,6 +9,7 @@ import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
+import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler } from "../src"
 
 const DEBUG = false
 
@@ -58,7 +59,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             parser.onheaderdata.subscribe({
                 onHeaderStart: _range => {
                     if (DEBUG) console.log("found header start")
-                    actualEvents.push(["headerstart"])
+                    actualEvents.push(["token", "headerstart"])
                 },
                 onHeaderEnd: () => {
                     if (DEBUG) console.log("found header end")
@@ -66,7 +67,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 },
                 onCompact: () => {
                     if (DEBUG) console.log("found compact")
-                    actualEvents.push(["compact"])
+                    actualEvents.push(["token", "compact"])
                 },
             })
         }
@@ -107,17 +108,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 out.push(metaData.openCharacter)
             },
             onCloseArray: metaData => {
-                if (metaData.closeCharacter !== undefined) {
-                    out.push(metaData.closeCharacter)
-                }
+                out.push(metaData.closeCharacter)
             },
             onOpenObject: metaData => {
                 out.push(metaData.openCharacter)
             },
             onCloseObject: metaData => {
-                if (metaData.closeCharacter !== undefined) {
-                    out.push(metaData.closeCharacter)
-                }
+                out.push(metaData.closeCharacter)
             },
             onNewLine: () => {
                 out.push("\n")
@@ -152,6 +149,64 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 actualEvents.push(["validationerror", v])
             })
         }
+
+        function createTestRequiredValueHandler(): RequiredValueHandler {
+            return {
+                valueHandler: createTestValueHandler(),
+                onMissing: () => {
+                    actualEvents.push(["stacked error", "TBD"])
+
+                },
+            }
+        }
+        function createTestValueHandler(): ValueHandler {
+            return {
+                array: () => {
+                    return {
+                        element: () => {
+                            return createTestValueHandler()
+                        },
+                        end: () => {
+                            //
+                        },
+                    }
+                },
+                object: () => {
+                    return {
+                        property: () => {
+                            return createTestRequiredValueHandler()
+                        },
+                        end: () => {
+                            //
+                        },
+                    }
+
+                },
+                simpleValue: () => {
+                    //
+                },
+                taggedUnion: () => {
+                    return {
+                        missingOption: () => {
+                            console.log("HANDLE MISSING OPTION")
+                        },
+                        option: () => {
+                            return createTestRequiredValueHandler()
+                        },
+                    }
+                },
+            }
+        }
+
+        const stackedSubscriber = createStackedDataSubscriber(
+            createTestRequiredValueHandler(),
+            error => {
+                actualEvents.push(["stacked error", error.rangeLessMessage])
+            },
+            () => {
+                //
+            }
+        )
         const eventSubscriber: bc.IDataSubscriber = {
             onComma: () => {
                 //
@@ -167,41 +222,41 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
             onLineComment: (v, range) => {
                 if (DEBUG) console.log("found line comment")
-                actualEvents.push(["linecomment", v, getRange(test.testForLocation, range)])
+                actualEvents.push(["token", "linecomment", v, getRange(test.testForLocation, range)])
             },
             onBlockComment: (v, range, _indent) => {
                 if (DEBUG) console.log("found block comment")
-                actualEvents.push(["blockcomment", v, getRange(test.testForLocation, range)])
+                actualEvents.push(["token", "blockcomment", v, getRange(test.testForLocation, range)])
             },
             onString: (v, metaData) => {
                 if (metaData.quote === null) {
                     if (DEBUG) console.log("found unquoted token")
-                    actualEvents.push(["unquotedtoken", v, getRange(test.testForLocation, metaData.range)])
+                    actualEvents.push(["token", "unquotedtoken", v, getRange(test.testForLocation, metaData.range)])
                 } else {
                     if (DEBUG) console.log("found quoted string")
-                    actualEvents.push(["quotedstring", v, getRange(test.testForLocation, metaData.range)])
+                    actualEvents.push(["token", "quotedstring", v, getRange(test.testForLocation, metaData.range)])
                 }
             },
 
             onOpenTaggedUnion: range => {
                 if (DEBUG) console.log("found open tagged union")
-                actualEvents.push(["opentaggedunion", getRange(test.testForLocation, range)])
+                actualEvents.push(["token", "opentaggedunion", getRange(test.testForLocation, range)])
             },
             onOpenArray: metaData => {
                 if (DEBUG) console.log("found open array")
-                actualEvents.push(["openarray", metaData.openCharacter, getRange(test.testForLocation, metaData.start)])
+                actualEvents.push(["token", "openarray", metaData.openCharacter, getRange(test.testForLocation, metaData.start)])
             },
             onCloseArray: metaData => {
                 if (DEBUG) console.log("found close array")
-                actualEvents.push(["closearray", metaData.closeCharacter, getRange(test.testForLocation, metaData.range)])
+                actualEvents.push(["token", "closearray", metaData.closeCharacter, getRange(test.testForLocation, metaData.range)])
             },
             onOpenObject: metaData => {
                 if (DEBUG) console.log("found open object")
-                actualEvents.push(["openobject", metaData.openCharacter, getRange(test.testForLocation, metaData.start)])
+                actualEvents.push(["token", "openobject", metaData.openCharacter, getRange(test.testForLocation, metaData.start)])
             },
             onCloseObject: metaData => {
                 if (DEBUG) console.log("found close object")
-                actualEvents.push(["closeobject", metaData.closeCharacter, getRange(test.testForLocation, metaData.range)])
+                actualEvents.push(["token", "closeobject", metaData.closeCharacter, getRange(test.testForLocation, metaData.range)])
             },
             onEnd: location => {
                 if (DEBUG) console.log("found end")
@@ -211,6 +266,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         }
         parser.onschemadata.subscribe(eventSubscriber)
         parser.ondata.subscribe(eventSubscriber)
+        parser.ondata.subscribe(stackedSubscriber)
 
         bc.tokenizeStrings(
             parser,

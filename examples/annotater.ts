@@ -1,6 +1,15 @@
 import * as bc from "../src"
 
-export function createValuesAnnotater(indentation: string, writer: (str: string) => void): bc.ValueHandler {
+function createRequiredValuesAnnotater(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
+    return {
+        valueHandler: createValuesAnnotater(indentation, writer),
+        onMissing: () => {
+            //write out an empty string to fix this missing data?
+        },
+    }
+}
+
+function createValuesAnnotater(indentation: string, writer: (str: string) => void): bc.ValueHandler {
     return {
         array: beginMetaData => {
             writer(`${indentation}[ // ${bc.printRange(beginMetaData.start)}`)
@@ -16,12 +25,7 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}"${key}": `)
-                    return {
-                        onMissing: () => {
-                            //write out an empty string to fix this missing data?
-                        },
-                        onValue: createValuesAnnotater(`${indentation}\t`, writer),
-                    }
+                    return createRequiredValuesAnnotater(`${indentation}\t`, writer)
                 },
                 end: endMetaData => {
                     writer(`${indentation}} // ${bc.printRange(endMetaData.range)}`)
@@ -38,17 +42,12 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
         taggedUnion: taggedUnionData => {
             writer(`| ${indentation}`)
             return {
-                onOption: (option, optionData) => {
+                option: (option, optionData) => {
                     writer(`"${JSON.stringify(option)}" // ${bc.printRange(taggedUnionData.startRange)} ${bc.printRange(optionData.range)}`)
 
-                    return {
-                        onValue: createValuesAnnotater(`${indentation}\t`, writer),
-                        onMissing: () => {
-                            //
-                        },
-                    }
+                    return createRequiredValuesAnnotater(`${indentation}\t`, writer)
                 },
-                onMissingOption: () => {
+                missingOption: () => {
                     //
                 },
             }
@@ -58,7 +57,7 @@ export function createValuesAnnotater(indentation: string, writer: (str: string)
 
 export function attachAnnotator(parser: bc.Parser, indentation: string, writer: (str: string) => void) {
     const ds = bc.createStackedDataSubscriber(
-        createValuesAnnotater(indentation, writer),
+        createRequiredValuesAnnotater(indentation, writer),
         error => {
             throw new bc.RangeError(error.message, error.range)
         },

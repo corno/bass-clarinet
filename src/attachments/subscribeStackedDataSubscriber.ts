@@ -6,12 +6,12 @@ import { IDataSubscriber } from "../IDataSubscriber"
 import { Location, Range } from "../location"
 import { createDummyValueHandler } from "./dummyHandlers"
 import {
+    RequiredValueHandler,
     ValueHandler,
     ObjectHandler,
     ArrayHandler,
     Comment,
     PreData,
-    ExpectedValueHandler,
     TaggedUnionHandler,
 } from "./handlers"
 import { RangeError } from "../errors"
@@ -26,11 +26,11 @@ class StackedDataSubscriberPanic extends RangeError {
 
 export type ContextType =
     | ["root", {
-        readonly valueHandler: ValueHandler
+        rootValueHandler: RequiredValueHandler | null //becomes null when processed
     }]
     | ["object", {
         readonly objectHandler: ObjectHandler
-        propertyHandler: null | ExpectedValueHandler
+        propertyHandler: null | RequiredValueHandler
     }]
     | ["array", {
         readonly arrayHandler: ArrayHandler
@@ -38,7 +38,7 @@ export type ContextType =
     | ["taggedunion", {
         readonly taggedUnionHandler: TaggedUnionHandler
         readonly onMissingOption: () => void
-        dataHandler: ExpectedValueHandler | null //if null, the option still needs to be parsed
+        dataHandler: RequiredValueHandler | null //if null, the option still needs to be parsed
     }]
 
 function raiseError(onError: (error: RangeError) => void, message: string, range: Range) {
@@ -52,7 +52,7 @@ function raiseError(onError: (error: RangeError) => void, message: string, range
  * 'onopenarray' with 'onclosearray'
  */
 export function createStackedDataSubscriber(
-    valueHandler: ValueHandler,
+    valueHandler: RequiredValueHandler,
     onError: (error: RangeError) => void,
     onend: (preData: PreData) => void
 ): IDataSubscriber {
@@ -61,7 +61,9 @@ export function createStackedDataSubscriber(
     let indentation = ""
     let lineIsDirty = false
 
-    let currentContext: ContextType = ["root", { valueHandler: valueHandler }]
+    let endIsSignalled = false
+
+    let currentContext: ContextType = ["root", { rootValueHandler: valueHandler }]
 
     function flushPreData(): PreData {
         const preData = {
@@ -89,21 +91,30 @@ export function createStackedDataSubscriber(
             }
             case "object": {
                 if (currentContext[1].propertyHandler === null) {
+                    //expected a key or end of the object
                     //error is already reported by parser
                     return createDummyValueHandler()
                 } else {
-                    return currentContext[1].propertyHandler.onValue
+                    return currentContext[1].propertyHandler.valueHandler
                 }
             }
             case "root": {
-                return currentContext[1].valueHandler
+                const vh = currentContext[1].rootValueHandler
+                currentContext[1].rootValueHandler = null
+                if (vh === null) {
+                    //expected end of document
+                    //error is already reported by parser
+                    return createDummyValueHandler()
+
+                }
+                return vh.valueHandler
             }
             case "taggedunion": {
                 if (currentContext[1].dataHandler === null) {
                     //error is already reported by parser
                     return createDummyValueHandler()
                 } else {
-                    return currentContext[1].dataHandler.onValue
+                    return currentContext[1].dataHandler.valueHandler
                 }
             }
             default:
@@ -120,6 +131,8 @@ export function createStackedDataSubscriber(
                 break
             }
             case "root": {
+                endIsSignalled = true
+                onend(flushPreData())
                 break
             }
             case "taggedunion": {
@@ -259,6 +272,11 @@ export function createStackedDataSubscriber(
             if (currentContext[0] !== "object") {
                 raiseError(onError, "unexpected end of object", metaData.range)
             } else {
+                if (currentContext[1].propertyHandler !== null) {
+                    //was in the middle of processing a property
+                    //the key was parsed, but the data was not
+                    currentContext[1].propertyHandler.onMissing()
+                }
                 currentContext[1].objectHandler.end(
                     metaData,
                     flushPreData()
@@ -301,13 +319,17 @@ export function createStackedDataSubscriber(
                             )
                         }
                     } else {
-                        onSimpleValue($.propertyHandler.onValue)
+                        onSimpleValue($.propertyHandler.valueHandler)
                     }
                     break
                 }
                 case "root": {
                     const $ = currentContext[1]
-                    onSimpleValue($.valueHandler)
+                    //handle case when root value was already processed
+                    const vh = $.rootValueHandler !== null
+                        ? $.rootValueHandler.valueHandler
+                        : createDummyValueHandler()
+                    onSimpleValue(vh)
                     break
                 }
                 case "taggedunion": {
@@ -317,7 +339,7 @@ export function createStackedDataSubscriber(
                         if (currentContext[0] !== "taggedunion") {
                             raiseError(onError, "unexpected option", metaData.range)
                         } else {
-                            currentContext[1].dataHandler = currentContext[1].taggedUnionHandler.onOption(
+                            currentContext[1].dataHandler = currentContext[1].taggedUnionHandler.option(
                                 value,
                                 {
                                     range: metaData.range,
@@ -327,7 +349,7 @@ export function createStackedDataSubscriber(
                             )
                         }
                     } else {
-                        onSimpleValue($.dataHandler.onValue)
+                        onSimpleValue($.dataHandler.valueHandler)
                     }
                     break
                 }
@@ -349,6 +371,10 @@ export function createStackedDataSubscriber(
                 }
                 switch (currentContext[0]) {
                     case "root": {
+                        const $ = currentContext[1]
+                        if ($.rootValueHandler !== null) {
+                            $.rootValueHandler.onMissing()
+                        }
                         break unfoldLoop
                     }
                     case "array": {
@@ -382,7 +408,9 @@ export function createStackedDataSubscriber(
                         assertUnreachable(currentContext[0])
                 }
             }
-            onend(flushPreData())
+            if (!endIsSignalled) {
+                onend(flushPreData())
+            }
         },
     }
 }
