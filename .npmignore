@@ -1,5 +1,3 @@
-bench/
-samples/
 test/
 src/
 .eslintrc.js
