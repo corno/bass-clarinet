@@ -93,8 +93,7 @@ export class Parser implements IParser {
     }
     public onEnd(location: Location) {
         const range = { start: location, end: location }
-        unwindLoop:
-        while (true) {
+        unwindLoop: while (true) {
             switch (this.currentContext[0]) {
                 case StackContextType.ARRAY: {
                     this.raiseError("unexpected end of document, still in array", range)
@@ -153,35 +152,31 @@ export class Parser implements IParser {
                 // }
             }
         }
-        if (this.currentContext[0] === StackContextType.ROOT) {
-            const $$ = this.currentContext[1]
-            switch ($$.state) {
-                case RootState.EXPECTING_END: {
-                    break
-                }
-                case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                    this.raiseError("expected hash or rootvalue", range)
-                    this.onHeaderEnd(range)
-                    break
-                }
-                case RootState.EXPECTING_SCHEMA: {
-                    this.raiseError("expected the schema", range)
-                    this.onHeaderEnd(range)
-                    break
-                }
-                case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                    this.raiseError("expected the root value", range)
-                    break
-                }
-                case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                    this.raiseError("expected the schema start (!) or root value", range)
-                    this.onHeaderEnd(range)
-                    break
-                default:
-                    return assertUnreachable($$.state)
+        const $$ = this.currentContext[1]
+        switch ($$.state) {
+            case RootState.EXPECTING_END: {
+                break
             }
-        } else {
-            this.raiseError("unexpected end of document, in nested type", range)
+            case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
+                this.raiseError("expected hash or rootvalue", range)
+                this.onHeaderEnd(range)
+                break
+            }
+            case RootState.EXPECTING_SCHEMA: {
+                this.raiseError("expected the schema", range)
+                this.onHeaderEnd(range)
+                break
+            }
+            case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                this.raiseError("expected the root value", range)
+                break
+            }
+            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                this.raiseError("expected the schema start (!) or root value", range)
+                this.onHeaderEnd(range)
+                break
+            default:
+                return assertUnreachable($$.state)
         }
         this.oncurrentdata.signal(s => s.onEnd(location))
     }
@@ -335,7 +330,12 @@ export class Parser implements IParser {
     public onSnippet(chunk: string, begin: number, end: number) {
         if (DEBUG) console.log(`onSnippet`)
         switch (this.currentToken[0]) {
-            case TokenType.COMMENT: {
+            case TokenType.LINE_COMMENT: {
+                const $ = this.currentToken[1]
+                $.commentNode += chunk.substring(begin, end)
+                break
+            }
+            case TokenType.BLOCK_COMMENT: {
                 const $ = this.currentToken[1]
                 $.commentNode += chunk.substring(begin, end)
                 break
@@ -370,12 +370,12 @@ export class Parser implements IParser {
     public onLineCommentBegin(range: Range) {
         if (DEBUG) console.log(`onLineCommentBegin`)
 
-        this.setCurrentToken([TokenType.COMMENT, { commentNode: "", start: range }], range)
+        this.setCurrentToken([TokenType.LINE_COMMENT, { commentNode: "", start: range }], range)
     }
     public onLineCommentEnd(location: Location, pauser: Pauser) {
         if (DEBUG) console.log(`onLineCommentEnd`)
 
-        if (this.currentToken[0] !== TokenType.COMMENT) {
+        if (this.currentToken[0] !== TokenType.LINE_COMMENT) {
             throw new ParserStackPanicError(`Unexpected line comment end`, { start: location, end: location })
         }
         const $ = this.currentToken[1]
@@ -385,12 +385,12 @@ export class Parser implements IParser {
     public onBlockCommentBegin(range: Range) {
         if (DEBUG) console.log(`onBlockCommentBegin`)
 
-        this.setCurrentToken([TokenType.COMMENT, { commentNode: "", start: range }], range)
+        this.setCurrentToken([TokenType.BLOCK_COMMENT, { commentNode: "", start: range }], range)
     }
     public onBlockCommentEnd(end: Range, pauser: Pauser) {
         if (DEBUG) console.log(`onBlockCommentEnd`)
 
-        if (this.currentToken[0] !== TokenType.COMMENT) {
+        if (this.currentToken[0] !== TokenType.BLOCK_COMMENT) {
             throw new ParserStackPanicError(`Unexpected block comment end`, end)
         }
         const $ = this.currentToken[1]

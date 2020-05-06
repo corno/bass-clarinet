@@ -1,4 +1,4 @@
-import { Location, Range} from "./location"
+import { Location, Range } from "./location"
 
 export interface Pauser {
     pause(): void
@@ -8,7 +8,7 @@ export interface Pauser {
 export interface IParser {
     onSnippet(chunk: string, begin: number, end: number, pauser: Pauser): void
     onLineCommentBegin(range: Range, pauser: Pauser): void
-    onLineCommentEnd(location: Location, pauser: Pauser): void
+    onLineCommentEnd(location: Location, pauser: Pauser | null): void
 
     onBlockCommentBegin(range: Range, pauser: Pauser): void
     onBlockCommentEnd(range: Range, pauser: Pauser | null): void //pauser can be null for unterminated comments
