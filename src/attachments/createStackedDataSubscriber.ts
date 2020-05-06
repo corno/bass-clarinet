@@ -249,7 +249,7 @@ export function createStackedDataSubscriber(
                         }
                         raiseError(onError, "missing object close", metaData.range)
                         pop(metaData.range)
-
+                        wrapupValue(metaData.range)
                         break
                     }
                     case "root": {
@@ -268,8 +268,7 @@ export function createStackedDataSubscriber(
                         }
                         pop(metaData.range)
                         wrapupValue(metaData.range)
-
-                        break unwindLoop
+                        break
                     }
                     default:
                         assertUnreachable(currentContext[0])
@@ -315,6 +314,7 @@ export function createStackedDataSubscriber(
                         //const $ = currentContext[1]
                         raiseError(onError, "missing array close", metaData.range)
                         pop(metaData.range)
+                        wrapupValue(metaData.range)
                         break
                     }
                     case "object": {
@@ -349,7 +349,7 @@ export function createStackedDataSubscriber(
                         }
                         pop(metaData.range)
                         wrapupValue(metaData.range)
-                        break unwindLoop
+                        break
                     }
                     default:
                         assertUnreachable(currentContext[0])
