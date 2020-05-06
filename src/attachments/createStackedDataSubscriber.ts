@@ -24,7 +24,14 @@ class StackedDataSubscriberPanic extends RangeError {
     }
 }
 
-export type ContextType =
+type TaggedUnionState =
+    | ["expecting option", {
+        readonly handler: TaggedUnionHandler
+    }]
+    | ["expecting value", RequiredValueHandler]
+
+
+type ContextType =
     | ["root", {
         rootValueHandler: RequiredValueHandler | null //becomes null when processed
     }]
@@ -36,9 +43,7 @@ export type ContextType =
         readonly arrayHandler: ArrayHandler
     }]
     | ["taggedunion", {
-        readonly taggedUnionHandler: TaggedUnionHandler
-        readonly onMissingOption: () => void
-        dataHandler: RequiredValueHandler | null //if null, the option still needs to be parsed
+        state: TaggedUnionState
     }]
 
 function raiseError(onError: (error: RangeError) => void, message: string, range: Range) {
@@ -109,11 +114,11 @@ export function createStackedDataSubscriber(
                 return vh.valueHandler
             }
             case "taggedunion": {
-                if (currentContext[1].dataHandler === null) {
+                if (currentContext[1].state[0] !== "expecting value") {
                     //error is already reported by parser
                     return createDummyValueHandler()
                 } else {
-                    return currentContext[1].dataHandler.valueHandler
+                    return currentContext[1].state[1].valueHandler
                 }
             }
             default:
@@ -137,14 +142,13 @@ export function createStackedDataSubscriber(
                 break
             }
             case "taggedunion": {
-                if (currentContext[1].dataHandler === null) {
+                if (currentContext[1].state[0] !== "expecting value") {
                     //error is already reported by parser
-                    break
                 } else {
                     pop(range)
                     wrapupValue(range)
-                    break
                 }
+                break
             }
             default:
                 return assertUnreachable(currentContext[0])
@@ -255,12 +259,14 @@ export function createStackedDataSubscriber(
                         break unwindLoop
                     }
                     case "taggedunion": {
-                        const $ = currentContext[1]
-                        raiseError(onError, "missing tagged union data", metaData.range)
-                        if ($.dataHandler) {
-                            $.dataHandler.onMissing()
-                            $.dataHandler = null
+                        //const $ = currentContext[1]
+                        if (currentContext[1].state[0] === "expecting value") {
+                            currentContext[1].state[1].onMissing()
+                            raiseError(onError, "missing tagged union value", metaData.range)
+                        } else {
+                            raiseError(onError, "missing tagged union option and value", metaData.range)
                         }
+                        pop(metaData.range)
                         wrapupValue(metaData.range)
 
                         break unwindLoop
@@ -275,17 +281,15 @@ export function createStackedDataSubscriber(
             if (DEBUG) { console.log("on open tagged union") }
             stack.push(currentContext)
             currentContext = ["taggedunion", {
-                taggedUnionHandler: initValueHandler().taggedUnion(
-                    {
-                        startRange: range,
-                        pauser: pauser,
-                    },
-                    flushPreData(),
-                ),
-                onMissingOption: () => {
-                    console.error("IMPLEMENT MISSING OPTION")
-                },
-                dataHandler: null,
+                state: ["expecting option", {
+                    handler: initValueHandler().taggedUnion(
+                        {
+                            startRange: range,
+                            pauser: pauser,
+                        },
+                        flushPreData(),
+                    ),
+                }],
             }]
         },
         onOpenObject: metaData => {
@@ -336,13 +340,14 @@ export function createStackedDataSubscriber(
                         break unwindLoop
                     }
                     case "taggedunion": {
-                        const $ = currentContext[1]
-                        raiseError(onError, "missing tagged union data", metaData.range)
-
-                        if ($.dataHandler) {
-                            $.dataHandler.onMissing()
-                            $.dataHandler = null
+                        //const $ = currentContext[1]
+                        if (currentContext[1].state[0] === "expecting value") {
+                            currentContext[1].state[1].onMissing()
+                            raiseError(onError, "missing tagged union value", metaData.range)
+                        } else {
+                            raiseError(onError, "missing tagged union option and value", metaData.range)
                         }
+                        pop(metaData.range)
                         wrapupValue(metaData.range)
                         break unwindLoop
                     }
@@ -400,12 +405,11 @@ export function createStackedDataSubscriber(
                 }
                 case "taggedunion": {
                     const $ = currentContext[1]
-                    if ($.dataHandler === null) {
-                        if (DEBUG) { console.log("on option", value) }
-                        if (currentContext[0] !== "taggedunion") {
-                            raiseError(onError, "unexpected option", metaData.range)
-                        } else {
-                            currentContext[1].dataHandler = currentContext[1].taggedUnionHandler.option(
+                    switch ($.state[0]) {
+                        case "expecting option": {
+                            const $$ = $.state[1]
+                            if (DEBUG) { console.log("on option", value) }
+                            const rvh = $$.handler.option(
                                 value,
                                 {
                                     range: metaData.range,
@@ -413,9 +417,17 @@ export function createStackedDataSubscriber(
                                 },
                                 flushPreData()
                             )
+                            $.state = ["expecting value", rvh]
+                            break
                         }
-                    } else {
-                        onSimpleValue($.dataHandler.valueHandler)
+                        case "expecting value": {
+                            const $$ = $.state[1]
+                            onSimpleValue($$.valueHandler)
+
+                            break
+                        }
+                        default:
+                            assertUnreachable($.state[0])
                     }
                     break
                 }
@@ -461,12 +473,21 @@ export function createStackedDataSubscriber(
                     }
                     case "taggedunion": {
                         const $ = currentContext[1]
-                        if ($.dataHandler === null) {
-                            //option not yet parsed
-                            $.onMissingOption()
-                        } else {
-                            $.dataHandler.onMissing()
-                            $.dataHandler = null
+                        switch ($.state[0]) {
+                            case "expecting option": {
+                                const $$ = $.state[1]
+                                $$.handler.missingOption()
+                                break
+                            }
+                            case "expecting value": {
+                                const $$ = $.state[1]
+                                //option not yet parsed
+                                $$.onMissing()
+
+                                break
+                            }
+                            default:
+                                assertUnreachable($.state[0])
                         }
                         raiseError(onError, "unexpected end of document, still in tagged union", range)
                         popStack()
