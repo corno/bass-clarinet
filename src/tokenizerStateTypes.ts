@@ -18,8 +18,9 @@ export type CurrentToken =
     | [TokenType.WHITESPACE]
 
 export type CommentContextState =
-    | [CommentState.FOUND_ASTERISK, { start: Location }]
-    | [CommentState.BLOCK_COMMENT]
+    | [CommentState.BLOCK_COMMENT, {
+        foundAsterisk: null | Location
+    }]
     | [CommentState.FOUND_SOLIDUS, { start: Location }]
     | [CommentState.LINE_COMMENT]
 
@@ -52,7 +53,6 @@ export type StringContext = {
 
 export enum CommentState {
     FOUND_SOLIDUS,
-    FOUND_ASTERISK,
     LINE_COMMENT,
     BLOCK_COMMENT
 }

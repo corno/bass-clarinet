@@ -162,6 +162,50 @@ export class Tokenizer {
                 currentChunk.sourcePauser.continue()
             },
         }
+        const processUntilFirstNotIncludedCharacter = (
+            isIncludedCharacter: (char: number) => boolean,
+            onEndOfToken: () => void,
+        ): boolean => {
+            let snippetStart: null | number = null
+            const flush = () => {
+                if (snippetStart !== null) {
+                    this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1, pauser)
+
+                    if (currentChunk.mustPause) {
+                        return
+                    }
+                }
+                snippetStart = null
+            }
+
+            while (true) {
+                const nextChar = currentChunk.lookahead()
+                if (nextChar === null) {
+                    this.currentChunk = null
+                    flush()
+                    return true
+                }
+
+                //first check if we are breaking out of an unquoted token. Can only be done by checking the character that comes directly after the unquoted token
+                if (!isIncludedCharacter(nextChar)) {
+                    flush()
+                    onEndOfToken()
+
+                    this.setCurrentTokenType([TokenType.NONE, {}])
+                    //this character does not belong to the keyword so don't go to the next character by breaking
+                    break
+                } else {
+                    //normal character
+                    //don't flush
+                    this.next(currentChunk)
+                    if (snippetStart === null) {
+                        snippetStart = currentChunk.index
+                    }
+                }
+            }
+            return false
+        }
+
         while (true) {
             const state = this.currentTokenType
             switch (state[0]) {
@@ -182,95 +226,110 @@ export class Tokenizer {
                         snippetStart = null
                     }
 
-                    commentLoop: while (true) {
-                        //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
-                        const currentChar = this.next(currentChunk)
+                    switch ($.state[0]) {
+                        case CommentState.BLOCK_COMMENT: {
+                            blockCommentLoop: while (true) {
+                                //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
+                                const nextChar = currentChunk.lookahead()
 
 
-                        if (currentChar === null) {
-                            //end of the chunk
-                            //store it and wait for more input
-                            flush()
-                            return
-                        }
-                        switch ($.state[0]) {
-                            case CommentState.BLOCK_COMMENT:
+                                if (nextChar === null) {
+                                    //end of the chunk
+                                    //store it and wait for more input
+                                    flush()
+                                    return
+                                }
+                                const $$ = $.state[1]
+
+                                //whatever character is next, it is part of the block comment, so consume it
+
+                                this.next(currentChunk)
+
                                 if (snippetStart === null) {
                                     snippetStart = currentChunk.index
                                 }
-                                if (currentChar === Char.Comment.asterisk) {
-                                    $.state = [CommentState.FOUND_ASTERISK, { start: this.getBeginLocation() }]
-                                    //possible end of comment
-                                    flush()
-                                }
-                                break
-                            case CommentState.LINE_COMMENT:
-                                if (currentChar === Char.Whitespace.lineFeed || currentChar === Char.Whitespace.carriageReturn) {
-                                    //end of line comment
-                                    this.setCurrentTokenType([TokenType.NONE, {}])
-                                    flush()
-                                    this.parser.onLineCommentEnd(this.getEndLocation(), pauser)
-                                    if (currentChunk.mustPause) {
-                                        return
+                                if ($$.foundAsterisk === null) {
+                                    if (nextChar === Char.Comment.asterisk) {
+                                        $$.foundAsterisk = this.getBeginLocation()
+                                        //possible end of comment
+                                        flush()
                                     }
-                                    break commentLoop
                                 } else {
-                                    if (snippetStart === null) {
-                                        snippetStart = currentChunk.index
-                                    }
-                                }
-                                break
-                            case CommentState.FOUND_ASTERISK: {
-                                const $$ = $.state[1]
-                                if (currentChar === Char.Comment.solidus) {
-                                    //end of block comment
-                                    this.setCurrentTokenType([TokenType.NONE, {}])
-                                    this.parser.onBlockCommentEnd({ start: $$.start, end: this.getEndLocation() }, pauser)
+                                    if (nextChar === Char.Comment.solidus) {
+                                        //end of block comment
+                                        this.setCurrentTokenType([TokenType.NONE, {}])
+                                        this.parser.onBlockCommentEnd({ start: $$.foundAsterisk, end: this.getEndLocation() }, pauser)
 
-                                    if (currentChunk.mustPause) {
-                                        return
-                                    }
-                                    break commentLoop
-                                } else {
-                                    //false alarm, not the end of the comment
-                                    this.parser.onSnippet("*", 0, 1, pauser)
+                                        if (currentChunk.mustPause) {
+                                            return
+                                        }
+                                        break blockCommentLoop
+                                    } else {
+                                        //false alarm, not the end of the comment
+                                        this.parser.onSnippet("*", 0, 1, pauser)
 
-                                    if (currentChunk.mustPause) {
-                                        return
+                                        if (currentChunk.mustPause) {
+                                            return
+                                        }
+                                        if (snippetStart === null) {
+                                            snippetStart = currentChunk.index
+                                        }
+                                        $$.foundAsterisk = null
                                     }
-                                    if (snippetStart === null) {
-                                        snippetStart = currentChunk.index
-                                    }
-                                    $.state = [CommentState.BLOCK_COMMENT]
+
                                 }
-                                break
                             }
-                            case CommentState.FOUND_SOLIDUS: {
-                                const $$ = $.state[1]
-
-                                if (currentChar === Char.Comment.solidus) {
-                                    this.parser.onLineCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
-
-                                    if (currentChunk.mustPause) {
-                                        return
-                                    }
-                                    $.state = [CommentState.LINE_COMMENT]
-                                } else if (currentChar === Char.Comment.asterisk) {
-                                    this.parser.onBlockCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
-
-                                    if (currentChunk.mustPause) {
-                                        return
-                                    }
-                                    $.state = [CommentState.BLOCK_COMMENT]
-                                } else {
-                                    this.raiseError("found dangling slash", { start: this.getBeginLocation(), end: this.getEndLocation() })
-                                    this.setCurrentTokenType([TokenType.NONE, {}])
-
-                                }
-                                break
-                            }
-                            default: assertUnreachable($.state)
+                            break
                         }
+                        case CommentState.LINE_COMMENT: {
+                            const mustBreak = processUntilFirstNotIncludedCharacter(
+                                char => {
+                                    return char !== Char.Whitespace.lineFeed &&
+                                        char !== Char.Whitespace.carriageReturn
+                                },
+                                () => {
+                                    this.parser.onLineCommentEnd(this.getEndLocation(), pauser)
+                                }
+                            )
+                            if (mustBreak) {
+                                return
+                            }
+                            break
+                        }
+                        case CommentState.FOUND_SOLIDUS: {
+                            const $$ = $.state[1]
+                            const nextChar = currentChunk.lookahead()
+                            if (nextChar === null) {
+                                return
+                            }
+
+                            if (nextChar === Char.Comment.solidus) {
+                                this.next(currentChunk)
+
+                                this.parser.onLineCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
+
+                                if (currentChunk.mustPause) {
+                                    return
+                                }
+                                $.state = [CommentState.LINE_COMMENT]
+                            } else if (nextChar === Char.Comment.asterisk) {
+                                this.next(currentChunk)
+
+                                this.parser.onBlockCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
+
+                                if (currentChunk.mustPause) {
+                                    return
+                                }
+                                $.state = [CommentState.BLOCK_COMMENT, { foundAsterisk: null }]
+                            } else {
+                                this.raiseError("found dangling slash", { start: this.getBeginLocation(), end: this.getEndLocation() })
+                                this.setCurrentTokenType([TokenType.NONE, {}])
+                            }
+                            break
+                        }
+                        default:
+                            assertUnreachable($.state)
+
                     }
 
                     break
@@ -300,7 +359,7 @@ export class Tokenizer {
                             break
                         }
                         default:
-                            return assertUnreachable($.foundNewLineCharacter)
+                            assertUnreachable($.foundNewLineCharacter)
                     }
                     this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
                     this.setCurrentTokenType([TokenType.NONE, {}])
@@ -500,70 +559,40 @@ export class Tokenizer {
                     /**
                      * unquoted token PROCESSING (null, true, false)
                      */
-                    let snippetStart: null | number = null
-                    const flush = () => {
-                        if (snippetStart !== null) {
-                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1, pauser)
-
-                            if (currentChunk.mustPause) {
-                                return
-                            }
-                        }
-                        snippetStart = null
-                    }
-
-                    while (true) {
-                        const nextChar = currentChunk.lookahead()
-                        if (nextChar === null) {
-                            this.currentChunk = null
-                            flush()
-                            return
-                        }
-
-                        function isUnquotedTokenCharacter() {
+                    const mustBreak = processUntilFirstNotIncludedCharacter(
+                        (char: number) => {
                             const isOtherCharacter = (false
-                                || nextChar === Char.Whitespace.carriageReturn
-                                || nextChar === Char.Whitespace.lineFeed
-                                || nextChar === Char.Whitespace.space
-                                || nextChar === Char.Whitespace.tab
+                                || char === Char.Whitespace.carriageReturn
+                                || char === Char.Whitespace.lineFeed
+                                || char === Char.Whitespace.space
+                                || char === Char.Whitespace.tab
 
-                                || nextChar === Char.Punctuation.closeBrace
-                                || nextChar === Char.Punctuation.closeParen
-                                || nextChar === Char.Punctuation.colon
-                                || nextChar === Char.Punctuation.comma
-                                || nextChar === Char.Punctuation.openBrace
-                                || nextChar === Char.Punctuation.openParen
-                                || nextChar === Char.Punctuation.closeAngleBracket
-                                || nextChar === Char.Punctuation.closeBracket
-                                || nextChar === Char.Punctuation.openAngleBracket
-                                || nextChar === Char.Punctuation.openBracket
-                                || nextChar === Char.Punctuation.verticalLine
-                                || nextChar === Char.Punctuation.hash
+                                || char === Char.Punctuation.closeBrace
+                                || char === Char.Punctuation.closeParen
+                                || char === Char.Punctuation.colon
+                                || char === Char.Punctuation.comma
+                                || char === Char.Punctuation.openBrace
+                                || char === Char.Punctuation.openParen
+                                || char === Char.Punctuation.closeAngleBracket
+                                || char === Char.Punctuation.closeBracket
+                                || char === Char.Punctuation.openAngleBracket
+                                || char === Char.Punctuation.openBracket
+                                || char === Char.Punctuation.verticalLine
+                                || char === Char.Punctuation.hash
 
-                                || nextChar === Char.Comment.solidus
+                                || char === Char.Comment.solidus
 
-                                || nextChar === Char.QuotedString.quotationMark
-                                || nextChar === Char.QuotedString.apostrophe
+                                || char === Char.QuotedString.quotationMark
+                                || char === Char.QuotedString.apostrophe
                             )
                             return !isOtherCharacter
-                        }
-                        //first check if we are breaking out of an unquoted token. Can only be done by checking the character that comes directly after the unquoted token
-                        if (!isUnquotedTokenCharacter()) {
-                            flush()
-
+                        },
+                        () => {
                             this.parser.onUnquotedTokenEnd(this.getEndLocation(), pauser)
-
-                            this.setCurrentTokenType([TokenType.NONE, {}])
-                            //this character does not belong to the keyword so don't go to the next character by breaking
-                            break
-                        } else {
-                            //normal character
-                            //don't flush
-                            this.next(currentChunk)
-                            if (snippetStart === null) {
-                                snippetStart = currentChunk.index
-                            }
-                        }
+                        },
+                    )
+                    if (mustBreak) {
+                        return
                     }
                     break
                 }
@@ -632,14 +661,30 @@ export class Tokenizer {
         switch (this.currentTokenType[0]) {
             case TokenType.COMMENT: {
                 const $ = this.currentTokenType[1]
-                if ($.state[0] === CommentState.BLOCK_COMMENT) {
-                    this.raiseError("unterminated block comment", { start: this.getEndLocation(), end: this.getEndLocation() })
-                    const locationInfo = {
-                        start: this.getEndLocation(),
-                        end: this.getEndLocation(),
+                switch ($.state[0]) {
+                    case CommentState.BLOCK_COMMENT: {
+                        this.raiseError("unterminated block comment", { start: this.getEndLocation(), end: this.getEndLocation() })
+                        const locationInfo = {
+                            start: this.getEndLocation(),
+                            end: this.getEndLocation(),
+                        }
+                        this.parser.onBlockCommentEnd(locationInfo, null)
+                        this.setCurrentTokenType([TokenType.NONE, {}])
+
+                        break
                     }
-                    this.parser.onBlockCommentEnd(locationInfo, null)
-                    this.setCurrentTokenType([TokenType.NONE, {}])
+                    case CommentState.LINE_COMMENT: {
+                        this.parser.onLineCommentEnd(this.getEndLocation(), null)
+                        this.setCurrentTokenType([TokenType.NONE, {}])
+                        break
+                    }
+                    case CommentState.FOUND_SOLIDUS: {
+                        this.raiseError("found dangling slash at the end of the document", { start: this.getBeginLocation(), end: this.getEndLocation() })
+
+                        break
+                    }
+                    default:
+                        assertUnreachable($.state[0])
                 }
                 break
             }
