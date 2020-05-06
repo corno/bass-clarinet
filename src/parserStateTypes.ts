@@ -49,7 +49,8 @@ export type TaggedUnionContext = {
 }
 
 export enum TokenType {
-    COMMENT,
+    LINE_COMMENT,
+    BLOCK_COMMENT,
     QUOTED_STRING,
     NONE,
     UNQUOTED_TOKEN,
@@ -58,7 +59,8 @@ export enum TokenType {
 
 export type CurrentToken =
     | [TokenType.NONE]
-    | [TokenType.COMMENT, CommentContext]
+    | [TokenType.LINE_COMMENT, CommentContext]
+    | [TokenType.BLOCK_COMMENT, CommentContext]
     | [TokenType.UNQUOTED_TOKEN, UnquotedTokenContext]
     | [TokenType.QUOTED_STRING, QuotedStringContext]
     | [TokenType.WHITESPACE, WhitespaceContext]
