@@ -2,14 +2,14 @@ import { Pauser } from "./parserAPI"
 import { Location, Range } from "./location"
 
 export type OpenData = {
-    start: Range
     openCharacter: string
+    range: Range
     pauser: Pauser
 }
 
 export type CloseData = {
-    range: Range
     closeCharacter: string
+    range: Range
     pauser?: Pauser
 }
 
@@ -24,35 +24,30 @@ export type StringData = {
     pauser: Pauser
 }
 
-export type TaggedUnionData = {
-    startRange: Range
-    pauser: Pauser
-}
-
-export type OptionData = {
+export type SimpleMetaData = {
     range: Range
     pauser: Pauser
 }
 
 export interface IDataSubscriber {
-    onComma(range: Range, pauser: Pauser): void
-    onColon(range: Range, pauser: Pauser): void
+    onComma(metaData: SimpleMetaData): void
+    onColon(metaData: SimpleMetaData): void
 
     onOpenArray(metaData: OpenData): void
     onCloseArray(metaData: CloseData): void //there is only metadata if the array is properly closed
 
-    onOpenTaggedUnion(range: Range, pauser: Pauser): void
+    onOpenTaggedUnion(metaData: SimpleMetaData): void
 
     onOpenObject(metaData: OpenData): void
     onCloseObject(metaData: CloseData): void //there is only metadata if the object is properly closed
 
     onString(value: string, metaData: StringData): void
 
-    onBlockComment(comment: string, range: Range, pauser: Pauser): void
-    onLineComment(comment: string, range: Range, pauser: Pauser): void
+    onBlockComment(comment: string, metaData: SimpleMetaData): void
+    onLineComment(comment: string, metaData: SimpleMetaData): void
 
-    onNewLine(range: Range): void
-    onWhitespace(value: string, range: Range): void
+    onNewLine(metaData: SimpleMetaData): void
+    onWhitespace(value: string, metaData: SimpleMetaData): void
     onEnd(location: Location): void
 }
 

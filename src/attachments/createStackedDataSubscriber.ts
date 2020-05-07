@@ -199,22 +199,22 @@ export function createStackedDataSubscriber(
             }
             //
         },
-        onLineComment: (comment, range) => {
+        onLineComment: (comment, metaData) => {
             lineIsDirty = true
             comments.push({
                 text: comment,
                 type: "line",
                 indent: null,
-                range: range,
+                range: metaData.range,
             })
         },
-        onBlockComment: (comment, range) => {
+        onBlockComment: (comment, metaData) => {
             lineIsDirty = true
             comments.push({
                 text: comment,
                 type: "line",
                 indent: null, //FIX get the right indent info
-                range: range,
+                range: metaData.range,
             })
         },
         onOpenArray: metaData => {
@@ -275,17 +275,14 @@ export function createStackedDataSubscriber(
                 }
             }
         },
-        onOpenTaggedUnion: (range, pauser) => {
+        onOpenTaggedUnion: metaData => {
             lineIsDirty = true
             if (DEBUG) { console.log("on open tagged union") }
             stack.push(currentContext)
             currentContext = ["taggedunion", {
                 state: ["expecting option", {
                     handler: initValueHandler().taggedUnion(
-                        {
-                            startRange: range,
-                            pauser: pauser,
-                        },
+                        metaData,
                         flushPreData(),
                     ),
                 }],

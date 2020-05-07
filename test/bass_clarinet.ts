@@ -223,13 +223,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             onWhitespace: () => {
                 //
             },
-            onLineComment: (v, range) => {
+            onLineComment: (v, metaData) => {
                 if (DEBUG) console.log("found line comment")
-                actualEvents.push(["token", "linecomment", v, getRange(test.testForLocation, range)])
+                actualEvents.push(["token", "linecomment", v, getRange(test.testForLocation, metaData.range)])
             },
-            onBlockComment: (v, range, _indent) => {
+            onBlockComment: (v, metaData) => {
                 if (DEBUG) console.log("found block comment")
-                actualEvents.push(["token", "blockcomment", v, getRange(test.testForLocation, range)])
+                actualEvents.push(["token", "blockcomment", v, getRange(test.testForLocation, metaData.range)])
             },
             onString: (v, metaData) => {
                 if (metaData.quote === null) {
@@ -241,13 +241,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 }
             },
 
-            onOpenTaggedUnion: range => {
+            onOpenTaggedUnion: metaData => {
                 if (DEBUG) console.log("found open tagged union")
-                actualEvents.push(["token", "opentaggedunion", getRange(test.testForLocation, range)])
+                actualEvents.push(["token", "opentaggedunion", getRange(test.testForLocation, metaData.range)])
             },
             onOpenArray: metaData => {
                 if (DEBUG) console.log("found open array")
-                actualEvents.push(["token", "openarray", metaData.openCharacter, getRange(test.testForLocation, metaData.start)])
+                actualEvents.push(["token", "openarray", metaData.openCharacter, getRange(test.testForLocation, metaData.range)])
             },
             onCloseArray: metaData => {
                 if (DEBUG) console.log("found close array")
@@ -255,7 +255,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
             onOpenObject: metaData => {
                 if (DEBUG) console.log("found open object")
-                actualEvents.push(["token", "openobject", metaData.openCharacter, getRange(test.testForLocation, metaData.start)])
+                actualEvents.push(["token", "openobject", metaData.openCharacter, getRange(test.testForLocation, metaData.range)])
             },
             onCloseObject: metaData => {
                 if (DEBUG) console.log("found close object")

@@ -21,7 +21,7 @@ import {
 } from "./parserStateTypes"
 import { Location, Range, printRange } from "./location"
 import { RangeError } from "./errors"
-import { IDataSubscriber } from "./IDataSubscriber"
+import { IDataSubscriber, SimpleMetaData } from "./IDataSubscriber"
 
 const DEBUG = false
 
@@ -287,14 +287,23 @@ export class Parser implements IParser {
                 this.onHeaderEnd(range)
                 break
             case Char.Punctuation.closeAngleBracket:
-                this.onArrayClose(curChar, range, pauser)
+                this.onArrayClose(curChar, {
+                    range: range,
+                    pauser: pauser,
+                })
                 break
             case Char.Punctuation.closeBracket:
-                this.onArrayClose(curChar, range, pauser)
+                this.onArrayClose(curChar, {
+                    range: range,
+                    pauser: pauser,
+                })
                 break
             case Char.Punctuation.comma:
                 //
-                this.oncurrentdata.signal(s => s.onComma(range, pauser))
+                this.oncurrentdata.signal(s => s.onComma({
+                    range: range,
+                    pauser: pauser,
+                }))
                 break
             case Char.Punctuation.openAngleBracket:
                 this.onArrayOpen(curChar, range, pauser)
@@ -310,7 +319,10 @@ export class Parser implements IParser {
                 break
             case Char.Punctuation.colon:
                 //
-                this.oncurrentdata.signal(s => s.onColon(range, pauser))
+                this.oncurrentdata.signal(s => s.onColon({
+                    range: range,
+                    pauser: pauser,
+                }))
                 break
             case Char.Punctuation.openBrace:
                 this.onObjectOpen(curChar, range, pauser)
@@ -321,7 +333,10 @@ export class Parser implements IParser {
             case Char.Punctuation.verticalLine:
                 this.onNonStringValue(range)
                 this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                this.oncurrentdata.signal(s => s.onOpenTaggedUnion(range, pauser))
+                this.oncurrentdata.signal(s => s.onOpenTaggedUnion({
+                    range: range,
+                    pauser: pauser,
+                }))
                 break
             default:
                 this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
@@ -362,10 +377,13 @@ export class Parser implements IParser {
                 return assertUnreachable(this.currentToken[0])
         }
     }
-    public onNewLine(range: Range) {
+    public onNewLine(range: Range, pauser: Pauser) {
         if (DEBUG) console.log(`onNewLine`)
 
-        this.oncurrentdata.signal(s => s.onNewLine(range))
+        this.oncurrentdata.signal(s => s.onNewLine({
+            range: range,
+            pauser: pauser,
+        }))
     }
     public onLineCommentBegin(range: Range) {
         if (DEBUG) console.log(`onLineCommentBegin`)
@@ -379,7 +397,10 @@ export class Parser implements IParser {
             throw new ParserStackPanicError(`Unexpected line comment end`, { start: location, end: location })
         }
         const $ = this.currentToken[1]
-        this.oncurrentdata.signal(s => s.onLineComment($.commentNode, { start: $.start.start, end: location }, pauser))
+        this.oncurrentdata.signal(s => s.onLineComment($.commentNode, {
+            range: { start: $.start.start, end: location },
+            pauser: pauser,
+        }))
         this.unsetCurrentToken({ start: location, end: location })
     }
     public onBlockCommentBegin(range: Range) {
@@ -394,7 +415,10 @@ export class Parser implements IParser {
             throw new ParserStackPanicError(`Unexpected block comment end`, end)
         }
         const $ = this.currentToken[1]
-        this.oncurrentdata.signal(s => s.onBlockComment($.commentNode, { start: $.start.start, end: end.end }, pauser))
+        this.oncurrentdata.signal(s => s.onBlockComment($.commentNode, {
+            range: { start: $.start.start, end: end.end },
+            pauser: pauser,
+        }))
         this.unsetCurrentToken(end)
     }
     public onUnquotedTokenBegin(location: Location) {
@@ -432,7 +456,7 @@ export class Parser implements IParser {
 
         this.setCurrentToken([TokenType.WHITESPACE, { whitespaceNode: "", start: location }], { start: location, end: location })
     }
-    public onWhitespaceEnd(location: Location) {
+    public onWhitespaceEnd(location: Location, pauser: Pauser) {
         if (DEBUG) console.log(`onWhitespaceEnd`)
 
         if (this.currentToken[0] !== TokenType.WHITESPACE) {
@@ -443,7 +467,10 @@ export class Parser implements IParser {
             start: $.start,
             end: location,
         }
-        this.oncurrentdata.signal(s => s.onWhitespace($.whitespaceNode, range))
+        this.oncurrentdata.signal(s => s.onWhitespace($.whitespaceNode, {
+            range: range,
+            pauser: pauser,
+        }))
         this.unsetCurrentToken({ start: location, end: location })
     }
 
@@ -546,7 +573,7 @@ export class Parser implements IParser {
         this.onNonStringValue(range)
         this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
         this.oncurrentdata.signal(s => s.onOpenObject({
-            start: range,
+            range: range,
             openCharacter: String.fromCharCode(curChar),
             pauser: pauser,
         }))
@@ -575,22 +602,22 @@ export class Parser implements IParser {
         this.onNonStringValue(range)
         this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
         this.oncurrentdata.signal(s => s.onOpenArray({
-            start: range,
+            range: range,
             openCharacter: String.fromCharCode(curChar),
             pauser: pauser,
         }))
     }
-    private onArrayClose(curChar: number, range: Range, pauser: Pauser) {
+    private onArrayClose(curChar: number, metaData: SimpleMetaData) {
         const $ = this.currentContext
         if ($[0] !== StackContextType.ARRAY) {
-            this.raiseError("not in an array", range)
+            this.raiseError("not in an array", metaData.range)
         } else {
-            this.popContext(range)
+            this.popContext(metaData.range)
         }
         this.oncurrentdata.signal(s => s.onCloseArray({
-            range: range,
+            range: metaData.range,
             closeCharacter: String.fromCharCode(curChar),
-            pauser: pauser,
+            pauser: metaData.pauser,
         }))
     }
     private onNonStringValue(range: Range) {

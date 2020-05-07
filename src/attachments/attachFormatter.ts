@@ -1,4 +1,4 @@
-import { IDataSubscriber, OpenData, CloseData, StringData } from "../IDataSubscriber"
+import { IDataSubscriber, OpenData, CloseData, StringData, SimpleMetaData } from "../IDataSubscriber"
 import { HeaderSubscriber, Parser } from "../Parser"
 import { Range, Location, printRange } from "../location"
 
@@ -98,7 +98,7 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
         }
         this.onEndCallback()
     }
-    public onNewLine(range: Range) {
+    public onNewLine(metaData: SimpleMetaData) {
         if (this.currentCollection !== null) {
             this.currentCollection.contentStartsOnNewLine = true
             this.currentCollection = null
@@ -107,7 +107,7 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
         switch (this.previous[0]) {
             case Previous.BEGIN_OF_DOCUMENT: {
                 //remove newline
-                this.documentAPI.remove(range.start.position, range.end.position)
+                this.documentAPI.remove(metaData.range.start.position, metaData.range.end.position)
                 break
             }
             case Previous.INDENT: {
@@ -115,7 +115,7 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
                 //remove indent
                 //remove newline
                 this.documentAPI.remove($.range.start.position, $.range.end.position)
-                this.documentAPI.remove(range.start.position, range.end.position)
+                this.documentAPI.remove(metaData.range.start.position, metaData.range.end.position)
                 break
             }
             case Previous.INTRA_WHITESPACE: {
@@ -126,7 +126,7 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
             }
             case Previous.NEWLINE: {
                 //2 newlines, remove newline
-                this.documentAPI.remove(range.start.position, range.end.position)
+                this.documentAPI.remove(metaData.range.start.position, metaData.range.end.position)
                 break
             }
             case Previous.TOKEN: {
@@ -135,32 +135,32 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
             default:
                 return assertUnreachable(this.previous)
         }
-        this.previous = [Previous.NEWLINE, { range: range }]
+        this.previous = [Previous.NEWLINE, { range: metaData.range }]
     }
-    public onWhitespace(value: string, range: Range) {
+    public onWhitespace(value: string, metaData: SimpleMetaData) {
         switch (this.previous[0]) {
             case Previous.BEGIN_OF_DOCUMENT: {
                 //remove whitespace
-                this.documentAPI.remove(range.start.position, range.end.position)
+                this.documentAPI.remove(metaData.range.start.position, metaData.range.end.position)
                 break
             }
             case Previous.INDENT: {
-                console.error(`unexpected whitespace after indent whitespace @ ${printRange(range)}`)
+                console.error(`unexpected whitespace after indent whitespace @ ${printRange(metaData.range)}`)
                 break
             }
             case Previous.INTRA_WHITESPACE: {
-                console.error(`unexpected whitespace after intra whitespace @ ${printRange(range)}`)
+                console.error(`unexpected whitespace after intra whitespace @ ${printRange(metaData.range)}`)
                 break
             }
             case Previous.NEWLINE: {
                 const $ = this.previous[1]
-                this.previous = [Previous.INDENT, { value: value, range: range, newLineRange: $.range }]
+                this.previous = [Previous.INDENT, { value: value, range: metaData.range, newLineRange: $.range }]
                 break
             }
             case Previous.TOKEN: {
                 //don't check the content yet. do that upon the next tokne
                 const $ = this.previous[1]
-                this.previous = [Previous.INTRA_WHITESPACE, { range: range, value: value, tokenBefore: $ }]
+                this.previous = [Previous.INTRA_WHITESPACE, { range: metaData.range, value: value, tokenBefore: $ }]
                 break
             }
             default:
@@ -182,14 +182,14 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
     /*
     START OF NON WHITESPACE HANDLERS
     */
-    public onColon(range: Range) {
-        this.onNonOpenToken(range.start, ExpectSpaceBefore.NEVER)
+    public onColon(metaData: SimpleMetaData) {
+        this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.NEVER)
     }
-    public onComma(range: Range) {
-        this.onNonOpenToken(range.start, ExpectSpaceBefore.NEVER)
+    public onComma(metaData: SimpleMetaData) {
+        this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.NEVER)
     }
-    public onBlockComment(_comment: string, range: Range) {
-        this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
+    public onBlockComment(_comment: string, metaData: SimpleMetaData) {
+        this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)
     }
     public onCloseArray(metaData: CloseData) {
         this.onCloseToken(metaData.range)
@@ -197,17 +197,17 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
     public onCloseObject(metaData: CloseData) {
         this.onCloseToken(metaData.range)
     }
-    public onLineComment(_comment: string, range: Range) {
-        this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
+    public onLineComment(_comment: string, metaData: SimpleMetaData) {
+        this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)
     }
     public onOpenArray(metaData: OpenData) {
-        this.onOpenToken(metaData.start)
+        this.onOpenToken(metaData.range)
     }
     public onOpenObject(metaData: OpenData) {
-        this.onOpenToken(metaData.start)
+        this.onOpenToken(metaData.range)
     }
-    public onOpenTaggedUnion(range: Range) {
-        this.onNonOpenToken(range.start, ExpectSpaceBefore.ALWAYS)
+    public onOpenTaggedUnion(metaData: SimpleMetaData) {
+        this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)
     }
     public onString(_value: string, metaData: StringData) {
         this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)

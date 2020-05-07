@@ -224,8 +224,8 @@ export function createFormatter(
 	}
 
 	const ds: IDataSubscriber = {
-		onBlockComment: (_value, range) => {
-			comment(range.start)
+		onBlockComment: (_value, metaData) => {
+			comment(metaData. range.start)
 			precedingToken = [PrecedingTokenType.other]
 		},
 		onCloseArray: data => {
@@ -244,14 +244,12 @@ export function createFormatter(
 			punctuation()
 			precedingToken = [PrecedingTokenType.other]
 		},
-		onLineComment: (_value, range) => {
-			comment(range.start)
+		onLineComment: (_value, metaData) => {
+			comment(metaData.range.start)
 			precededByLineComment = true
 		},
-		onNewLine: range => {
+		onNewLine: metaData => {
 			if (precedingWhitespace !== null) {
-				console.log("HMMM2")
-
 				del(precedingWhitespace.range)
 			}
 			precedingWhitespace = null
@@ -263,15 +261,12 @@ export function createFormatter(
 			}
 			switch (precedingToken[0]) {
 				case PrecedingTokenType.colon: {
-					console.log("HMMM18")
-
-					del(range)
+					del(metaData.range)
 					break
 				}
 				case PrecedingTokenType.newLine: {
-					console.log("HMMM4")
 
-					del(range)
+					del(metaData.range)
 					break
 				}
 				case PrecedingTokenType.nothing: {
@@ -295,24 +290,24 @@ export function createFormatter(
 			precedingToken = [PrecedingTokenType.newLine, {
 				token: {
 					value: "\n",
-					range: range,
+					range: metaData.range,
 				},
 				precededByLineComment: precededByLineComment,
 			}]
 			precededByLineComment = false
 		},
 		onOpenArray: data => {
-			semanticToken(data.start.start)
+			semanticToken(data.range.start)
 			push()
 			precedingToken = [PrecedingTokenType.other]
 		},
 		onOpenObject: data => {
-			semanticToken(data.start.start)
+			semanticToken(data.range.start)
 			push()
 			precedingToken = [PrecedingTokenType.other]
 		},
-		onOpenTaggedUnion: range => {
-			semanticToken(range.start)
+		onOpenTaggedUnion: metaData => {
+			semanticToken(metaData.range.start)
 			precedingToken = [PrecedingTokenType.pipe]
 		},
 		onString: (_value, data) => {
@@ -323,16 +318,14 @@ export function createFormatter(
 				precedingToken = [PrecedingTokenType.other]
 			}
 		},
-		onWhitespace: (value, range) => {
+		onWhitespace: (value, metaData) => {
 			precedingWhitespace = {
-				range: range,
+				range: metaData.range,
 				value: value,
 			}
 		},
 		onEnd: () => {
 			if (precedingWhitespace !== null) {
-				console.log("HMMM00")
-
 				del(precedingWhitespace.range)
 			}
 			onDone()

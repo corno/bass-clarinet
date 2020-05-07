@@ -3,7 +3,7 @@
     no-underscore-dangle:"off",
     max-classes-per-file: "off",
 */
-import { IDataSubscriber, OpenData, CloseData, StringData } from "../IDataSubscriber"
+import { IDataSubscriber, OpenData, CloseData, StringData, SimpleMetaData } from "../IDataSubscriber"
 import { Parser, HeaderSubscriber } from "../Parser"
 import { Range } from "../location"
 import * as Char from "./NumberCharacters"
@@ -135,22 +135,22 @@ class StrictJSONValidator implements IDataSubscriber {
     constructor(onError: OnError) {
         this.onError = onError
     }
-    public onColon(range: Range) {
+    public onColon(metaData: SimpleMetaData) {
         if (this.currentContext[0] !== "object") {
-            this.onError(`colon can only be used in objects`, range)
+            this.onError(`colon can only be used in objects`, metaData. range)
             return
         }
         if (this.currentContext[1].state !== ObjectState.EXPECTING_COLON) {
-            this.onError(`did not expect a colon`, range)
+            this.onError(`did not expect a colon`, metaData.range)
         }
         this.currentContext[1].state = ObjectState.EXPECTING_OBJECT_VALUE
     }
-    public onComma(range: Range) {
+    public onComma(metaData: SimpleMetaData) {
         switch (this.currentContext[0]) {
             case "array": {
                 const $ = this.currentContext[1]
                 if ($.state !== ArrayState.EXPECTING_COMMA_OR_ARRAY_END) {
-                    this.onError(`did not expect a comma`, range)
+                    this.onError(`did not expect a comma`, metaData.range)
                 }
                 $.state = ArrayState.EXPECTING_ARRAYVALUE
                 break
@@ -158,14 +158,14 @@ class StrictJSONValidator implements IDataSubscriber {
             case "object": {
                 const $ = this.currentContext[1]
                 if ($.state !== ObjectState.EXPECTING_COMMA_OR_OBJECT_END) {
-                    this.onError(`did not expect a comma`, range)
+                    this.onError(`did not expect a comma`, metaData.range)
                 }
                 $.state = ObjectState.EXPECTING_KEY_OR_OBJECT_END
                 break
             }
             case "root": {
                 //const $ = this.currentContext[1]
-                this.onError(`did not expect a comma`, range)
+                this.onError(`did not expect a comma`, metaData.range)
 
                 break
             }
@@ -177,8 +177,8 @@ class StrictJSONValidator implements IDataSubscriber {
                 return assertUnreachable(this.currentContext[0])
         }
     }
-    public onBlockComment(_comment: string, range: Range) {
-        this.onError("block comments are not allowed in strict JSON", range)
+    public onBlockComment(_comment: string, metaData: SimpleMetaData) {
+        this.onError("block comments are not allowed in strict JSON", metaData.range)
     }
     public onCloseArray(metaData: CloseData) {
         if (metaData.closeCharacter !== "]") {
@@ -217,26 +217,26 @@ class StrictJSONValidator implements IDataSubscriber {
     public onWhitespace() {
         //
     }
-    public onLineComment(_comment: string, range: Range) {
-        this.onError("line comments are not allowed in strict JSON", range)
+    public onLineComment(_comment: string, metaData: SimpleMetaData) {
+        this.onError("line comments are not allowed in strict JSON", metaData.range)
     }
     public onOpenArray(metaData: OpenData) {
         if (metaData.openCharacter !== "[") {
-            this.onError("arrays should start with '[' in strict JSON", metaData.start)
+            this.onError("arrays should start with '[' in strict JSON", metaData.range)
         }
-        this.onValue(metaData.start)
+        this.onValue(metaData.range)
         this.push(["array", { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
 
     }
     public onOpenObject(metaData: OpenData) {
         if (metaData.openCharacter !== "{") {
-            this.onError("objects should start with '{' in strict JSON", metaData.start)
+            this.onError("objects should start with '{' in strict JSON", metaData.range)
         }
-        this.onValue(metaData.start)
+        this.onValue(metaData.range)
         this.push(["object", { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END }])
     }
-    public onOpenTaggedUnion(range: Range) {
-        this.onError("tagged unions are not allowed in strict JSON", range)
+    public onOpenTaggedUnion(metaData: SimpleMetaData) {
+        this.onError("tagged unions are not allowed in strict JSON", metaData.range)
         this.push(["taggedunion", { state: TaggedUnionState.EXPECTING_OPTION }])
     }
     public onString(value: string, metaData: StringData) {

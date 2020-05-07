@@ -4,8 +4,7 @@ import {
     CloseData,
     PropertyData,
     StringData,
-    TaggedUnionData,
-    OptionData,
+    SimpleMetaData,
 } from "../IDataSubscriber"
 
 export type PreData = {
@@ -40,8 +39,8 @@ export type OnArray = (metaData: OpenData, preData: PreData) => ArrayHandler
 
 export type OnSimpleValue = (value: string, metaData: StringData, preData: PreData) => void
 
-export type OnTaggedUnion = (metaData: TaggedUnionData, beginpreData: PreData) => TaggedUnionHandler
-export type OnOption = (option: string, optionData: OptionData, optionpreData: PreData) => RequiredValueHandler
+export type OnTaggedUnion = (metaData: SimpleMetaData, beginpreData: PreData) => TaggedUnionHandler
+export type OnOption = (option: string, optionData: SimpleMetaData, optionpreData: PreData) => RequiredValueHandler
 
 export type OnMissing = () => void
 

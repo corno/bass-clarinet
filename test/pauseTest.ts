@@ -29,25 +29,25 @@ parser.ondata.subscribe({
     onWhitespace: () => {
         //
     },
-    onComma: (_, pauser) => {
+    onComma: metaData => {
         console.log("COMMA")
-        pause(pauser)
+        pause(metaData.pauser)
     },
-    onColon: (_, pauser) => {
-        pause(pauser)
+    onColon: metaData => {
+        pause(metaData.pauser)
     },
-    onLineComment: (_comment, _range, pauser) => {
-        pause(pauser)
+    onLineComment: (_comment, metaData) => {
+        pause(metaData.pauser)
     },
-    onBlockComment: (_comment, _range, pauser) => {
-        pause(pauser)
+    onBlockComment: (_comment, metaData) => {
+        pause(metaData.pauser)
     },
     onString: (_value, metaData) => {
         console.log("SIMPLE VALUE")
         pause(metaData.pauser)
     },
-    onOpenTaggedUnion: (_range, pauser) => {
-        pause(pauser)
+    onOpenTaggedUnion: metaData => {
+        pause(metaData.pauser)
     },
     onOpenArray: metaData => {
         console.log("OPEN ARRAY")

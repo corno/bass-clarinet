@@ -451,7 +451,7 @@ export class Tokenizer {
                             default:
                                 assertUnreachable($.foundNewLineCharacter)
                         }
-                        this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
+                        this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() }, pauser)
                         this.setCurrentTokenType(null)
                         break
                     }
@@ -628,7 +628,7 @@ export class Tokenizer {
                             if (!isWhiteSpaceCharacter()) {
                                 flush()
 
-                                this.parser.onWhitespaceEnd(this.getEndLocation())
+                                this.parser.onWhitespaceEnd(this.getEndLocation(), pauser)
 
                                 this.setCurrentTokenType(null)
                                 //this character does not belong to the whitespace so don't go to the next character by breaking
@@ -691,7 +691,7 @@ export class Tokenizer {
                 }
                 case TokenType.NEWLINE:
                     const $ = this.currentTokenType[1]
-                    this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
+                    this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() }, null)
                     break
                 case TokenType.QUOTED_STRING: {
                     this.raiseError("unterminated string", { start: this.getEndLocation(), end: this.getEndLocation() })
@@ -709,7 +709,7 @@ export class Tokenizer {
                     this.parser.onUnquotedTokenEnd(this.getEndLocation(), null)
                     break
                 case TokenType.WHITESPACE:
-                    this.parser.onWhitespaceEnd(this.getEndLocation())
+                    this.parser.onWhitespaceEnd(this.getEndLocation(), null)
                     break
                 default:
                     return assertUnreachable(this.currentTokenType[0])

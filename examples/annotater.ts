@@ -12,7 +12,7 @@ function createRequiredValuesAnnotater(indentation: string, writer: (str: string
 function createValuesAnnotater(indentation: string, writer: (str: string) => void): bc.ValueHandler {
     return {
         array: beginMetaData => {
-            writer(`${indentation}[ // ${bc.printRange(beginMetaData.start)}`)
+            writer(`${indentation}[ // ${bc.printRange(beginMetaData.range)}`)
             return {
                 element: () => createValuesAnnotater(`${indentation}\t`, writer),
                 end: endMetaData => {
@@ -21,7 +21,7 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
             }
         },
         object: beginMetaData => {
-            writer(`${indentation}{ // ${bc.printRange(beginMetaData.start)}`)
+            writer(`${indentation}{ // ${bc.printRange(beginMetaData.range)}`)
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}"${key}": `)
@@ -43,7 +43,7 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
             writer(`| ${indentation}`)
             return {
                 option: (option, optionData) => {
-                    writer(`"${JSON.stringify(option)}" // ${bc.printRange(taggedUnionData.startRange)} ${bc.printRange(optionData.range)}`)
+                    writer(`"${JSON.stringify(option)}" // ${bc.printRange(taggedUnionData.range)} ${bc.printRange(optionData.range)}`)
 
                     return createRequiredValuesAnnotater(`${indentation}\t`, writer)
                 },
