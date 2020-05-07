@@ -37,6 +37,7 @@ export const JSONTests: TestDefinitions = {
             ["token", "quotedstring", "a string after a newline", [2, 3, 2, 29]],
             ["end", [2, 29]],
         ],
+        formattedText: '\n  "a string after a newline"',
     },
     "just a number": {
         text: '42',
@@ -261,6 +262,7 @@ export const JSONTests: TestDefinitions = {
             ["token", "closeobject", "}", undefined],
             ["end", undefined],
         ],
+        formattedText: ' { "a": { "b": "c" } }',
     },
     "nested array": {
         text: '{ "a": [ "b", "c" ] }',
@@ -277,6 +279,7 @@ export const JSONTests: TestDefinitions = {
     },
     "array of objs": {
         text: '[\n { "a": "b" }, { "c": "d" } ]',
+        formattedText: '[\n    { "a": "b" },\n    { "c": "d" }\n]',
         events: [
             ["token", "openarray", "[", undefined],
             ["token", "openobject", "{", undefined],
@@ -784,6 +787,29 @@ export const JSONTests: TestDefinitions = {
             '                            }\r\n' +
             '                    }\r\n' +
             '            }\r\n'),
+        formattedText: `{
+    "glossary": {
+        "title": "example glossary",
+        "GlossDiv": {
+            "title": "S",
+            "GlossList": {
+                "GlossEntry": {
+                    "ID": "SGML",
+                    "SortAs": "SGML",
+                    "GlossTerm": "Standard Generalized Markup Language",
+                    "Acronym": "SGML",
+                    "Abbrev": "ISO 8879:1986",
+                    "GlossDef": {
+                        "para": "A meta-markup language, used to create markup languages such as DocBook.",
+                        "GlossSeeAlso": [ "GML", "XML" ]
+                    },
+                    "GlossSee": "markup"
+                }
+            }
+        }
+    }
+}
+`,
         skipRoundTripCheck: true,
         events: [
             ["token", "openobject", "{", undefined],
@@ -919,7 +945,7 @@ export const JSONTests: TestDefinitions = {
         ],
     },
     "forbidden extension: single line comment": {
-        text: '[ 1, 2 //a comment\r\n]',
+        text: '[ 1, 2 //a comment\n]',
         skipRoundTripCheck: true,
         events: [
             ["token", "openarray", "[", undefined],
@@ -943,7 +969,7 @@ export const JSONTests: TestDefinitions = {
         ],
     },
     "forbidden extension: schema": {
-        text: '! "foo" { }',
+        text: '!"foo" { }',
         testHeaders: true,
         events: [
             ["token", "headerstart"],
@@ -962,6 +988,42 @@ export const JSONTests: TestDefinitions = {
             ["headerend"],
             ["token", "openobject", "{", undefined],
             ["parsererror", "unexpected end of document, still in object"],
+            ["end", undefined],
+        ],
+    },
+    "wrong inline formatting": {
+        text: '[ "",\n""]',
+        formattedText: '[ "", "" ]',
+        testHeaders: true,
+        events: [
+            ["headerend"],
+            ["token", "openarray", "[", undefined],
+            ["token", "quotedstring", "", undefined],
+            ["token", "quotedstring", "", undefined],
+            ["token", "closearray", "]", undefined],
+            ["end", undefined],
+        ],
+    },
+    "wrong block formatting": {
+        text: '[ \n"",""]',
+        formattedText: '[\n    "",\n    ""\n]',
+        testHeaders: true,
+        events: [
+            ["headerend"],
+            ["token", "openarray", "[", undefined],
+            ["token", "quotedstring", "", undefined],
+            ["token", "quotedstring", "", undefined],
+            ["token", "closearray", "]", undefined],
+            ["end", undefined],
+        ],
+    },
+    "trailing whitespace": {
+        text: '"foo" ',
+        formattedText: '"foo"',
+        testHeaders: true,
+        events: [
+            ["headerend"],
+            ["token", "quotedstring", "foo", undefined],
             ["end", undefined],
         ],
     },

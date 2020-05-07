@@ -22,10 +22,12 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-function getStateDescription(stackContext: CurrentToken): string {
+function getStateDescription(stackContext: CurrentToken | null): string {
+    if (stackContext === null) {
+        return "NONE"
+    }
     switch (stackContext[0]) {
         case TokenType.COMMENT: return "COMMENT"
-        case TokenType.NONE: return "NONE"
         case TokenType.NEWLINE: return "NEWLINE"
         case TokenType.QUOTED_STRING: return "QUOTED_STRING"
         case TokenType.UNQUOTED_TOKEN: return "UNQUOTED_STRING"
@@ -75,14 +77,14 @@ export class Tokenizer {
     private column = 0
     private line = 1
 
-    private currentTokenType: CurrentToken
+    private currentTokenType: CurrentToken | null
 
     private readonly parser: IParser
 
     constructor(parser: IParser, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions) {
         this.opt = opt || {}
         this.parser = parser
-        this.currentTokenType = [TokenType.NONE, {}]
+        this.currentTokenType = null
         this.onerror = onerror
     }
     public write(chunk: string, sourcePauser: Pauser) {
@@ -191,7 +193,7 @@ export class Tokenizer {
                     flush()
                     onEndOfToken()
 
-                    this.setCurrentTokenType([TokenType.NONE, {}])
+                    this.setCurrentTokenType(null)
                     //this character does not belong to the keyword so don't go to the next character by breaking
                     break
                 } else {
@@ -208,442 +210,442 @@ export class Tokenizer {
 
         while (true) {
             const state = this.currentTokenType
-            switch (state[0]) {
-                case TokenType.COMMENT: {
-                    /**
-                     * COMMENT
-                     */
-                    const $ = state[1]
+            if (state === null) {
+                const currentChar = this.next(currentChunk)
 
-                    let snippetStart: null | number = null
-                    const flush = (offset?: number) => {
-                        if (snippetStart !== null) {
-                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + (offset === undefined ? 0 : offset), pauser)
-                            if (currentChunk.mustPause) {
-                                return
-                            }
-                        }
-                        snippetStart = null
-                    }
-
-                    switch ($.state[0]) {
-                        case CommentState.BLOCK_COMMENT: {
-                            blockCommentLoop: while (true) {
-                                //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
-                                const nextChar = currentChunk.lookahead()
-
-
-                                if (nextChar === null) {
-                                    //end of the chunk
-                                    //store it and wait for more input
-                                    flush()
-                                    return
-                                }
-                                const $$ = $.state[1]
-
-                                //whatever character is next, it is part of the block comment, so consume it
-
-                                this.next(currentChunk)
-
-                                if (snippetStart === null) {
-                                    snippetStart = currentChunk.index
-                                }
-                                if ($$.foundAsterisk === null) {
-                                    if (nextChar === Char.Comment.asterisk) {
-                                        $$.foundAsterisk = this.getBeginLocation()
-                                        //possible end of comment
-                                        flush()
-                                    }
-                                } else {
-                                    if (nextChar === Char.Comment.solidus) {
-                                        //end of block comment
-                                        this.setCurrentTokenType([TokenType.NONE, {}])
-                                        this.parser.onBlockCommentEnd({ start: $$.foundAsterisk, end: this.getEndLocation() }, pauser)
-
-                                        if (currentChunk.mustPause) {
-                                            return
-                                        }
-                                        break blockCommentLoop
-                                    } else {
-                                        //false alarm, not the end of the comment
-                                        this.parser.onSnippet("*", 0, 1, pauser)
-
-                                        if (currentChunk.mustPause) {
-                                            return
-                                        }
-                                        if (snippetStart === null) {
-                                            snippetStart = currentChunk.index
-                                        }
-                                        $$.foundAsterisk = null
-                                    }
-
-                                }
-                            }
-                            break
-                        }
-                        case CommentState.LINE_COMMENT: {
-                            const mustBreak = processUntilFirstNotIncludedCharacter(
-                                char => {
-                                    return char !== Char.Whitespace.lineFeed &&
-                                        char !== Char.Whitespace.carriageReturn
-                                },
-                                () => {
-                                    this.parser.onLineCommentEnd(this.getEndLocation(), pauser)
-                                }
-                            )
-                            if (mustBreak) {
-                                return
-                            }
-                            break
-                        }
-                        case CommentState.FOUND_SOLIDUS: {
-                            const $$ = $.state[1]
-                            const nextChar = currentChunk.lookahead()
-                            if (nextChar === null) {
-                                return
-                            }
-
-                            if (nextChar === Char.Comment.solidus) {
-                                this.next(currentChunk)
-
-                                this.parser.onLineCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
-
-                                if (currentChunk.mustPause) {
-                                    return
-                                }
-                                $.state = [CommentState.LINE_COMMENT]
-                            } else if (nextChar === Char.Comment.asterisk) {
-                                this.next(currentChunk)
-
-                                this.parser.onBlockCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
-
-                                if (currentChunk.mustPause) {
-                                    return
-                                }
-                                $.state = [CommentState.BLOCK_COMMENT, { foundAsterisk: null }]
-                            } else {
-                                this.raiseError("found dangling slash", { start: this.getBeginLocation(), end: this.getEndLocation() })
-                                this.setCurrentTokenType([TokenType.NONE, {}])
-                            }
-                            break
-                        }
-                        default:
-                            assertUnreachable($.state)
-
-                    }
-
-                    break
+                if (currentChar === Char.Whitespace.carriageReturn) {
+                    this.setCurrentTokenType([TokenType.NEWLINE, { foundNewLineCharacter: FoundNewLineCharacter.CARRIAGE_RETURN, startLocation: this.getBeginLocation() }])
+                    continue
                 }
-                case TokenType.NEWLINE: {
-                    const nextChar = currentChunk.lookahead()
-                    const $ = state[1]
-                    switch ($.foundNewLineCharacter) {
-                        case FoundNewLineCharacter.CARRIAGE_RETURN: {
-                            if (nextChar === Char.Whitespace.lineFeed) {
-                                //windows style newlines (\r\n)
-                                this.next(currentChunk)
-                            } else {
-                                //old style Mac OS newlines (\r)
-                                //don't consume character
-                            }
-                            break
-                        }
-                        case FoundNewLineCharacter.LINE_FEED: {
-                            if (nextChar === Char.Whitespace.carriageReturn) {
-                                //strange style newline (\n\r)
-                                this.next(currentChunk)
-                            } else {
-                                //unix style newlines (\n)
-                                //don't consume character
-                            }
-                            break
-                        }
-                        default:
-                            assertUnreachable($.foundNewLineCharacter)
-                    }
-                    this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
-                    this.setCurrentTokenType([TokenType.NONE, {}])
-                    break
+
+                if (currentChar === Char.Whitespace.lineFeed) {
+                    this.setCurrentTokenType([TokenType.NEWLINE, { foundNewLineCharacter: FoundNewLineCharacter.LINE_FEED, startLocation: this.getBeginLocation() }])
+                    continue
                 }
-                case TokenType.NONE: {
-                    //const $ = state[1]
-                    const currentChar = this.next(currentChunk)
-
-                    if (currentChar === Char.Whitespace.carriageReturn) {
-                        this.setCurrentTokenType([TokenType.NEWLINE, { foundNewLineCharacter: FoundNewLineCharacter.CARRIAGE_RETURN, startLocation: this.getBeginLocation() }])
-                        continue
-                    }
-
-                    if (currentChar === Char.Whitespace.lineFeed) {
-                        this.setCurrentTokenType([TokenType.NEWLINE, { foundNewLineCharacter: FoundNewLineCharacter.LINE_FEED, startLocation: this.getBeginLocation() }])
-                        continue
-                    }
-                    if (
-                        currentChar === Char.Whitespace.space ||
-                        currentChar === Char.Whitespace.tab
-                    ) {
-                        this.parser.onWhitespaceBegin(this.getBeginLocation())
-                        this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1, pauser) //copy current character
-                        this.setCurrentTokenType([TokenType.WHITESPACE])
-                        continue
-                    }
-                    if (currentChar === null) {
-                        //end of chunk reached
-                        return
-                    }
-                    function getSimpleValueType(): SimpleValueType | null {
-                        if (currentChar === Char.QuotedString.quotationMark || currentChar === Char.QuotedString.apostrophe) {
-                            return SimpleValueType.QUOTED_STRING
-                        } else {
-                            if (
-                                currentChar === Char.Punctuation.openBracket ||
-                                currentChar === Char.Punctuation.openAngleBracket ||
-                                currentChar === Char.Punctuation.comma ||
-                                currentChar === Char.Punctuation.closeBracket ||
-                                currentChar === Char.Punctuation.closeAngleBracket ||
-                                currentChar === Char.Punctuation.openBrace ||
-                                currentChar === Char.Punctuation.openParen ||
-                                currentChar === Char.Punctuation.closeParen ||
-                                currentChar === Char.Punctuation.closeBrace ||
-                                currentChar === Char.Punctuation.colon ||
-                                currentChar === Char.Punctuation.exclamationMark ||
-                                currentChar === Char.Punctuation.hash ||
-                                currentChar === Char.Punctuation.verticalLine
-                            ) {
-                                return null
-                            }
-                            return SimpleValueType.UNQUOTED_STRING
-                        }
-                    }
-                    const valueType = getSimpleValueType()
-                    if (currentChar === Char.Comment.solidus) {
-                        this.setCurrentTokenType([TokenType.COMMENT, {
-                            state: [CommentState.FOUND_SOLIDUS, { start: this.getBeginLocation() }],
-                        }])
-                    } else if (valueType !== null) {
-                        if (valueType === SimpleValueType.QUOTED_STRING) {
-                            this.setCurrentTokenType([TokenType.QUOTED_STRING, {
-                                startCharacter: currentChar,
-                                slashed: false,
-                                unicode: null,
-                            }])
-                            this.parser.onQuotedStringBegin({ start: this.getBeginLocation(), end: this.getEndLocation() }, String.fromCharCode(currentChar), pauser)
-                            if (currentChunk.mustPause) {
-                                return
-                            }
-                        } else {
-                            this.setCurrentTokenType([TokenType.UNQUOTED_TOKEN])
-                            this.parser.onUnquotedTokenBegin(this.getBeginLocation(), pauser)
-                            if (currentChunk.mustPause) {
-                                return
-                            }
-                            this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1, pauser) //copy current character
-                            if (currentChunk.mustPause) {
-                                return
-                            }
-
-                        }
+                if (
+                    currentChar === Char.Whitespace.space ||
+                    currentChar === Char.Whitespace.tab
+                ) {
+                    this.parser.onWhitespaceBegin(this.getBeginLocation())
+                    this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1, pauser) //copy current character
+                    this.setCurrentTokenType([TokenType.WHITESPACE])
+                    continue
+                }
+                if (currentChar === null) {
+                    //end of chunk reached
+                    return
+                }
+                function getSimpleValueType(): SimpleValueType | null {
+                    if (currentChar === Char.QuotedString.quotationMark || currentChar === Char.QuotedString.apostrophe) {
+                        return SimpleValueType.QUOTED_STRING
                     } else {
-                        this.parser.onPunctuation(currentChar, {
-                            start: this.getBeginLocation(),
-                            end: this.getEndLocation(),
-                        }, pauser)
+                        if (
+                            currentChar === Char.Punctuation.openBracket ||
+                            currentChar === Char.Punctuation.openAngleBracket ||
+                            currentChar === Char.Punctuation.comma ||
+                            currentChar === Char.Punctuation.closeBracket ||
+                            currentChar === Char.Punctuation.closeAngleBracket ||
+                            currentChar === Char.Punctuation.openBrace ||
+                            currentChar === Char.Punctuation.openParen ||
+                            currentChar === Char.Punctuation.closeParen ||
+                            currentChar === Char.Punctuation.closeBrace ||
+                            currentChar === Char.Punctuation.colon ||
+                            currentChar === Char.Punctuation.exclamationMark ||
+                            currentChar === Char.Punctuation.hash ||
+                            currentChar === Char.Punctuation.verticalLine
+                        ) {
+                            return null
+                        }
+                        return SimpleValueType.UNQUOTED_STRING
+                    }
+                }
+                const valueType = getSimpleValueType()
+                if (currentChar === Char.Comment.solidus) {
+                    this.setCurrentTokenType([TokenType.COMMENT, {
+                        state: [CommentState.FOUND_SOLIDUS, { start: this.getBeginLocation() }],
+                    }])
+                } else if (valueType !== null) {
+                    if (valueType === SimpleValueType.QUOTED_STRING) {
+                        this.setCurrentTokenType([TokenType.QUOTED_STRING, {
+                            startCharacter: currentChar,
+                            slashed: false,
+                            unicode: null,
+                        }])
+                        this.parser.onQuotedStringBegin({ start: this.getBeginLocation(), end: this.getEndLocation() }, String.fromCharCode(currentChar), pauser)
                         if (currentChunk.mustPause) {
                             return
                         }
-                    }
-                    break
-                }
-                case TokenType.QUOTED_STRING: {
-                    /**
-                     * QUOTED STRING PROCESSING
-                     */
-                    const $ = state[1]
-
-                    let snippetStart: null | number = null
-                    const flush = () => {
-                        if (snippetStart !== null) {
-                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index, pauser)
-                            if (currentChunk.mustPause) {
-                                return
-                            }
-                        }
-                        snippetStart = null
-                    }
-
-                    quotedStringLoop: while (true) {
-                        //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
-                        const currentChar = this.next(currentChunk)
-
-                        if (currentChar === null) {
-                            //end of the chunk
-                            //store it and wait for more input
-                            flush()
+                    } else {
+                        this.setCurrentTokenType([TokenType.UNQUOTED_TOKEN])
+                        this.parser.onUnquotedTokenBegin(this.getBeginLocation(), pauser)
+                        if (currentChunk.mustPause) {
                             return
                         }
-                        if ($.slashed) {
-                            const flushChar = (str: string) => {
-                                this.parser.onSnippet(str, 0, str.length, pauser)
-                                if (currentChunk.mustPause) {
-                                    return
-                                }
-                            }
-                            if (currentChar === Char.QuotedString.quotationMark) { flushChar('\"') }
-                            else if (currentChar === Char.QuotedString.apostrophe) { flushChar('\'') } //deviation from the JSON standard
-                            else if (currentChar === Char.QuotedString.reverseSolidus) { flushChar('\\') }
-                            else if (currentChar === Char.QuotedString.solidus) { flushChar('\/') }
-                            else if (currentChar === Char.QuotedString.b) { flushChar('\b') }
-                            else if (currentChar === Char.QuotedString.f) { flushChar('\f') }
-                            else if (currentChar === Char.QuotedString.n) { flushChar('\n') }
-                            else if (currentChar === Char.QuotedString.r) { flushChar('\r') }
-                            else if (currentChar === Char.QuotedString.t) { flushChar('\t') }
-                            else if (currentChar === Char.QuotedString.u) {
-                                // \uxxxx
-                                $.unicode = {
-                                    charactersLeft: 4,
-                                    foundCharacters: "",
-                                }
-                            }
-                            else {
-                                //no special character
-                                this.raiseError(
-                                    `expected special character after escape slash, but found ${String.fromCharCode(currentChar)}`,
-                                    { start: this.getBeginLocation(), end: this.getEndLocation() }
-                                )
-                            }
-                            $.slashed = false
+                        this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1, pauser) //copy current character
+                        if (currentChunk.mustPause) {
+                            return
+                        }
 
-                        } else if ($.unicode !== null) {
-                            $.unicode.foundCharacters += String.fromCharCode(currentChar)
-                            $.unicode.charactersLeft--
-                            if ($.unicode.charactersLeft === 0) {
-                                const textNode = String.fromCharCode(parseInt($.unicode.foundCharacters, 16))
-                                this.parser.onSnippet(textNode, 0, textNode.length, pauser)
+                    }
+                } else {
+                    this.parser.onPunctuation(currentChar, {
+                        start: this.getBeginLocation(),
+                        end: this.getEndLocation(),
+                    }, pauser)
+                    if (currentChunk.mustPause) {
+                        return
+                    }
+                }
+
+            } else {
+                switch (state[0]) {
+                    case TokenType.COMMENT: {
+                        /**
+                         * COMMENT
+                         */
+                        const $ = state[1]
+
+                        let snippetStart: null | number = null
+                        const flush = (offset?: number) => {
+                            if (snippetStart !== null) {
+                                this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + (offset === undefined ? 0 : offset), pauser)
                                 if (currentChunk.mustPause) {
                                     return
                                 }
-                                $.unicode = null
                             }
-                        } else {
-                            //not slashed, not unicode
-                            if (currentChar === Char.QuotedString.reverseSolidus) {//backslash
-                                flush()
-                                $.slashed = true
-                            } else if (currentChar === $.startCharacter) {
-                                /**
-                                 * THE QUOTED STRING IS FINISHED
-                                 */
-                                flush()
-                                const locationInfo = {
-                                    start: this.getBeginLocation(),
-                                    end: this.getEndLocation(),
+                            snippetStart = null
+                        }
+
+                        switch ($.state[0]) {
+                            case CommentState.BLOCK_COMMENT: {
+                                blockCommentLoop: while (true) {
+                                    //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
+                                    const nextChar = currentChunk.lookahead()
+
+
+                                    if (nextChar === null) {
+                                        //end of the chunk
+                                        //store it and wait for more input
+                                        flush()
+                                        return
+                                    }
+                                    const $$ = $.state[1]
+
+                                    //whatever character is next, it is part of the block comment, so consume it
+
+                                    this.next(currentChunk)
+
+                                    if (snippetStart === null) {
+                                        snippetStart = currentChunk.index
+                                    }
+                                    if ($$.foundAsterisk === null) {
+                                        if (nextChar === Char.Comment.asterisk) {
+                                            $$.foundAsterisk = this.getBeginLocation()
+                                            //possible end of comment
+                                            flush()
+                                        }
+                                    } else {
+                                        if (nextChar === Char.Comment.solidus) {
+                                            //end of block comment
+                                            this.setCurrentTokenType(null)
+                                            this.parser.onBlockCommentEnd({ start: $$.foundAsterisk, end: this.getEndLocation() }, pauser)
+
+                                            if (currentChunk.mustPause) {
+                                                return
+                                            }
+                                            break blockCommentLoop
+                                        } else {
+                                            //false alarm, not the end of the comment
+                                            this.parser.onSnippet("*", 0, 1, pauser)
+
+                                            if (currentChunk.mustPause) {
+                                                return
+                                            }
+                                            if (snippetStart === null) {
+                                                snippetStart = currentChunk.index
+                                            }
+                                            $$.foundAsterisk = null
+                                        }
+
+                                    }
                                 }
-                                this.setCurrentTokenType([TokenType.NONE, {}])
-                                this.parser.onQuotedStringEnd(locationInfo, String.fromCharCode(currentChar), pauser)
+                                break
+                            }
+                            case CommentState.LINE_COMMENT: {
+                                const mustBreak = processUntilFirstNotIncludedCharacter(
+                                    char => {
+                                        return char !== Char.Whitespace.lineFeed &&
+                                            char !== Char.Whitespace.carriageReturn
+                                    },
+                                    () => {
+                                        this.parser.onLineCommentEnd(this.getEndLocation(), pauser)
+                                    }
+                                )
+                                if (mustBreak) {
+                                    return
+                                }
+                                break
+                            }
+                            case CommentState.FOUND_SOLIDUS: {
+                                const $$ = $.state[1]
+                                const nextChar = currentChunk.lookahead()
+                                if (nextChar === null) {
+                                    return
+                                }
+
+                                if (nextChar === Char.Comment.solidus) {
+                                    this.next(currentChunk)
+
+                                    this.parser.onLineCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
+
+                                    if (currentChunk.mustPause) {
+                                        return
+                                    }
+                                    $.state = [CommentState.LINE_COMMENT]
+                                } else if (nextChar === Char.Comment.asterisk) {
+                                    this.next(currentChunk)
+
+                                    this.parser.onBlockCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
+
+                                    if (currentChunk.mustPause) {
+                                        return
+                                    }
+                                    $.state = [CommentState.BLOCK_COMMENT, { foundAsterisk: null }]
+                                } else {
+                                    this.raiseError("found dangling slash", { start: this.getBeginLocation(), end: this.getEndLocation() })
+                                    this.setCurrentTokenType(null)
+                                }
+                                break
+                            }
+                            default:
+                                assertUnreachable($.state)
+
+                        }
+
+                        break
+                    }
+                    case TokenType.NEWLINE: {
+                        const nextChar = currentChunk.lookahead()
+                        const $ = state[1]
+                        switch ($.foundNewLineCharacter) {
+                            case FoundNewLineCharacter.CARRIAGE_RETURN: {
+                                if (nextChar === Char.Whitespace.lineFeed) {
+                                    //windows style newlines (\r\n)
+                                    this.next(currentChunk)
+                                } else {
+                                    //old style Mac OS newlines (\r)
+                                    //don't consume character
+                                }
+                                break
+                            }
+                            case FoundNewLineCharacter.LINE_FEED: {
+                                if (nextChar === Char.Whitespace.carriageReturn) {
+                                    //strange style newline (\n\r)
+                                    this.next(currentChunk)
+                                } else {
+                                    //unix style newlines (\n)
+                                    //don't consume character
+                                }
+                                break
+                            }
+                            default:
+                                assertUnreachable($.foundNewLineCharacter)
+                        }
+                        this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
+                        this.setCurrentTokenType(null)
+                        break
+                    }
+                    case TokenType.QUOTED_STRING: {
+                        /**
+                         * QUOTED STRING PROCESSING
+                         */
+                        const $ = state[1]
+
+                        let snippetStart: null | number = null
+                        const flush = () => {
+                            if (snippetStart !== null) {
+                                this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index, pauser)
                                 if (currentChunk.mustPause) {
                                     return
                                 }
-                                break quotedStringLoop
+                            }
+                            snippetStart = null
+                        }
+
+                        quotedStringLoop: while (true) {
+                            //if (DEBUG) console.log(currentChunk.index, currentChar, String.fromCharCode(currentChar), 'string loop', $.slashed, $.textNode)
+                            const currentChar = this.next(currentChunk)
+
+                            if (currentChar === null) {
+                                //end of the chunk
+                                //store it and wait for more input
+                                flush()
+                                return
+                            }
+                            if ($.slashed) {
+                                const flushChar = (str: string) => {
+                                    this.parser.onSnippet(str, 0, str.length, pauser)
+                                    if (currentChunk.mustPause) {
+                                        return
+                                    }
+                                }
+                                if (currentChar === Char.QuotedString.quotationMark) { flushChar('\"') }
+                                else if (currentChar === Char.QuotedString.apostrophe) { flushChar('\'') } //deviation from the JSON standard
+                                else if (currentChar === Char.QuotedString.reverseSolidus) { flushChar('\\') }
+                                else if (currentChar === Char.QuotedString.solidus) { flushChar('\/') }
+                                else if (currentChar === Char.QuotedString.b) { flushChar('\b') }
+                                else if (currentChar === Char.QuotedString.f) { flushChar('\f') }
+                                else if (currentChar === Char.QuotedString.n) { flushChar('\n') }
+                                else if (currentChar === Char.QuotedString.r) { flushChar('\r') }
+                                else if (currentChar === Char.QuotedString.t) { flushChar('\t') }
+                                else if (currentChar === Char.QuotedString.u) {
+                                    // \uxxxx
+                                    $.unicode = {
+                                        charactersLeft: 4,
+                                        foundCharacters: "",
+                                    }
+                                }
+                                else {
+                                    //no special character
+                                    this.raiseError(
+                                        `expected special character after escape slash, but found ${String.fromCharCode(currentChar)}`,
+                                        { start: this.getBeginLocation(), end: this.getEndLocation() }
+                                    )
+                                }
+                                $.slashed = false
+
+                            } else if ($.unicode !== null) {
+                                $.unicode.foundCharacters += String.fromCharCode(currentChar)
+                                $.unicode.charactersLeft--
+                                if ($.unicode.charactersLeft === 0) {
+                                    const textNode = String.fromCharCode(parseInt($.unicode.foundCharacters, 16))
+                                    this.parser.onSnippet(textNode, 0, textNode.length, pauser)
+                                    if (currentChunk.mustPause) {
+                                        return
+                                    }
+                                    $.unicode = null
+                                }
+                            } else {
+                                //not slashed, not unicode
+                                if (currentChar === Char.QuotedString.reverseSolidus) {//backslash
+                                    flush()
+                                    $.slashed = true
+                                } else if (currentChar === $.startCharacter) {
+                                    /**
+                                     * THE QUOTED STRING IS FINISHED
+                                     */
+                                    flush()
+                                    const locationInfo = {
+                                        start: this.getBeginLocation(),
+                                        end: this.getEndLocation(),
+                                    }
+                                    this.setCurrentTokenType(null)
+                                    this.parser.onQuotedStringEnd(locationInfo, String.fromCharCode(currentChar), pauser)
+                                    if (currentChunk.mustPause) {
+                                        return
+                                    }
+                                    break quotedStringLoop
+                                } else {
+                                    //normal character
+                                    //don't flush
+                                    if (snippetStart === null) {
+                                        snippetStart = currentChunk.index
+                                    }
+                                }
+                            }
+                        }
+                        break
+                    }
+                    case TokenType.UNQUOTED_TOKEN: {
+                        /**
+                         * unquoted token PROCESSING (null, true, false)
+                         */
+                        const mustBreak = processUntilFirstNotIncludedCharacter(
+                            (char: number) => {
+                                const isOtherCharacter = (false
+                                    || char === Char.Whitespace.carriageReturn
+                                    || char === Char.Whitespace.lineFeed
+                                    || char === Char.Whitespace.space
+                                    || char === Char.Whitespace.tab
+
+                                    || char === Char.Punctuation.closeBrace
+                                    || char === Char.Punctuation.closeParen
+                                    || char === Char.Punctuation.colon
+                                    || char === Char.Punctuation.comma
+                                    || char === Char.Punctuation.openBrace
+                                    || char === Char.Punctuation.openParen
+                                    || char === Char.Punctuation.closeAngleBracket
+                                    || char === Char.Punctuation.closeBracket
+                                    || char === Char.Punctuation.openAngleBracket
+                                    || char === Char.Punctuation.openBracket
+                                    || char === Char.Punctuation.verticalLine
+                                    || char === Char.Punctuation.hash
+
+                                    || char === Char.Comment.solidus
+
+                                    || char === Char.QuotedString.quotationMark
+                                    || char === Char.QuotedString.apostrophe
+                                )
+                                return !isOtherCharacter
+                            },
+                            () => {
+                                this.parser.onUnquotedTokenEnd(this.getEndLocation(), pauser)
+                            },
+                        )
+                        if (mustBreak) {
+                            return
+                        }
+                        break
+                    }
+                    case TokenType.WHITESPACE: {
+                        /**
+                         * unquoted token PROCESSING (null, true, false)
+                         */
+                        let snippetStart: null | number = null
+                        const flush = () => {
+                            if (snippetStart !== null) {
+                                this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1, pauser)
+
+                                if (currentChunk.mustPause) {
+                                    return
+                                }
+                            }
+                            snippetStart = null
+                        }
+
+                        while (true) {
+                            const nextChar = currentChunk.lookahead()
+                            if (nextChar === null) {
+                                this.currentChunk = null
+                                flush()
+                                return
+                            }
+
+                            function isWhiteSpaceCharacter() {
+                                return (nextChar === Char.Whitespace.space || nextChar === Char.Whitespace.tab)
+                            }
+                            //first check if we are breaking out of an whitespace token. Can only be done by checking the character that comes directly after the whitespace token
+                            if (!isWhiteSpaceCharacter()) {
+                                flush()
+
+                                this.parser.onWhitespaceEnd(this.getEndLocation())
+
+                                this.setCurrentTokenType(null)
+                                //this character does not belong to the whitespace so don't go to the next character by breaking
+                                break
                             } else {
                                 //normal character
                                 //don't flush
+                                this.next(currentChunk)
                                 if (snippetStart === null) {
                                     snippetStart = currentChunk.index
                                 }
                             }
                         }
+                        break
                     }
-                    break
+                    default: assertUnreachable(state[0])
                 }
-                case TokenType.UNQUOTED_TOKEN: {
-                    /**
-                     * unquoted token PROCESSING (null, true, false)
-                     */
-                    const mustBreak = processUntilFirstNotIncludedCharacter(
-                        (char: number) => {
-                            const isOtherCharacter = (false
-                                || char === Char.Whitespace.carriageReturn
-                                || char === Char.Whitespace.lineFeed
-                                || char === Char.Whitespace.space
-                                || char === Char.Whitespace.tab
-
-                                || char === Char.Punctuation.closeBrace
-                                || char === Char.Punctuation.closeParen
-                                || char === Char.Punctuation.colon
-                                || char === Char.Punctuation.comma
-                                || char === Char.Punctuation.openBrace
-                                || char === Char.Punctuation.openParen
-                                || char === Char.Punctuation.closeAngleBracket
-                                || char === Char.Punctuation.closeBracket
-                                || char === Char.Punctuation.openAngleBracket
-                                || char === Char.Punctuation.openBracket
-                                || char === Char.Punctuation.verticalLine
-                                || char === Char.Punctuation.hash
-
-                                || char === Char.Comment.solidus
-
-                                || char === Char.QuotedString.quotationMark
-                                || char === Char.QuotedString.apostrophe
-                            )
-                            return !isOtherCharacter
-                        },
-                        () => {
-                            this.parser.onUnquotedTokenEnd(this.getEndLocation(), pauser)
-                        },
-                    )
-                    if (mustBreak) {
-                        return
-                    }
-                    break
-                }
-                case TokenType.WHITESPACE: {
-                    /**
-                     * unquoted token PROCESSING (null, true, false)
-                     */
-                    let snippetStart: null | number = null
-                    const flush = () => {
-                        if (snippetStart !== null) {
-                            this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1, pauser)
-
-                            if (currentChunk.mustPause) {
-                                return
-                            }
-                        }
-                        snippetStart = null
-                    }
-
-                    while (true) {
-                        const nextChar = currentChunk.lookahead()
-                        if (nextChar === null) {
-                            this.currentChunk = null
-                            flush()
-                            return
-                        }
-
-                        function isWhiteSpaceCharacter() {
-                            return (nextChar === Char.Whitespace.space || nextChar === Char.Whitespace.tab)
-                        }
-                        //first check if we are breaking out of an whitespace token. Can only be done by checking the character that comes directly after the whitespace token
-                        if (!isWhiteSpaceCharacter()) {
-                            flush()
-
-                            this.parser.onWhitespaceEnd(this.getEndLocation())
-
-                            this.setCurrentTokenType([TokenType.NONE, {}])
-                            //this character does not belong to the whitespace so don't go to the next character by breaking
-                            break
-                        } else {
-                            //normal character
-                            //don't flush
-                            this.next(currentChunk)
-                            if (snippetStart === null) {
-                                snippetStart = currentChunk.index
-                            }
-                        }
-                    }
-                    break
-                }
-                default: assertUnreachable(state[0])
             }
         }
     }
@@ -658,67 +660,61 @@ export class Tokenizer {
         }
     }
     private onEnd() {
-        switch (this.currentTokenType[0]) {
-            case TokenType.COMMENT: {
-                const $ = this.currentTokenType[1]
-                switch ($.state[0]) {
-                    case CommentState.BLOCK_COMMENT: {
-                        this.raiseError("unterminated block comment", { start: this.getEndLocation(), end: this.getEndLocation() })
-                        const locationInfo = {
+        if (this.currentTokenType !== null) {
+            switch (this.currentTokenType[0]) {
+                case TokenType.COMMENT: {
+                    const $ = this.currentTokenType[1]
+                    switch ($.state[0]) {
+                        case CommentState.BLOCK_COMMENT: {
+                            this.raiseError("unterminated block comment", { start: this.getEndLocation(), end: this.getEndLocation() })
+                            this.parser.onBlockCommentEnd(
+                                {
+                                    start: this.getEndLocation(),
+                                    end: this.getEndLocation(),
+                                },
+                                null
+                            )
+                            break
+                        }
+                        case CommentState.LINE_COMMENT: {
+                            this.parser.onLineCommentEnd(this.getEndLocation(), null)
+                            break
+                        }
+                        case CommentState.FOUND_SOLIDUS: {
+                            this.raiseError("found dangling slash at the end of the document", { start: this.getBeginLocation(), end: this.getEndLocation() })
+                            break
+                        }
+                        default:
+                            assertUnreachable($.state[0])
+                    }
+                    break
+                }
+                case TokenType.NEWLINE:
+                    const $ = this.currentTokenType[1]
+                    this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
+                    break
+                case TokenType.QUOTED_STRING: {
+                    this.raiseError("unterminated string", { start: this.getEndLocation(), end: this.getEndLocation() })
+                    this.parser.onQuotedStringEnd(
+                        {
                             start: this.getEndLocation(),
                             end: this.getEndLocation(),
-                        }
-                        this.parser.onBlockCommentEnd(locationInfo, null)
-                        this.setCurrentTokenType([TokenType.NONE, {}])
-
-                        break
-                    }
-                    case CommentState.LINE_COMMENT: {
-                        this.parser.onLineCommentEnd(this.getEndLocation(), null)
-                        this.setCurrentTokenType([TokenType.NONE, {}])
-                        break
-                    }
-                    case CommentState.FOUND_SOLIDUS: {
-                        this.raiseError("found dangling slash at the end of the document", { start: this.getBeginLocation(), end: this.getEndLocation() })
-
-                        break
-                    }
-                    default:
-                        assertUnreachable($.state[0])
+                        },
+                        null,
+                        null,
+                    )
+                    break
                 }
-                break
+                case TokenType.UNQUOTED_TOKEN:
+                    this.parser.onUnquotedTokenEnd(this.getEndLocation(), null)
+                    break
+                case TokenType.WHITESPACE:
+                    this.parser.onWhitespaceEnd(this.getEndLocation())
+                    break
+                default:
+                    return assertUnreachable(this.currentTokenType[0])
             }
-            case TokenType.NEWLINE:
-                const $ = this.currentTokenType[1]
-                this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
-                break
-            case TokenType.NONE:
-                break
-            case TokenType.QUOTED_STRING: {
-                this.raiseError("unterminated string", { start: this.getEndLocation(), end: this.getEndLocation() })
-
-                const locationInfo = {
-                    start: this.getEndLocation(),
-                    end: this.getEndLocation(),
-                }
-                this.parser.onQuotedStringEnd(locationInfo, null, null)
-                this.setCurrentTokenType([TokenType.NONE, {}])
-                break
-            }
-            case TokenType.UNQUOTED_TOKEN:
-                this.parser.onUnquotedTokenEnd(this.getEndLocation(), null)
-
-                this.setCurrentTokenType([TokenType.NONE, {}])
-
-                break
-            case TokenType.WHITESPACE:
-                this.parser.onWhitespaceEnd(this.getEndLocation())
-
-                this.setCurrentTokenType([TokenType.NONE, {}])
-
-                break
-            default:
-                return assertUnreachable(this.currentTokenType[0])
+            this.setCurrentTokenType(null)
         }
         this.parser.onEnd(this.getEndLocation())
 
@@ -742,7 +738,7 @@ export class Tokenizer {
         if (DEBUG) { console.log("error raised:", message) }
         this.onerror(message, range)
     }
-    private setCurrentTokenType(tokenType: CurrentToken) {
+    private setCurrentTokenType(tokenType: CurrentToken | null) {
         if (DEBUG) console.log("setting state to", getStateDescription(tokenType))
         this.currentTokenType = tokenType
     }

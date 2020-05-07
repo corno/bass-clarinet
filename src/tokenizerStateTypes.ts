@@ -3,7 +3,6 @@ import { Location } from "./location"
 export enum TokenType {
     COMMENT,
     QUOTED_STRING,
-    NONE,
     UNQUOTED_TOKEN,
     WHITESPACE,
     NEWLINE,
@@ -12,7 +11,6 @@ export enum TokenType {
 export type CurrentToken =
     | [TokenType.COMMENT, CommentContext]
     | [TokenType.NEWLINE, NewLineContext]
-    | [TokenType.NONE, NoneContext]
     | [TokenType.UNQUOTED_TOKEN]
     | [TokenType.QUOTED_STRING, StringContext]
     | [TokenType.WHITESPACE]
@@ -32,8 +30,6 @@ export enum FoundNewLineCharacter {
 export type NewLineContext = {
     foundNewLineCharacter: FoundNewLineCharacter
     startLocation: Location
-}
-export type NoneContext = {
 }
 
 export type CommentContext = {

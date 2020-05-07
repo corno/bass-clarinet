@@ -5,7 +5,6 @@
 import * as bc from "../src"
 import { describe } from "mocha"
 import * as chai from "chai"
-import * as assert from "assert"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
@@ -16,8 +15,8 @@ const DEBUG = false
 const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
 
-//const selectedJSONTests: string[] = ["two keys"]
-//const selectedExtensionTests: string[] = []
+// const selectedJSONTests: string[] = ["wrong inline formatting"]
+// const selectedExtensionTests: string[] = []
 
 function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: boolean) {
     const expectedEvents = test.events
@@ -89,10 +88,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 out.push(":")
             },
             onLineComment: (comment, _range) => {
-                out.push("//" + comment)
+                out.push(`//${comment}`)
             },
             onBlockComment: (comment, _range) => {
-                out.push("/*" + comment + "*/")
+                out.push(`/*${comment}*/`)
             },
             onString: (value, metaData) => {
                 if (metaData.quote !== null) {
@@ -125,7 +124,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             //do the check
             onEnd: () => {
                 if (!test.skipRoundTripCheck) {
-                    assert.equal(chunks.join(""), out.join(""))
+                    chai.assert.equal(out.join(""), chunks.join("")
+                        .replace(/\r\n/g, "\n")
+                        .replace(/\n\r/g, "\n")
+                        .replace(/\r/g, "\n")
+                    )
                 }
             },
         }
@@ -188,7 +191,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 taggedUnion: () => {
                     return {
                         missingOption: () => {
-                            console.log("HANDLE MISSING OPTION")
+                            //
                         },
                         option: () => {
                             return createTestRequiredValueHandler()
@@ -267,6 +270,50 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         parser.onschemadata.subscribe(eventSubscriber)
         parser.ondata.subscribe(eventSubscriber)
         parser.ondata.subscribe(stackedSubscriber)
+
+        let formattedText = test.text
+        let offset = 0
+
+        const formatter = bc.createFormatter(
+            (range, newValue) => {
+                formattedText =
+                    formattedText.substr(0, offset + range.start.position) +
+                    newValue +
+                    formattedText.substr(offset + range.end.position)
+                offset +=
+                    + newValue.length
+                    - range.end.position
+                    + range.start.position
+            },
+            range => {
+                formattedText =
+                    formattedText.substr(0, offset + range.start.position) +
+                    formattedText.substr(offset + range.end.position)
+                offset +=
+                    - range.end.position
+                    + range.start.position
+            },
+            (location, value) => {
+                formattedText =
+                    formattedText.substr(0, offset + location.position) +
+                    value +
+                    formattedText.substr(offset + location.position)
+                offset += value.length
+            },
+            () => {
+
+                const expectedFormattedText = test.formattedText ? test.formattedText : test.text
+                chai.assert.equal(
+                    formattedText
+                        .replace(/\r\n/g, "\n")
+                        .replace(/\n\r/g, "\n")
+                        .replace(/\r/g, "\n"),
+                    expectedFormattedText
+                )
+            },
+        )
+        parser.ondata.subscribe(formatter)
+        parser.onschemadata.subscribe(formatter)
 
         bc.tokenizeStrings(
             parser,

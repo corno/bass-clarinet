@@ -31,6 +31,7 @@ export type TestDefinition = {
     readonly chunks?: string[]
     readonly tokenizerOptions?: bc.TokenizerOptions
     readonly events: EventDefinition[]
+    readonly formattedText?: string
 }
 
 export type TestDefinitions = {

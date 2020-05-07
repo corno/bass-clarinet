@@ -18,6 +18,7 @@ export const extensionTests: TestDefinitions = {
     },
     "single line comment": {
         text: '[ 1, "a" //a comment\r\n]',
+        formattedText: '[ 1, "a" //a comment\n]',
         skipRoundTripCheck: true,
         events: [
             ["token", "openarray", "[", undefined],
@@ -205,7 +206,7 @@ export const extensionTests: TestDefinitions = {
         ],
     },
     "schema required": {
-        text: '! "a schema" 42',
+        text: '!"a schema" 42',
         testHeaders: true,
         events: [
             ["token", "headerstart"],
@@ -216,40 +217,40 @@ export const extensionTests: TestDefinitions = {
         ],
     },
     "internal schema": {
-        text: `! (
-            'component types': {
-                'root': (
-                    'node': (
-                        'properties': {
-                            'a1': (
-                                'type': | 'value' (
-                                    'type': | 'number' (
-                                    )
-                                )
+        text: `!(
+    'component types': {
+        'root': (
+            'node': (
+                'properties': {
+                    'a1': (
+                        'type': | 'value' (
+                            'type': | 'number' (
                             )
-                            'b': (
-                                'type': | 'value' (
-                                    'type': | 'number' (
-                                    )
-                                )
-                            )
-                            'c': (
-                                'type': | 'value' (
-                                    'type': | 'text' (
-                                    )
-                                )
-                            )
-                        }
+                        )
                     )
-                )
-            }
-            'root type': 'root'
+                    'b': (
+                        'type': | 'value' (
+                            'type': | 'number' (
+                            )
+                        )
+                    )
+                    'c': (
+                        'type': | 'value' (
+                            'type': | 'text' (
+                            )
+                        )
+                    )
+                }
+            )
         )
-        {
-            "a": "B"
-            "b": "X"
-            "c": "C"
-        }`,
+    }
+    'root type': 'root'
+)
+{
+    "a": "B"
+    "b": "X"
+    "c": "C"
+}`,
         testHeaders: true,
         events: [
             ["token", "headerstart"],
@@ -327,31 +328,30 @@ export const extensionTests: TestDefinitions = {
         ],
     },
     "invalid internal schema": {
-        text: `! (
-            'component types': {
-                'x': (
-                    'node': (
-                        'properties': {
-                            'foo': (
-                                'type': | 'value' (
-                                    'type': | 'number'
-                                )
-                            )
-                            'bar': (
-                                'type': | 'taggedunion' (
-                                    'type': | 'number'
-                                )
-                            )
-                        }
+        text: `!(
+    'component types': {
+        'x': (
+            'node': (
+                'properties': {
+                    'foo': (
+                        'type': | 'value' (
+                            'type': | 'number'
+                        )
                     )
-                )
-            }
-            'root type': "x"
+                    'bar': (
+                        'type': | 'taggedunion' (
+                            'type': | 'number'
+                        )
+                    )
+                }
+            )
         )
-        (
-            'foov': 42
-        )
-        `,
+    }
+    'root type': "x"
+)
+(
+    'foov': 42
+)`,
         testHeaders: true,
         events: [
             ["token", "headerstart"],
