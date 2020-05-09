@@ -398,7 +398,18 @@ export class Parser implements IParser {
         }
         const $ = this.currentToken[1]
         this.oncurrentdata.signal(s => s.onLineComment($.commentNode, {
-            range: { start: $.start.start, end: location },
+            outerRange: {
+                start: $.start.start,
+                end: location,
+            },
+            innerRange: {
+                start: {
+                    position: $.start.end.position,
+                    line: $.start.end.line,
+                    column: $.start.end.column,
+                },
+                end: location,
+            },
             pauser: pauser,
         }))
         this.unsetCurrentToken({ start: location, end: location })
@@ -416,7 +427,22 @@ export class Parser implements IParser {
         }
         const $ = this.currentToken[1]
         this.oncurrentdata.signal(s => s.onBlockComment($.commentNode, {
-            range: { start: $.start.start, end: end.end },
+            outerRange: {
+                start: $.start.start,
+                end: end.end,
+            },
+            innerRange: {
+                start: {
+                    position: $.start.end.position,
+                    line: $.start.end.line,
+                    column: $.start.end.column,
+                },
+                end: {
+                    position: end.start.position,
+                    line: end.start.line,
+                    column: end.start.column,
+                },
+            },
             pauser: pauser,
         }))
         this.unsetCurrentToken(end)

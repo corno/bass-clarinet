@@ -3,7 +3,7 @@
     no-underscore-dangle:"off",
     max-classes-per-file: "off",
 */
-import { IDataSubscriber, OpenData, CloseData, StringData, SimpleMetaData } from "../IDataSubscriber"
+import { IDataSubscriber, OpenData, CloseData, StringData, SimpleMetaData, CommentMetaData } from "../IDataSubscriber"
 import { Parser, HeaderSubscriber } from "../Parser"
 import { Range } from "../location"
 import * as Char from "./NumberCharacters"
@@ -177,8 +177,8 @@ class StrictJSONValidator implements IDataSubscriber {
                 return assertUnreachable(this.currentContext[0])
         }
     }
-    public onBlockComment(_comment: string, metaData: SimpleMetaData) {
-        this.onError("block comments are not allowed in strict JSON", metaData.range)
+    public onBlockComment(_comment: string, metaData: CommentMetaData) {
+        this.onError("block comments are not allowed in strict JSON", metaData.outerRange)
     }
     public onCloseArray(metaData: CloseData) {
         if (metaData.closeCharacter !== "]") {
@@ -217,8 +217,8 @@ class StrictJSONValidator implements IDataSubscriber {
     public onWhitespace() {
         //
     }
-    public onLineComment(_comment: string, metaData: SimpleMetaData) {
-        this.onError("line comments are not allowed in strict JSON", metaData.range)
+    public onLineComment(_comment: string, metaData: CommentMetaData) {
+        this.onError("line comments are not allowed in strict JSON", metaData.outerRange)
     }
     public onOpenArray(metaData: OpenData) {
         if (metaData.openCharacter !== "[") {

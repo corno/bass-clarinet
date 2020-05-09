@@ -1,5 +1,4 @@
 export * from "./errors"
-export * from "./format"
 export * from "./subscription"
 export * from "./IDataSubscriber"
 export * from "./Parser"

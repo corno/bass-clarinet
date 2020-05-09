@@ -57,7 +57,8 @@ export interface ValueHandler {
 
 export type Comment = {
     text: string
-    range: Range
+    outerRange: Range
+    innerRange: Range
     type:
     | "block"
     | "line"

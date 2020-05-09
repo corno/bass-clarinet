@@ -1,4 +1,4 @@
-import { IDataSubscriber, OpenData, CloseData, StringData, SimpleMetaData } from "../IDataSubscriber"
+import { IDataSubscriber, OpenData, CloseData, StringData, SimpleMetaData, CommentMetaData } from "../IDataSubscriber"
 import { HeaderSubscriber, Parser } from "../Parser"
 import { Range, Location, printRange } from "../location"
 
@@ -188,8 +188,8 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
     public onComma(metaData: SimpleMetaData) {
         this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.NEVER)
     }
-    public onBlockComment(_comment: string, metaData: SimpleMetaData) {
-        this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)
+    public onBlockComment(_comment: string, metaData: CommentMetaData) {
+        this.onNonOpenToken(metaData.outerRange.start, ExpectSpaceBefore.ALWAYS)
     }
     public onCloseArray(metaData: CloseData) {
         this.onCloseToken(metaData.range)
@@ -197,8 +197,8 @@ export class Formatter implements IDataSubscriber, HeaderSubscriber {
     public onCloseObject(metaData: CloseData) {
         this.onCloseToken(metaData.range)
     }
-    public onLineComment(_comment: string, metaData: SimpleMetaData) {
-        this.onNonOpenToken(metaData.range.start, ExpectSpaceBefore.ALWAYS)
+    public onLineComment(_comment: string, metaData: CommentMetaData) {
+        this.onNonOpenToken(metaData.outerRange.start, ExpectSpaceBefore.ALWAYS)
     }
     public onOpenArray(metaData: OpenData) {
         this.onOpenToken(metaData.range)

@@ -1,5 +1,5 @@
-import { Range, Location } from "./location"
-import { IDataSubscriber } from "./IDataSubscriber"
+import { Range, Location } from "../location"
+import { IDataSubscriber } from "../IDataSubscriber"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")
@@ -78,12 +78,16 @@ export function createFormatter(
 		insertOrReplacePrecedingWhiteSpace(location, " ")
 	}
 
-	function ensureIndentation(location: Location) {
+	function createExpectedIndentation() {
 		let expectedIndentation = ""
 		for (let i = 0; i !== indentLevel; i += 1) {
 			expectedIndentation += "    "
 		}
-		insertOrReplacePrecedingWhiteSpace(location, expectedIndentation)
+		return expectedIndentation
+	}
+
+	function ensureIndentation(location: Location) {
+		insertOrReplacePrecedingWhiteSpace(location, createExpectedIndentation())
 	}
 
 	function comment(
@@ -224,8 +228,13 @@ export function createFormatter(
 	}
 
 	const ds: IDataSubscriber = {
-		onBlockComment: (_value, metaData) => {
-			comment(metaData. range.start)
+		onBlockComment: (value, metaData) => {
+			comment(metaData.outerRange.start)
+			const ei = createExpectedIndentation()
+			const properlyIndentedBlockComment = value.split("\n").map(line => {
+				return ei + line.trim()
+			}).join("\n")
+			replace(metaData.innerRange, properlyIndentedBlockComment)
 			precedingToken = [PrecedingTokenType.other]
 		},
 		onCloseArray: data => {
@@ -245,7 +254,7 @@ export function createFormatter(
 			precedingToken = [PrecedingTokenType.other]
 		},
 		onLineComment: (_value, metaData) => {
-			comment(metaData.range.start)
+			comment(metaData.outerRange.start)
 			precededByLineComment = true
 		},
 		onNewLine: metaData => {

@@ -225,11 +225,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
             onLineComment: (v, metaData) => {
                 if (DEBUG) console.log("found line comment")
-                actualEvents.push(["token", "linecomment", v, getRange(test.testForLocation, metaData.range)])
+                actualEvents.push(["token", "linecomment", v, getRange(test.testForLocation, metaData.outerRange)])
             },
             onBlockComment: (v, metaData) => {
                 if (DEBUG) console.log("found block comment")
-                actualEvents.push(["token", "blockcomment", v, getRange(test.testForLocation, metaData.range)])
+                actualEvents.push(["token", "blockcomment", v, getRange(test.testForLocation, metaData.outerRange)])
             },
             onString: (v, metaData) => {
                 if (metaData.quote === null) {

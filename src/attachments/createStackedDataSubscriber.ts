@@ -205,7 +205,8 @@ export function createStackedDataSubscriber(
                 text: comment,
                 type: "line",
                 indent: null,
-                range: metaData.range,
+                outerRange: metaData.outerRange,
+                innerRange: metaData.innerRange,
             })
         },
         onBlockComment: (comment, metaData) => {
@@ -214,7 +215,8 @@ export function createStackedDataSubscriber(
                 text: comment,
                 type: "line",
                 indent: null, //FIX get the right indent info
-                range: metaData.range,
+                outerRange: metaData.outerRange,
+                innerRange: metaData.innerRange,
             })
         },
         onOpenArray: metaData => {

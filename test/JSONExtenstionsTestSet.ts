@@ -30,12 +30,13 @@ export const extensionTests: TestDefinitions = {
         ],
     },
     "multi line comment": {
-        text: '[ 1, "a" /*a comment\n*/ ]',
+        text: '[ 1, "a" /*a comment\t\t\n\t\t*/ ]',
+        formattedText: '[ 1, "a" /*a comment\n*/ ]',
         events: [
             ["token", "openarray", "[", undefined],
             ["token", "unquotedtoken", "1", undefined],
             ["token", "quotedstring", "a", undefined],
-            ["token", "blockcomment", "a comment\n", undefined],
+            ["token", "blockcomment", "a comment\t\t\n\t\t", undefined],
             ["token", "closearray", "]", undefined],
             ["end", undefined],
         ],

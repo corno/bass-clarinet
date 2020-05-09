@@ -28,6 +28,11 @@ export type SimpleMetaData = {
     range: Range
     pauser: Pauser
 }
+export type CommentMetaData = {
+    outerRange: Range //with the open and close tokens: /*...*/ or //...
+    innerRange: Range //without the open and close tokens: ...
+    pauser: Pauser
+}
 
 export interface IDataSubscriber {
     onComma(metaData: SimpleMetaData): void
@@ -43,8 +48,8 @@ export interface IDataSubscriber {
 
     onString(value: string, metaData: StringData): void
 
-    onBlockComment(comment: string, metaData: SimpleMetaData): void
-    onLineComment(comment: string, metaData: SimpleMetaData): void
+    onBlockComment(comment: string, metaData: CommentMetaData): void
+    onLineComment(comment: string, metaData: CommentMetaData): void
 
     onNewLine(metaData: SimpleMetaData): void
     onWhitespace(value: string, metaData: SimpleMetaData): void
