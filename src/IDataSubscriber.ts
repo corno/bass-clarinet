@@ -32,6 +32,7 @@ export type CommentMetaData = {
     outerRange: Range //with the open and close tokens: /*...*/ or //...
     innerRange: Range //without the open and close tokens: ...
     pauser: Pauser
+    indentation: null | string
 }
 
 export interface IDataSubscriber {

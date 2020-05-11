@@ -69,6 +69,7 @@ export type CurrentToken =
 export type CommentContext = {
     commentNode: string
     readonly start: Range
+    readonly indentation: null | string
 }
 
 export type UnquotedTokenContext = {
@@ -79,6 +80,17 @@ export type WhitespaceContext = {
     whitespaceNode: string
     readonly start: Location
 }
+
+export enum IndentationState {
+    lineIsVirgin,
+    foundIndentation,
+    lineIsDitry,
+}
+
+export type IndentationData =
+| [IndentationState.foundIndentation, WhitespaceContext]
+| [IndentationState.lineIsVirgin]
+| [IndentationState.lineIsDitry]
 
 export type QuotedStringContext = {
     readonly startCharacter: string

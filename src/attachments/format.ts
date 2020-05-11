@@ -231,8 +231,19 @@ export function createFormatter(
 		onBlockComment: (value, metaData) => {
 			comment(metaData.outerRange.start)
 			const ei = createExpectedIndentation()
-			const properlyIndentedBlockComment = value.split("\n").map(line => {
-				return ei + line.trim()
+			const splitted = value.split("\n")
+			const properlyIndentedBlockComment = splitted.map((line, index) => {
+				if (metaData.indentation !== null) {
+					if (line.startsWith(metaData.indentation)) {
+						line = line.substr(metaData.indentation.length)
+					}
+				}
+				if (index === splitted.length - 1) {
+					//last line, always indent
+					return ei + line.trimRight()
+				}
+				//not the last line. Only indent if it has content.
+				return (ei + line).trimRight()
 			}).join("\n")
 			replace(metaData.innerRange, properlyIndentedBlockComment)
 			precedingToken = [PrecedingTokenType.other]

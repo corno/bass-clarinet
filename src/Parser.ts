@@ -18,6 +18,9 @@ import {
     CurrentToken,
     TokenType,
     RootContext,
+    IndentationState,
+    IndentationData,
+    WhitespaceContext,
 } from "./parserStateTypes"
 import { Location, Range, printRange } from "./location"
 import { RangeError } from "./errors"
@@ -85,6 +88,7 @@ export class Parser implements IParser {
     private oncurrentdata: subscr.Subscribers<IDataSubscriber>
     private currentToken: CurrentToken = [TokenType.NONE]
     private readonly onerror: (message: string, range: Range) => void
+    private indentationState: IndentationData = [IndentationState.lineIsVirgin]
 
     constructor(onerror: (message: string, range: Range) => void) {
         this.onerror = onerror
@@ -183,6 +187,8 @@ export class Parser implements IParser {
     public onPunctuation(curChar: number, range: Range, pauser: Pauser) {
         if (DEBUG) console.log(`onPunctuation`, curChar, String.fromCharCode(curChar))
         const $ = this.currentContext
+        this.indentationState = [IndentationState.lineIsDitry]
+
 
         switch (curChar) {
             case Char.Punctuation.exclamationMark:
@@ -344,6 +350,7 @@ export class Parser implements IParser {
     }
     public onSnippet(chunk: string, begin: number, end: number) {
         if (DEBUG) console.log(`onSnippet`)
+
         switch (this.currentToken[0]) {
             case TokenType.LINE_COMMENT: {
                 const $ = this.currentToken[1]
@@ -380,6 +387,8 @@ export class Parser implements IParser {
     public onNewLine(range: Range, pauser: Pauser) {
         if (DEBUG) console.log(`onNewLine`)
 
+        this.indentationState = [IndentationState.lineIsVirgin]
+
         this.oncurrentdata.signal(s => s.onNewLine({
             range: range,
             pauser: pauser,
@@ -388,7 +397,16 @@ export class Parser implements IParser {
     public onLineCommentBegin(range: Range) {
         if (DEBUG) console.log(`onLineCommentBegin`)
 
-        this.setCurrentToken([TokenType.LINE_COMMENT, { commentNode: "", start: range }], range)
+        this.setCurrentToken(
+            [TokenType.LINE_COMMENT, {
+                commentNode: "",
+                start: range,
+                indentation: this.getIndentation(),
+            }],
+            range
+        )
+
+        this.indentationState = [IndentationState.lineIsDitry]
     }
     public onLineCommentEnd(location: Location, pauser: Pauser) {
         if (DEBUG) console.log(`onLineCommentEnd`)
@@ -396,6 +414,7 @@ export class Parser implements IParser {
         if (this.currentToken[0] !== TokenType.LINE_COMMENT) {
             throw new ParserStackPanicError(`Unexpected line comment end`, { start: location, end: location })
         }
+
         const $ = this.currentToken[1]
         this.oncurrentdata.signal(s => s.onLineComment($.commentNode, {
             outerRange: {
@@ -410,14 +429,37 @@ export class Parser implements IParser {
                 },
                 end: location,
             },
+            indentation: $.indentation,
             pauser: pauser,
         }))
         this.unsetCurrentToken({ start: location, end: location })
     }
+    private getIndentation(): null | string {
+        switch (this.indentationState[0]) {
+            case IndentationState.foundIndentation: {
+                return this.indentationState[1].whitespaceNode
+            }
+            case IndentationState.lineIsVirgin: {
+                return null
+            }
+            case IndentationState.lineIsDitry: {
+                return null
+            }
+            default:
+                return assertUnreachable(this.indentationState[0])
+        }
+    }
     public onBlockCommentBegin(range: Range) {
         if (DEBUG) console.log(`onBlockCommentBegin`)
 
-        this.setCurrentToken([TokenType.BLOCK_COMMENT, { commentNode: "", start: range }], range)
+        this.setCurrentToken([TokenType.BLOCK_COMMENT, {
+            commentNode: "",
+            start: range,
+            indentation: this.getIndentation(),
+        }], range)
+
+        this.indentationState = [IndentationState.lineIsDitry]
+
     }
     public onBlockCommentEnd(end: Range, pauser: Pauser) {
         if (DEBUG) console.log(`onBlockCommentEnd`)
@@ -443,12 +485,15 @@ export class Parser implements IParser {
                     column: end.start.column,
                 },
             },
+            indentation: $.indentation,
             pauser: pauser,
         }))
         this.unsetCurrentToken(end)
     }
     public onUnquotedTokenBegin(location: Location) {
         if (DEBUG) console.log(`onUnquotedTokenBegin`)
+
+        this.indentationState = [IndentationState.lineIsDitry]
 
         this.setCurrentToken([TokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], { start: location, end: location })
     }
@@ -479,8 +524,15 @@ export class Parser implements IParser {
 
     public onWhitespaceBegin(location: Location) {
         if (DEBUG) console.log(`onWhitespaceBegin`)
+        const $: WhitespaceContext = { whitespaceNode: "", start: location }
 
-        this.setCurrentToken([TokenType.WHITESPACE, { whitespaceNode: "", start: location }], { start: location, end: location })
+        if (this.indentationState[0] === IndentationState.lineIsVirgin) {
+
+            this.indentationState = [IndentationState.foundIndentation, $]
+        }
+
+
+        this.setCurrentToken([TokenType.WHITESPACE, $], { start: location, end: location })
     }
     public onWhitespaceEnd(location: Location, pauser: Pauser) {
         if (DEBUG) console.log(`onWhitespaceEnd`)

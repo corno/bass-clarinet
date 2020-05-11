@@ -332,50 +332,6 @@ type Offset = {
     offset: number
 }
 
-class Doc implements bc.DocumentAPI {
-    private readonly offsets: Offset[] = []
-    private content: string
-    constructor(content: string) {
-        this.content = content
-    }
-    getContent() {
-        return this.content
-    }
-    remove(begin: number, end: number) {
-        const content = this.content
-        const beginoffset = this.getOffset(begin)
-        const endoffset = this.getOffset(end)
-        this.content = content.substr(0, beginoffset) + content.substr(endoffset)
-
-        this.offsets.push({ position: end, offset: begin - end })
-    }
-    insert(position: number, value: string) {
-        const content = this.content
-        const offset = this.getOffset(position)
-        this.content = content.substr(0, offset) + value + content.substr(offset)
-
-        this.offsets.push({ position: position, offset: value.length })
-    }
-    replace(begin: number, end: number, value: string) {
-
-        const content = this.content
-        const beginoffset = this.getOffset(begin)
-        const endoffset = this.getOffset(end)
-        this.content = content.substr(0, beginoffset) + value + content.substr(endoffset)
-
-        this.offsets.push({ position: end, offset: begin - end + value.length })
-    }
-    private getOffset(position: number) {
-        let newPosition = position
-        this.offsets.forEach(offset => {
-            if (position > offset.position) {
-                newPosition += offset.offset
-            }
-        })
-        return newPosition
-    }
-}
-
 describe('bass-clarinet', () => {
     describe('#strictJSON', () => {
         selectedJSONTests.forEach(key => {
@@ -398,60 +354,5 @@ describe('bass-clarinet', () => {
             if (!test.chunks) return;
             it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test, true));
         })
-    });
-    describe('#format', () => {
-        function doTest(unformatted: string, expectedFormatted: string) {
-            const foundErrors: string[] = []
-            const onError = (message: string, _range: bc.Range) => {
-                foundErrors.push(message)
-            }
-            // const onWarning = (message: string, _range: bc.Range) => {
-            //     foundErrors.push(message)
-            // }
-            const parser = new bc.Parser(
-                onError,
-            )
-            const doc = new Doc(unformatted)
-            bc.attachFormatter(parser, doc, () => {
-                chai.assert.equal(doc.getContent(), expectedFormatted)
-            })
-            bc.tokenizeString(
-                parser,
-                (message, _location) => {
-                    foundErrors.push(message)
-                },
-                unformatted,
-                {}
-            )
-
-        }
-
-        const tests: { [key: string]: [string, string] } = {
-            "some document": [
-                `{"a"  :( ),"a" :( ) } `,
-                `{ "a": (), "a": ()}\n`,
-            ],
-            "newline": [
-                `{\r\n"a"  :( ),"a" :( ) } `,
-                `{\r\n\t"a": (), "a": ()\n}\n`,
-            ],
-            "newline, too much indent": [
-                `{\r\n\t\t\t"a"  :( ),"a" :( ) } `,
-                `{\r\n\t"a": (), "a": ()\n}\n`,
-            ],
-            "lots of arrays": [
-                `[[[[\r\n"A"]]\r\n]\r\n\t]`,
-                `[[[[\r\n\t"A"\n]]]]\n`,
-            ],
-        }
-
-        Object.keys(tests).forEach(testName => {
-            const test = tests[testName]
-
-            it(testName, () => {
-                doTest(test[0], test[1])
-            })
-        })
-
     });
 });
