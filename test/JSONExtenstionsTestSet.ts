@@ -73,6 +73,24 @@ export const extensionTests: TestDefinitions = {
             ["end", undefined],
         ],
     },
+    "multi line comment 4": {
+        text: `[
+    "A"
+/*
+a comment
+    an indented comment line
+        an extra indented comment line
+*/
+        ]`,
+        formattedText: `[
+    "A"
+    /*
+    a comment
+        an indented comment line
+            an extra indented comment line
+    */
+]`,
+    },
     "parens instead of braces": {
         text: '( "a": "foo" )',
         events: [

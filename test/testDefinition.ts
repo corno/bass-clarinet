@@ -30,7 +30,7 @@ export type TestDefinition = {
     readonly testForLocation?: boolean
     readonly chunks?: string[]
     readonly tokenizerOptions?: bc.TokenizerOptions
-    readonly events: EventDefinition[]
+    readonly events?: EventDefinition[]
     readonly formattedText?: string
 }
 

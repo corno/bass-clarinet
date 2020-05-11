@@ -264,7 +264,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             onEnd: location => {
                 if (DEBUG) console.log("found end")
                 actualEvents.push(["end", getLocation(test.testForLocation, location)])
-                chai.assert.deepEqual(actualEvents, expectedEvents)
+                if (expectedEvents !== undefined) {
+                    chai.assert.deepEqual(actualEvents, expectedEvents)
+                }
             },
         }
         parser.onschemadata.subscribe(eventSubscriber)
