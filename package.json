@@ -9,7 +9,7 @@
     "Roly Fentanes (http://about.me/roly)",
     "John Lancaster (http://jlank.com)"
   ],
-  "version": "0.51.2",
+  "version": "0.51.3",
   "main": "./dist/src/index.js",
   "homepage": "https://github.com/corno/bass-clarinet",
   "repository": {
@@ -51,6 +51,7 @@
     "@typescript-eslint/parser": "^2.32.0",
     "chai": "^4.2.0",
     "eslint": "^7.0.0",
+    "json-schema": "^0.2.5",
     "mocha": "^7.1.2",
     "should": "13.2.x",
     "tslint": "^6.1.2",
@@ -78,6 +79,5 @@
   },
   "license": "BSD-2-Clause",
   "dependencies": {
-    "json-schema": "^0.2.5"
   }
 }
