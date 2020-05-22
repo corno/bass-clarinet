@@ -1,25 +1,25 @@
-import { ArrayHandler, ObjectHandler, ValueHandler, RequiredValueHandler } from "./handlers"
+import { ArrayHandler, ObjectHandler, ValueHandler, RequiredValueHandler, TaggedUnionHandler } from "./handlers"
 
 export function createDummyRequiredValueHandler(): RequiredValueHandler {
     return {
         valueHandler: createDummyValueHandler(),
-        onMissing: () => {
+        onMissing: (): void => {
             //
         },
     }
 }
 
-    export function createDummyValueHandler(): ValueHandler {
+export function createDummyValueHandler(): ValueHandler {
     return {
-        array: () => createDummyArrayHandler(),
-        object: () => createDummyObjectHandler(),
-        simpleValue: () => {
+        array: (): ArrayHandler => createDummyArrayHandler(),
+        object: (): ObjectHandler => createDummyObjectHandler(),
+        simpleValue: (): void => {
             //do nothing
         },
-        taggedUnion: () => {
+        taggedUnion: (): TaggedUnionHandler => {
             return {
-                option: () => createDummyRequiredValueHandler(),
-                missingOption: () => {
+                option: (): RequiredValueHandler => createDummyRequiredValueHandler(),
+                missingOption: (): void => {
                     //
                 },
             }
@@ -29,8 +29,8 @@ export function createDummyRequiredValueHandler(): RequiredValueHandler {
 
 export function createDummyArrayHandler(): ArrayHandler {
     return {
-        element: () => createDummyValueHandler(),
-        end: () => {
+        element: (): ValueHandler => createDummyValueHandler(),
+        end: (): void => {
             //do nothing
         },
     }
@@ -38,10 +38,10 @@ export function createDummyArrayHandler(): ArrayHandler {
 
 export function createDummyObjectHandler(): ObjectHandler {
     return {
-        property: () => {
+        property: (): RequiredValueHandler => {
             return createDummyRequiredValueHandler()
         },
-        end: () => {
+        end: (): void => {
             //do nothing
         },
     }

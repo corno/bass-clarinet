@@ -432,7 +432,7 @@ class StrictJSONValidator implements IDataSubscriber {
     }
 }
 
-export function attachStrictJSONValidator(parser: Parser, onError: OnError) {
+export function attachStrictJSONValidator(parser: Parser, onError: OnError): void {
     parser.onheaderdata.subscribe(new StrictJSONHeaderValidator(onError))
     parser.ondata.subscribe(new StrictJSONValidator(onError))
 }

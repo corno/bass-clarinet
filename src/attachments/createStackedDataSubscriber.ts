@@ -2,7 +2,7 @@
     no-console:"off",
     no-underscore-dangle: "off",
 */
-import { IDataSubscriber } from "../IDataSubscriber"
+import { IDataSubscriber, CommentMetaData, OpenData, CloseData, SimpleMetaData, StringData } from "../IDataSubscriber"
 import { Location, Range } from "../location"
 import { createDummyValueHandler } from "./dummyHandlers"
 import {
@@ -179,27 +179,27 @@ export function createStackedDataSubscriber(
     // }
 
     return {
-        onComma: () => {
+        onComma: (): void => {
             lineIsDirty = true
             //
         },
-        onColon: () => {
+        onColon: (): void => {
             lineIsDirty = true
             //
         },
-        onNewLine: () => {
+        onNewLine: (): void => {
             lineIsDirty = false
             indentation = ""
 
             //
         },
-        onWhitespace: (value: string) => {
+        onWhitespace: (value: string): void => {
             if (!lineIsDirty) {
                 indentation = value
             }
             //
         },
-        onLineComment: (comment, metaData) => {
+        onLineComment: (comment: string, metaData: CommentMetaData): void => {
             lineIsDirty = true
             comments.push({
                 text: comment,
@@ -209,7 +209,7 @@ export function createStackedDataSubscriber(
                 innerRange: metaData.innerRange,
             })
         },
-        onBlockComment: (comment, metaData) => {
+        onBlockComment: (comment: string, metaData: CommentMetaData): void => {
             lineIsDirty = true
             comments.push({
                 text: comment,
@@ -219,7 +219,7 @@ export function createStackedDataSubscriber(
                 innerRange: metaData.innerRange,
             })
         },
-        onOpenArray: metaData => {
+        onOpenArray: (metaData: OpenData): void => {
             lineIsDirty = true
             const arrayHandler = initValueHandler().array(
                 metaData,
@@ -228,7 +228,7 @@ export function createStackedDataSubscriber(
             stack.push(currentContext)
             currentContext = ["array", { arrayHandler: arrayHandler }]
         },
-        onCloseArray: metaData => {
+        onCloseArray: (metaData: CloseData): void => {
             lineIsDirty = true
             unwindLoop: while (true) {
                 switch (currentContext[0]) {
@@ -277,7 +277,7 @@ export function createStackedDataSubscriber(
                 }
             }
         },
-        onOpenTaggedUnion: metaData => {
+        onOpenTaggedUnion: (metaData: SimpleMetaData): void => {
             lineIsDirty = true
             if (DEBUG) { console.log("on open tagged union") }
             stack.push(currentContext)
@@ -290,7 +290,7 @@ export function createStackedDataSubscriber(
                 }],
             }]
         },
-        onOpenObject: metaData => {
+        onOpenObject: (metaData: OpenData): void => {
             lineIsDirty = true
             if (DEBUG) { console.log("on open object") }
             const vh = initValueHandler()
@@ -304,7 +304,7 @@ export function createStackedDataSubscriber(
                 propertyHandler: null,
             }]
         },
-        onCloseObject: metaData => {
+        onCloseObject: (metaData: CloseData): void => {
             if (DEBUG) { console.log("on close object") }
             lineIsDirty = true
             unwindLoop: while (true) {
@@ -356,7 +356,7 @@ export function createStackedDataSubscriber(
             }
 
         },
-        onString: (value, metaData) => {
+        onString: (value: string, metaData: StringData): void => {
             lineIsDirty = true
             function onSimpleValue(vh: ValueHandler) {
                 if (DEBUG) { console.log("on simple value", value) }
@@ -434,7 +434,7 @@ export function createStackedDataSubscriber(
                     return assertUnreachable(currentContext[0])
             }
         },
-        onEnd: (location: Location) => {
+        onEnd: (location: Location): void => {
             const range = { start: location, end: location }
             unfoldLoop:
             while (true) {

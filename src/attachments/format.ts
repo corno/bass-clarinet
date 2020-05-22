@@ -50,7 +50,7 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onDone: () => void,
-) {
+): IDataSubscriber {
 	let precedingWhitespace: null | TokenInfo = null
 
 	const stack: Style[] = []
