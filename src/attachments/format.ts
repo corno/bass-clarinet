@@ -1,5 +1,8 @@
+/*eslint
+	complexity: off
+*/
 import { Range, Location } from "../location"
-import { IDataSubscriber } from "../IDataSubscriber"
+import { IDataSubscriber, DataType } from "../IDataSubscriber"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")
@@ -228,121 +231,144 @@ export function createFormatter(
 	}
 
 	const ds: IDataSubscriber = {
-		onBlockComment: (value, metaData) => {
-			comment(metaData.outerRange.start)
-			const ei = createExpectedIndentation()
-			const splitted = value.split("\n")
-			const properlyIndentedBlockComment = splitted.map((line, index) => {
-				if (metaData.indentation !== null) {
-					if (line.startsWith(metaData.indentation)) {
-						line = line.substr(metaData.indentation.length)
-					}
-				}
-				if (index === splitted.length - 1) {
-					//last line, always indent
-					return ei + line.trimRight()
-				}
-				//not the last line. Only indent if it has content.
-				return (ei + line).trimRight()
-			}).join("\n")
-			replace(metaData.innerRange, properlyIndentedBlockComment)
-			precedingToken = [PrecedingTokenType.other]
-		},
-		onCloseArray: data => {
-			closeToken(data.range.start)
-			precedingToken = [PrecedingTokenType.other]
-		},
-		onCloseObject: data => {
-			closeToken(data.range.start)
-			precedingToken = [PrecedingTokenType.other]
-		},
-		onColon: () => {
-			punctuation()
-			precedingToken = [PrecedingTokenType.colon]
-		},
-		onComma: () => {
-			punctuation()
-			precedingToken = [PrecedingTokenType.other]
-		},
-		onLineComment: (_value, metaData) => {
-			comment(metaData.outerRange.start)
-			precededByLineComment = true
-		},
-		onNewLine: metaData => {
-			if (precedingWhitespace !== null) {
-				del(precedingWhitespace.range)
-			}
-			precedingWhitespace = null
-			function x() {
-				if (currentRequiredStyle === null) {
-					currentRequiredStyle = Style.block
-					indentLevel += 1
-				}
-			}
-			switch (precedingToken[0]) {
-				case PrecedingTokenType.colon: {
-					del(metaData.range)
-					break
-				}
-				case PrecedingTokenType.newLine: {
 
-					del(metaData.range)
+		onData: data => {
+			switch (data.type[0]) {
+				case DataType.BlockComment: {
+					const $ = data.type[1]
+					comment(data.range.start)
+					const ei = createExpectedIndentation()
+					const splitted = $.comment.split("\n")
+					const properlyIndentedBlockComment = splitted.map((line, index) => {
+						if ($.indentation !== null) {
+							if (line.startsWith($.indentation)) {
+								line = line.substr($.indentation.length)
+							}
+						}
+						if (index === splitted.length - 1) {
+							//last line, always indent
+							return ei + line.trimRight()
+						}
+						//not the last line. Only indent if it has content.
+						return (ei + line).trimRight()
+					}).join("\n")
+					replace($.innerRange, properlyIndentedBlockComment)
+					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case PrecedingTokenType.nothing: {
+				case DataType.CloseArray: {
+					closeToken(data.range.start)
+					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case PrecedingTokenType.other: {
-					x()
+				case DataType.CloseObject: {
+					closeToken(data.range.start)
+					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case PrecedingTokenType.option: {
-					x()
+				case DataType.Colon: {
+					punctuation()
+					precedingToken = [PrecedingTokenType.colon]
 					break
 				}
-				case PrecedingTokenType.pipe: {
-					x()
+				case DataType.Comma: {
+					punctuation()
+					precedingToken = [PrecedingTokenType.other]
+					break
+				}
+				case DataType.LineComment: {
+					comment(data.range.start)
+					precededByLineComment = true
+					break
+				}
+				case DataType.NewLine: {
+					//const $ = data[1]
+					if (precedingWhitespace !== null) {
+						del(precedingWhitespace.range)
+					}
+					precedingWhitespace = null
+					function x() {
+						if (currentRequiredStyle === null) {
+							currentRequiredStyle = Style.block
+							indentLevel += 1
+						}
+					}
+					switch (precedingToken[0]) {
+						case PrecedingTokenType.colon: {
+							del(data.range)
+							break
+						}
+						case PrecedingTokenType.newLine: {
+
+							del(data.range)
+							break
+						}
+						case PrecedingTokenType.nothing: {
+							break
+						}
+						case PrecedingTokenType.other: {
+							x()
+							break
+						}
+						case PrecedingTokenType.option: {
+							x()
+							break
+						}
+						case PrecedingTokenType.pipe: {
+							x()
+							break
+						}
+						default:
+							assertUnreachable(precedingToken[0])
+					}
+					precedingToken = [PrecedingTokenType.newLine, {
+						token: {
+							value: "\n",
+							range: data.range,
+						},
+						precededByLineComment: precededByLineComment,
+					}]
+					precededByLineComment = false
+					break
+				}
+				case DataType.OpenArray: {
+					semanticToken(data.range.start)
+					push()
+					precedingToken = [PrecedingTokenType.other]
+					break
+				}
+				case DataType.OpenObject: {
+					semanticToken(data.range.start)
+					push()
+					precedingToken = [PrecedingTokenType.other]
+					break
+				}
+				case DataType.SimpleValue: {
+					semanticToken(data.range.start)
+					if (precedingToken[0] === PrecedingTokenType.pipe) {
+						precedingToken = [PrecedingTokenType.option]
+					} else {
+						precedingToken = [PrecedingTokenType.other]
+					}
+					break
+				}
+				case DataType.TaggedUnion: {
+					semanticToken(data.range.start)
+					precedingToken = [PrecedingTokenType.pipe]
+					break
+				}
+				case DataType.WhiteSpace: {
+					const $ = data.type[1]
+					precedingWhitespace = {
+						range: data.range,
+						value: $.value,
+					}
 					break
 				}
 				default:
-					assertUnreachable(precedingToken[0])
+					assertUnreachable(data.type[0])
 			}
-			precedingToken = [PrecedingTokenType.newLine, {
-				token: {
-					value: "\n",
-					range: metaData.range,
-				},
-				precededByLineComment: precededByLineComment,
-			}]
-			precededByLineComment = false
-		},
-		onOpenArray: data => {
-			semanticToken(data.range.start)
-			push()
-			precedingToken = [PrecedingTokenType.other]
-		},
-		onOpenObject: data => {
-			semanticToken(data.range.start)
-			push()
-			precedingToken = [PrecedingTokenType.other]
-		},
-		onOpenTaggedUnion: metaData => {
-			semanticToken(metaData.range.start)
-			precedingToken = [PrecedingTokenType.pipe]
-		},
-		onString: (_value, data) => {
-			semanticToken(data.range.start)
-			if (precedingToken[0] === PrecedingTokenType.pipe) {
-				precedingToken = [PrecedingTokenType.option]
-			} else {
-				precedingToken = [PrecedingTokenType.other]
-			}
-		},
-		onWhitespace: (value, metaData) => {
-			precedingWhitespace = {
-				range: metaData.range,
-				value: value,
-			}
+			return false
 		},
 		onEnd: () => {
 			if (precedingWhitespace !== null) {

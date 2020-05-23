@@ -3,7 +3,7 @@
     no-underscore-dangle:"off",
     max-classes-per-file: "off",
 */
-import { IDataSubscriber, OpenData, CloseData, StringData, SimpleMetaData, CommentMetaData } from "../IDataSubscriber"
+import { IDataSubscriber, Data, DataType } from "../IDataSubscriber"
 import { Parser, HeaderSubscriber } from "../Parser"
 import { Range } from "../location"
 import * as Char from "./NumberCharacters"
@@ -135,200 +135,229 @@ class StrictJSONValidator implements IDataSubscriber {
     constructor(onError: OnError) {
         this.onError = onError
     }
-    public onColon(metaData: SimpleMetaData) {
-        if (this.currentContext[0] !== "object") {
-            this.onError(`colon can only be used in objects`, metaData. range)
-            return
-        }
-        if (this.currentContext[1].state !== ObjectState.EXPECTING_COLON) {
-            this.onError(`did not expect a colon`, metaData.range)
-        }
-        this.currentContext[1].state = ObjectState.EXPECTING_OBJECT_VALUE
-    }
-    public onComma(metaData: SimpleMetaData) {
-        switch (this.currentContext[0]) {
-            case "array": {
-                const $ = this.currentContext[1]
-                if ($.state !== ArrayState.EXPECTING_COMMA_OR_ARRAY_END) {
-                    this.onError(`did not expect a comma`, metaData.range)
-                }
-                $.state = ArrayState.EXPECTING_ARRAYVALUE
+
+    public onData(data: Data) {
+        switch (data.type[0]) {
+            case DataType.BlockComment: {
+                this.onError("block comments are not allowed in strict JSON", data.range)
                 break
             }
-            case "object": {
-                const $ = this.currentContext[1]
-                if ($.state !== ObjectState.EXPECTING_COMMA_OR_OBJECT_END) {
-                    this.onError(`did not expect a comma`, metaData.range)
+            case DataType.CloseArray: {
+                const $ = data.type[1]
+                if ($.closeCharacter !== "]") {
+                    this.onError("arrays should end with ']' in strict JSON", data.range)
                 }
-                $.state = ObjectState.EXPECTING_KEY_OR_OBJECT_END
+                if (this.currentContext[0] !== "array") {
+                    this.onError("unpaired ']'", data.range)
+                } else {
+                    if (this.currentContext[1].state === ArrayState.EXPECTING_ARRAYVALUE) {
+                        this.onError("trailing commas are not allowed", data.range)
+                    }
+                }
+                this.pop(data.range)
+                this.wrapupValue(data.range)
                 break
             }
-            case "root": {
-                //const $ = this.currentContext[1]
-                this.onError(`did not expect a comma`, metaData.range)
+            case DataType.CloseObject: {
+                const $ = data.type[1]
+                if ($.closeCharacter !== "}") {
+                    this.onError("objects should end with '}' in strict JSON", data.range)
+                }
+                if (this.currentContext[0] !== "object") {
+                    this.onError("unpaired '}'", data.range)
+                } else {
+                    if (this.currentContext[1].state === ObjectState.EXPECTING_KEY) {
+                        this.onError("trailing commas are not allowed in strict JSON", data.range)
+                    }
+                }
+                this.pop(data.range)
+                this.wrapupValue(data.range)
+                break
+            }
+            case DataType.Colon: {
+                if (this.currentContext[0] !== "object") {
+                    this.onError(`colon can only be used in objects`, data.range)
+                } else {
+                    if (this.currentContext[1].state !== ObjectState.EXPECTING_COLON) {
+                        this.onError(`did not expect a colon`, data.range)
+                    }
+                    this.currentContext[1].state = ObjectState.EXPECTING_OBJECT_VALUE
+                }
+                break
+            }
+            case DataType.Comma: {
+                switch (this.currentContext[0]) {
+                    case "array": {
+                        const $$ = this.currentContext[1]
+                        if ($$.state !== ArrayState.EXPECTING_COMMA_OR_ARRAY_END) {
+                            this.onError(`did not expect a comma`, data.range)
+                        }
+                        $$.state = ArrayState.EXPECTING_ARRAYVALUE
+                        break
+                    }
+                    case "object": {
+                        const $$ = this.currentContext[1]
+                        if ($$.state !== ObjectState.EXPECTING_COMMA_OR_OBJECT_END) {
+                            this.onError(`did not expect a comma`, data.range)
+                        }
+                        $$.state = ObjectState.EXPECTING_KEY_OR_OBJECT_END
+                        break
+                    }
+                    case "root": {
+                        //const $ = this.currentContext[1]
+                        this.onError(`did not expect a comma`, data.range)
+
+                        break
+                    }
+                    case "taggedunion": {
+                        //don't report
+                        break
+                    }
+                    default:
+                        assertUnreachable(this.currentContext[0])
+                }
+                break
+            }
+            case DataType.LineComment: {
+                this.onError("line comments are not allowed in strict JSON", data.range)
+                break
+            }
+            case DataType.NewLine: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case DataType.OpenArray: {
+                const $ = data.type[1]
+                if ($.openCharacter !== "[") {
+                    this.onError("arrays should start with '[' in strict JSON", data.range)
+                }
+                this.onValue(data.range)
+                this.push(["array", { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
+                break
+            }
+            case DataType.OpenObject: {
+                const $ = data.type[1]
+                if ($.openCharacter !== "{") {
+                    this.onError("objects should start with '{' in strict JSON", data.range)
+                }
+                this.onValue(data.range)
+                this.push(["object", { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END }])
 
                 break
             }
-            case "taggedunion": {
-                //don't report
+            case DataType.SimpleValue: {
+                const $ = data.type[1]
+                if ($.quote !== null) {
+                    //a string
+                    if ($.quote !== "\"") {
+                        this.onError(`invalid string, should start with'"' in strict JSON`, data.range)
+                    }
+                    switch (this.currentContext[0]) {
+                        case "array": {
+                            this.onValue(data.range)
+                            this.wrapupValue(data.range)
+                            break
+                        }
+                        case "object": {
+                            const $ = this.currentContext[1]
+                            switch ($.state) {
+                                case ObjectState.EXPECTING_COLON: {
+                                    this.onValue(data.range)
+                                    this.wrapupValue(data.range)
+                                    break
+                                }
+                                case ObjectState.EXPECTING_COMMA_OR_OBJECT_END: {
+                                    this.onError("missing comma", data.range)
+                                    this.currentContext[1].state = ObjectState.EXPECTING_COLON
+                                    break
+                                }
+                                case ObjectState.EXPECTING_KEY: {
+                                    this.currentContext[1].state = ObjectState.EXPECTING_COLON
+                                    break
+                                }
+                                case ObjectState.EXPECTING_KEY_OR_OBJECT_END: {
+                                    this.currentContext[1].state = ObjectState.EXPECTING_COLON
+                                    break
+                                }
+                                case ObjectState.EXPECTING_OBJECT_VALUE: {
+                                    this.onValue(data.range)
+                                    this.wrapupValue(data.range)
+                                    break
+                                }
+                                default:
+                                    assertUnreachable($.state[0])
+                            }
+                            break
+                        }
+                        case "root": {
+                            //const $ = this.currentContext[1]
+                            this.onValue(data.range)
+                            this.wrapupValue(data.range)
+                            break
+                        }
+                        case "taggedunion": {
+                            const $ = this.currentContext[1]
+                            switch ($.state) {
+                                case TaggedUnionState.EXPECTING_OPTION: {
+                                    $.state = TaggedUnionState.EXPECTING_DATA
+                                    break
+                                }
+                                case TaggedUnionState.EXPECTING_DATA: {
+
+                                    break
+                                }
+                                default:
+                                    assertUnreachable($.state)
+                            }
+
+                            break
+                        }
+                        default:
+                            assertUnreachable(this.currentContext[0])
+                    }
+                } else {
+                    //no quotes
+                    this.onValue(data.range)
+                    switch ($.value) {
+                        case "true": {
+                            break
+                        }
+                        case "false": {
+                            break
+                        }
+                        case "null": {
+                            break
+                        }
+                        default:
+                            const firstChar = $.value.charCodeAt(0)
+                            if (firstChar === Char.Number.minus || Char.Number._0 <= firstChar && firstChar <= Char.Number._9) {
+                                validateIsJSONNumber($.value, message => this.onError(message, data.range))
+                            } else {
+                                this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, data.range)
+                                this.wrapupValue(data.range)
+                            }
+                    }
+                }
+                break
+            }
+            case DataType.TaggedUnion: {
+                this.onError("tagged unions are not allowed in strict JSON", data.range)
+                this.push(["taggedunion", { state: TaggedUnionState.EXPECTING_OPTION }])
+                break
+            }
+            case DataType.WhiteSpace: {
+                //const $ = data.type[1]
+                //place your code here
                 break
             }
             default:
-                return assertUnreachable(this.currentContext[0])
+                assertUnreachable(data.type[0])
         }
-    }
-    public onBlockComment(_comment: string, metaData: CommentMetaData) {
-        this.onError("block comments are not allowed in strict JSON", metaData.outerRange)
-    }
-    public onCloseArray(metaData: CloseData) {
-        if (metaData.closeCharacter !== "]") {
-            this.onError("arrays should end with ']' in strict JSON", metaData.range)
-        }
-        if (this.currentContext[0] !== "array") {
-            this.onError("unpaired ']'", metaData.range)
-        } else {
-            if (this.currentContext[1].state === ArrayState.EXPECTING_ARRAYVALUE) {
-                this.onError("trailing commas are not allowed", metaData.range)
-            }
-        }
-        this.pop(metaData.range)
-        this.wrapupValue(metaData.range)
-    }
-    public onCloseObject(metaData: CloseData) {
-        if (metaData.closeCharacter !== "}") {
-            this.onError("objects should end with '}' in strict JSON", metaData.range)
-        }
-        if (this.currentContext[0] !== "object") {
-            this.onError("unpaired '}'", metaData.range)
-        } else {
-            if (this.currentContext[1].state === ObjectState.EXPECTING_KEY) {
-                this.onError("trailing commas are not allowed in strict JSON", metaData.range)
-            }
-        }
-        this.pop(metaData.range)
-        this.wrapupValue(metaData.range)
+        return false
     }
     public onEnd() {
         //
-    }
-    public onNewLine() {
-        //
-    }
-    public onWhitespace() {
-        //
-    }
-    public onLineComment(_comment: string, metaData: CommentMetaData) {
-        this.onError("line comments are not allowed in strict JSON", metaData.outerRange)
-    }
-    public onOpenArray(metaData: OpenData) {
-        if (metaData.openCharacter !== "[") {
-            this.onError("arrays should start with '[' in strict JSON", metaData.range)
-        }
-        this.onValue(metaData.range)
-        this.push(["array", { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
-
-    }
-    public onOpenObject(metaData: OpenData) {
-        if (metaData.openCharacter !== "{") {
-            this.onError("objects should start with '{' in strict JSON", metaData.range)
-        }
-        this.onValue(metaData.range)
-        this.push(["object", { state: ObjectState.EXPECTING_KEY_OR_OBJECT_END }])
-    }
-    public onOpenTaggedUnion(metaData: SimpleMetaData) {
-        this.onError("tagged unions are not allowed in strict JSON", metaData.range)
-        this.push(["taggedunion", { state: TaggedUnionState.EXPECTING_OPTION }])
-    }
-    public onString(value: string, metaData: StringData) {
-        if (metaData.quote !== null) {
-            //a string
-            if (metaData.quote !== "\"") {
-                this.onError(`invalid string, should start with'"' in strict JSON`, metaData.range)
-            }
-            switch (this.currentContext[0]) {
-                case "array": {
-                    this.onValue(metaData.range)
-                    this.wrapupValue(metaData.range)
-                    break
-                }
-                case "object": {
-                    const $ = this.currentContext[1]
-                    switch ($.state) {
-                        case ObjectState.EXPECTING_COLON: {
-                            this.onValue(metaData.range)
-                            this.wrapupValue(metaData.range)
-                            break
-                        }
-                        case ObjectState.EXPECTING_COMMA_OR_OBJECT_END: {
-                            this.onError("missing comma", metaData.range)
-                            this.currentContext[1].state = ObjectState.EXPECTING_COLON
-                            break
-                        }
-                        case ObjectState.EXPECTING_KEY: {
-                            this.currentContext[1].state = ObjectState.EXPECTING_COLON
-                            break
-                        }
-                        case ObjectState.EXPECTING_KEY_OR_OBJECT_END: {
-                            this.currentContext[1].state = ObjectState.EXPECTING_COLON
-                            break
-                        }
-                        case ObjectState.EXPECTING_OBJECT_VALUE: {
-                            this.onValue(metaData.range)
-                            this.wrapupValue(metaData.range)
-                            break
-                        }
-                        default:
-                            return assertUnreachable($.state[0])
-                    }
-                    break
-                }
-                case "root": {
-                    //const $ = this.currentContext[1]
-                    this.onValue(metaData.range)
-                    this.wrapupValue(metaData.range)
-                    break
-                }
-                case "taggedunion": {
-                    const $ = this.currentContext[1]
-                    switch ($.state) {
-                        case TaggedUnionState.EXPECTING_OPTION: {
-                            $.state = TaggedUnionState.EXPECTING_DATA
-                            break
-                        }
-                        case TaggedUnionState.EXPECTING_DATA: {
-
-                            break
-                        }
-                        default:
-                            return assertUnreachable($.state)
-                    }
-
-                    break
-                }
-                default:
-                    return assertUnreachable(this.currentContext[0])
-            }
-        } else {
-            this.onValue(metaData.range)
-            switch (value) {
-                case "true": {
-                    return
-                }
-                case "false": {
-                    return
-                }
-                case "null": {
-                    return
-                }
-            }
-            const firstChar = value.charCodeAt(0)
-            if (firstChar === Char.Number.minus || Char.Number._0 <= firstChar && firstChar <= Char.Number._9) {
-                validateIsJSONNumber(value, message => this.onError(message, metaData.range))
-                return
-            }
-            this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, metaData.range)
-            this.wrapupValue(metaData.range)
-        }
     }
     private push(newContext: ContextType) {
         this.stack.push(this.currentContext)

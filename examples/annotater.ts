@@ -11,40 +11,39 @@ function createRequiredValuesAnnotater(indentation: string, writer: (str: string
 
 function createValuesAnnotater(indentation: string, writer: (str: string) => void): bc.ValueHandler {
     return {
-        array: beginMetaData => {
-            writer(`${indentation}[ // ${bc.printRange(beginMetaData.range)}`)
+        array: beginRange => {
+            writer(`${indentation}[ // ${bc.printRange(beginRange)}`)
             return {
                 element: () => createValuesAnnotater(`${indentation}\t`, writer),
-                end: endMetaData => {
-                    writer(`${indentation}] // ${bc.printRange(endMetaData.range)}`)
+                end: endRange => {
+                    writer(`${indentation}] // ${bc.printRange(endRange)}`)
                 },
             }
         },
-        object: beginMetaData => {
-            writer(`${indentation}{ // ${bc.printRange(beginMetaData.range)}`)
+        object: beginRange => {
+            writer(`${indentation}{ // ${bc.printRange(beginRange)}`)
             return {
-                property: (key, _keyRange) => {
+                property: (_keyRange, key) => {
                     writer(`${indentation}"${key}": `)
                     return createRequiredValuesAnnotater(`${indentation}\t`, writer)
                 },
-                end: endMetaData => {
-                    writer(`${indentation}} // ${bc.printRange(endMetaData.range)}`)
+                end: (range, _endMetaData) => {
+                    writer(`${indentation}} // ${bc.printRange(range)}`)
                 },
             }
         },
-        simpleValue: (value, metaData) => {
-            if (metaData.quote !== null) {
-                writer(`${indentation}${JSON.stringify(value)} // ${bc.printRange(metaData.range)}`)
+        simpleValue: (range, data) => {
+            if (data.quote !== null) {
+                writer(`${indentation}${JSON.stringify(data.value)} // ${bc.printRange(range)}`)
             } else {
-                writer(`${indentation}${value} // ${bc.printRange(metaData.range)}`)
+                writer(`${indentation}${data.value} // ${bc.printRange(range)}`)
             }
         },
-        taggedUnion: taggedUnionData => {
+        taggedUnion: (range, _taggedUnionData) => {
             writer(`| ${indentation}`)
             return {
-                option: (option, optionData) => {
-                    writer(`"${JSON.stringify(option)}" // ${bc.printRange(taggedUnionData.range)} ${bc.printRange(optionData.range)}`)
-
+                option: (_range, option, _optionData) => {
+                    writer(`"${JSON.stringify(option)}" // ${bc.printRange(range)} ${bc.printRange(range)}`)
                     return createRequiredValuesAnnotater(`${indentation}\t`, writer)
                 },
                 missingOption: () => {
@@ -55,7 +54,7 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
     }
 }
 
-export function attachAnnotator(parser: bc.Parser, indentation: string, writer: (str: string) => void) {
+export function attachAnnotator(parser: bc.Parser, indentation: string, writer: (str: string) => void): void {
     const ds = bc.createStackedDataSubscriber(
         createRequiredValuesAnnotater(indentation, writer),
         error => {

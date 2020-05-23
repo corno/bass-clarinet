@@ -1,10 +1,8 @@
 import { Range } from "../location"
 import {
+    SimpleValueData,
     OpenData,
     CloseData,
-    PropertyData,
-    StringData,
-    SimpleMetaData,
 } from "../IDataSubscriber"
 
 export type PreData = {
@@ -19,13 +17,13 @@ export enum AfterValueContext {
 }
 
 export type ObjectHandler = {
-    property: (key: string, metaData: PropertyData, preData: PreData) => RequiredValueHandler
-    end: (metaData: CloseData, preData: PreData) => void
+    property: (range: Range, key: string, preData: PreData) => RequiredValueHandler
+    end: (range: Range, data: CloseData, preData: PreData) => void
 }
 
 export type ArrayHandler = {
     element: () => ValueHandler
-    end: (metaData: CloseData, preData: PreData) => void
+    end: (range: Range, data: CloseData, preData: PreData) => void
 }
 
 export type TaggedUnionHandler = {
@@ -33,14 +31,14 @@ export type TaggedUnionHandler = {
     missingOption: () => void
 }
 
-export type OnObject = (metaData: OpenData, preData: PreData) => ObjectHandler
+export type OnObject = (range: Range, data: OpenData, preData: PreData) => ObjectHandler
 
-export type OnArray = (metaData: OpenData, preData: PreData) => ArrayHandler
+export type OnArray = (range: Range, data: OpenData, preData: PreData) => ArrayHandler
 
-export type OnSimpleValue = (value: string, metaData: StringData, preData: PreData) => void
+export type OnSimpleValue = (range: Range, data: SimpleValueData, preData: PreData) => void
 
-export type OnTaggedUnion = (metaData: SimpleMetaData, beginpreData: PreData) => TaggedUnionHandler
-export type OnOption = (option: string, optionData: SimpleMetaData, optionpreData: PreData) => RequiredValueHandler
+export type OnTaggedUnion = (range: Range, beginpreData: PreData) => TaggedUnionHandler
+export type OnOption = (range: Range, option: string, optionpreData: PreData) => RequiredValueHandler
 
 export type OnMissing = () => void
 

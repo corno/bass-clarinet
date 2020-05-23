@@ -1,5 +1,6 @@
 /* eslint
     no-console:"off",
+    complexity: "off",
 */
 
 import * as bc from "../src"
@@ -8,7 +9,11 @@ import * as chai from "chai"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler } from "../src"
+import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, DataType } from "../src"
+
+function assertUnreachable<RT>(_x: never): RT {
+    throw new Error("unreachable")
+}
 
 const DEBUG = false
 
@@ -81,45 +86,72 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             return escaped.substring(1, escaped.length - 1) //remove quotes
         }
         const outputter: bc.IDataSubscriber = {
-            onComma: () => {
-                out.push(",")
-            },
-            onColon: () => {
-                out.push(":")
-            },
-            onLineComment: (comment, _range) => {
-                out.push(`//${comment}`)
-            },
-            onBlockComment: (comment, _range) => {
-                out.push(`/*${comment}*/`)
-            },
-            onString: (value, metaData) => {
-                if (metaData.quote !== null) {
-                    out.push(metaData.quote + serialize(value) + (metaData.terminated ? metaData.quote : ""))
-                } else {
-                    out.push(value)
+            onData: data => {
+                switch (data.type[0]) {
+                    case DataType.BlockComment: {
+                        const $ = data.type[1]
+                        out.push(`/*${$.comment}*/`)
+                        break
+                    }
+                    case DataType.CloseArray: {
+                        const $ = data.type[1]
+                        out.push($.closeCharacter)
+                        break
+                    }
+                    case DataType.CloseObject: {
+                        const $ = data.type[1]
+                        out.push($.closeCharacter)
+                        break
+                    }
+                    case DataType.Colon: {
+                        out.push(":")
+                        break
+                    }
+                    case DataType.Comma: {
+                        out.push(",")
+                        break
+                    }
+                    case DataType.LineComment: {
+                        const $ = data.type[1]
+                        out.push(`//${$.comment}`)
+                        break
+                    }
+                    case DataType.NewLine: {
+                        out.push("\n")
+                        break
+                    }
+                    case DataType.OpenArray: {
+                        const $ = data.type[1]
+                        out.push($.openCharacter)
+                        break
+                    }
+                    case DataType.OpenObject: {
+                        const $ = data.type[1]
+                        out.push($.openCharacter)
+                        break
+                    }
+                    case DataType.SimpleValue: {
+                        const $ = data.type[1]
+                        if ($.quote !== null) {
+                            out.push(`${$.quote}${serialize($.value)}${$.terminated ? $.quote : ""}`)
+                        } else {
+                            out.push($.value)
+                        }
+                        break
+                    }
+                    case DataType.TaggedUnion: {
+                        out.push("|")
+                        break
+                    }
+                    case DataType.WhiteSpace: {
+                        const $ = data.type[1]
+                        out.push($.value)
+                        break
+                    }
+                    default:
+                        assertUnreachable(data.type[0])
                 }
-            },
-            onOpenTaggedUnion: _range => {
-                out.push("|")
-            },
-            onOpenArray: metaData => {
-                out.push(metaData.openCharacter)
-            },
-            onCloseArray: metaData => {
-                out.push(metaData.closeCharacter)
-            },
-            onOpenObject: metaData => {
-                out.push(metaData.openCharacter)
-            },
-            onCloseObject: metaData => {
-                out.push(metaData.closeCharacter)
-            },
-            onNewLine: () => {
-                out.push("\n")
-            },
-            onWhitespace: value => {
-                out.push(value)
+                return false
             },
             //do the check
             onEnd: () => {
@@ -211,55 +243,82 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             }
         )
         const eventSubscriber: bc.IDataSubscriber = {
-            onComma: () => {
-                //
-            },
-            onColon: () => {
-                //
-            },
-            onNewLine: () => {
-                //
-            },
-            onWhitespace: () => {
-                //
-            },
-            onLineComment: (v, metaData) => {
-                if (DEBUG) console.log("found line comment")
-                actualEvents.push(["token", "linecomment", v, getRange(test.testForLocation, metaData.outerRange)])
-            },
-            onBlockComment: (v, metaData) => {
-                if (DEBUG) console.log("found block comment")
-                actualEvents.push(["token", "blockcomment", v, getRange(test.testForLocation, metaData.outerRange)])
-            },
-            onString: (v, metaData) => {
-                if (metaData.quote === null) {
-                    if (DEBUG) console.log("found unquoted token")
-                    actualEvents.push(["token", "unquotedtoken", v, getRange(test.testForLocation, metaData.range)])
-                } else {
-                    if (DEBUG) console.log("found quoted string")
-                    actualEvents.push(["token", "quotedstring", v, getRange(test.testForLocation, metaData.range)])
-                }
-            },
+            onData: data => {
+                switch (data.type[0]) {
+                    case DataType.BlockComment: {
+                        const $ = data.type[1]
+                        if (DEBUG) console.log("found block comment")
+                        actualEvents.push(["token", "blockcomment", $.comment, getRange(test.testForLocation, data.range)])
+                        break
+                    }
+                    case DataType.CloseArray: {
+                        const $ = data.type[1]
+                        if (DEBUG) console.log("found close array")
+                        actualEvents.push(["token", "closearray", $.closeCharacter, getRange(test.testForLocation, data.range)])
+                        break
+                    }
+                    case DataType.CloseObject: {
+                        const $ = data.type[1]
+                        if (DEBUG) console.log("found close object")
+                        actualEvents.push(["token", "closeobject", $.closeCharacter, getRange(test.testForLocation, data.range)])
+                        break
+                    }
+                    case DataType.Colon: {
+                        break
+                    }
+                    case DataType.Comma: {
+                        break
+                    }
+                    case DataType.LineComment: {
+                        const $ = data.type[1]
+                        if (DEBUG) console.log("found line comment")
+                        actualEvents.push(["token", "linecomment", $.comment, getRange(test.testForLocation, data.range)])
+                        break
+                    }
+                    case DataType.NewLine: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    case DataType.OpenArray: {
+                        const $ = data.type[1]
+                        if (DEBUG) console.log("found open array")
+                        actualEvents.push(["token", "openarray", $.openCharacter, getRange(test.testForLocation, data.range)])
+                        break
+                    }
+                    case DataType.OpenObject: {
+                        const $ = data.type[1]
+                        if (DEBUG) console.log("found open object")
+                        actualEvents.push(["token", "openobject", $.openCharacter, getRange(test.testForLocation, data.range)])
+                        break
+                    }
+                    case DataType.SimpleValue: {
+                        const $ = data.type[1]
+                        if ($.quote === null) {
+                            if (DEBUG) console.log("found unquoted token")
+                            actualEvents.push(["token", "unquotedtoken", $.value, getRange(test.testForLocation, data.range)])
+                        } else {
+                            if (DEBUG) console.log("found quoted string")
+                            actualEvents.push(["token", "quotedstring", $.value, getRange(test.testForLocation, data.range)])
+                        }
+                        break
+                    }
+                    case DataType.TaggedUnion: {
+                        //const $ = data.type[1]
 
-            onOpenTaggedUnion: metaData => {
-                if (DEBUG) console.log("found open tagged union")
-                actualEvents.push(["token", "opentaggedunion", getRange(test.testForLocation, metaData.range)])
-            },
-            onOpenArray: metaData => {
-                if (DEBUG) console.log("found open array")
-                actualEvents.push(["token", "openarray", metaData.openCharacter, getRange(test.testForLocation, metaData.range)])
-            },
-            onCloseArray: metaData => {
-                if (DEBUG) console.log("found close array")
-                actualEvents.push(["token", "closearray", metaData.closeCharacter, getRange(test.testForLocation, metaData.range)])
-            },
-            onOpenObject: metaData => {
-                if (DEBUG) console.log("found open object")
-                actualEvents.push(["token", "openobject", metaData.openCharacter, getRange(test.testForLocation, metaData.range)])
-            },
-            onCloseObject: metaData => {
-                if (DEBUG) console.log("found close object")
-                actualEvents.push(["token", "closeobject", metaData.closeCharacter, getRange(test.testForLocation, metaData.range)])
+                        if (DEBUG) console.log("found open tagged union")
+                        actualEvents.push(["token", "opentaggedunion", getRange(test.testForLocation, data.range)])
+                        break
+                    }
+                    case DataType.WhiteSpace: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    default:
+                        assertUnreachable(data.type[0])
+                }
+                return false
             },
             onEnd: location => {
                 if (DEBUG) console.log("found end")

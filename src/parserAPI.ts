@@ -1,29 +1,24 @@
 import { Location, Range } from "./location"
 
-export interface Pauser {
-    pause(): void
-    continue(): void
-}
-
 export interface IParser {
-    onSnippet(chunk: string, begin: number, end: number, pauser: Pauser): void
-    onLineCommentBegin(range: Range, pauser: Pauser): void
-    onLineCommentEnd(location: Location, pauser: Pauser | null): void
+    onSnippet(chunk: string, begin: number, end: number): void
+    onLineCommentBegin(range: Range): void
+    onLineCommentEnd(location: Location | null): void
 
-    onBlockCommentBegin(range: Range, pauser: Pauser): void
-    onBlockCommentEnd(range: Range, pauser: Pauser | null): void //pauser can be null for unterminated comments
+    onBlockCommentBegin(range: Range): void
+    onBlockCommentEnd(range: Range | null): void //pauser can be null for unterminated comments
 
-    onUnquotedTokenBegin(location: Location, pauser: Pauser): void
-    onUnquotedTokenEnd(location: Location, pauser: Pauser | null): void
+    onUnquotedTokenBegin(location: Location): void
+    onUnquotedTokenEnd(location: Location | null): void
 
-    onQuotedStringBegin(range: Range, quote: string, pauser: Pauser): void
-    onQuotedStringEnd(range: Range, quote: string | null, pauser: Pauser | null): void //quote can be null for unterminated strings
+    onQuotedStringBegin(range: Range, quote: string): void
+    onQuotedStringEnd(range: Range, quote: string | null | null): void //quote can be null for unterminated strings
 
-    onPunctuation(char: number, range: Range, pauser: Pauser): void
+    onPunctuation(char: number, range: Range): void
 
-    onNewLine(range: Range, pauser: Pauser | null): void
+    onNewLine(range: Range | null): void
     onWhitespaceBegin(location: Location): void
-    onWhitespaceEnd(location: Location, pauser: Pauser | null): void
+    onWhitespaceEnd(location: Location | null): void
 
     onEnd(location: Location): void
 }

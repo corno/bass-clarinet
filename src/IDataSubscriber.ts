@@ -1,59 +1,76 @@
-import { Pauser } from "./parserAPI"
 import { Location, Range } from "./location"
-
-export type OpenData = {
-    openCharacter: string
-    range: Range
-    pauser: Pauser
-}
-
-export type CloseData = {
-    closeCharacter: string
-    range: Range
-    pauser?: Pauser
-}
+import * as p from "pareto"
 
 export type PropertyData = {
     keyRange: Range
 }
 
-export type StringData = {
+export type SimpleValueData = {
+    value: string
     quote: string | null
     terminated: boolean | null
-    range: Range
-    pauser: Pauser
 }
 
-export type SimpleMetaData = {
-    range: Range
-    pauser: Pauser
+export type WhiteSpaceData = {
+    value: string
 }
-export type CommentMetaData = {
-    outerRange: Range //with the open and close tokens: /*...*/ or //...
-    innerRange: Range //without the open and close tokens: ...
-    pauser: Pauser
+
+export type CommentData = {
+    comment: string
+    innerRange: Range //without the open and close tokens:
     indentation: null | string
 }
 
+export enum DataType {
+    BlockComment,
+    CloseArray,
+    CloseObject,
+    Colon,
+    Comma,
+    LineComment,
+    NewLine,
+    OpenArray,
+    OpenObject,
+    SimpleValue,
+    TaggedUnion,
+    WhiteSpace
+}
+
+export type OpenData = {
+    openCharacter: string
+}
+
+export type CloseData = {
+    closeCharacter: string
+}
+
+export type Data = {
+    range: Range
+    type:
+    | [DataType.BlockComment, CommentData]
+    | [DataType.CloseArray, CloseData]
+    | [DataType.CloseObject, CloseData]
+    | [DataType.Colon, {
+        //
+    }]
+    | [DataType.Comma, {
+        //
+    }]
+    | [DataType.LineComment, CommentData]
+    | [DataType.NewLine, {
+        //
+    }]
+    | [DataType.OpenArray, OpenData]
+    | [DataType.OpenObject, OpenData]
+    | [DataType.SimpleValue, SimpleValueData]
+    | [DataType.TaggedUnion, {
+        //
+    }]
+    | [DataType.WhiteSpace, WhiteSpaceData]
+}
+
 export interface IDataSubscriber {
-    onComma(metaData: SimpleMetaData): void
-    onColon(metaData: SimpleMetaData): void
-
-    onOpenArray(metaData: OpenData): void
-    onCloseArray(metaData: CloseData): void //there is only metadata if the array is properly closed
-
-    onOpenTaggedUnion(metaData: SimpleMetaData): void
-
-    onOpenObject(metaData: OpenData): void
-    onCloseObject(metaData: CloseData): void //there is only metadata if the object is properly closed
-
-    onString(value: string, metaData: StringData): void
-
-    onBlockComment(comment: string, metaData: CommentMetaData): void
-    onLineComment(comment: string, metaData: CommentMetaData): void
-
-    onNewLine(metaData: SimpleMetaData): void
-    onWhitespace(value: string, metaData: SimpleMetaData): void
+    onData(data: Data): boolean | p.ISafePromise<boolean>
     onEnd(location: Location): void
 }
 

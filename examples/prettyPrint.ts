@@ -8,7 +8,7 @@ if (path === undefined) {
     process.exit(1)
 }
 
-const data = fs.readFileSync(path, { encoding: "utf-8" })
+const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
 function createRequiredValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
     return {
@@ -21,38 +21,38 @@ function createRequiredValuesPrettyPrinter(indentation: string, writer: (str: st
 
 function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
     return {
-        array: beginMetaData => {
+        array: (beginRange, beginMetaData) => {
             writer(beginMetaData.openCharacter)
             return {
                 element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
-                end: endMetaData => {
-                    writer(`${indentation}${endMetaData.range}`)
+                end: _endRange => {
+                    writer(`${indentation}${bc.printRange(beginRange)}`)
                 },
             }
 
         },
-        object: metaData => {
-            writer(metaData.openCharacter)
+        object: (_range, data) => {
+            writer(data.openCharacter)
             return {
                 property: (key, _keyRange) => {
                     writer(`${indentation}\t"${key}": `)
                     return createRequiredValuesPrettyPrinter(`${indentation}\t`, writer)
                 },
-                end: endMetaData => {
-                    writer(`${indentation}${endMetaData.range}`)
+                end: range => {
+                    writer(`${indentation}${bc.printRange(range)}`)
                 },
             }
         },
-        simpleValue: (value, metaData) => {
-            if (metaData.quote !== null) {
-                writer(`${JSON.stringify(value)}`)
+        simpleValue: (_range, data) => {
+            if (data.quote !== null) {
+                writer(`${JSON.stringify(data.value)}`)
             } else {
-                writer(`${value}`)
+                writer(`${data.value}`)
             }
         },
         taggedUnion: () => {
             return {
-                option: option => {
+                option: (_range, option) => {
                     writer(`| "${option}" `)
                     return createRequiredValuesPrettyPrinter(`${indentation}`, writer)
                 },
@@ -64,7 +64,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
     }
 }
 
-export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writer: (str: string) => void) {
+export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writer: (str: string) => void): void {
     const datasubscriber = bc.createStackedDataSubscriber(
         {
             valueHandler: createValuesPrettyPrinter(indentation, writer),
@@ -93,5 +93,5 @@ attachPrettyPrinter(prsr, "\r\n", str => process.stdout.write(str))
 bc.tokenizeString(
     prsr,
     err => { console.error("FOUND TOKENIZER ERROR", err) },
-    data
+    dataAsString
 )

@@ -4,6 +4,7 @@
     max-classes-per-file: "off",
 */
 
+//import * as p from "pareto"
 import * as Char from "./Characters"
 import {
     TokenType,
@@ -14,7 +15,7 @@ import {
 } from "./tokenizerStateTypes"
 import { Location, Range } from "./location"
 import { TokenizerOptions } from "./configurationTypes"
-import { IParser, Pauser } from "./parserAPI"
+import { IParser } from "./parserAPI"
 
 const DEBUG = false
 
@@ -41,10 +42,8 @@ class ProcessingData {
     public readonly chunk: string
     public index: number
     public mustPause = false
-    public sourcePauser: Pauser
-    constructor(chunk: string, sourcePauser: Pauser) {
+    constructor(chunk: string) {
         this.chunk = chunk
-        this.sourcePauser = sourcePauser
 
         //start at the position just before the first character
         //because we are going to call currentChar = next() once at the beginning
@@ -87,17 +86,17 @@ export class Tokenizer {
         this.currentTokenType = null
         this.onerror = onerror
     }
-    public write(chunk: string, sourcePauser: Pauser) {
+    public write(chunk: string): void {
         if (this.ended) {
             throw new Error("cannot write, stream is ended")
         }
         if (DEBUG) console.log(`write -> [${JSON.stringify(chunk)}]`)
         if (this.currentChunk === null) {
-            this.currentChunk = new ProcessingData(chunk, sourcePauser)
+            this.currentChunk = new ProcessingData(chunk)
             this.writeImp(this.currentChunk)
             this.emptyQueue()
         } else {
-            this.queue.push(new ProcessingData(chunk, sourcePauser))
+            this.queue.push(new ProcessingData(chunk))
         }
     }
     private emptyQueue() {
@@ -107,7 +106,7 @@ export class Tokenizer {
                 if (nextChunk === null) {
                     this.onEnd()
                 } else {
-                    this.writeImp(new ProcessingData(nextChunk.chunk, nextChunk.sourcePauser))
+                    this.writeImp(new ProcessingData(nextChunk.chunk))
                 }
             } else {
                 return
@@ -121,11 +120,12 @@ export class Tokenizer {
             const stateInfo = getStateDescription(this.currentTokenType)
             const char = (cc === Char.Whitespace.tab) ? "\\t" : cc === null ? "\\0" : String.fromCharCode(cc)
 
-            console.log(
-                `${stateInfo.padEnd(35)}${JSON.stringify(char).padStart(4)} ${("(" + cc + ")").padEnd(5)}` +
-                ` ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`,
-                currentChunk.index
-            )
+            const ccAsString = cc === null ? "" : `${cc}`
+                console.log(
+                    `${stateInfo.padEnd(35)}${JSON.stringify(char).padStart(4)} ${(`(${ccAsString})`).padEnd(5)}` +
+                    ` ${this.line.toString().padStart(4)}:${this.column.toString().padEnd(3)}(${this.position})`,
+                    currentChunk.index
+                )
         }
         if (cc === null) {
             this.currentChunk = null
@@ -150,20 +150,20 @@ export class Tokenizer {
         return cc
     }
     private writeImp(currentChunk: ProcessingData) {
-        const pauser: Pauser = {
-            pause: () => {
-                currentChunk.mustPause = true
-                currentChunk.sourcePauser.pause()
-            },
-            continue: () => {
-                currentChunk.mustPause = false
-                if (this.currentChunk !== null) {
-                    this.writeImp(this.currentChunk)
-                }
-                this.emptyQueue()
-                currentChunk.sourcePauser.continue()
-            },
-        }
+        // const pauser: Pauser = {
+        //     pause: () => {
+        //         currentChunk.mustPause = true
+        //         currentChunk.sourcePauser.pause()
+        //     },
+        //     continue: () => {
+        //         currentChunk.mustPause = false
+        //         if (this.currentChunk !== null) {
+        //             this.writeImp(this.currentChunk)
+        //         }
+        //         this.emptyQueue()
+        //         currentChunk.sourcePauser.continue()
+        //     },
+        // }
         const processUntilFirstNotIncludedCharacter = (
             isIncludedCharacter: (char: number) => boolean,
             onEndOfToken: () => void,
@@ -171,7 +171,7 @@ export class Tokenizer {
             let snippetStart: null | number = null
             const flush = () => {
                 if (snippetStart !== null) {
-                    this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1, pauser)
+                    this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1)
 
                     if (currentChunk.mustPause) {
                         return
@@ -227,7 +227,7 @@ export class Tokenizer {
                     currentChar === Char.Whitespace.tab
                 ) {
                     this.parser.onWhitespaceBegin(this.getBeginLocation())
-                    this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1, pauser) //copy current character
+                    this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1) //copy current character
                     this.setCurrentTokenType([TokenType.WHITESPACE])
                     continue
                 }
@@ -271,17 +271,17 @@ export class Tokenizer {
                             slashed: false,
                             unicode: null,
                         }])
-                        this.parser.onQuotedStringBegin({ start: this.getBeginLocation(), end: this.getEndLocation() }, String.fromCharCode(currentChar), pauser)
+                        this.parser.onQuotedStringBegin({ start: this.getBeginLocation(), end: this.getEndLocation() }, String.fromCharCode(currentChar))
                         if (currentChunk.mustPause) {
                             return
                         }
                     } else {
                         this.setCurrentTokenType([TokenType.UNQUOTED_TOKEN])
-                        this.parser.onUnquotedTokenBegin(this.getBeginLocation(), pauser)
+                        this.parser.onUnquotedTokenBegin(this.getBeginLocation())
                         if (currentChunk.mustPause) {
                             return
                         }
-                        this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1, pauser) //copy current character
+                        this.parser.onSnippet(currentChunk.chunk, currentChunk.index, currentChunk.index + 1) //copy current character
                         if (currentChunk.mustPause) {
                             return
                         }
@@ -291,7 +291,7 @@ export class Tokenizer {
                     this.parser.onPunctuation(currentChar, {
                         start: this.getBeginLocation(),
                         end: this.getEndLocation(),
-                    }, pauser)
+                    })
                     if (currentChunk.mustPause) {
                         return
                     }
@@ -308,7 +308,7 @@ export class Tokenizer {
                         let snippetStart: null | number = null
                         const flush = (offset?: number) => {
                             if (snippetStart !== null) {
-                                this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + (offset === undefined ? 0 : offset), pauser)
+                                this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + (offset === undefined ? 0 : offset))
                                 if (currentChunk.mustPause) {
                                     return
                                 }
@@ -348,7 +348,7 @@ export class Tokenizer {
                                         if (nextChar === Char.Comment.solidus) {
                                             //end of block comment
                                             this.setCurrentTokenType(null)
-                                            this.parser.onBlockCommentEnd({ start: $$.foundAsterisk, end: this.getEndLocation() }, pauser)
+                                            this.parser.onBlockCommentEnd({ start: $$.foundAsterisk, end: this.getEndLocation() })
 
                                             if (currentChunk.mustPause) {
                                                 return
@@ -356,7 +356,7 @@ export class Tokenizer {
                                             break blockCommentLoop
                                         } else {
                                             //false alarm, not the end of the comment
-                                            this.parser.onSnippet("*", 0, 1, pauser)
+                                            this.parser.onSnippet("*", 0, 1)
 
                                             if (currentChunk.mustPause) {
                                                 return
@@ -378,7 +378,7 @@ export class Tokenizer {
                                             char !== Char.Whitespace.carriageReturn
                                     },
                                     () => {
-                                        this.parser.onLineCommentEnd(this.getEndLocation(), pauser)
+                                        this.parser.onLineCommentEnd(this.getEndLocation())
                                     }
                                 )
                                 if (mustBreak) {
@@ -396,7 +396,7 @@ export class Tokenizer {
                                 if (nextChar === Char.Comment.solidus) {
                                     this.next(currentChunk)
 
-                                    this.parser.onLineCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
+                                    this.parser.onLineCommentBegin({ start: $$.start, end: this.getEndLocation() })
 
                                     if (currentChunk.mustPause) {
                                         return
@@ -405,7 +405,7 @@ export class Tokenizer {
                                 } else if (nextChar === Char.Comment.asterisk) {
                                     this.next(currentChunk)
 
-                                    this.parser.onBlockCommentBegin({ start: $$.start, end: this.getEndLocation() }, pauser)
+                                    this.parser.onBlockCommentBegin({ start: $$.start, end: this.getEndLocation() })
 
                                     if (currentChunk.mustPause) {
                                         return
@@ -451,7 +451,7 @@ export class Tokenizer {
                             default:
                                 assertUnreachable($.foundNewLineCharacter)
                         }
-                        this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() }, pauser)
+                        this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
                         this.setCurrentTokenType(null)
                         break
                     }
@@ -464,7 +464,7 @@ export class Tokenizer {
                         let snippetStart: null | number = null
                         const flush = () => {
                             if (snippetStart !== null) {
-                                this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index, pauser)
+                                this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index)
                                 if (currentChunk.mustPause) {
                                     return
                                 }
@@ -484,7 +484,7 @@ export class Tokenizer {
                             }
                             if ($.slashed) {
                                 const flushChar = (str: string) => {
-                                    this.parser.onSnippet(str, 0, str.length, pauser)
+                                    this.parser.onSnippet(str, 0, str.length)
                                     if (currentChunk.mustPause) {
                                         return
                                     }
@@ -519,7 +519,7 @@ export class Tokenizer {
                                 $.unicode.charactersLeft--
                                 if ($.unicode.charactersLeft === 0) {
                                     const textNode = String.fromCharCode(parseInt($.unicode.foundCharacters, 16))
-                                    this.parser.onSnippet(textNode, 0, textNode.length, pauser)
+                                    this.parser.onSnippet(textNode, 0, textNode.length)
                                     if (currentChunk.mustPause) {
                                         return
                                     }
@@ -540,7 +540,7 @@ export class Tokenizer {
                                         end: this.getEndLocation(),
                                     }
                                     this.setCurrentTokenType(null)
-                                    this.parser.onQuotedStringEnd(locationInfo, String.fromCharCode(currentChar), pauser)
+                                    this.parser.onQuotedStringEnd(locationInfo, String.fromCharCode(currentChar))
                                     if (currentChunk.mustPause) {
                                         return
                                     }
@@ -589,7 +589,7 @@ export class Tokenizer {
                                 return !isOtherCharacter
                             },
                             () => {
-                                this.parser.onUnquotedTokenEnd(this.getEndLocation(), pauser)
+                                this.parser.onUnquotedTokenEnd(this.getEndLocation())
                             },
                         )
                         if (mustBreak) {
@@ -604,7 +604,7 @@ export class Tokenizer {
                         let snippetStart: null | number = null
                         const flush = () => {
                             if (snippetStart !== null) {
-                                this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1, pauser)
+                                this.parser.onSnippet(currentChunk.chunk, snippetStart, currentChunk.index + 1)
 
                                 if (currentChunk.mustPause) {
                                     return
@@ -628,7 +628,7 @@ export class Tokenizer {
                             if (!isWhiteSpaceCharacter()) {
                                 flush()
 
-                                this.parser.onWhitespaceEnd(this.getEndLocation(), pauser)
+                                this.parser.onWhitespaceEnd(this.getEndLocation())
 
                                 this.setCurrentTokenType(null)
                                 //this character does not belong to the whitespace so don't go to the next character by breaking
@@ -649,7 +649,7 @@ export class Tokenizer {
             }
         }
     }
-    public end() {
+    public end(): void {
         if (this.ended) {
             throw new Error("cannot end, already ended")
         }
@@ -672,12 +672,11 @@ export class Tokenizer {
                                     start: this.getEndLocation(),
                                     end: this.getEndLocation(),
                                 },
-                                null
                             )
                             break
                         }
                         case CommentState.LINE_COMMENT: {
-                            this.parser.onLineCommentEnd(this.getEndLocation(), null)
+                            this.parser.onLineCommentEnd(this.getEndLocation())
                             break
                         }
                         case CommentState.FOUND_SOLIDUS: {
@@ -691,7 +690,7 @@ export class Tokenizer {
                 }
                 case TokenType.NEWLINE:
                     const $ = this.currentTokenType[1]
-                    this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() }, null)
+                    this.parser.onNewLine({ start: $.startLocation, end: this.getEndLocation() })
                     break
                 case TokenType.QUOTED_STRING: {
                     this.raiseError("unterminated string", { start: this.getEndLocation(), end: this.getEndLocation() })
@@ -701,15 +700,14 @@ export class Tokenizer {
                             end: this.getEndLocation(),
                         },
                         null,
-                        null,
                     )
                     break
                 }
                 case TokenType.UNQUOTED_TOKEN:
-                    this.parser.onUnquotedTokenEnd(this.getEndLocation(), null)
+                    this.parser.onUnquotedTokenEnd(this.getEndLocation())
                     break
                 case TokenType.WHITESPACE:
-                    this.parser.onWhitespaceEnd(this.getEndLocation(), null)
+                    this.parser.onWhitespaceEnd(this.getEndLocation())
                     break
                 default:
                     return assertUnreachable(this.currentTokenType[0])
@@ -744,35 +742,15 @@ export class Tokenizer {
     }
 }
 
-export function tokenizeString(parser: IParser, onerror: (message: string, range: Range) => void, str: string, opt?: TokenizerOptions) {
+export function tokenizeString(parser: IParser, onerror: (message: string, range: Range) => void, str: string, opt?: TokenizerOptions): void {
     const tok = new Tokenizer(parser, onerror, opt)
-    tok.write(
-        str,
-        {
-            pause: () => {
-                //
-            },
-            continue: () => {
-                //
-            },
-        }
-    )
+    tok.write(str)
     tok.end()
 }
-export function tokenizeStrings(parser: IParser, onerror: (message: string, range: Range) => void, strings: string[], opt?: TokenizerOptions) {
+export function tokenizeStrings(parser: IParser, onerror: (message: string, range: Range) => void, strings: string[], opt?: TokenizerOptions): void {
     const tok = new Tokenizer(parser, onerror, opt)
     strings.forEach(str => {
-        tok.write(
-            str,
-            {
-                pause: () => {
-                    //
-                },
-                continue: () => {
-                    //
-                },
-            }
-        )
+        tok.write(str)
     })
     tok.end()
 }

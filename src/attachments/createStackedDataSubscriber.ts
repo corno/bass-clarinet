@@ -1,8 +1,9 @@
 /* eslint
     no-console:"off",
     no-underscore-dangle: "off",
+    complexity: off,
 */
-import { IDataSubscriber, CommentMetaData, OpenData, CloseData, SimpleMetaData, StringData } from "../IDataSubscriber"
+import { IDataSubscriber, Data, DataType } from "../IDataSubscriber"
 import { Location, Range } from "../location"
 import { createDummyValueHandler } from "./dummyHandlers"
 import {
@@ -178,261 +179,283 @@ export function createStackedDataSubscriber(
     //     }
     // }
 
-    return {
-        onComma: (): void => {
-            lineIsDirty = true
-            //
-        },
-        onColon: (): void => {
-            lineIsDirty = true
-            //
-        },
-        onNewLine: (): void => {
-            lineIsDirty = false
-            indentation = ""
+    const ds: IDataSubscriber = {
+        onData: (data: Data) => {
+            switch (data.type[0]) {
+                case DataType.BlockComment: {
+                    const $ = data.type[1]
+                    lineIsDirty = true
+                    comments.push({
+                        text: $.comment,
+                        type: "line",
+                        indent: null, //FIX get the right indent info
+                        outerRange: data.range,
+                        innerRange: $.innerRange,
+                    })
+                    //place your code here
+                    break
+                }
+                case DataType.CloseArray: {
+                    const $ = data.type[1]
+                    lineIsDirty = true
+                    unwindLoop: while (true) {
+                        switch (currentContext[0]) {
+                            case "array": {
+                                //const $ = currentContext[1]
+                                currentContext[1].arrayHandler.end(
+                                    data.range,
+                                    $,
+                                    flushPreData()
+                                )
+                                pop(data.range)
+                                wrapupValue(data.range)
+                                break unwindLoop
+                            }
+                            case "object": {
+                                const $$ = currentContext[1]
+                                if ($$.propertyHandler !== null) {
+                                    raiseError(onError, "missing property data", data.range)
+                                    $$.propertyHandler.onMissing()
+                                    $$.propertyHandler = null
+                                }
+                                raiseError(onError, "missing object close", data.range)
+                                pop(data.range)
+                                wrapupValue(data.range)
+                                break
+                            }
+                            case "root": {
+                                //const $ = currentContext[1]
+                                raiseError(onError, "unexpected end of array", data.range)
+                                break unwindLoop
+                            }
+                            case "taggedunion": {
+                                //const $ = currentContext[1]
+                                if (currentContext[1].state[0] === "expecting value") {
+                                    currentContext[1].state[1].onMissing()
+                                    raiseError(onError, "missing tagged union value", data.range)
+                                } else {
+                                    raiseError(onError, "missing tagged union option and value", data.range)
+                                }
+                                pop(data.range)
+                                wrapupValue(data.range)
+                                break
+                            }
+                            default:
+                                assertUnreachable(currentContext[0])
+                        }
+                    }
+                    break
+                }
+                case DataType.CloseObject: {
+                    const $ = data.type[1]
+                    if (DEBUG) { console.log("on close object") }
+                    lineIsDirty = true
+                    unwindLoop: while (true) {
+                        switch (currentContext[0]) {
+                            case "array": {
+                                //const $ = currentContext[1]
+                                raiseError(onError, "missing array close", data.range)
+                                pop(data.range)
+                                wrapupValue(data.range)
+                                break
+                            }
+                            case "object": {
+                                const $$ = currentContext[1]
+                                if ($$.propertyHandler !== null) {
+                                    //was in the middle of processing a property
+                                    //the key was parsed, but the data was not
+                                    $$.propertyHandler.onMissing()
+                                    $$.propertyHandler = null
+                                }
+                                currentContext[1].objectHandler.end(
+                                    data.range,
+                                    $,
+                                    flushPreData()
+                                )
+                                pop(data.range)
+                                wrapupValue(data.range)
+                                break unwindLoop
+                            }
+                            case "root": {
+                                //const $ = currentContext[1]
+                                raiseError(onError, "unexpected end of object", data.range)
 
-            //
-        },
-        onWhitespace: (value: string): void => {
-            if (!lineIsDirty) {
-                indentation = value
-            }
-            //
-        },
-        onLineComment: (comment: string, metaData: CommentMetaData): void => {
-            lineIsDirty = true
-            comments.push({
-                text: comment,
-                type: "line",
-                indent: null,
-                outerRange: metaData.outerRange,
-                innerRange: metaData.innerRange,
-            })
-        },
-        onBlockComment: (comment: string, metaData: CommentMetaData): void => {
-            lineIsDirty = true
-            comments.push({
-                text: comment,
-                type: "line",
-                indent: null, //FIX get the right indent info
-                outerRange: metaData.outerRange,
-                innerRange: metaData.innerRange,
-            })
-        },
-        onOpenArray: (metaData: OpenData): void => {
-            lineIsDirty = true
-            const arrayHandler = initValueHandler().array(
-                metaData,
-                flushPreData()
-            )
-            stack.push(currentContext)
-            currentContext = ["array", { arrayHandler: arrayHandler }]
-        },
-        onCloseArray: (metaData: CloseData): void => {
-            lineIsDirty = true
-            unwindLoop: while (true) {
-                switch (currentContext[0]) {
-                    case "array": {
-                        //const $ = currentContext[1]
-                        currentContext[1].arrayHandler.end(
-                            metaData,
+                                break unwindLoop
+                            }
+                            case "taggedunion": {
+                                //const $ = currentContext[1]
+                                if (currentContext[1].state[0] === "expecting value") {
+                                    currentContext[1].state[1].onMissing()
+                                    raiseError(onError, "missing tagged union value", data.range)
+                                } else {
+                                    raiseError(onError, "missing tagged union option and value", data.range)
+                                }
+                                pop(data.range)
+                                wrapupValue(data.range)
+                                break
+                            }
+                            default:
+                                assertUnreachable(currentContext[0])
+                        }
+                    }
+                    break
+                }
+                case DataType.Colon: {
+                    //const $ = data.type[1]
+                    lineIsDirty = true
+                    break
+                }
+                case DataType.Comma: {
+                    //const $ = data.type[1]
+                    lineIsDirty = true
+                    break
+                }
+                case DataType.LineComment: {
+                    const $ = data.type[1]
+                    lineIsDirty = true
+                    comments.push({
+                        text: $.comment,
+                        type: "line",
+                        indent: null,
+                        outerRange: data.range,
+                        innerRange: $.innerRange,
+                    })
+                    break
+                }
+                case DataType.NewLine: {
+                    lineIsDirty = false
+                    indentation = ""
+                    break
+                }
+                case DataType.OpenArray: {
+                    const $ = data.type[1]
+                    lineIsDirty = true
+                    const arrayHandler = initValueHandler().array(
+                        data.range,
+                        $,
+                        flushPreData()
+                    )
+                    stack.push(currentContext)
+                    currentContext = ["array", { arrayHandler: arrayHandler }]
+                    break
+                }
+                case DataType.OpenObject: {
+                    const $ = data.type[1]
+                    lineIsDirty = true
+                    if (DEBUG) { console.log("on open object") }
+                    const vh = initValueHandler()
+                    const objectHandler = vh.object(
+                        data.range,
+                        $,
+                        flushPreData()
+                    )
+                    stack.push(currentContext)
+                    currentContext = ["object", {
+                        objectHandler: objectHandler,
+                        propertyHandler: null,
+                    }]
+                    break
+                }
+                case DataType.SimpleValue: {
+                    const $ = data.type[1]
+                    lineIsDirty = true
+                    function onSimpleValue(vh: ValueHandler) {
+                        if (DEBUG) { console.log("on simple value", $.value) }
+                        vh.simpleValue(
+                            data.range,
+                            $,
                             flushPreData()
                         )
-                        pop(metaData.range)
-                        wrapupValue(metaData.range)
-                        break unwindLoop
+                        wrapupValue(data.range)
                     }
-                    case "object": {
-                        const $ = currentContext[1]
-                        if ($.propertyHandler !== null) {
-                            raiseError(onError, "missing property data", metaData.range)
-                            $.propertyHandler.onMissing()
-                            $.propertyHandler = null
-                        }
-                        raiseError(onError, "missing object close", metaData.range)
-                        pop(metaData.range)
-                        wrapupValue(metaData.range)
-                        break
-                    }
-                    case "root": {
-                        //const $ = currentContext[1]
-                        raiseError(onError, "unexpected end of array", metaData.range)
-
-                        break unwindLoop
-                    }
-                    case "taggedunion": {
-                        //const $ = currentContext[1]
-                        if (currentContext[1].state[0] === "expecting value") {
-                            currentContext[1].state[1].onMissing()
-                            raiseError(onError, "missing tagged union value", metaData.range)
-                        } else {
-                            raiseError(onError, "missing tagged union option and value", metaData.range)
-                        }
-                        pop(metaData.range)
-                        wrapupValue(metaData.range)
-                        break
-                    }
-                    default:
-                        assertUnreachable(currentContext[0])
-                }
-            }
-        },
-        onOpenTaggedUnion: (metaData: SimpleMetaData): void => {
-            lineIsDirty = true
-            if (DEBUG) { console.log("on open tagged union") }
-            stack.push(currentContext)
-            currentContext = ["taggedunion", {
-                state: ["expecting option", {
-                    handler: initValueHandler().taggedUnion(
-                        metaData,
-                        flushPreData(),
-                    ),
-                }],
-            }]
-        },
-        onOpenObject: (metaData: OpenData): void => {
-            lineIsDirty = true
-            if (DEBUG) { console.log("on open object") }
-            const vh = initValueHandler()
-            const objectHandler = vh.object(
-                metaData,
-                flushPreData()
-            )
-            stack.push(currentContext)
-            currentContext = ["object", {
-                objectHandler: objectHandler,
-                propertyHandler: null,
-            }]
-        },
-        onCloseObject: (metaData: CloseData): void => {
-            if (DEBUG) { console.log("on close object") }
-            lineIsDirty = true
-            unwindLoop: while (true) {
-                switch (currentContext[0]) {
-                    case "array": {
-                        //const $ = currentContext[1]
-                        raiseError(onError, "missing array close", metaData.range)
-                        pop(metaData.range)
-                        wrapupValue(metaData.range)
-                        break
-                    }
-                    case "object": {
-                        const $ = currentContext[1]
-                        if ($.propertyHandler !== null) {
-                            //was in the middle of processing a property
-                            //the key was parsed, but the data was not
-                            $.propertyHandler.onMissing()
-                            $.propertyHandler = null
-                        }
-                        currentContext[1].objectHandler.end(
-                            metaData,
-                            flushPreData()
-                        )
-                        pop(metaData.range)
-                        wrapupValue(metaData.range)
-                        break unwindLoop
-                    }
-                    case "root": {
-                        //const $ = currentContext[1]
-                        raiseError(onError, "unexpected end of object", metaData.range)
-
-                        break unwindLoop
-                    }
-                    case "taggedunion": {
-                        //const $ = currentContext[1]
-                        if (currentContext[1].state[0] === "expecting value") {
-                            currentContext[1].state[1].onMissing()
-                            raiseError(onError, "missing tagged union value", metaData.range)
-                        } else {
-                            raiseError(onError, "missing tagged union option and value", metaData.range)
-                        }
-                        pop(metaData.range)
-                        wrapupValue(metaData.range)
-                        break
-                    }
-                    default:
-                        assertUnreachable(currentContext[0])
-                }
-            }
-
-        },
-        onString: (value: string, metaData: StringData): void => {
-            lineIsDirty = true
-            function onSimpleValue(vh: ValueHandler) {
-                if (DEBUG) { console.log("on simple value", value) }
-                vh.simpleValue(
-                    value,
-                    metaData,
-                    flushPreData()
-                )
-                wrapupValue(metaData.range)
-            }
-            switch (currentContext[0]) {
-                case "array": {
-                    const $ = currentContext[1]
-                    onSimpleValue($.arrayHandler.element())
-                    break
-                }
-                case "object": {
-                    const $ = currentContext[1]
-                    if ($.propertyHandler === null) {
-                        if (DEBUG) { console.log("on key", value) }
-                        if (currentContext[0] !== "object") {
-                            raiseError(onError, "unexpected key", metaData.range)
-                        } else {
-                            currentContext[1].propertyHandler = currentContext[1].objectHandler.property(
-                                value,
-                                {
-                                    keyRange: metaData.range,
-                                },
-                                flushPreData()
-                            )
-                        }
-                    } else {
-                        onSimpleValue($.propertyHandler.valueHandler)
-                    }
-                    break
-                }
-                case "root": {
-                    const $ = currentContext[1]
-                    //handle case when root value was already processed
-                    const vh = $.rootValueHandler !== null
-                        ? $.rootValueHandler.valueHandler
-                        : createDummyValueHandler()
-                    onSimpleValue(vh)
-                    break
-                }
-                case "taggedunion": {
-                    const $ = currentContext[1]
-                    switch ($.state[0]) {
-                        case "expecting option": {
-                            const $$ = $.state[1]
-                            if (DEBUG) { console.log("on option", value) }
-                            const rvh = $$.handler.option(
-                                value,
-                                {
-                                    range: metaData.range,
-                                    pauser: metaData.pauser,
-                                },
-                                flushPreData()
-                            )
-                            $.state = ["expecting value", rvh]
+                    switch (currentContext[0]) {
+                        case "array": {
+                            const $ = currentContext[1]
+                            onSimpleValue($.arrayHandler.element())
                             break
                         }
-                        case "expecting value": {
-                            const $$ = $.state[1]
-                            onSimpleValue($$.valueHandler)
+                        case "object": {
+                            const $$ = currentContext[1]
+                            if ($$.propertyHandler === null) {
+                                if (DEBUG) { console.log("on key", $.value) }
+                                if (currentContext[0] !== "object") {
+                                    raiseError(onError, "unexpected key", data.range)
+                                } else {
+                                    currentContext[1].propertyHandler = currentContext[1].objectHandler.property(
+                                        data.range,
+                                        $.value,
+                                        flushPreData()
+                                    )
+                                }
+                            } else {
+                                onSimpleValue($$.propertyHandler.valueHandler)
+                            }
+                            break
+                        }
+                        case "root": {
+                            const $ = currentContext[1]
+                            //handle case when root value was already processed
+                            const vh = $.rootValueHandler !== null
+                                ? $.rootValueHandler.valueHandler
+                                : createDummyValueHandler()
+                            onSimpleValue(vh)
+                            break
+                        }
+                        case "taggedunion": {
+                            const $$ = currentContext[1]
+                            switch ($$.state[0]) {
+                                case "expecting option": {
+                                    const $$$ = $$.state[1]
+                                    if (DEBUG) { console.log("on option", $.value) }
+                                    const rvh = $$$.handler.option(
+                                        data.range,
+                                        $.value,
+                                        flushPreData()
+                                    )
+                                    $$.state = ["expecting value", rvh]
+                                    break
+                                }
+                                case "expecting value": {
+                                    const $$$ = $$.state[1]
+                                    onSimpleValue($$$.valueHandler)
 
+                                    break
+                                }
+                                default:
+                                    assertUnreachable($$.state[0])
+                            }
                             break
                         }
                         default:
-                            assertUnreachable($.state[0])
+                            return assertUnreachable(currentContext[0])
+                    }
+                    break
+                }
+                case DataType.TaggedUnion: {
+                    lineIsDirty = true
+                    if (DEBUG) { console.log("on open tagged union") }
+                    stack.push(currentContext)
+                    currentContext = ["taggedunion", {
+                        state: ["expecting option", {
+                            handler: initValueHandler().taggedUnion(
+                                data.range,
+                                flushPreData(),
+                            ),
+                        }],
+                    }]
+                    break
+                }
+                case DataType.WhiteSpace: {
+                    const $ = data.type[1]
+                    if (!lineIsDirty) {
+                        indentation = $.value
                     }
                     break
                 }
                 default:
-                    return assertUnreachable(currentContext[0])
+                    assertUnreachable(data.type[0])
             }
+            return false
         },
         onEnd: (location: Location): void => {
             const range = { start: location, end: location }
@@ -502,6 +525,7 @@ export function createStackedDataSubscriber(
             }
         },
     }
+    return ds
 }
 
 function assertUnreachable<RT>(_x: never): RT {
