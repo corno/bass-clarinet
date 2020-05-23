@@ -7,7 +7,7 @@
 
 import * as subscr from "./subscription"
 import * as Char from "./Characters"
-import { IParser } from "./parserAPI"
+import { IParser, ParserData, ParserDataType } from "./parserAPI"
 import {
     RootState,
     ObjectState,
@@ -94,6 +94,77 @@ export class Parser implements IParser {
         this.oncurrentdata = this.ondata
         this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
     }
+    public onData(data: ParserData): void {
+        switch (data.type[0]) {
+            case ParserDataType.BlockCommentBegin: {
+                const $ = data.type[1]
+                this.onBlockCommentBegin($.range)
+                break
+            }
+            case ParserDataType.BlockCommentEnd: {
+                const $ = data.type[1]
+                this.onBlockCommentEnd($.range)
+                break
+            }
+            case ParserDataType.LineCommentBegin: {
+                const $ = data.type[1]
+                this.onLineCommentBegin($.range)
+                break
+            }
+            case ParserDataType.LineCommentEnd: {
+                const $ = data.type[1]
+                this.onLineCommentEnd($.location)
+                break
+            }
+            case ParserDataType.NewLine: {
+                const $ = data.type[1]
+                this.onNewLine($.range)
+                break
+            }
+            case ParserDataType.Punctuation: {
+                const $ = data.type[1]
+                this.onPunctuation($.char, $.range)
+                break
+            }
+            case ParserDataType.Snippet: {
+                const $ = data.type[1]
+                this.onSnippet($.chunk, $.begin, $.end)
+                break
+            }
+            case ParserDataType.QuotedStringBegin: {
+                const $ = data.type[1]
+                this.onQuotedStringBegin($.range, $.quote)
+                break
+            }
+            case ParserDataType.QuotedStringEnd: {
+                const $ = data.type[1]
+                this.onQuotedStringEnd($.range, $.quote)
+                break
+            }
+            case ParserDataType.UnquotedTokenBegin: {
+                const $ = data.type[1]
+                this.onUnquotedTokenBegin($.location)
+                break
+            }
+            case ParserDataType.UnquotedTokenEnd: {
+                const $ = data.type[1]
+                this.onUnquotedTokenEnd($.location)
+                break
+            }
+            case ParserDataType.WhiteSpaceBegin: {
+                const $ = data.type[1]
+                this.onWhitespaceBegin($.location)
+                break
+            }
+            case ParserDataType.WhiteSpaceEnd: {
+                const $ = data.type[1]
+                this.onWhitespaceEnd($.location)
+                break
+            }
+            default:
+                assertUnreachable(data.type[0])
+        }
+    }
     public onEnd(location: Location): void {
         const range = { start: location, end: location }
         unwindLoop: while (true) {
@@ -108,6 +179,7 @@ export class Parser implements IParser {
                 }
                 case StackContextType.ROOT: {
                     break unwindLoop
+                    break
                 }
                 case StackContextType.TAGGED_UNION: {
                     this.raiseError("unexpected end of document, still in tagged union", range)
