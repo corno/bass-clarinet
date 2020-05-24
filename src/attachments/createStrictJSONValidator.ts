@@ -71,7 +71,7 @@ function validateIsJSONNumber(value: string, raiseError: (message: string) => vo
     }
 }
 
-export enum ObjectState {
+enum ObjectState {
     EXPECTING_OBJECT_VALUE, // value in object
     EXPECTING_KEY_OR_OBJECT_END,
     EXPECTING_COMMA_OR_OBJECT_END, // , or }
@@ -79,13 +79,13 @@ export enum ObjectState {
     EXPECTING_COLON, // :
 }
 
-export enum ArrayState {
+enum ArrayState {
     EXPECTING_ARRAYVALUE, // value in array
     EXPECTING_VALUE_OR_ARRAY_END,
     EXPECTING_COMMA_OR_ARRAY_END, // , or ]
 }
 
-export enum TaggedUnionState {
+enum TaggedUnionState {
     EXPECTING_OPTION,
     EXPECTING_DATA,
 }
