@@ -13,7 +13,6 @@ import {
     FoundNewLineCharacter,
 } from "./tokenizerStateTypes"
 import { Location, Range } from "./location"
-import { TokenizerOptions } from "./configurationTypes"
 import { ITokenStreamConsumer, TokenStreamConsumerDataType, TokenStreamConsumerData } from "./ITokenStreamConsumer"
 import { OnDataReturnValue, IStreamConsumer } from "./IStreamConsumer"
 
@@ -65,6 +64,10 @@ type QueueEntry =
     | [true, {
         aborted: boolean
     }] //end reached
+
+export type TokenizerOptions = {
+    spaces_per_tab?: number //eslint-disable-line
+}
 
 class Tokenizer implements IStreamConsumer<string, null> {
     private readonly onerror: (message: string, range: Range) => void

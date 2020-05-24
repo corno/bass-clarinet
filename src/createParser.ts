@@ -5,7 +5,6 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import * as subscr from "./subscription"
 import * as Char from "./Characters"
 import { ITokenStreamConsumer, TokenStreamConsumerData, TokenStreamConsumerDataType } from "./ITokenStreamConsumer"
 import {
@@ -70,8 +69,6 @@ function getContextDescription(stackContext: StackContext): string {
             return assertUnreachable(stackContext[0])
     }
 }
-
-type DataSubscription = subscr.Subscribers<IParserEventConsumer>
 
 export interface HeaderConsumer {
     onHeaderStart(range: Range): IParserEventConsumer

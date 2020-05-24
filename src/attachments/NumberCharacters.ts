@@ -1,5 +1,5 @@
 
-export const Number = {
+export const NumberCharacters = {
 
     plus: 0x2B,              // +
     minus: 0x2D,             // -

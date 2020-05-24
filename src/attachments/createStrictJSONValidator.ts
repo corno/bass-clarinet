@@ -22,18 +22,18 @@ function validateIsJSONNumber(value: string, raiseError: (message: string) => vo
     }
     if (value.startsWith("0")) {
         const nextChar = value.charCodeAt(1)
-        if (nextChar !== Char.Number.period
-            && nextChar !== Char.Number.e
-            && nextChar !== Char.Number.E
+        if (nextChar !== Char.NumberCharacters.period
+            && nextChar !== Char.NumberCharacters.e
+            && nextChar !== Char.NumberCharacters.E
         ) {
             raiseError(`Invalid number: Leading zero not followed by '.', 'e', 'E' in '${value}'`)
         }
     }
     if (value.startsWith("-0")) {
         const nextChar = value.charCodeAt(2)
-        if (nextChar !== Char.Number.period
-            && nextChar !== Char.Number.e
-            && nextChar !== Char.Number.E
+        if (nextChar !== Char.NumberCharacters.period
+            && nextChar !== Char.NumberCharacters.e
+            && nextChar !== Char.NumberCharacters.E
         ) {
             raiseError(`Invalid number: Leading negative zero not followed by '.', 'e', 'E' in '${value}'`)
         }
@@ -43,27 +43,27 @@ function validateIsJSONNumber(value: string, raiseError: (message: string) => vo
     for (let i = 0; i !== value.length; i += 1) {
         const curChar = value.charCodeAt(i)
         if (i === 0) {
-            if (curChar !== Char.Number.minus && (curChar < Char.Number._0 || curChar > Char.Number._9)) {
+            if (curChar !== Char.NumberCharacters.minus && (curChar < Char.NumberCharacters._0 || curChar > Char.NumberCharacters._9)) {
                 raiseError(`Invalid number, did not start with '-' or [0-9] but with ${value[i]}`)
             }
         } else {
-            if (curChar === Char.Number.period) {
+            if (curChar === Char.NumberCharacters.period) {
                 if (foundPeriod) {
                     raiseError(`Invalid number, has two dots in '${value}'`)
                 }
                 foundPeriod = true
-            } else if (curChar === Char.Number.e || curChar === Char.Number.E) {
+            } else if (curChar === Char.NumberCharacters.e || curChar === Char.NumberCharacters.E) {
                 if (foundExponent) {
                     raiseError(`Invalid number, has two exponential in '${value}'`)
                 }
                 foundExponent = true
-            } else if (curChar === Char.Number.plus || curChar === Char.Number.minus) {
+            } else if (curChar === Char.NumberCharacters.plus || curChar === Char.NumberCharacters.minus) {
                 const previousChar = value.charCodeAt(i - 1)
-                if (previousChar !== Char.Number.E && previousChar !== Char.Number.e) {
+                if (previousChar !== Char.NumberCharacters.E && previousChar !== Char.NumberCharacters.e) {
                     raiseError(`Invalid number, unexpected symbol ${value[i]} in '${value}'`)
                 }
             } else {
-                if (curChar < Char.Number._0 || curChar > Char.Number._9) {
+                if (curChar < Char.NumberCharacters._0 || curChar > Char.NumberCharacters._9) {
                     raiseError(`Invalid number, unexpected character ${value[i]} in '${value}'`)
                 }
             }
@@ -339,7 +339,7 @@ class StrictJSONValidator implements IParserEventConsumer {
                         }
                         default:
                             const firstChar = $.value.charCodeAt(0)
-                            if (firstChar === Char.Number.minus || Char.Number._0 <= firstChar && firstChar <= Char.Number._9) {
+                            if (firstChar === Char.NumberCharacters.minus || Char.NumberCharacters._0 <= firstChar && firstChar <= Char.NumberCharacters._9) {
                                 validateIsJSONNumber($.value, message => this.onError(message, data.range))
                             } else {
                                 this.onError(`invalid unquoted token, expected 'true', 'false', 'null', or a number`, data.range)
