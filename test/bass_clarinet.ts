@@ -2,7 +2,7 @@
     no-console:"off",
     complexity: "off",
 */
-
+import * as p20 from "pareto-20"
 import * as bc from "../src"
 import { describe } from "mocha"
 import * as chai from "chai"
@@ -376,14 +376,14 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         parser.ondata.subscribe(formatter)
         parser.onschemadata.subscribe(formatter)
 
-        bc.tokenizeStrings(
+        bc.tokenizeStream(
+            new p20.Stream(p20.streamifyArray(chunks, null)),
             parser,
             (message, _location) => {
                 if (DEBUG) console.log("found error")
 
                 actualEvents.push(["tokenizererror", message])
             },
-            chunks
         )
     };
 }

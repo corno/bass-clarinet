@@ -4,7 +4,7 @@
     max-classes-per-file: "off",
 */
 
-//import * as p from "pareto"
+import * as papi from "pareto-api"
 import * as Char from "./Characters"
 import {
     TokenType,
@@ -15,7 +15,7 @@ import {
 } from "./tokenizerStateTypes"
 import { Location, Range } from "./location"
 import { TokenizerOptions } from "./configurationTypes"
-import { IParser, ParserDataType, ParserData } from "./parserAPI"
+import { IParser, ParserDataType, ParserData, OnDataReturnValue } from "./parserAPI"
 
 const DEBUG = false
 
@@ -60,16 +60,20 @@ class ProcessingData {
     }
 }
 
-export class Tokenizer {
+type QueueEntry =
+    | [false, ProcessingData] //end not reached
+    | [true, {
+        aborted: boolean
+    }] //end reached
+
+class Tokenizer {
     private readonly onerror: (message: string, range: Range) => void
 
     private currentChunk: null | ProcessingData = null
     private ended = false
 
     public readonly opt: TokenizerOptions
-
-    private readonly queue: (ProcessingData | null)[] = []
-
+    private readonly queue: QueueEntry[] = []
 
     // mostly just for error reporting
     private position = -1
@@ -86,7 +90,7 @@ export class Tokenizer {
         this.currentTokenType = null
         this.onerror = onerror
     }
-    public write(chunk: string): void {
+    public onData(chunk: string): OnDataReturnValue {
         if (this.ended) {
             throw new Error("cannot write, stream is ended")
         }
@@ -96,17 +100,18 @@ export class Tokenizer {
             this.writeImp(this.currentChunk)
             this.emptyQueue()
         } else {
-            this.queue.push(new ProcessingData(chunk))
+            this.queue.push([false, new ProcessingData(chunk)])
         }
+        return false
     }
     private emptyQueue() {
         while (this.currentChunk === null) {
             const nextChunk = this.queue.shift()
             if (nextChunk !== undefined) {
-                if (nextChunk === null) {
-                    this.onEnd()
+                if (nextChunk[0]) { //end reached
+                    this.onEnd(nextChunk[1].aborted)
                 } else {
-                    this.writeImp(new ProcessingData(nextChunk.chunk))
+                    this.writeImp(new ProcessingData(nextChunk[1].chunk))
                 }
             } else {
                 return
@@ -725,17 +730,19 @@ export class Tokenizer {
             }
         }
     }
-    public end(): void {
+    public end(aborted: boolean): void {
         if (this.ended) {
             throw new Error("cannot end, already ended")
         }
         if (this.currentChunk !== null) {
-            this.queue.push(null)
+            this.queue.push([true, {
+                aborted: aborted,
+            }])
         } else {
-            this.onEnd()
+            this.onEnd(aborted)
         }
     }
-    private onEnd() {
+    private onEnd(aborted: boolean) {
         const onData = (data: ParserData) => {
             const onDataReturnValue = this.parser.onData(data)
             if (typeof onDataReturnValue === "boolean") {
@@ -821,7 +828,7 @@ export class Tokenizer {
             }
             this.setCurrentTokenType(null)
         }
-        this.parser.onEnd(this.getEndLocation())
+        this.parser.onEnd(aborted, this.getEndLocation())
 
         this.ended = true
     }
@@ -849,15 +856,15 @@ export class Tokenizer {
     }
 }
 
-export function tokenizeString(parser: IParser, onerror: (message: string, range: Range) => void, str: string, opt?: TokenizerOptions): void {
+export function tokenizeStream(stream: papi.IStream<string, null>, parser: IParser, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions): void {
     const tok = new Tokenizer(parser, onerror, opt)
-    tok.write(str)
-    tok.end()
-}
-export function tokenizeStrings(parser: IParser, onerror: (message: string, range: Range) => void, strings: string[], opt?: TokenizerOptions): void {
-    const tok = new Tokenizer(parser, onerror, opt)
-    strings.forEach(str => {
-        tok.write(str)
-    })
-    tok.end()
+    stream.processStream(
+        null,
+        chunk => {
+            return tok.onData(chunk)
+        },
+        aborted => {
+            tok.end(aborted)
+        }
+    )
 }

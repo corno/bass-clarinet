@@ -1,3 +1,4 @@
+import * as p20 from "pareto-20"
 import * as bc from "../src"
 import * as fs from "fs"
 
@@ -34,7 +35,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
         object: (_range, data) => {
             writer(data.openCharacter)
             return {
-                property: (key, _keyRange) => {
+                property: (_keyRange, key) => {
                     writer(`${indentation}\t"${key}": `)
                     return createRequiredValuesPrettyPrinter(`${indentation}\t`, writer)
                 },
@@ -90,8 +91,8 @@ const prsr = new bc.Parser(
 
 attachPrettyPrinter(prsr, "\r\n", str => process.stdout.write(str))
 
-bc.tokenizeString(
+bc.tokenizeStream(
+    new p20.Stream(p20.streamifyArray([dataAsString], null)),
     prsr,
     err => { console.error("FOUND TOKENIZER ERROR", err) },
-    dataAsString
 )

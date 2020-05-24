@@ -1,8 +1,21 @@
+import * as p20 from "pareto-20"
 import * as fs from "fs"
 import { describe } from "mocha"
 import assert from "assert"
 import * as path from "path"
 import * as bc from "../src"
+
+function tokenizeStrings(
+    strings: string[],
+    parser: bc.Parser,
+    onError: () => void,
+) {
+    bc.tokenizeStream(
+        new p20.Stream(p20.streamifyArray(strings, null)),
+        parser,
+        onError
+    )
+}
 
 const parsingDir = path.join(__dirname, "/../../JSONTestSuite/test_parsing")
 describe('parsing', () => {
@@ -19,12 +32,12 @@ describe('parsing', () => {
                                 foundError = true
                             },
                         )
-                        bc.tokenizeString(
+                        tokenizeStrings(
+                            [data],
                             parser,
                             () => {
                                 foundError = true
                             },
-                            data
                         )
                         assert.ok(foundError, "no errors found")
                     } catch (e) {
@@ -41,12 +54,12 @@ describe('parsing', () => {
                                 foundError = true
                             },
                         )
-                        bc.tokenizeString(
+                        tokenizeStrings(
+                            [data],
                             parser,
                             () => {
                                 foundError = true
                             },
-                            data
                         )
                         assert.ok(!foundError, "errors found")
                     } catch (e) {
@@ -62,12 +75,12 @@ describe('parsing', () => {
                                 //do nothing with error
                             },
                         )
-                        bc.tokenizeString(
+                        tokenizeStrings(
+                            [data],
                             parser,
                             () => {
                                 //do nothing with error
                             },
-                            data
                         )
                     } catch (e) {
                         //do nothing
@@ -91,12 +104,12 @@ describe('transform', () => {
                         //do nothing with error
                     },
                 )
-                bc.tokenizeString(
+                tokenizeStrings(
+                    [data],
                     parser,
                     () => {
                         //do nothing with error
                     },
-                    data,
                 )
             } catch (e) {
                 //do nothing

@@ -152,7 +152,7 @@ export class Parser implements IParser {
                 return assertUnreachable(data.type[0])
         }
     }
-    public onEnd(location: Location): void {
+    public onEnd(aborted: boolean, location: Location): void {
         const range = { start: location, end: location }
         unwindLoop: while (true) {
             switch (this.currentContext[0]) {

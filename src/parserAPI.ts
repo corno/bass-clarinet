@@ -69,5 +69,5 @@ export type ParserData = {
 
 export interface IParser {
     onData(data: ParserData): OnDataReturnValue
-    onEnd(location: Location): void
+    onEnd(aborted: boolean, location: Location): void
 }

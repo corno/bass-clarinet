@@ -88,13 +88,14 @@ parser.ondata.subscribe({
     },
 })
 
+const chunks = [
+    `[
+    "A", "B", "C"`,
+    `]`,
+]
 
-bc.tokenizeStrings(
+bc.tokenizeStream(
+    new p20.Stream(p20.streamifyArray(chunks, null)),
     parser,
     err => { console.error("FOUND TOKENIZER ERROR", err) },
-    [
-        `[
-        "A", "B", "C"`,
-        `]`,
-    ]
 )

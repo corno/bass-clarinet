@@ -1,3 +1,4 @@
+import * as p20 from "pareto-20"
 import * as bc from "../src"
 import * as fs from "fs"
 import { DataType } from "../src"
@@ -93,8 +94,8 @@ parser.ondata.subscribe({
     },
 })
 
-bc.tokenizeString(
+bc.tokenizeStream(
+    new p20.Stream( p20.streamifyArray([dataAsString], null)),
     parser,
     err => { console.error("FOUND TOKENIZER ERROR", err) },
-    dataAsString,
 )
