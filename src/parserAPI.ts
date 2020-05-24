@@ -1,4 +1,7 @@
+import * as p from "pareto"
 import { Location, Range } from "./location"
+
+export type OnDataReturnValue = boolean | p.ISafePromise<boolean>
 
 export enum ParserDataType {
     Snippet,
@@ -65,6 +68,6 @@ export type ParserData = {
 }
 
 export interface IParser {
-    onData(data: ParserData): void
+    onData(data: ParserData): OnDataReturnValue
     onEnd(location: Location): void
 }

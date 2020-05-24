@@ -4,10 +4,10 @@
     no-console:"off",
     max-classes-per-file:"off",
 */
-
+import * as p from "pareto"
 import * as subscr from "./subscription"
 import * as Char from "./Characters"
-import { IParser, ParserData, ParserDataType } from "./parserAPI"
+import { IParser, ParserData, ParserDataType, OnDataReturnValue } from "./parserAPI"
 import {
     RootState,
     ObjectState,
@@ -23,7 +23,7 @@ import {
 } from "./parserStateTypes"
 import { Location, Range, printRange } from "./location"
 import { RangeError } from "./errors"
-import { IDataSubscriber, DataType } from "./IDataSubscriber"
+import { IDataSubscriber, DataType, Data } from "./IDataSubscriber"
 
 const DEBUG = false
 
@@ -94,75 +94,62 @@ export class Parser implements IParser {
         this.oncurrentdata = this.ondata
         this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
     }
-    public onData(data: ParserData): void {
+    public onData(data: ParserData): OnDataReturnValue {
         switch (data.type[0]) {
             case ParserDataType.BlockCommentBegin: {
                 const $ = data.type[1]
-                this.onBlockCommentBegin($.range)
-                break
+                return this.onBlockCommentBegin($.range)
             }
             case ParserDataType.BlockCommentEnd: {
                 const $ = data.type[1]
-                this.onBlockCommentEnd($.range)
-                break
+                return this.onBlockCommentEnd($.range)
             }
             case ParserDataType.LineCommentBegin: {
                 const $ = data.type[1]
-                this.onLineCommentBegin($.range)
-                break
+                return this.onLineCommentBegin($.range)
             }
             case ParserDataType.LineCommentEnd: {
                 const $ = data.type[1]
-                this.onLineCommentEnd($.location)
-                break
+                return this.onLineCommentEnd($.location)
             }
             case ParserDataType.NewLine: {
                 const $ = data.type[1]
-                this.onNewLine($.range)
-                break
+                return this.onNewLine($.range)
             }
             case ParserDataType.Punctuation: {
                 const $ = data.type[1]
-                this.onPunctuation($.char, $.range)
-                break
+                return this.onPunctuation($.char, $.range)
             }
             case ParserDataType.Snippet: {
                 const $ = data.type[1]
-                this.onSnippet($.chunk, $.begin, $.end)
-                break
+                return this.onSnippet($.chunk, $.begin, $.end)
             }
             case ParserDataType.QuotedStringBegin: {
                 const $ = data.type[1]
-                this.onQuotedStringBegin($.range, $.quote)
-                break
+                return this.onQuotedStringBegin($.range, $.quote)
             }
             case ParserDataType.QuotedStringEnd: {
                 const $ = data.type[1]
-                this.onQuotedStringEnd($.range, $.quote)
-                break
+                return this.onQuotedStringEnd($.range, $.quote)
             }
             case ParserDataType.UnquotedTokenBegin: {
                 const $ = data.type[1]
-                this.onUnquotedTokenBegin($.location)
-                break
+                return this.onUnquotedTokenBegin($.location)
             }
             case ParserDataType.UnquotedTokenEnd: {
                 const $ = data.type[1]
-                this.onUnquotedTokenEnd($.location)
-                break
+                return this.onUnquotedTokenEnd($.location)
             }
             case ParserDataType.WhiteSpaceBegin: {
                 const $ = data.type[1]
-                this.onWhitespaceBegin($.location)
-                break
+                return this.onWhitespaceBegin($.location)
             }
             case ParserDataType.WhiteSpaceEnd: {
                 const $ = data.type[1]
-                this.onWhitespaceEnd($.location)
-                break
+                return this.onWhitespaceEnd($.location)
             }
             default:
-                assertUnreachable(data.type[0])
+                return assertUnreachable(data.type[0])
         }
     }
     public onEnd(location: Location): void {
@@ -255,7 +242,7 @@ export class Parser implements IParser {
         }
         this.oncurrentdata.signal(s => s.onEnd(location))
     }
-    public onPunctuation(curChar: number, range: Range): void {
+    public onPunctuation(curChar: number, range: Range): OnDataReturnValue {
         if (DEBUG) console.log(`onPunctuation`, curChar, String.fromCharCode(curChar))
         const $ = this.currentContext
         this.indentationState = [IndentationState.lineIsDitry]
@@ -311,7 +298,7 @@ export class Parser implements IParser {
                         return assertUnreachable($[0])
                 }
                 this.onheaderdata.signal(s => s.onHeaderStart(range))
-                break
+                return false
             case Char.Punctuation.hash:
                 switch ($[0]) {
                     case StackContextType.ARRAY: {
@@ -362,61 +349,51 @@ export class Parser implements IParser {
                 }
                 this.onheaderdata.signal(s => s.onCompact(range))
                 this.onHeaderEnd(range)
-                break
+                return false
             case Char.Punctuation.closeAngleBracket:
-                this.onArrayClose(curChar, range)
-                break
+                return this.onArrayClose(curChar, range)
             case Char.Punctuation.closeBracket:
-                this.onArrayClose(curChar, range)
-                break
+                return this.onArrayClose(curChar, range)
             case Char.Punctuation.comma:
                 //
-                this.oncurrentdata.signal(s => s.onData({
+                return this.tempOnData({
                     range: range,
                     type: [DataType.Comma, {
                     }],
-                }))
-                break
+                })
             case Char.Punctuation.openAngleBracket:
-                this.onArrayOpen(curChar, range)
-                break
+                return this.onArrayOpen(curChar, range)
             case Char.Punctuation.openBracket:
-                this.onArrayOpen(curChar, range)
-                break
+                return this.onArrayOpen(curChar, range)
             case Char.Punctuation.closeBrace:
-                this.onObjectClose(curChar, range)
-                break
+                return this.onObjectClose(curChar, range)
             case Char.Punctuation.closeParen:
-                this.onObjectClose(curChar, range)
-                break
+                return this.onObjectClose(curChar, range)
             case Char.Punctuation.colon:
                 //
-                this.oncurrentdata.signal(s => s.onData({
+                return this.tempOnData({
                     range: range,
                     type: [DataType.Colon, {
                     }],
-                }))
-                break
+                })
             case Char.Punctuation.openBrace:
-                this.onObjectOpen(curChar, range)
-                break
+                return this.onObjectOpen(curChar, range)
             case Char.Punctuation.openParen:
-                this.onObjectOpen(curChar, range)
-                break
+                return this.onObjectOpen(curChar, range)
             case Char.Punctuation.verticalLine:
                 this.onNonStringValue(range)
                 this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                this.oncurrentdata.signal(s => s.onData({
+                return this.tempOnData({
                     range: range,
                     type: [DataType.TaggedUnion, {
                     }],
-                }))
-                break
+                })
             default:
                 this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
+                return false
         }
     }
-    public onSnippet(chunk: string, begin: number, end: number): void {
+    public onSnippet(chunk: string, begin: number, end: number): OnDataReturnValue {
         if (DEBUG) console.log(`onSnippet`)
 
         switch (this.currentToken[0]) {
@@ -449,21 +426,22 @@ export class Parser implements IParser {
                 break
             }
             default:
-                return assertUnreachable(this.currentToken[0])
+                assertUnreachable(this.currentToken[0])
         }
+        return false
     }
-    public onNewLine(range: Range): void {
+    public onNewLine(range: Range): OnDataReturnValue {
         if (DEBUG) console.log(`onNewLine`)
 
         this.indentationState = [IndentationState.lineIsVirgin]
 
-        this.oncurrentdata.signal(s => s.onData({
+        return this.tempOnData({
             range: range,
             type: [DataType.NewLine, {
             }],
-        }))
+        })
     }
-    public onLineCommentBegin(range: Range): void {
+    public onLineCommentBegin(range: Range): OnDataReturnValue {
         if (DEBUG) console.log(`onLineCommentBegin`)
 
         this.setCurrentToken(
@@ -476,8 +454,9 @@ export class Parser implements IParser {
         )
 
         this.indentationState = [IndentationState.lineIsDitry]
+        return false
     }
-    public onLineCommentEnd(location: Location): void {
+    public onLineCommentEnd(location: Location): OnDataReturnValue {
         if (DEBUG) console.log(`onLineCommentEnd`)
 
         if (this.currentToken[0] !== TokenType.LINE_COMMENT) {
@@ -485,7 +464,7 @@ export class Parser implements IParser {
         }
 
         const $ = this.currentToken[1]
-        this.oncurrentdata.signal(s => s.onData({
+        const od = this.tempOnData({
             range: {
                 start: $.start.start,
                 end: location,
@@ -502,8 +481,9 @@ export class Parser implements IParser {
                 },
                 indentation: $.indentation,
             }],
-        }))
+        })
         this.unsetCurrentToken({ start: location, end: location })
+        return od
     }
     private getIndentation(): null | string {
         switch (this.indentationState[0]) {
@@ -520,7 +500,7 @@ export class Parser implements IParser {
                 return assertUnreachable(this.indentationState[0])
         }
     }
-    public onBlockCommentBegin(range: Range): void {
+    public onBlockCommentBegin(range: Range): OnDataReturnValue {
         if (DEBUG) console.log(`onBlockCommentBegin`)
 
         this.setCurrentToken([TokenType.BLOCK_COMMENT, {
@@ -530,16 +510,39 @@ export class Parser implements IParser {
         }], range)
 
         this.indentationState = [IndentationState.lineIsDitry]
-
+        return false
     }
-    public onBlockCommentEnd(end: Range): void {
+    private tempOnData(data: Data) {
+        let abortRequested = false
+        const promises: p.ISafePromise<boolean>[] = []
+        this.oncurrentdata.signal(s => {
+            const onDataReturnValue = s.onData(data)
+            if (typeof onDataReturnValue === "boolean") {
+                if (onDataReturnValue === true) {
+                    abortRequested = true
+                }
+            } else {
+                promises.push(onDataReturnValue)
+            }
+        })
+        if (promises.length === 0) {
+            return abortRequested
+        }
+        return p.mergeArrayOfSafePromises(promises).mapResult(results => {
+            if (abortRequested) {
+                return p.result(true)
+            }
+            return p.result(results.includes(true))//if 1 promise requested an abort
+        })
+    }
+    public onBlockCommentEnd(end: Range): OnDataReturnValue {
         if (DEBUG) console.log(`onBlockCommentEnd`)
 
         if (this.currentToken[0] !== TokenType.BLOCK_COMMENT) {
             throw new ParserStackPanicError(`Unexpected block comment end`, end)
         }
         const $ = this.currentToken[1]
-        this.oncurrentdata.signal(s => s.onData({
+        const od = this.tempOnData({
             range: {
                 start: $.start.start,
                 end: end.end,
@@ -560,17 +563,19 @@ export class Parser implements IParser {
                 },
                 indentation: $.indentation,
             }],
-        }))
+        })
         this.unsetCurrentToken(end)
+        return od
     }
-    public onUnquotedTokenBegin(location: Location): void {
+    public onUnquotedTokenBegin(location: Location): OnDataReturnValue {
         if (DEBUG) console.log(`onUnquotedTokenBegin`)
 
         this.indentationState = [IndentationState.lineIsDitry]
 
         this.setCurrentToken([TokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], { start: location, end: location })
+        return false
     }
-    public onUnquotedTokenEnd(location: Location): void {
+    public onUnquotedTokenEnd(location: Location): OnDataReturnValue {
         if (DEBUG) console.log(`onUnquotedTokenEnd`)
 
         if (this.currentToken[0] !== TokenType.UNQUOTED_TOKEN) {
@@ -582,7 +587,7 @@ export class Parser implements IParser {
             end: location,
         }
         this.onNonStringValue(range)
-        this.oncurrentdata.signal(s => s.onData({
+        const od = this.tempOnData({
             range: range,
             type: [DataType.SimpleValue,
             {
@@ -590,12 +595,13 @@ export class Parser implements IParser {
                 quote: null,
                 terminated: null,
             }],
-        }))
+        })
         this.wrapupAfterValue(range)
         this.unsetCurrentToken({ start: location, end: location })
+        return od
     }
 
-    public onWhitespaceBegin(location: Location): void {
+    public onWhitespaceBegin(location: Location): OnDataReturnValue {
         if (DEBUG) console.log(`onWhitespaceBegin`)
         const $: WhitespaceContext = { whitespaceNode: "", start: location }
 
@@ -603,11 +609,10 @@ export class Parser implements IParser {
 
             this.indentationState = [IndentationState.foundIndentation, $]
         }
-
-
         this.setCurrentToken([TokenType.WHITESPACE, $], { start: location, end: location })
+        return false
     }
-    public onWhitespaceEnd(location: Location): void {
+    public onWhitespaceEnd(location: Location): OnDataReturnValue {
         if (DEBUG) console.log(`onWhitespaceEnd`)
 
         if (this.currentToken[0] !== TokenType.WHITESPACE) {
@@ -618,21 +623,23 @@ export class Parser implements IParser {
             start: $.start,
             end: location,
         }
-        this.oncurrentdata.signal(s => s.onData({
+        const od = this.tempOnData({
             range: range,
             type: [DataType.WhiteSpace, {
                 value: $.whitespaceNode,
             }],
-        }))
+        })
         this.unsetCurrentToken({ start: location, end: location })
+        return od
     }
 
-    public onQuotedStringBegin(begin: Range, quote: string): void {
+    public onQuotedStringBegin(begin: Range, quote: string): OnDataReturnValue {
         if (DEBUG) console.log(`onQuotedStringBegin`)
         this.setCurrentToken([TokenType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
+        return false
     }
 
-    public onQuotedStringEnd(end: Range, quote: string | null): void {
+    public onQuotedStringEnd(end: Range, quote: string | null): OnDataReturnValue {
         if (DEBUG) console.log(`onQuotedStringEnd`)
         if (this.currentToken[0] !== TokenType.QUOTED_STRING) {
             throw new ParserStackPanicError(`Unexpected unquoted token end`, end)
@@ -645,8 +652,8 @@ export class Parser implements IParser {
         }
         this.wrapupBeforeValue(range)
         const $ = this.currentContext
-        const onStringValue = () => {
-            this.oncurrentdata.signal(s => s.onData({
+        const onStringValue = (): OnDataReturnValue => {
+            const od = this.tempOnData({
                 range: range,
                 type: [DataType.SimpleValue,
                 {
@@ -655,19 +662,21 @@ export class Parser implements IParser {
                     terminated: quote !== null,
                     quote: $tok.startCharacter,
                 }],
-            }))
+            })
             this.wrapupAfterValue(range)
+            return od
         }
+        this.unsetCurrentToken(end)
+
         switch ($[0]) {
             case StackContextType.ARRAY: {
-                onStringValue()
-                break
+                return onStringValue()
             }
             case StackContextType.OBJECT: {
                 const $$ = $[1]
                 switch ($$.state) {
                     case ObjectState.EXPECTING_KEY:
-                        this.oncurrentdata.signal(s => s.onData({
+                        const od = this.tempOnData({
                             range: range,
                             type: [DataType.SimpleValue,
                             {
@@ -675,29 +684,27 @@ export class Parser implements IParser {
                                 quote: $tok.startCharacter,
                                 terminated: quote !== null,
                             }],
-                        }))
+                        })
                         $$.state = ObjectState.EXPECTING_OBJECT_VALUE
-
-                        break
+                        return od
                     case ObjectState.EXPECTING_OBJECT_VALUE:
-                        onStringValue()
+                        const osv = onStringValue()
                         $$.state = ObjectState.EXPECTING_KEY
-                        break
+                        return osv
                     default:
-                        assertUnreachable($$.state)
+                        return assertUnreachable($$.state)
                 }
-                break
             }
             case StackContextType.ROOT: {
-                onStringValue()
+                const osv = onStringValue()
                 this.setRootStateAfterValue($[1])
-                break
+                return osv
             }
             case StackContextType.TAGGED_UNION: {
                 const $$ = $[1]
                 switch ($$.state) {
                     case TaggedUnionState.EXPECTING_OPTION:
-                        this.oncurrentdata.signal(s => s.onData({
+                        const od = this.tempOnData({
                             range: range,
                             type: [DataType.SimpleValue,
                             {
@@ -705,64 +712,62 @@ export class Parser implements IParser {
                                 quote: $tok.startCharacter,
                                 terminated: quote !== null,
                             }],
-                        }))
+                        })
                         $$.state = TaggedUnionState.EXPECTING_VALUE
-                        break
+                        return od
                     case TaggedUnionState.EXPECTING_VALUE: {
-                        onStringValue()
-                        break
+                        return onStringValue()
                     }
                     default:
-                        assertUnreachable($$.state)
+                        return assertUnreachable($$.state)
                 }
-                break
             }
             default:
-                assertUnreachable($[0])
+                return assertUnreachable($[0])
         }
-        this.unsetCurrentToken(end)
     }
-    private onObjectOpen(curChar: number, range: Range) {
+    private onObjectOpen(curChar: number, range: Range): OnDataReturnValue {
         this.onNonStringValue(range)
         this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
-        this.oncurrentdata.signal(s => s.onData({
+        return this.tempOnData({
             range: range,
             type: [DataType.OpenObject, {
                 openCharacter: String.fromCharCode(curChar),
             }],
-        }))
+        })
     }
-    private onObjectClose(curChar: number, range: Range) {
+    private onObjectClose(curChar: number, range: Range): OnDataReturnValue {
         if (this.currentContext[0] !== StackContextType.OBJECT) {
             this.raiseError("not in an object", range)
-            this.oncurrentdata.signal(s => s.onData({
+            return this.tempOnData({
                 range: range,
                 type: [DataType.CloseObject, {
                     closeCharacter: String.fromCharCode(curChar),
                 }],
-            }))
+            })
         } else {
             if (this.currentContext[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
                 this.raiseError("missing property value", range)
             }
-            this.oncurrentdata.signal(s => s.onData({
+            const od = this.tempOnData({
                 range: range,
                 type: [DataType.CloseObject, {
                     closeCharacter: String.fromCharCode(curChar),
                 }],
-            }))
+            })
             this.popContext(range)
+            return od
         }
     }
     private onArrayOpen(curChar: number, range: Range) {
         this.onNonStringValue(range)
         this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
-        this.oncurrentdata.signal(s => s.onData({
+        return this.tempOnData({
             range: range,
             type: [DataType.OpenArray, {
                 openCharacter: String.fromCharCode(curChar),
             }],
-        }))
+        })
     }
     private onArrayClose(curChar: number, range: Range) {
         const $ = this.currentContext
@@ -771,12 +776,12 @@ export class Parser implements IParser {
         } else {
             this.popContext(range)
         }
-        this.oncurrentdata.signal(s => s.onData({
+        return this.tempOnData({
             range: range,
             type: [DataType.CloseArray, {
                 closeCharacter: String.fromCharCode(curChar),
             }],
-        }))
+        })
     }
     private onNonStringValue(range: Range) {
         this.wrapupBeforeValue(range)
