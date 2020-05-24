@@ -15,7 +15,7 @@ import {
 } from "./tokenizerStateTypes"
 import { Location, Range } from "./location"
 import { TokenizerOptions } from "./configurationTypes"
-import { IParser, ParserDataType, ParserData, OnDataReturnValue } from "./parserAPI"
+import { ITokenStreamConsumer, TokenStreamConsumerDataType, TokenStreamConsumerData, OnDataReturnValue } from "./ITokenStreamConsumer"
 
 const DEBUG = false
 
@@ -82,11 +82,11 @@ class Tokenizer {
 
     private currentTokenType: CurrentToken | null
 
-    private readonly parser: IParser
+    private readonly tokenStreamConsumer: ITokenStreamConsumer
 
-    constructor(parser: IParser, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions) {
+    constructor(tokenStreamConsumer: ITokenStreamConsumer, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions) {
         this.opt = opt || {}
-        this.parser = parser
+        this.tokenStreamConsumer = tokenStreamConsumer
         this.currentTokenType = null
         this.onerror = onerror
     }
@@ -155,8 +155,8 @@ class Tokenizer {
         return cc
     }
     private writeImp(currentChunk: ProcessingData) {
-        const onData = (data: ParserData) => {
-            const onDataReturnValue = this.parser.onData(data)
+        const onData = (data: TokenStreamConsumerData) => {
+            const onDataReturnValue = this.tokenStreamConsumer.onData(data)
             if (typeof onDataReturnValue === "boolean") {
                 //FIXME
             } else {
@@ -170,7 +170,7 @@ class Tokenizer {
         }
         const onSnippet = (chunk: string, begin: number, end: number) => {
             onData({
-                type: [ParserDataType.Snippet, {
+                type: [TokenStreamConsumerDataType.Snippet, {
                     chunk: chunk,
                     begin: begin,
                     end: end,
@@ -255,7 +255,7 @@ class Tokenizer {
                 ) {
 
                     onData({
-                        type: [ParserDataType.WhiteSpaceBegin, {
+                        type: [TokenStreamConsumerDataType.WhiteSpaceBegin, {
                             location: this.getBeginLocation(),
                         }],
                     })
@@ -304,7 +304,7 @@ class Tokenizer {
                             unicode: null,
                         }])
                         onData({
-                            type: [ParserDataType.QuotedStringBegin, {
+                            type: [TokenStreamConsumerDataType.QuotedStringBegin, {
                                 quote: String.fromCharCode(currentChar),
                                 range: { start: this.getBeginLocation(), end: this.getEndLocation() },
                             }],
@@ -315,7 +315,7 @@ class Tokenizer {
                     } else {
                         this.setCurrentTokenType([TokenType.UNQUOTED_TOKEN])
                         onData({
-                            type: [ParserDataType.UnquotedTokenBegin, {
+                            type: [TokenStreamConsumerDataType.UnquotedTokenBegin, {
                                 location: this.getBeginLocation(),
                             }],
                         })
@@ -330,7 +330,7 @@ class Tokenizer {
                     }
                 } else {
                     onData({
-                        type: [ParserDataType.Punctuation, {
+                        type: [TokenStreamConsumerDataType.Punctuation, {
                             range: {
                                 start: this.getBeginLocation(),
                                 end: this.getEndLocation(),
@@ -395,7 +395,7 @@ class Tokenizer {
                                             //end of block comment
                                             this.setCurrentTokenType(null)
                                             onData({
-                                                type: [ParserDataType.BlockCommentEnd, {
+                                                type: [TokenStreamConsumerDataType.BlockCommentEnd, {
                                                     range: { start: $$.foundAsterisk, end: this.getEndLocation() },
                                                 }],
                                             })
@@ -429,7 +429,7 @@ class Tokenizer {
                                     },
                                     () => {
                                         onData({
-                                            type: [ParserDataType.LineCommentEnd, {
+                                            type: [TokenStreamConsumerDataType.LineCommentEnd, {
                                                 location: this.getEndLocation(),
                                             }],
                                         })
@@ -451,7 +451,7 @@ class Tokenizer {
                                     this.next(currentChunk)
 
                                     onData({
-                                        type: [ParserDataType.LineCommentBegin, {
+                                        type: [TokenStreamConsumerDataType.LineCommentBegin, {
                                             range: { start: $$.start, end: this.getEndLocation() },
                                         }],
                                     })
@@ -464,7 +464,7 @@ class Tokenizer {
                                     this.next(currentChunk)
 
                                     onData({
-                                        type: [ParserDataType.BlockCommentBegin, {
+                                        type: [TokenStreamConsumerDataType.BlockCommentBegin, {
                                             range: { start: $$.start, end: this.getEndLocation() },
                                         }],
                                     })
@@ -514,7 +514,7 @@ class Tokenizer {
                                 assertUnreachable($.foundNewLineCharacter)
                         }
                         onData({
-                            type: [ParserDataType.NewLine, {
+                            type: [TokenStreamConsumerDataType.NewLine, {
                                 range: { start: $.startLocation, end: this.getEndLocation() },
                             }],
                         })
@@ -608,7 +608,7 @@ class Tokenizer {
                                     this.setCurrentTokenType(null)
 
                                     onData({
-                                        type: [ParserDataType.QuotedStringEnd, {
+                                        type: [TokenStreamConsumerDataType.QuotedStringEnd, {
                                             range: rangeInfo,
                                             quote: String.fromCharCode(currentChar),
                                         }],
@@ -663,7 +663,7 @@ class Tokenizer {
                             () => {
 
                                 onData({
-                                    type: [ParserDataType.UnquotedTokenEnd, {
+                                    type: [TokenStreamConsumerDataType.UnquotedTokenEnd, {
                                         location: this.getEndLocation(),
                                     }],
                                 })
@@ -706,7 +706,7 @@ class Tokenizer {
                                 flush()
 
                                 onData({
-                                    type: [ParserDataType.WhiteSpaceEnd, {
+                                    type: [TokenStreamConsumerDataType.WhiteSpaceEnd, {
                                         location: this.getEndLocation(),
                                     }],
                                 })
@@ -743,8 +743,8 @@ class Tokenizer {
         }
     }
     private onEnd(aborted: boolean) {
-        const onData = (data: ParserData) => {
-            const onDataReturnValue = this.parser.onData(data)
+        const onData = (data: TokenStreamConsumerData) => {
+            const onDataReturnValue = this.tokenStreamConsumer.onData(data)
             if (typeof onDataReturnValue === "boolean") {
                 //nothing to abort anymore
             } else {
@@ -761,7 +761,7 @@ class Tokenizer {
                         case CommentState.BLOCK_COMMENT: {
                             this.raiseError("unterminated block comment", { start: this.getEndLocation(), end: this.getEndLocation() })
                             onData({
-                                type: [ParserDataType.BlockCommentEnd, {
+                                type: [TokenStreamConsumerDataType.BlockCommentEnd, {
                                     range: {
                                         start: this.getEndLocation(),
                                         end: this.getEndLocation(),
@@ -772,7 +772,7 @@ class Tokenizer {
                         }
                         case CommentState.LINE_COMMENT: {
                             onData({
-                                type: [ParserDataType.LineCommentEnd, {
+                                type: [TokenStreamConsumerDataType.LineCommentEnd, {
                                     location: this.getEndLocation(),
                                 }],
                             })
@@ -790,7 +790,7 @@ class Tokenizer {
                 case TokenType.NEWLINE:
                     const $ = this.currentTokenType[1]
                     onData({
-                        type: [ParserDataType.NewLine, {
+                        type: [TokenStreamConsumerDataType.NewLine, {
                             range: { start: $.startLocation, end: this.getEndLocation() },
                         }],
                     })
@@ -799,7 +799,7 @@ class Tokenizer {
                     this.raiseError("unterminated string", { start: this.getEndLocation(), end: this.getEndLocation() })
 
                     onData({
-                        type: [ParserDataType.QuotedStringEnd, {
+                        type: [TokenStreamConsumerDataType.QuotedStringEnd, {
                             range: {
                                 start: this.getEndLocation(),
                                 end: this.getEndLocation(),
@@ -811,14 +811,14 @@ class Tokenizer {
                 }
                 case TokenType.UNQUOTED_TOKEN:
                     onData({
-                        type: [ParserDataType.UnquotedTokenEnd, {
+                        type: [TokenStreamConsumerDataType.UnquotedTokenEnd, {
                             location: this.getEndLocation(),
                         }],
                     })
                     break
                 case TokenType.WHITESPACE:
                     onData({
-                        type: [ParserDataType.WhiteSpaceEnd, {
+                        type: [TokenStreamConsumerDataType.WhiteSpaceEnd, {
                             location: this.getEndLocation(),
                         }],
                     })
@@ -828,7 +828,7 @@ class Tokenizer {
             }
             this.setCurrentTokenType(null)
         }
-        this.parser.onEnd(aborted, this.getEndLocation())
+        this.tokenStreamConsumer.onEnd(aborted, this.getEndLocation())
 
         this.ended = true
     }
@@ -856,8 +856,13 @@ class Tokenizer {
     }
 }
 
-export function tokenizeStream(stream: papi.IStream<string, null>, parser: IParser, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions): void {
-    const tok = new Tokenizer(parser, onerror, opt)
+export function tokenizeStream(
+    stream: papi.IStream<string, null>,
+    tokenStreamConsumer: ITokenStreamConsumer,
+    onerror: (message: string, range: Range) => void,
+    opt?: TokenizerOptions
+): void {
+    const tok = new Tokenizer(tokenStreamConsumer, onerror, opt)
     stream.processStream(
         null,
         chunk => {

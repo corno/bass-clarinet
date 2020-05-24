@@ -7,7 +7,7 @@
 import * as p from "pareto"
 import * as subscr from "./subscription"
 import * as Char from "./Characters"
-import { IParser, ParserData, ParserDataType, OnDataReturnValue } from "./parserAPI"
+import { ITokenStreamConsumer, TokenStreamConsumerData, TokenStreamConsumerDataType, OnDataReturnValue } from "./ITokenStreamConsumer"
 import {
     RootState,
     ObjectState,
@@ -78,7 +78,7 @@ export interface HeaderSubscriber {
     onHeaderEnd(range: Range): void
 }
 
-export class Parser implements IParser {
+export class Parser implements ITokenStreamConsumer {
     public readonly stack = new Array<StackContext>()
     public readonly onschemadata = new subscr.Subscribers<IDataSubscriber>()
     public readonly ondata = new subscr.Subscribers<IDataSubscriber>()
@@ -94,57 +94,57 @@ export class Parser implements IParser {
         this.oncurrentdata = this.ondata
         this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
     }
-    public onData(data: ParserData): OnDataReturnValue {
+    public onData(data: TokenStreamConsumerData): OnDataReturnValue {
         switch (data.type[0]) {
-            case ParserDataType.BlockCommentBegin: {
+            case TokenStreamConsumerDataType.BlockCommentBegin: {
                 const $ = data.type[1]
                 return this.onBlockCommentBegin($.range)
             }
-            case ParserDataType.BlockCommentEnd: {
+            case TokenStreamConsumerDataType.BlockCommentEnd: {
                 const $ = data.type[1]
                 return this.onBlockCommentEnd($.range)
             }
-            case ParserDataType.LineCommentBegin: {
+            case TokenStreamConsumerDataType.LineCommentBegin: {
                 const $ = data.type[1]
                 return this.onLineCommentBegin($.range)
             }
-            case ParserDataType.LineCommentEnd: {
+            case TokenStreamConsumerDataType.LineCommentEnd: {
                 const $ = data.type[1]
                 return this.onLineCommentEnd($.location)
             }
-            case ParserDataType.NewLine: {
+            case TokenStreamConsumerDataType.NewLine: {
                 const $ = data.type[1]
                 return this.onNewLine($.range)
             }
-            case ParserDataType.Punctuation: {
+            case TokenStreamConsumerDataType.Punctuation: {
                 const $ = data.type[1]
                 return this.onPunctuation($.char, $.range)
             }
-            case ParserDataType.Snippet: {
+            case TokenStreamConsumerDataType.Snippet: {
                 const $ = data.type[1]
                 return this.onSnippet($.chunk, $.begin, $.end)
             }
-            case ParserDataType.QuotedStringBegin: {
+            case TokenStreamConsumerDataType.QuotedStringBegin: {
                 const $ = data.type[1]
                 return this.onQuotedStringBegin($.range, $.quote)
             }
-            case ParserDataType.QuotedStringEnd: {
+            case TokenStreamConsumerDataType.QuotedStringEnd: {
                 const $ = data.type[1]
                 return this.onQuotedStringEnd($.range, $.quote)
             }
-            case ParserDataType.UnquotedTokenBegin: {
+            case TokenStreamConsumerDataType.UnquotedTokenBegin: {
                 const $ = data.type[1]
                 return this.onUnquotedTokenBegin($.location)
             }
-            case ParserDataType.UnquotedTokenEnd: {
+            case TokenStreamConsumerDataType.UnquotedTokenEnd: {
                 const $ = data.type[1]
                 return this.onUnquotedTokenEnd($.location)
             }
-            case ParserDataType.WhiteSpaceBegin: {
+            case TokenStreamConsumerDataType.WhiteSpaceBegin: {
                 const $ = data.type[1]
                 return this.onWhitespaceBegin($.location)
             }
-            case ParserDataType.WhiteSpaceEnd: {
+            case TokenStreamConsumerDataType.WhiteSpaceEnd: {
                 const $ = data.type[1]
                 return this.onWhitespaceEnd($.location)
             }
