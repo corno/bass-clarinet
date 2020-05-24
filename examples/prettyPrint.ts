@@ -1,7 +1,6 @@
 import * as bc from "../src"
 import * as fs from "fs"
-import { IParserEventConsumer } from "../src"
-import { streamifyArray } from "../src/streamifyArray"
+import * as p20 from "../src/streamifyArray"
 
 const [, , path] = process.argv
 
@@ -66,7 +65,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): IParserEventConsumer {
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.IParserEventConsumer {
     const datasubscriber = bc.createStackedDataSubscriber(
         {
             valueHandler: createValuesPrettyPrinter(indentation, writer),
@@ -104,7 +103,7 @@ const prsr = bc.createParser(
 createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
 
-streamifyArray(
+p20.streamifyArray(
     [dataAsString],
     null,
     null,
