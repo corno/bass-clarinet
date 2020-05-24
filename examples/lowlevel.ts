@@ -1,7 +1,7 @@
-import * as p20 from "pareto-20"
 import * as bc from "../src"
 import * as fs from "fs"
-import { DataType } from "../src"
+import { ParserEventType, IParserEventConsumer } from "../src"
+import { streamifyArray } from "../src/streamifyArray"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -16,100 +16,100 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-
+export const parserEventConsumer: IParserEventConsumer = {
+    onData: data => {
+        switch (data.type[0]) {
+            case ParserEventType.BlockComment: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case ParserEventType.CloseArray: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case ParserEventType.CloseObject: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case ParserEventType.Colon: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case ParserEventType.Comma: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case ParserEventType.LineComment: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case ParserEventType.NewLine: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case ParserEventType.OpenArray: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case ParserEventType.OpenObject: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case ParserEventType.SimpleValue: {
+                //const $ = data.type[1]
+                //place your code here
+                //in strict JSON, the value is a string, a number, null, true or false
+                break
+            }
+            case ParserEventType.TaggedUnion: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case ParserEventType.WhiteSpace: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            default:
+                assertUnreachable(data.type[0])
+        }
+        return false
+    },
+    onEnd: () => {
+        //place your code here
+    },
+}
 const parser = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
-    [
-        {
-            onHeaderStart: () => {
-                return []
-            },
-            onCompact: () => {
-                //
-            },
-            onHeaderEnd: () => {
-                return [
-                    {
-                        onData: data => {
-                            switch (data.type[0]) {
-                                case DataType.BlockComment: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.CloseArray: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.CloseObject: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.Colon: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.Comma: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.LineComment: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.NewLine: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.OpenArray: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.OpenObject: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.SimpleValue: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    //in strict JSON, the value is a string, a number, null, true or false
-                                    break
-                                }
-                                case DataType.TaggedUnion: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.WhiteSpace: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                default:
-                                    assertUnreachable(data.type[0])
-                            }
-                            return false
-                        },
-                        onEnd: () => {
-                            //place your code here
-                        },
-                    },
-                ]
-            },
+    {
+        onHeaderStart: () => {
+            return parserEventConsumer
         },
-    ],
+        onCompact: () => {
+            //
+        },
+        onHeaderEnd: () => {
+            return parserEventConsumer
+        },
+    },
 )
 
-bc.tokenizeStream(
-    new p20.Stream(p20.streamifyArray([dataAsString], null)),
-    parser,
-    err => { console.error("FOUND TOKENIZER ERROR", err) },
+streamifyArray(
+    [dataAsString],
+    null,
+    null,
+    bc.createTokenizer(
+        parser,
+        err => { console.error("FOUND TOKENIZER ERROR", err) },
+    )
 )

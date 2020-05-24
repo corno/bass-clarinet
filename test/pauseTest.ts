@@ -3,87 +3,37 @@
 */
 import * as p20 from "pareto-20"
 import * as bc from "../src";
-import { DataType } from "../src";
-
-function assertUnreachable<RT>(_x: never): RT {
-    throw new Error("unreachable")
-}
+import { dummyParserEventConsumer } from "./dummyConsumers";
+import { streamifyArray } from "../src/streamifyArray";
 
 const parser = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
-    [
-        {
-            onHeaderStart: () => {
-                return []
-            },
-            onCompact: () => {
-                //
-            },
-            onHeaderEnd: () => {
-                return [
-                    {
-                        onData: data => {
-                            switch (data.type[0]) {
-                                case DataType.BlockComment: {
-                                    //const $ = data.type[1]
-                                    //place your code here
-                                    break
-                                }
-                                case DataType.CloseArray: {
-                                    break
-                                }
-                                case DataType.CloseObject: {
-                                    break
-                                }
-                                case DataType.Colon: {
-                                    console.log("COLON")
-                                    break
-                                }
-                                case DataType.Comma: {
-                                    console.log("COMMA")
-                                    break
-                                }
-                                case DataType.LineComment: {
-                                    break
-                                }
-                                case DataType.NewLine: {
-                                    break
-                                }
-                                case DataType.OpenArray: {
-                                    break
-                                }
-                                case DataType.OpenObject: {
-                                    break
-                                }
-                                case DataType.SimpleValue: {
-                                    break
-                                }
-                                case DataType.TaggedUnion: {
-                                    break
-                                }
-                                case DataType.WhiteSpace: {
-                                    break
-                                }
-                                default:
-                                    assertUnreachable(data.type[0])
-                            }
-                            return p20.wrapSafeFunction(onResult => {
-                                setInterval(
-                                    () => {
-                                        onResult(false)
-                                    },
-                                    1
-                                )
-                            })
-                        },
-                        onEnd: () => {
-                            console.log("Reached end")
-                        },
-                    },
-                ]
-            },
+
+    {
+        onHeaderStart: () => {
+            return dummyParserEventConsumer
         },
-    ],
+        onCompact: () => {
+            //
+        },
+        onHeaderEnd: () => {
+            return {
+                onData: _data => {
+                    return p20.wrapSafeFunction(onResult => {
+                        setInterval(
+                            () => {
+                                onResult(false)
+                            },
+                            1
+                        )
+                    })
+                },
+                onEnd: () => {
+                    console.log("Reached end")
+                },
+            }
+        },
+    },
 )
 
 //let counter = 0
@@ -107,8 +57,12 @@ const chunks = [
     `]`,
 ]
 
-bc.tokenizeStream(
-    new p20.Stream(p20.streamifyArray(chunks, null)),
-    parser,
-    err => { console.error("FOUND TOKENIZER ERROR", err) },
+streamifyArray(
+    chunks,
+    null,
+    null,
+    bc.createTokenizer(
+        parser,
+        err => { console.error("FOUND TOKENIZER ERROR", err) },
+    )
 )

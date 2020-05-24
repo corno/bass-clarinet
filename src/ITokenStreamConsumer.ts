@@ -1,20 +1,18 @@
-import * as p from "pareto"
 import { Location, Range } from "./location"
-
-export type OnDataReturnValue = boolean | p.ISafePromise<boolean>
+import { IStreamConsumer } from "./IStreamConsumer"
 
 export enum TokenStreamConsumerDataType {
-    Snippet,
-    LineCommentBegin,
-    LineCommentEnd,
     BlockCommentBegin,
     BlockCommentEnd,
-    UnquotedTokenBegin,
-    UnquotedTokenEnd,
+    LineCommentBegin,
+    LineCommentEnd,
+    NewLine,
+    Punctuation,
     QuotedStringBegin,
     QuotedStringEnd,
-    Punctuation,
-    NewLine,
+    Snippet,
+    UnquotedTokenBegin,
+    UnquotedTokenEnd,
     WhiteSpaceBegin,
     WhiteSpaceEnd,
 }
@@ -65,11 +63,6 @@ export type TokenStreamConsumerData = {
     | [TokenStreamConsumerDataType.WhiteSpaceEnd, {
         location: Location //| null
     }]
-}
-
-export interface IStreamConsumer<DataType, EndDataType> {
-    onData(data: DataType): OnDataReturnValue
-    onEnd(aborted: boolean, data: EndDataType): void
 }
 
 export type ITokenStreamConsumer = IStreamConsumer<TokenStreamConsumerData, Location>

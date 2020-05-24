@@ -1,7 +1,7 @@
-import * as p20 from "pareto-20"
 import * as bc from "../src"
 import * as fs from "fs"
-import { IDataSubscriber } from "../src"
+import { IParserEventConsumer } from "../src"
+import { streamifyArray } from "../src/streamifyArray"
 
 const [, , path] = process.argv
 
@@ -66,7 +66,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): IDataSubscriber {
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): IParserEventConsumer {
     const datasubscriber = bc.createStackedDataSubscriber(
         {
             valueHandler: createValuesPrettyPrinter(indentation, writer),
@@ -88,25 +88,28 @@ const pp = createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
 const prsr = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
-    [
-        {
-            onHeaderStart: () => {
-                return [pp]
-            },
-            onCompact: () => {
-                //
-            },
-            onHeaderEnd: () => {
-                return [pp]
-            },
+    {
+        onHeaderStart: () => {
+            return pp
         },
-    ],
+        onCompact: () => {
+            //
+        },
+        onHeaderEnd: () => {
+            return pp
+        },
+    },
 )
 
 createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
-bc.tokenizeStream(
-    new p20.Stream(p20.streamifyArray([dataAsString], null)),
-    prsr,
-    err => { console.error("FOUND TOKENIZER ERROR", err) },
+
+streamifyArray(
+    [dataAsString],
+    null,
+    null,
+    bc.createTokenizer(
+        prsr,
+        err => { console.error("FOUND TOKENIZER ERROR", err) },
+    )
 )

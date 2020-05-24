@@ -4,7 +4,6 @@
     max-classes-per-file: "off",
 */
 
-import * as papi from "pareto-api"
 import * as Char from "./Characters"
 import {
     TokenType,
@@ -15,7 +14,8 @@ import {
 } from "./tokenizerStateTypes"
 import { Location, Range } from "./location"
 import { TokenizerOptions } from "./configurationTypes"
-import { ITokenStreamConsumer, TokenStreamConsumerDataType, TokenStreamConsumerData, OnDataReturnValue } from "./ITokenStreamConsumer"
+import { ITokenStreamConsumer, TokenStreamConsumerDataType, TokenStreamConsumerData } from "./ITokenStreamConsumer"
+import { OnDataReturnValue, IStreamConsumer } from "./IStreamConsumer"
 
 const DEBUG = false
 
@@ -66,7 +66,7 @@ type QueueEntry =
         aborted: boolean
     }] //end reached
 
-class Tokenizer {
+class Tokenizer implements IStreamConsumer<string, null> {
     private readonly onerror: (message: string, range: Range) => void
 
     private currentChunk: null | ProcessingData = null
@@ -109,7 +109,7 @@ class Tokenizer {
             const nextChunk = this.queue.shift()
             if (nextChunk !== undefined) {
                 if (nextChunk[0]) { //end reached
-                    this.onEnd(nextChunk[1].aborted)
+                    this.onEndImp(nextChunk[1].aborted)
                 } else {
                     this.writeImp(new ProcessingData(nextChunk[1].chunk))
                 }
@@ -730,7 +730,7 @@ class Tokenizer {
             }
         }
     }
-    public end(aborted: boolean): void {
+    public onEnd(aborted: boolean): void {
         if (this.ended) {
             throw new Error("cannot end, already ended")
         }
@@ -739,10 +739,10 @@ class Tokenizer {
                 aborted: aborted,
             }])
         } else {
-            this.onEnd(aborted)
+            this.onEndImp(aborted)
         }
     }
-    private onEnd(aborted: boolean) {
+    public onEndImp(aborted: boolean) {
         const onData = (data: TokenStreamConsumerData) => {
             const onDataReturnValue = this.tokenStreamConsumer.onData(data)
             if (typeof onDataReturnValue === "boolean") {
@@ -856,20 +856,10 @@ class Tokenizer {
     }
 }
 
-export function tokenizeStream(
-    stream: papi.IStream<string, null>,
+export function createTokenizer(
     tokenStreamConsumer: ITokenStreamConsumer,
     onerror: (message: string, range: Range) => void,
     opt?: TokenizerOptions
-): void {
-    const tok = new Tokenizer(tokenStreamConsumer, onerror, opt)
-    stream.processStream(
-        null,
-        chunk => {
-            return tok.onData(chunk)
-        },
-        aborted => {
-            tok.end(aborted)
-        }
-    )
+): IStreamConsumer<string, null> {
+    return new Tokenizer(tokenStreamConsumer, onerror, opt)
 }

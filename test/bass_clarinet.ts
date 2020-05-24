@@ -2,14 +2,15 @@
     no-console:"off",
     complexity: "off",
 */
-import * as p20 from "pareto-20"
 import * as bc from "../src"
 import { describe } from "mocha"
 import * as chai from "chai"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, DataType, HeaderSubscriber, IDataSubscriber } from "../src"
+import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, IParserEventConsumer } from "../src"
+import { createStreamSplitter } from "../src/createStreamSplitter"
+import { streamifyArray } from "../src/streamifyArray"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -20,7 +21,7 @@ const DEBUG = false
 const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
 
-// const selectedJSONTests: string[] = ["wrong inline formatting"]
+// const selectedJSONTests: string[] = ["newline"]
 // const selectedExtensionTests: string[] = []
 
 function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: boolean) {
@@ -62,52 +63,52 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             const escaped = JSON.stringify(str)
             return escaped.substring(1, escaped.length - 1) //remove quotes
         }
-        const outputter: bc.IDataSubscriber = {
+        const outputter: bc.IParserEventConsumer = {
             onData: data => {
                 switch (data.type[0]) {
-                    case DataType.BlockComment: {
+                    case ParserEventType.BlockComment: {
                         const $ = data.type[1]
                         out.push(`/*${$.comment}*/`)
                         break
                     }
-                    case DataType.CloseArray: {
+                    case ParserEventType.CloseArray: {
                         const $ = data.type[1]
                         out.push($.closeCharacter)
                         break
                     }
-                    case DataType.CloseObject: {
+                    case ParserEventType.CloseObject: {
                         const $ = data.type[1]
                         out.push($.closeCharacter)
                         break
                     }
-                    case DataType.Colon: {
+                    case ParserEventType.Colon: {
                         out.push(":")
                         break
                     }
-                    case DataType.Comma: {
+                    case ParserEventType.Comma: {
                         out.push(",")
                         break
                     }
-                    case DataType.LineComment: {
+                    case ParserEventType.LineComment: {
                         const $ = data.type[1]
                         out.push(`//${$.comment}`)
                         break
                     }
-                    case DataType.NewLine: {
+                    case ParserEventType.NewLine: {
                         out.push("\n")
                         break
                     }
-                    case DataType.OpenArray: {
+                    case ParserEventType.OpenArray: {
                         const $ = data.type[1]
                         out.push($.openCharacter)
                         break
                     }
-                    case DataType.OpenObject: {
+                    case ParserEventType.OpenObject: {
                         const $ = data.type[1]
                         out.push($.openCharacter)
                         break
                     }
-                    case DataType.SimpleValue: {
+                    case ParserEventType.SimpleValue: {
                         const $ = data.type[1]
                         if ($.quote !== null) {
                             out.push(`${$.quote}${serialize($.value)}${$.terminated ? $.quote : ""}`)
@@ -116,11 +117,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         }
                         break
                     }
-                    case DataType.TaggedUnion: {
+                    case ParserEventType.TaggedUnion: {
                         out.push("|")
                         break
                     }
-                    case DataType.WhiteSpace: {
+                    case ParserEventType.WhiteSpace: {
                         const $ = data.type[1]
                         out.push($.value)
                         break
@@ -199,57 +200,57 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 //
             }
         )
-        const eventSubscriber: bc.IDataSubscriber = {
+        const eventSubscriber: bc.IParserEventConsumer = {
             onData: data => {
                 switch (data.type[0]) {
-                    case DataType.BlockComment: {
+                    case ParserEventType.BlockComment: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found block comment")
                         actualEvents.push(["token", "blockcomment", $.comment, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case DataType.CloseArray: {
+                    case ParserEventType.CloseArray: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found close array")
                         actualEvents.push(["token", "closearray", $.closeCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case DataType.CloseObject: {
+                    case ParserEventType.CloseObject: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found close object")
                         actualEvents.push(["token", "closeobject", $.closeCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case DataType.Colon: {
+                    case ParserEventType.Colon: {
                         break
                     }
-                    case DataType.Comma: {
+                    case ParserEventType.Comma: {
                         break
                     }
-                    case DataType.LineComment: {
+                    case ParserEventType.LineComment: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found line comment")
                         actualEvents.push(["token", "linecomment", $.comment, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case DataType.NewLine: {
+                    case ParserEventType.NewLine: {
                         //const $ = data.type[1]
                         //place your code here
                         break
                     }
-                    case DataType.OpenArray: {
+                    case ParserEventType.OpenArray: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found open array")
                         actualEvents.push(["token", "openarray", $.openCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case DataType.OpenObject: {
+                    case ParserEventType.OpenObject: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found open object")
                         actualEvents.push(["token", "openobject", $.openCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case DataType.SimpleValue: {
+                    case ParserEventType.SimpleValue: {
                         const $ = data.type[1]
                         if ($.quote === null) {
                             if (DEBUG) console.log("found unquoted token")
@@ -260,14 +261,14 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         }
                         break
                     }
-                    case DataType.TaggedUnion: {
+                    case ParserEventType.TaggedUnion: {
                         //const $ = data.type[1]
 
                         if (DEBUG) console.log("found open tagged union")
                         actualEvents.push(["token", "opentaggedunion", getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case DataType.WhiteSpace: {
+                    case ParserEventType.WhiteSpace: {
                         //const $ = data.type[1]
                         //place your code here
                         break
@@ -277,7 +278,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 }
                 return false
             },
-            onEnd: location => {
+            onEnd: (_aborted, location) => {
                 if (DEBUG) console.log("found end")
                 actualEvents.push(["end", getLocation(test.testForLocation, location)])
                 if (expectedEvents !== undefined) {
@@ -327,17 +328,22 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 )
             },
         )
-        const schemaDataSubscribers: IDataSubscriber[] = [
+        const schemaDataSubscribers: IParserEventConsumer[] = [
             outputter,
             eventSubscriber,
             formatter,
         ]
-        const instanceDataSubscribers: IDataSubscriber[] = [
+        const instanceDataSubscribers: IParserEventConsumer[] = [
             outputter,
             eventSubscriber,
             stackedSubscriber,
             formatter,
         ]
+        type HeaderSubscriber = {
+            onHeaderStart(range: bc.Range): void
+            onCompact(range: bc.Range): void
+            onHeaderEnd(range: bc.Range): void
+        }
         const headerSubscribers: HeaderSubscriber[] = [
             {
                 onHeaderStart: () => {
@@ -351,39 +357,26 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     return []
                 },
             },
-            {
-                onHeaderStart: () => {
-                    return schemaDataSubscribers
-                },
-                onCompact: () => {
-                    //
-                },
-                onHeaderEnd: () => {
-                    return instanceDataSubscribers
-                },
-            },
         ]
 
         if (test.testHeaders) {
             headerSubscribers.push({
                 onHeaderStart: _range => {
-                    if (DEBUG) console.log("found header start")
                     actualEvents.push(["token", "headerstart"])
-                    return []
                 },
                 onHeaderEnd: () => {
-                    if (DEBUG) console.log("found header end")
                     actualEvents.push(["headerend"])
-                    return []
                 },
                 onCompact: () => {
-                    if (DEBUG) console.log("found compact")
                     actualEvents.push(["token", "compact"])
                 },
             })
         }
         if (strictJSON) {
             headerSubscribers.push(bc.createStrictJSONHeaderValidator((v, _range) => {
+                actualEvents.push(["validationerror", v])
+            }))
+            instanceDataSubscribers.push(bc.createStrictJSONValidator((v, _range) => {
                 if (DEBUG) console.log("found JSON validation error", v)
                 actualEvents.push(["validationerror", v])
             }))
@@ -393,19 +386,41 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (DEBUG) console.log("found error")
                 actualEvents.push(["parsererror", message])
             },
-            headerSubscribers,
-        )
-
-        bc.tokenizeStream(
-            new p20.Stream(p20.streamifyArray(chunks, null)),
-            parser,
-            (message, _location) => {
-                if (DEBUG) console.log("found error")
-
-                actualEvents.push(["tokenizererror", message])
+            {
+                onHeaderStart: range => {
+                    headerSubscribers.forEach(s => {
+                        s.onHeaderStart(range)
+                    })
+                    return createStreamSplitter(schemaDataSubscribers)
+                },
+                onCompact: range => {
+                    headerSubscribers.forEach(s => {
+                        s.onCompact(range)
+                    })
+                },
+                onHeaderEnd: range => {
+                    headerSubscribers.forEach(s => {
+                        s.onHeaderEnd(range)
+                    })
+                    return createStreamSplitter(instanceDataSubscribers)
+                },
             },
         )
-    };
+
+        streamifyArray(
+            chunks,
+            null,
+            null,
+            bc.createTokenizer(
+                parser,
+                (message, _location) => {
+                    if (DEBUG) console.log("found error")
+
+                    actualEvents.push(["tokenizererror", message])
+                },
+            )
+        )
+    }
 }
 
 type Offset = {

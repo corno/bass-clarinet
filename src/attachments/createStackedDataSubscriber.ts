@@ -3,7 +3,7 @@
     no-underscore-dangle: "off",
     complexity: off,
 */
-import { IDataSubscriber, Data, DataType } from "../IDataSubscriber"
+import { IParserEventConsumer, ParserEvent, ParserEventType } from "../IParserEventConsumer"
 import { Location, Range } from "../location"
 import { createDummyValueHandler } from "./dummyHandlers"
 import {
@@ -61,7 +61,7 @@ export function createStackedDataSubscriber(
     valueHandler: RequiredValueHandler,
     onError: (error: RangeError) => void,
     onend: (preData: PreData) => void
-): IDataSubscriber {
+): IParserEventConsumer {
     const stack: ContextType[] = []
     let comments: Comment[] = []
     let indentation = ""
@@ -179,10 +179,10 @@ export function createStackedDataSubscriber(
     //     }
     // }
 
-    const ds: IDataSubscriber = {
-        onData: (data: Data) => {
+    const ds: IParserEventConsumer = {
+        onData: (data: ParserEvent) => {
             switch (data.type[0]) {
-                case DataType.BlockComment: {
+                case ParserEventType.BlockComment: {
                     const $ = data.type[1]
                     lineIsDirty = true
                     comments.push({
@@ -195,7 +195,7 @@ export function createStackedDataSubscriber(
                     //place your code here
                     break
                 }
-                case DataType.CloseArray: {
+                case ParserEventType.CloseArray: {
                     const $ = data.type[1]
                     lineIsDirty = true
                     unwindLoop: while (true) {
@@ -246,7 +246,7 @@ export function createStackedDataSubscriber(
                     }
                     break
                 }
-                case DataType.CloseObject: {
+                case ParserEventType.CloseObject: {
                     const $ = data.type[1]
                     if (DEBUG) { console.log("on close object") }
                     lineIsDirty = true
@@ -300,17 +300,17 @@ export function createStackedDataSubscriber(
                     }
                     break
                 }
-                case DataType.Colon: {
+                case ParserEventType.Colon: {
                     //const $ = data.type[1]
                     lineIsDirty = true
                     break
                 }
-                case DataType.Comma: {
+                case ParserEventType.Comma: {
                     //const $ = data.type[1]
                     lineIsDirty = true
                     break
                 }
-                case DataType.LineComment: {
+                case ParserEventType.LineComment: {
                     const $ = data.type[1]
                     lineIsDirty = true
                     comments.push({
@@ -322,12 +322,12 @@ export function createStackedDataSubscriber(
                     })
                     break
                 }
-                case DataType.NewLine: {
+                case ParserEventType.NewLine: {
                     lineIsDirty = false
                     indentation = ""
                     break
                 }
-                case DataType.OpenArray: {
+                case ParserEventType.OpenArray: {
                     const $ = data.type[1]
                     lineIsDirty = true
                     const arrayHandler = initValueHandler().array(
@@ -339,7 +339,7 @@ export function createStackedDataSubscriber(
                     currentContext = ["array", { arrayHandler: arrayHandler }]
                     break
                 }
-                case DataType.OpenObject: {
+                case ParserEventType.OpenObject: {
                     const $ = data.type[1]
                     lineIsDirty = true
                     if (DEBUG) { console.log("on open object") }
@@ -356,7 +356,7 @@ export function createStackedDataSubscriber(
                     }]
                     break
                 }
-                case DataType.SimpleValue: {
+                case ParserEventType.SimpleValue: {
                     const $ = data.type[1]
                     lineIsDirty = true
                     function onSimpleValue(vh: ValueHandler) {
@@ -431,7 +431,7 @@ export function createStackedDataSubscriber(
                     }
                     break
                 }
-                case DataType.TaggedUnion: {
+                case ParserEventType.TaggedUnion: {
                     lineIsDirty = true
                     if (DEBUG) { console.log("on open tagged union") }
                     stack.push(currentContext)
@@ -445,7 +445,7 @@ export function createStackedDataSubscriber(
                     }]
                     break
                 }
-                case DataType.WhiteSpace: {
+                case ParserEventType.WhiteSpace: {
                     const $ = data.type[1]
                     if (!lineIsDirty) {
                         indentation = $.value
@@ -457,7 +457,7 @@ export function createStackedDataSubscriber(
             }
             return false
         },
-        onEnd: (location: Location): void => {
+        onEnd: (aborted: boolean, location: Location): void => {
             const range = { start: location, end: location }
             unfoldLoop:
             while (true) {

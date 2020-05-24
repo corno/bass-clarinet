@@ -3,7 +3,7 @@ import {
     SimpleValueData,
     OpenData,
     CloseData,
-} from "../IDataSubscriber"
+} from "../IParserEventConsumer"
 
 export type PreData = {
     comments: Comment[]

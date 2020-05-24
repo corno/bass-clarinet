@@ -1,5 +1,5 @@
 import { Location, Range } from "./location"
-import * as p from "pareto"
+import { IStreamConsumer } from "./IStreamConsumer"
 
 export type PropertyData = {
     keyRange: Range
@@ -21,7 +21,7 @@ export type CommentData = {
     indentation: null | string
 }
 
-export enum DataType {
+export enum ParserEventType {
     BlockComment,
     CloseArray,
     CloseObject,
@@ -44,33 +44,29 @@ export type CloseData = {
     closeCharacter: string
 }
 
-export type Data = {
+export type ParserEvent = {
     range: Range
     type:
-    | [DataType.BlockComment, CommentData]
-    | [DataType.CloseArray, CloseData]
-    | [DataType.CloseObject, CloseData]
-    | [DataType.Colon, {
+    | [ParserEventType.BlockComment, CommentData]
+    | [ParserEventType.CloseArray, CloseData]
+    | [ParserEventType.CloseObject, CloseData]
+    | [ParserEventType.Colon, {
         //
     }]
-    | [DataType.Comma, {
+    | [ParserEventType.Comma, {
         //
     }]
-    | [DataType.LineComment, CommentData]
-    | [DataType.NewLine, {
+    | [ParserEventType.LineComment, CommentData]
+    | [ParserEventType.NewLine, {
         //
     }]
-    | [DataType.OpenArray, OpenData]
-    | [DataType.OpenObject, OpenData]
-    | [DataType.SimpleValue, SimpleValueData]
-    | [DataType.TaggedUnion, {
+    | [ParserEventType.OpenArray, OpenData]
+    | [ParserEventType.OpenObject, OpenData]
+    | [ParserEventType.SimpleValue, SimpleValueData]
+    | [ParserEventType.TaggedUnion, {
         //
     }]
-    | [DataType.WhiteSpace, WhiteSpaceData]
+    | [ParserEventType.WhiteSpace, WhiteSpaceData]
 }
 
-export interface IDataSubscriber {
-    onData(data: Data): boolean | p.ISafePromise<boolean>
-    onEnd(location: Location): void
-}
-
+export type IParserEventConsumer = IStreamConsumer<ParserEvent, Location>

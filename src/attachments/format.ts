@@ -2,7 +2,7 @@
 	complexity: off
 */
 import { Range, Location } from "../location"
-import { IDataSubscriber, DataType } from "../IDataSubscriber"
+import { IParserEventConsumer, ParserEventType } from "../IParserEventConsumer"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")
@@ -53,7 +53,7 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onDone: () => void,
-): IDataSubscriber {
+): IParserEventConsumer {
 	let precedingWhitespace: null | TokenInfo = null
 
 	const stack: Style[] = []
@@ -230,11 +230,11 @@ export function createFormatter(
 		currentRequiredStyle = style
 	}
 
-	const ds: IDataSubscriber = {
+	const ds: IParserEventConsumer = {
 
 		onData: data => {
 			switch (data.type[0]) {
-				case DataType.BlockComment: {
+				case ParserEventType.BlockComment: {
 					const $ = data.type[1]
 					comment(data.range.start)
 					const ei = createExpectedIndentation()
@@ -256,32 +256,32 @@ export function createFormatter(
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case DataType.CloseArray: {
+				case ParserEventType.CloseArray: {
 					closeToken(data.range.start)
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case DataType.CloseObject: {
+				case ParserEventType.CloseObject: {
 					closeToken(data.range.start)
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case DataType.Colon: {
+				case ParserEventType.Colon: {
 					punctuation()
 					precedingToken = [PrecedingTokenType.colon]
 					break
 				}
-				case DataType.Comma: {
+				case ParserEventType.Comma: {
 					punctuation()
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case DataType.LineComment: {
+				case ParserEventType.LineComment: {
 					comment(data.range.start)
 					precededByLineComment = true
 					break
 				}
-				case DataType.NewLine: {
+				case ParserEventType.NewLine: {
 					//const $ = data[1]
 					if (precedingWhitespace !== null) {
 						del(precedingWhitespace.range)
@@ -331,19 +331,19 @@ export function createFormatter(
 					precededByLineComment = false
 					break
 				}
-				case DataType.OpenArray: {
+				case ParserEventType.OpenArray: {
 					semanticToken(data.range.start)
 					push()
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case DataType.OpenObject: {
+				case ParserEventType.OpenObject: {
 					semanticToken(data.range.start)
 					push()
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case DataType.SimpleValue: {
+				case ParserEventType.SimpleValue: {
 					semanticToken(data.range.start)
 					if (precedingToken[0] === PrecedingTokenType.pipe) {
 						precedingToken = [PrecedingTokenType.option]
@@ -352,12 +352,12 @@ export function createFormatter(
 					}
 					break
 				}
-				case DataType.TaggedUnion: {
+				case ParserEventType.TaggedUnion: {
 					semanticToken(data.range.start)
 					precedingToken = [PrecedingTokenType.pipe]
 					break
 				}
-				case DataType.WhiteSpace: {
+				case ParserEventType.WhiteSpace: {
 					const $ = data.type[1]
 					precedingWhitespace = {
 						range: data.range,

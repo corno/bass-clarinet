@@ -1,19 +1,25 @@
-import * as p20 from "pareto-20"
 import * as fs from "fs"
 import { describe } from "mocha"
 import assert from "assert"
 import * as path from "path"
 import * as bc from "../src"
+import { dummyHeaderConsumer } from "./dummyConsumers"
+import { streamifyArray } from "../src/streamifyArray"
 
 function tokenizeStrings(
     strings: string[],
     consumer: bc.ITokenStreamConsumer,
     onError: () => void,
 ) {
-    bc.tokenizeStream(
-        new p20.Stream(p20.streamifyArray(strings, null)),
-        consumer,
-        onError
+
+    streamifyArray(
+        strings,
+        null,
+        null,
+        bc.createTokenizer(
+            consumer,
+            onError
+        )
     )
 }
 
@@ -31,7 +37,7 @@ describe('parsing', () => {
                             () => {
                                 foundError = true
                             },
-                            [],
+                            dummyHeaderConsumer,
                         )
                         tokenizeStrings(
                             [data],
@@ -54,7 +60,7 @@ describe('parsing', () => {
                             () => {
                                 foundError = true
                             },
-                            [],
+                            dummyHeaderConsumer,
                         )
                         tokenizeStrings(
                             [data],
@@ -76,7 +82,7 @@ describe('parsing', () => {
                             () => {
                                 //do nothing with error
                             },
-                            [],
+                            dummyHeaderConsumer,
                         )
                         tokenizeStrings(
                             [data],
@@ -106,7 +112,7 @@ describe('transform', () => {
                     () => {
                         //do nothing with error
                     },
-                    [],
+                    dummyHeaderConsumer,
                 )
                 tokenizeStrings(
                     [data],

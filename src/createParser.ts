@@ -7,7 +7,7 @@
 import * as p from "pareto"
 import * as subscr from "./subscription"
 import * as Char from "./Characters"
-import { ITokenStreamConsumer, TokenStreamConsumerData, TokenStreamConsumerDataType, OnDataReturnValue } from "./ITokenStreamConsumer"
+import { ITokenStreamConsumer, TokenStreamConsumerData, TokenStreamConsumerDataType } from "./ITokenStreamConsumer"
 import {
     RootState,
     ObjectState,
@@ -23,7 +23,8 @@ import {
 } from "./parserStateTypes"
 import { Location, Range, printRange } from "./location"
 import { RangeError } from "./errors"
-import { IDataSubscriber, DataType, Data } from "./IDataSubscriber"
+import { IParserEventConsumer, ParserEventType, ParserEvent } from "./IParserEventConsumer"
+import { OnDataReturnValue } from "./IStreamConsumer"
 
 const DEBUG = false
 
@@ -70,28 +71,29 @@ function getContextDescription(stackContext: StackContext): string {
     }
 }
 
-export type DataSubscription = subscr.Subscribers<IDataSubscriber>
+type DataSubscription = subscr.Subscribers<IParserEventConsumer>
 
-export interface HeaderSubscriber {
-    onHeaderStart(range: Range): IDataSubscriber[]
+export interface HeaderConsumer {
+    onHeaderStart(range: Range): IParserEventConsumer
     onCompact(range: Range): void
-    onHeaderEnd(range: Range): IDataSubscriber[]
+    onHeaderEnd(range: Range): IParserEventConsumer
 }
 
 class Parser implements ITokenStreamConsumer {
     public readonly stack = new Array<StackContext>()
-    public readonly onSchemaData = new subscr.Subscribers<IDataSubscriber>()
-    public readonly onInstanceData = new subscr.Subscribers<IDataSubscriber>()
-    public readonly onHeaderData = new subscr.Subscribers<HeaderSubscriber>()
+    public readonly headerConsumer: HeaderConsumer
     private currentContext: StackContext
-    private oncurrentdata: subscr.Subscribers<IDataSubscriber>
+    private parserEventsConsumer?: IParserEventConsumer
     private currentToken: CurrentToken = [TokenType.NONE]
     private readonly onerror: (message: string, range: Range) => void
     private indentationState: IndentationData = [IndentationState.lineIsVirgin]
 
-    constructor(onerror: (message: string, range: Range) => void) {
+    constructor(
+        headerSubscriber: HeaderConsumer,
+        onerror: (message: string, range: Range) => void,
+    ) {
+        this.headerConsumer = headerSubscriber
         this.onerror = onerror
-        this.oncurrentdata = this.onInstanceData
         this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
     }
     public onData(data: TokenStreamConsumerData): OnDataReturnValue {
@@ -238,9 +240,12 @@ class Parser implements ITokenStreamConsumer {
                 this.onHeaderEnd(range)
                 break
             default:
-                return assertUnreachable($$.state)
+                assertUnreachable($$.state)
         }
-        this.oncurrentdata.signal(s => s.onEnd(location))
+        if (this.parserEventsConsumer === undefined) {
+            throw new Error("unexpected missing parser event consumer")
+        }
+        this.parserEventsConsumer.onEnd(aborted, location)
     }
     public onPunctuation(curChar: number, range: Range): OnDataReturnValue {
         if (DEBUG) console.log(`onPunctuation`, curChar, String.fromCharCode(curChar))
@@ -283,7 +288,6 @@ class Parser implements ITokenStreamConsumer {
                             }
                             case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                                 $$.state = RootState.EXPECTING_SCHEMA
-                                this.oncurrentdata = this.onSchemaData
                                 break
                             default:
                                 return assertUnreachable($$.state)
@@ -297,12 +301,7 @@ class Parser implements ITokenStreamConsumer {
                     default:
                         return assertUnreachable($[0])
                 }
-                this.onHeaderData.signal(s => {
-                    const schemaDataSubscribers = s.onHeaderStart(range)
-                    schemaDataSubscribers.forEach(sds => {
-                        this.onSchemaData.subscribe(sds)
-                    })
-                })
+                this.parserEventsConsumer = this.headerConsumer.onHeaderStart(range)
                 return false
             case Char.Punctuation.hash:
                 switch ($[0]) {
@@ -325,7 +324,6 @@ class Parser implements ITokenStreamConsumer {
                                 break
                             }
                             case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                                this.oncurrentdata = this.onInstanceData
                                 $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
                                 break
                             }
@@ -352,7 +350,7 @@ class Parser implements ITokenStreamConsumer {
                     default:
                         return assertUnreachable($[0])
                 }
-                this.onHeaderData.signal(s => s.onCompact(range))
+                this.headerConsumer.onCompact(range)
                 this.onHeaderEnd(range)
                 return false
             case Char.Punctuation.closeAngleBracket:
@@ -363,7 +361,7 @@ class Parser implements ITokenStreamConsumer {
                 //
                 return this.tempOnData({
                     range: range,
-                    type: [DataType.Comma, {
+                    type: [ParserEventType.Comma, {
                     }],
                 })
             case Char.Punctuation.openAngleBracket:
@@ -378,7 +376,7 @@ class Parser implements ITokenStreamConsumer {
                 //
                 return this.tempOnData({
                     range: range,
-                    type: [DataType.Colon, {
+                    type: [ParserEventType.Colon, {
                     }],
                 })
             case Char.Punctuation.openBrace:
@@ -390,7 +388,7 @@ class Parser implements ITokenStreamConsumer {
                 this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
                 return this.tempOnData({
                     range: range,
-                    type: [DataType.TaggedUnion, {
+                    type: [ParserEventType.TaggedUnion, {
                     }],
                 })
             default:
@@ -442,7 +440,7 @@ class Parser implements ITokenStreamConsumer {
 
         return this.tempOnData({
             range: range,
-            type: [DataType.NewLine, {
+            type: [ParserEventType.NewLine, {
             }],
         })
     }
@@ -474,7 +472,7 @@ class Parser implements ITokenStreamConsumer {
                 start: $.start.start,
                 end: location,
             },
-            type: [DataType.LineComment, {
+            type: [ParserEventType.LineComment, {
                 comment: $.commentNode,
                 innerRange: {
                     start: {
@@ -517,11 +515,15 @@ class Parser implements ITokenStreamConsumer {
         this.indentationState = [IndentationState.lineIsDitry]
         return false
     }
-    private tempOnData(data: Data) {
+    private tempOnData(data: ParserEvent): OnDataReturnValue {
         let abortRequested = false
         const promises: p.ISafePromise<boolean>[] = []
-        this.oncurrentdata.signal(s => {
-            const onDataReturnValue = s.onData(data)
+        if (this.parserEventsConsumer === undefined) {
+            console.error("dropping token, no events consumer")
+            //throw new Error("unexpected missing parser event consumer")
+            return false
+        } else {
+            const onDataReturnValue = this.parserEventsConsumer.onData(data)
             if (typeof onDataReturnValue === "boolean") {
                 if (onDataReturnValue === true) {
                     abortRequested = true
@@ -529,16 +531,16 @@ class Parser implements ITokenStreamConsumer {
             } else {
                 promises.push(onDataReturnValue)
             }
-        })
-        if (promises.length === 0) {
-            return abortRequested
-        }
-        return p.mergeArrayOfSafePromises(promises).mapResult(results => {
-            if (abortRequested) {
-                return p.result(true)
+            if (promises.length === 0) {
+                return abortRequested
             }
-            return p.result(results.includes(true))//if 1 promise requested an abort
-        })
+            return p.mergeArrayOfSafePromises(promises).mapResult(results => {
+                if (abortRequested) {
+                    return p.result(true)
+                }
+                return p.result(results.includes(true))//if 1 promise requested an abort
+            })
+        }
     }
     public onBlockCommentEnd(end: Range): OnDataReturnValue {
         if (DEBUG) console.log(`onBlockCommentEnd`)
@@ -552,7 +554,7 @@ class Parser implements ITokenStreamConsumer {
                 start: $.start.start,
                 end: end.end,
             },
-            type: [DataType.BlockComment, {
+            type: [ParserEventType.BlockComment, {
                 comment: $.commentNode,
                 innerRange: {
                     start: {
@@ -594,7 +596,7 @@ class Parser implements ITokenStreamConsumer {
         this.onNonStringValue(range)
         const od = this.tempOnData({
             range: range,
-            type: [DataType.SimpleValue,
+            type: [ParserEventType.SimpleValue,
             {
                 value: $.unquotedTokenNode,
                 quote: null,
@@ -630,7 +632,7 @@ class Parser implements ITokenStreamConsumer {
         }
         const od = this.tempOnData({
             range: range,
-            type: [DataType.WhiteSpace, {
+            type: [ParserEventType.WhiteSpace, {
                 value: $.whitespaceNode,
             }],
         })
@@ -660,7 +662,7 @@ class Parser implements ITokenStreamConsumer {
         const onStringValue = (): OnDataReturnValue => {
             const od = this.tempOnData({
                 range: range,
-                type: [DataType.SimpleValue,
+                type: [ParserEventType.SimpleValue,
                 {
                     value: value,
                     //startCharacter: $tok.startCharacter,
@@ -683,7 +685,7 @@ class Parser implements ITokenStreamConsumer {
                     case ObjectState.EXPECTING_KEY:
                         const od = this.tempOnData({
                             range: range,
-                            type: [DataType.SimpleValue,
+                            type: [ParserEventType.SimpleValue,
                             {
                                 value: value,
                                 quote: $tok.startCharacter,
@@ -711,7 +713,7 @@ class Parser implements ITokenStreamConsumer {
                     case TaggedUnionState.EXPECTING_OPTION:
                         const od = this.tempOnData({
                             range: range,
-                            type: [DataType.SimpleValue,
+                            type: [ParserEventType.SimpleValue,
                             {
                                 value: value,
                                 quote: $tok.startCharacter,
@@ -736,7 +738,7 @@ class Parser implements ITokenStreamConsumer {
         this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
         return this.tempOnData({
             range: range,
-            type: [DataType.OpenObject, {
+            type: [ParserEventType.OpenObject, {
                 openCharacter: String.fromCharCode(curChar),
             }],
         })
@@ -746,7 +748,7 @@ class Parser implements ITokenStreamConsumer {
             this.raiseError("not in an object", range)
             return this.tempOnData({
                 range: range,
-                type: [DataType.CloseObject, {
+                type: [ParserEventType.CloseObject, {
                     closeCharacter: String.fromCharCode(curChar),
                 }],
             })
@@ -756,7 +758,7 @@ class Parser implements ITokenStreamConsumer {
             }
             const od = this.tempOnData({
                 range: range,
-                type: [DataType.CloseObject, {
+                type: [ParserEventType.CloseObject, {
                     closeCharacter: String.fromCharCode(curChar),
                 }],
             })
@@ -769,7 +771,7 @@ class Parser implements ITokenStreamConsumer {
         this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
         return this.tempOnData({
             range: range,
-            type: [DataType.OpenArray, {
+            type: [ParserEventType.OpenArray, {
                 openCharacter: String.fromCharCode(curChar),
             }],
         })
@@ -783,7 +785,7 @@ class Parser implements ITokenStreamConsumer {
         }
         return this.tempOnData({
             range: range,
-            type: [DataType.CloseArray, {
+            type: [ParserEventType.CloseArray, {
                 closeCharacter: String.fromCharCode(curChar),
             }],
         })
@@ -845,13 +847,7 @@ class Parser implements ITokenStreamConsumer {
         this.currentToken = [TokenType.NONE]
     }
     private onHeaderEnd(range: Range) {
-        this.oncurrentdata = this.onInstanceData
-        this.onHeaderData.signal(s => {
-            const instanceDataSubscribers = s.onHeaderEnd(range)
-            instanceDataSubscribers.forEach(sds => {
-                this.onSchemaData.subscribe(sds)
-            })
-        })
+        this.parserEventsConsumer = this.headerConsumer.onHeaderEnd(range)
     }
     private wrapupBeforeValue(range: Range) {
         const $ = this.currentContext
@@ -958,11 +954,8 @@ class Parser implements ITokenStreamConsumer {
 
 export function createParser(
     onerror: (message: string, range: Range) => void,
-    headerSubscribers: HeaderSubscriber[],
+    headerSubscriber: HeaderConsumer,
 ): ITokenStreamConsumer {
-    const p = new Parser(onerror)
-    headerSubscribers.forEach(s => {
-        p.onHeaderData.subscribe(s)
-    })
+    const p = new Parser(headerSubscriber, onerror)
     return p
 }

@@ -251,7 +251,7 @@ export const JSONTests: TestDefinitions = {
         ],
     },
     "nested": {
-        text: ' { "a": { "b": "c" } }',
+        text: '{ "a": { "b": "c" } }',
         events: [
             ["token", "openobject", "{", undefined],
             ["token", "quotedstring"/*key*/, "a", undefined],
@@ -262,7 +262,7 @@ export const JSONTests: TestDefinitions = {
             ["token", "closeobject", "}", undefined],
             ["end", undefined],
         ],
-        formattedText: ' { "a": { "b": "c" } }',
+        //formattedText: ' { "a": { "b": "c" } }',
     },
     "nested array": {
         text: '{ "a": [ "b", "c" ] }',

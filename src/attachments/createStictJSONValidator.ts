@@ -3,8 +3,8 @@
     no-underscore-dangle:"off",
     max-classes-per-file: "off",
 */
-import { IDataSubscriber, Data, DataType } from "../IDataSubscriber"
-import { HeaderSubscriber } from "../Parser"
+import { IParserEventConsumer, ParserEvent, ParserEventType } from "../IParserEventConsumer"
+import { HeaderConsumer } from "../createParser"
 import { Range } from "../location"
 import * as Char from "./NumberCharacters"
 import { RangeError } from "../errors"
@@ -108,7 +108,7 @@ type ContextType =
         // valueHandler: null | ValueHandler
     }]
 
-class StrictJSONHeaderValidator implements HeaderSubscriber {
+class StrictJSONHeaderValidator implements HeaderConsumer {
     private readonly onError: OnError
 
 
@@ -117,20 +117,24 @@ class StrictJSONHeaderValidator implements HeaderSubscriber {
     }
     onHeaderStart(range: Range) {
         this.onError(`headers are not allowed in strict JSON`, range)
-        return []
+        return {
+            onData: () => {
+                return false
+            },
+            onEnd: () => {
+                //
+            },
+        }
     }
     onCompact() {
         //
     }
     onHeaderEnd() {
-        return [
-            createStrictJSONValidator(this.onError),
-        ]
-        //
+        return createStrictJSONValidator(this.onError)
     }
 }
 
-class StrictJSONValidator implements IDataSubscriber {
+class StrictJSONValidator implements IParserEventConsumer {
     private readonly onError: OnError
     private readonly stack: ContextType[] = []
     private currentContext: ContextType = ["root", {}]
@@ -140,13 +144,13 @@ class StrictJSONValidator implements IDataSubscriber {
         this.onError = onError
     }
 
-    public onData(data: Data) {
+    public onData(data: ParserEvent) {
         switch (data.type[0]) {
-            case DataType.BlockComment: {
+            case ParserEventType.BlockComment: {
                 this.onError("block comments are not allowed in strict JSON", data.range)
                 break
             }
-            case DataType.CloseArray: {
+            case ParserEventType.CloseArray: {
                 const $ = data.type[1]
                 if ($.closeCharacter !== "]") {
                     this.onError("arrays should end with ']' in strict JSON", data.range)
@@ -162,7 +166,7 @@ class StrictJSONValidator implements IDataSubscriber {
                 this.wrapupValue(data.range)
                 break
             }
-            case DataType.CloseObject: {
+            case ParserEventType.CloseObject: {
                 const $ = data.type[1]
                 if ($.closeCharacter !== "}") {
                     this.onError("objects should end with '}' in strict JSON", data.range)
@@ -178,7 +182,7 @@ class StrictJSONValidator implements IDataSubscriber {
                 this.wrapupValue(data.range)
                 break
             }
-            case DataType.Colon: {
+            case ParserEventType.Colon: {
                 if (this.currentContext[0] !== "object") {
                     this.onError(`colon can only be used in objects`, data.range)
                 } else {
@@ -189,7 +193,7 @@ class StrictJSONValidator implements IDataSubscriber {
                 }
                 break
             }
-            case DataType.Comma: {
+            case ParserEventType.Comma: {
                 switch (this.currentContext[0]) {
                     case "array": {
                         const $$ = this.currentContext[1]
@@ -222,16 +226,16 @@ class StrictJSONValidator implements IDataSubscriber {
                 }
                 break
             }
-            case DataType.LineComment: {
+            case ParserEventType.LineComment: {
                 this.onError("line comments are not allowed in strict JSON", data.range)
                 break
             }
-            case DataType.NewLine: {
+            case ParserEventType.NewLine: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case DataType.OpenArray: {
+            case ParserEventType.OpenArray: {
                 const $ = data.type[1]
                 if ($.openCharacter !== "[") {
                     this.onError("arrays should start with '[' in strict JSON", data.range)
@@ -240,7 +244,7 @@ class StrictJSONValidator implements IDataSubscriber {
                 this.push(["array", { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
                 break
             }
-            case DataType.OpenObject: {
+            case ParserEventType.OpenObject: {
                 const $ = data.type[1]
                 if ($.openCharacter !== "{") {
                     this.onError("objects should start with '{' in strict JSON", data.range)
@@ -250,7 +254,7 @@ class StrictJSONValidator implements IDataSubscriber {
 
                 break
             }
-            case DataType.SimpleValue: {
+            case ParserEventType.SimpleValue: {
                 const $ = data.type[1]
                 if ($.quote !== null) {
                     //a string
@@ -345,12 +349,12 @@ class StrictJSONValidator implements IDataSubscriber {
                 }
                 break
             }
-            case DataType.TaggedUnion: {
+            case ParserEventType.TaggedUnion: {
                 this.onError("tagged unions are not allowed in strict JSON", data.range)
                 this.push(["taggedunion", { state: TaggedUnionState.EXPECTING_OPTION }])
                 break
             }
-            case DataType.WhiteSpace: {
+            case ParserEventType.WhiteSpace: {
                 //const $ = data.type[1]
                 //place your code here
                 break
@@ -465,10 +469,10 @@ class StrictJSONValidator implements IDataSubscriber {
     }
 }
 
-export function createStrictJSONHeaderValidator(onError: OnError): HeaderSubscriber {
+export function createStrictJSONHeaderValidator(onError: OnError): HeaderConsumer {
     return new StrictJSONHeaderValidator(onError)
 }
 
-export function createStrictJSONValidator(onError: OnError): IDataSubscriber {
+export function createStrictJSONValidator(onError: OnError): IParserEventConsumer {
     return new StrictJSONValidator(onError)
 }

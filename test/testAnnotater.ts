@@ -1,10 +1,10 @@
 /* eslint
     no-console:"off",
 */
-import * as p20 from "pareto-20"
 import { JSONTests } from "./ownJSONTestset"
 import { createAnnotator } from "../examples/annotater"
 import * as bc from "../src"
+import { streamifyArray } from "../src/streamifyArray"
 
 const annotater = createAnnotator("", str => console.log(str))
 
@@ -13,22 +13,26 @@ Object.keys(JSONTests).forEach(testName => {
     const test = JSONTests[testName]
     const parser = bc.createParser(
         err => console.error(err),
-        [{
+        {
             onHeaderStart: () => {
-                return [annotater]
+                return annotater
             },
             onCompact: () => {
                 //
             },
             onHeaderEnd: () => {
-                return [annotater]
+                return annotater
             },
-        }],
+        },
     )
     createAnnotator("", str => console.log(str))
-    bc.tokenizeStream(
-        new p20.Stream(p20.streamifyArray([test.text], null)),
-        parser,
-        err => console.error(err),
+    streamifyArray(
+        [test.text],
+        null,
+        null,
+        bc.createTokenizer(
+            parser,
+            err => console.error(err),
+        )
     )
 })
