@@ -1,4 +1,4 @@
-export * from "./attachStictJSONValidator"
+export * from "./createStictJSONValidator"
 export * from "./createStackedDataSubscriber"
 export * from "./handlers"
 export * from "./dummyHandlers"

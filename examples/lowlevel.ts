@@ -17,85 +17,99 @@ if (path === undefined) {
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
 
-const parser = new bc.Parser(
+const parser = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
+    [
+        {
+            onHeaderStart: () => {
+                return []
+            },
+            onCompact: () => {
+                //
+            },
+            onHeaderEnd: () => {
+                return [
+                    {
+                        onData: data => {
+                            switch (data.type[0]) {
+                                case DataType.BlockComment: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.CloseArray: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.CloseObject: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.Colon: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.Comma: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.LineComment: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.NewLine: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.OpenArray: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.OpenObject: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.SimpleValue: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    //in strict JSON, the value is a string, a number, null, true or false
+                                    break
+                                }
+                                case DataType.TaggedUnion: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.WhiteSpace: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                default:
+                                    assertUnreachable(data.type[0])
+                            }
+                            return false
+                        },
+                        onEnd: () => {
+                            //place your code here
+                        },
+                    },
+                ]
+            },
+        },
+    ],
 )
-parser.ondata.subscribe({
-    onData: data => {
-        switch (data.type[0]) {
-            case DataType.BlockComment: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.CloseArray: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.CloseObject: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.Colon: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.Comma: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.LineComment: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.NewLine: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.OpenArray: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.OpenObject: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.SimpleValue: {
-                //const $ = data.type[1]
-                //place your code here
-                //in strict JSON, the value is a string, a number, null, true or false
-                break
-            }
-            case DataType.TaggedUnion: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.WhiteSpace: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            default:
-                assertUnreachable(data.type[0])
-        }
-        return false
-    },
-    onEnd: () => {
-        //place your code here
-    },
-})
 
 bc.tokenizeStream(
-    new p20.Stream( p20.streamifyArray([dataAsString], null)),
+    new p20.Stream(p20.streamifyArray([dataAsString], null)),
     parser,
     err => { console.error("FOUND TOKENIZER ERROR", err) },
 )

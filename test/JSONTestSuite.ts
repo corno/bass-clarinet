@@ -7,12 +7,12 @@ import * as bc from "../src"
 
 function tokenizeStrings(
     strings: string[],
-    parser: bc.Parser,
+    consumer: bc.ITokenStreamConsumer,
     onError: () => void,
 ) {
     bc.tokenizeStream(
         new p20.Stream(p20.streamifyArray(strings, null)),
-        parser,
+        consumer,
         onError
     )
 }
@@ -27,10 +27,11 @@ describe('parsing', () => {
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = new bc.Parser(
+                        const parser = bc.createParser(
                             () => {
                                 foundError = true
                             },
+                            [],
                         )
                         tokenizeStrings(
                             [data],
@@ -49,10 +50,11 @@ describe('parsing', () => {
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = new bc.Parser(
+                        const parser = bc.createParser(
                             () => {
                                 foundError = true
                             },
+                            [],
                         )
                         tokenizeStrings(
                             [data],
@@ -70,10 +72,11 @@ describe('parsing', () => {
                 case "i":
                     try {
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = new bc.Parser(
+                        const parser = bc.createParser(
                             () => {
                                 //do nothing with error
                             },
+                            [],
                         )
                         tokenizeStrings(
                             [data],
@@ -99,10 +102,11 @@ describe('transform', () => {
         it(file, () => {
             try {
                 const data = fs.readFileSync(path.join(transformDir, file), { encoding: "utf-8" })
-                const parser = new bc.Parser(
+                const parser = bc.createParser(
                     () => {
                         //do nothing with error
                     },
+                    [],
                 )
                 tokenizeStrings(
                     [data],

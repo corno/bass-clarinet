@@ -1,6 +1,7 @@
 import * as p20 from "pareto-20"
 import * as bc from "../src"
 import * as fs from "fs"
+import { IDataSubscriber } from "../src"
 
 const [, , path] = process.argv
 
@@ -65,7 +66,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
     }
 }
 
-export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writer: (str: string) => void): void {
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): IDataSubscriber {
     const datasubscriber = bc.createStackedDataSubscriber(
         {
             valueHandler: createValuesPrettyPrinter(indentation, writer),
@@ -80,16 +81,29 @@ export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writ
             //onEnd
         }
     )
-    parser.ondata.subscribe(datasubscriber)
-    parser.onschemadata.subscribe(datasubscriber)
+    return datasubscriber
 }
 
+const pp = createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
-const prsr = new bc.Parser(
+const prsr = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
+    [
+        {
+            onHeaderStart: () => {
+                return [pp]
+            },
+            onCompact: () => {
+                //
+            },
+            onHeaderEnd: () => {
+                return [pp]
+            },
+        },
+    ],
 )
 
-attachPrettyPrinter(prsr, "\r\n", str => process.stdout.write(str))
+createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
 bc.tokenizeStream(
     new p20.Stream(p20.streamifyArray([dataAsString], null)),

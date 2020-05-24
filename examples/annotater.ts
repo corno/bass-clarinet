@@ -1,4 +1,5 @@
 import * as bc from "../src"
+import { IDataSubscriber } from "../src"
 
 function createRequiredValuesAnnotater(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
     return {
@@ -54,7 +55,7 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
     }
 }
 
-export function attachAnnotator(parser: bc.Parser, indentation: string, writer: (str: string) => void): void {
+export function createAnnotator(indentation: string, writer: (str: string) => void): IDataSubscriber {
     const ds = bc.createStackedDataSubscriber(
         createRequiredValuesAnnotater(indentation, writer),
         error => {
@@ -64,6 +65,5 @@ export function attachAnnotator(parser: bc.Parser, indentation: string, writer: 
             //do nothing
         }
     )
-    parser.ondata.subscribe(ds)
-    parser.onschemadata.subscribe(ds)
+    return ds
 }

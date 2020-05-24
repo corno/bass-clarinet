@@ -129,7 +129,7 @@ export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writ
 }
 
 
-const prsr = new bc.Parser(
+const prsr = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
 )
 
@@ -157,7 +157,7 @@ if (path === undefined) {
 const data = fs.readFileSync(path, { encoding: "utf-8" })
 
 
-const parser = new bc.Parser(
+const parser = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
 )
 parser.ondata.subscribe({

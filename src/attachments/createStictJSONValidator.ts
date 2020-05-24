@@ -4,7 +4,7 @@
     max-classes-per-file: "off",
 */
 import { IDataSubscriber, Data, DataType } from "../IDataSubscriber"
-import { Parser, HeaderSubscriber } from "../Parser"
+import { HeaderSubscriber } from "../Parser"
 import { Range } from "../location"
 import * as Char from "./NumberCharacters"
 import { RangeError } from "../errors"
@@ -117,11 +117,15 @@ class StrictJSONHeaderValidator implements HeaderSubscriber {
     }
     onHeaderStart(range: Range) {
         this.onError(`headers are not allowed in strict JSON`, range)
+        return []
     }
     onCompact() {
         //
     }
     onHeaderEnd() {
+        return [
+            createStrictJSONValidator(this.onError),
+        ]
         //
     }
 }
@@ -461,7 +465,10 @@ class StrictJSONValidator implements IDataSubscriber {
     }
 }
 
-export function attachStrictJSONValidator(parser: Parser, onError: OnError): void {
-    parser.onheaderdata.subscribe(new StrictJSONHeaderValidator(onError))
-    parser.ondata.subscribe(new StrictJSONValidator(onError))
+export function createStrictJSONHeaderValidator(onError: OnError): HeaderSubscriber {
+    return new StrictJSONHeaderValidator(onError)
+}
+
+export function createStrictJSONValidator(onError: OnError): IDataSubscriber {
+    return new StrictJSONValidator(onError)
 }

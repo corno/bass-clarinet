@@ -3,16 +3,29 @@
 */
 import * as p20 from "pareto-20"
 import { JSONTests } from "./ownJSONTestset"
-import { attachAnnotator} from "../examples/annotater"
+import { createAnnotator } from "../examples/annotater"
 import * as bc from "../src"
+
+const annotater = createAnnotator("", str => console.log(str))
 
 Object.keys(JSONTests).forEach(testName => {
     console.log(">", testName)
     const test = JSONTests[testName]
-    const parser = new bc.Parser(
+    const parser = bc.createParser(
         err => console.error(err),
+        [{
+            onHeaderStart: () => {
+                return [annotater]
+            },
+            onCompact: () => {
+                //
+            },
+            onHeaderEnd: () => {
+                return [annotater]
+            },
+        }],
     )
-    attachAnnotator(parser, "", str => console.log(str))
+    createAnnotator("", str => console.log(str))
     bc.tokenizeStream(
         new p20.Stream(p20.streamifyArray([test.text], null)),
         parser,

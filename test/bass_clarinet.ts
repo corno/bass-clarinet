@@ -9,7 +9,7 @@ import * as chai from "chai"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, DataType } from "../src"
+import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, DataType, HeaderSubscriber, IDataSubscriber } from "../src"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -27,12 +27,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
     const expectedEvents = test.events
     return function () {
         if (DEBUG) console.log("CHUNKS:", chunks)
-        const parser = new bc.Parser(
-            (message, _range) => {
-                if (DEBUG) console.log("found error")
-                actualEvents.push(["parsererror", message])
-            }
-        )
 
         const actualEvents: EventDefinition[] = []
 
@@ -57,23 +51,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             } else {
                 return undefined
             }
-        }
-
-        if (test.testHeaders) {
-            parser.onheaderdata.subscribe({
-                onHeaderStart: _range => {
-                    if (DEBUG) console.log("found header start")
-                    actualEvents.push(["token", "headerstart"])
-                },
-                onHeaderEnd: () => {
-                    if (DEBUG) console.log("found header end")
-                    actualEvents.push(["headerend"])
-                },
-                onCompact: () => {
-                    if (DEBUG) console.log("found compact")
-                    actualEvents.push(["token", "compact"])
-                },
-            })
         }
 
         /*
@@ -163,26 +140,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     )
                 }
             },
-        }
-        parser.onschemadata.subscribe(outputter)
-        parser.onheaderdata.subscribe({
-            onHeaderStart: () => {
-                out.push("!")
-            },
-            onCompact: () => {
-                out.push("#")
-            },
-            onHeaderEnd: () => {
-                //
-            },
-        })
-        parser.ondata.subscribe(outputter)
-
-        if (strictJSON) {
-            bc.attachStrictJSONValidator(parser, (v, _range) => {
-                if (DEBUG) console.log("found JSON validation error", v)
-                actualEvents.push(["validationerror", v])
-            })
         }
 
         function createTestRequiredValueHandler(): RequiredValueHandler {
@@ -328,9 +285,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 }
             },
         }
-        parser.onschemadata.subscribe(eventSubscriber)
-        parser.ondata.subscribe(eventSubscriber)
-        parser.ondata.subscribe(stackedSubscriber)
 
         let formattedText = test.text
         let offset = 0
@@ -373,8 +327,74 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 )
             },
         )
-        parser.ondata.subscribe(formatter)
-        parser.onschemadata.subscribe(formatter)
+        const schemaDataSubscribers: IDataSubscriber[] = [
+            outputter,
+            eventSubscriber,
+            formatter,
+        ]
+        const instanceDataSubscribers: IDataSubscriber[] = [
+            outputter,
+            eventSubscriber,
+            stackedSubscriber,
+            formatter,
+        ]
+        const headerSubscribers: HeaderSubscriber[] = [
+            {
+                onHeaderStart: () => {
+                    out.push("!")
+                    return []
+                },
+                onCompact: () => {
+                    out.push("#")
+                },
+                onHeaderEnd: () => {
+                    return []
+                },
+            },
+            {
+                onHeaderStart: () => {
+                    return schemaDataSubscribers
+                },
+                onCompact: () => {
+                    //
+                },
+                onHeaderEnd: () => {
+                    return instanceDataSubscribers
+                },
+            },
+        ]
+
+        if (test.testHeaders) {
+            headerSubscribers.push({
+                onHeaderStart: _range => {
+                    if (DEBUG) console.log("found header start")
+                    actualEvents.push(["token", "headerstart"])
+                    return []
+                },
+                onHeaderEnd: () => {
+                    if (DEBUG) console.log("found header end")
+                    actualEvents.push(["headerend"])
+                    return []
+                },
+                onCompact: () => {
+                    if (DEBUG) console.log("found compact")
+                    actualEvents.push(["token", "compact"])
+                },
+            })
+        }
+        if (strictJSON) {
+            headerSubscribers.push(bc.createStrictJSONHeaderValidator((v, _range) => {
+                if (DEBUG) console.log("found JSON validation error", v)
+                actualEvents.push(["validationerror", v])
+            }))
+        }
+        const parser = bc.createParser(
+            (message, _range) => {
+                if (DEBUG) console.log("found error")
+                actualEvents.push(["parsererror", message])
+            },
+            headerSubscribers,
+        )
 
         bc.tokenizeStream(
             new p20.Stream(p20.streamifyArray(chunks, null)),

@@ -9,8 +9,81 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-const parser = new bc.Parser(
+const parser = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
+    [
+        {
+            onHeaderStart: () => {
+                return []
+            },
+            onCompact: () => {
+                //
+            },
+            onHeaderEnd: () => {
+                return [
+                    {
+                        onData: data => {
+                            switch (data.type[0]) {
+                                case DataType.BlockComment: {
+                                    //const $ = data.type[1]
+                                    //place your code here
+                                    break
+                                }
+                                case DataType.CloseArray: {
+                                    break
+                                }
+                                case DataType.CloseObject: {
+                                    break
+                                }
+                                case DataType.Colon: {
+                                    console.log("COLON")
+                                    break
+                                }
+                                case DataType.Comma: {
+                                    console.log("COMMA")
+                                    break
+                                }
+                                case DataType.LineComment: {
+                                    break
+                                }
+                                case DataType.NewLine: {
+                                    break
+                                }
+                                case DataType.OpenArray: {
+                                    break
+                                }
+                                case DataType.OpenObject: {
+                                    break
+                                }
+                                case DataType.SimpleValue: {
+                                    break
+                                }
+                                case DataType.TaggedUnion: {
+                                    break
+                                }
+                                case DataType.WhiteSpace: {
+                                    break
+                                }
+                                default:
+                                    assertUnreachable(data.type[0])
+                            }
+                            return p20.wrapSafeFunction(onResult => {
+                                setInterval(
+                                    () => {
+                                        onResult(false)
+                                    },
+                                    1
+                                )
+                            })
+                        },
+                        onEnd: () => {
+                            console.log("Reached end")
+                        },
+                    },
+                ]
+            },
+        },
+    ],
 )
 
 //let counter = 0
@@ -27,66 +100,6 @@ const parser = new bc.Parser(
 //         counter -= 1
 //     }, 500)
 // }
-
-parser.ondata.subscribe({
-    onData: data => {
-        switch (data.type[0]) {
-            case DataType.BlockComment: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case DataType.CloseArray: {
-                break
-            }
-            case DataType.CloseObject: {
-                break
-            }
-            case DataType.Colon: {
-                console.log("COLON")
-                break
-            }
-            case DataType.Comma: {
-                console.log("COMMA")
-                break
-            }
-            case DataType.LineComment: {
-                break
-            }
-            case DataType.NewLine: {
-                break
-            }
-            case DataType.OpenArray: {
-                break
-            }
-            case DataType.OpenObject: {
-                break
-            }
-            case DataType.SimpleValue: {
-                break
-            }
-            case DataType.TaggedUnion: {
-                break
-            }
-            case DataType.WhiteSpace: {
-                break
-            }
-            default:
-                assertUnreachable(data.type[0])
-        }
-        return p20.wrapSafeFunction(onResult => {
-            setInterval(
-                () => {
-                    onResult(false)
-                },
-                1
-            )
-        })
-    },
-    onEnd: () => {
-        console.log("Reached end")
-    },
-})
 
 const chunks = [
     `[

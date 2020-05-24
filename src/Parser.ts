@@ -73,16 +73,16 @@ function getContextDescription(stackContext: StackContext): string {
 export type DataSubscription = subscr.Subscribers<IDataSubscriber>
 
 export interface HeaderSubscriber {
-    onHeaderStart(range: Range): void
+    onHeaderStart(range: Range): IDataSubscriber[]
     onCompact(range: Range): void
-    onHeaderEnd(range: Range): void
+    onHeaderEnd(range: Range): IDataSubscriber[]
 }
 
-export class Parser implements ITokenStreamConsumer {
+class Parser implements ITokenStreamConsumer {
     public readonly stack = new Array<StackContext>()
-    public readonly onschemadata = new subscr.Subscribers<IDataSubscriber>()
-    public readonly ondata = new subscr.Subscribers<IDataSubscriber>()
-    public readonly onheaderdata = new subscr.Subscribers<HeaderSubscriber>()
+    public readonly onSchemaData = new subscr.Subscribers<IDataSubscriber>()
+    public readonly onInstanceData = new subscr.Subscribers<IDataSubscriber>()
+    public readonly onHeaderData = new subscr.Subscribers<HeaderSubscriber>()
     private currentContext: StackContext
     private oncurrentdata: subscr.Subscribers<IDataSubscriber>
     private currentToken: CurrentToken = [TokenType.NONE]
@@ -91,7 +91,7 @@ export class Parser implements ITokenStreamConsumer {
 
     constructor(onerror: (message: string, range: Range) => void) {
         this.onerror = onerror
-        this.oncurrentdata = this.ondata
+        this.oncurrentdata = this.onInstanceData
         this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
     }
     public onData(data: TokenStreamConsumerData): OnDataReturnValue {
@@ -283,7 +283,7 @@ export class Parser implements ITokenStreamConsumer {
                             }
                             case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                                 $$.state = RootState.EXPECTING_SCHEMA
-                                this.oncurrentdata = this.onschemadata
+                                this.oncurrentdata = this.onSchemaData
                                 break
                             default:
                                 return assertUnreachable($$.state)
@@ -297,7 +297,12 @@ export class Parser implements ITokenStreamConsumer {
                     default:
                         return assertUnreachable($[0])
                 }
-                this.onheaderdata.signal(s => s.onHeaderStart(range))
+                this.onHeaderData.signal(s => {
+                    const schemaDataSubscribers = s.onHeaderStart(range)
+                    schemaDataSubscribers.forEach(sds => {
+                        this.onSchemaData.subscribe(sds)
+                    })
+                })
                 return false
             case Char.Punctuation.hash:
                 switch ($[0]) {
@@ -320,7 +325,7 @@ export class Parser implements ITokenStreamConsumer {
                                 break
                             }
                             case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                                this.oncurrentdata = this.ondata
+                                this.oncurrentdata = this.onInstanceData
                                 $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
                                 break
                             }
@@ -347,7 +352,7 @@ export class Parser implements ITokenStreamConsumer {
                     default:
                         return assertUnreachable($[0])
                 }
-                this.onheaderdata.signal(s => s.onCompact(range))
+                this.onHeaderData.signal(s => s.onCompact(range))
                 this.onHeaderEnd(range)
                 return false
             case Char.Punctuation.closeAngleBracket:
@@ -840,8 +845,13 @@ export class Parser implements ITokenStreamConsumer {
         this.currentToken = [TokenType.NONE]
     }
     private onHeaderEnd(range: Range) {
-        this.oncurrentdata = this.ondata
-        this.onheaderdata.signal(s => s.onHeaderEnd(range))
+        this.oncurrentdata = this.onInstanceData
+        this.onHeaderData.signal(s => {
+            const instanceDataSubscribers = s.onHeaderEnd(range)
+            instanceDataSubscribers.forEach(sds => {
+                this.onSchemaData.subscribe(sds)
+            })
+        })
     }
     private wrapupBeforeValue(range: Range) {
         const $ = this.currentContext
@@ -944,4 +954,15 @@ export class Parser implements ITokenStreamConsumer {
             this.wrapupAfterValue(range)
         }
     }
+}
+
+export function createParser(
+    onerror: (message: string, range: Range) => void,
+    headerSubscribers: HeaderSubscriber[],
+): ITokenStreamConsumer {
+    const p = new Parser(onerror)
+    headerSubscribers.forEach(s => {
+        p.onHeaderData.subscribe(s)
+    })
+    return p
 }
