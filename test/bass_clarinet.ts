@@ -2,6 +2,7 @@
     no-console:"off",
     complexity: "off",
 */
+import * as p from "pareto"
 import * as bc from "../src"
 import { describe } from "mocha"
 import * as chai from "chai"
@@ -129,7 +130,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     default:
                         assertUnreachable(data.type[0])
                 }
-                return false
+                return p.result(false)
             },
             //do the check
             onEnd: () => {
@@ -276,7 +277,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     default:
                         assertUnreachable(data.type[0])
                 }
-                return false
+                return p.result(false)
             },
             onEnd: (_aborted, location) => {
                 if (DEBUG) console.log("found end")

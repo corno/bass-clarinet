@@ -20,7 +20,9 @@ export enum TaggedUnionState {
 
 export type StackContext =
     | [StackContextType.ROOT, RootContext]
-    | [StackContextType.ARRAY, {}]
+    | [StackContextType.ARRAY, {
+        //
+    }]
     | [StackContextType.OBJECT, ObjectContext]
     | [StackContextType.TAGGED_UNION, TaggedUnionContext]
 

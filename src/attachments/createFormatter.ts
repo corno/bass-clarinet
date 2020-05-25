@@ -1,6 +1,7 @@
 /*eslint
 	complexity: off
 */
+import * as p from "pareto"
 import { Range, Location } from "../location"
 import { IParserEventConsumer, ParserEventType } from "../IParserEventConsumer"
 
@@ -368,7 +369,7 @@ export function createFormatter(
 				default:
 					assertUnreachable(data.type[0])
 			}
-			return false
+			return p.result(false)
 		},
 		onEnd: () => {
 			if (precedingWhitespace !== null) {

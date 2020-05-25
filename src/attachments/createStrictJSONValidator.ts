@@ -3,6 +3,7 @@
     no-underscore-dangle:"off",
     max-classes-per-file: "off",
 */
+import * as p from "pareto"
 import { IParserEventConsumer, ParserEvent, ParserEventType } from "../IParserEventConsumer"
 import { HeaderConsumer } from "../createParser"
 import { Range } from "../location"
@@ -119,7 +120,7 @@ class StrictJSONHeaderValidator implements HeaderConsumer {
         this.onError(`headers are not allowed in strict JSON`, range)
         return {
             onData: () => {
-                return false
+                return p.result(false)
             },
             onEnd: () => {
                 //
@@ -362,7 +363,7 @@ class StrictJSONValidator implements IParserEventConsumer {
             default:
                 assertUnreachable(data.type[0])
         }
-        return false
+        return p.result(false)
     }
     public onEnd() {
         //

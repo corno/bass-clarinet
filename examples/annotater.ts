@@ -1,5 +1,4 @@
 import * as bc from "../src"
-import { IParserEventConsumer } from "../src"
 
 function createRequiredValuesAnnotater(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
     return {
@@ -55,7 +54,7 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
     }
 }
 
-export function createAnnotator(indentation: string, writer: (str: string) => void): IParserEventConsumer {
+export function createAnnotator(indentation: string, writer: (str: string) => void): bc.IParserEventConsumer {
     const ds = bc.createStackedDataSubscriber(
         createRequiredValuesAnnotater(indentation, writer),
         error => {

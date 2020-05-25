@@ -1,7 +1,7 @@
 import * as bc from "../src"
+import * as p from "pareto"
+import * as p20 from "../src/streamifyArray"
 import * as fs from "fs"
-import { ParserEventType, IParserEventConsumer } from "../src"
-import { streamifyArray } from "../src/streamifyArray"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -16,66 +16,66 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: IParserEventConsumer = {
+export const parserEventConsumer: bc.IParserEventConsumer = {
     onData: data => {
         switch (data.type[0]) {
-            case ParserEventType.BlockComment: {
+            case bc.ParserEventType.BlockComment: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case ParserEventType.CloseArray: {
+            case bc.ParserEventType.CloseArray: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case ParserEventType.CloseObject: {
+            case bc.ParserEventType.CloseObject: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case ParserEventType.Colon: {
+            case bc.ParserEventType.Colon: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case ParserEventType.Comma: {
+            case bc.ParserEventType.Comma: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case ParserEventType.LineComment: {
+            case bc.ParserEventType.LineComment: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case ParserEventType.NewLine: {
+            case bc.ParserEventType.NewLine: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case ParserEventType.OpenArray: {
+            case bc.ParserEventType.OpenArray: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case ParserEventType.OpenObject: {
+            case bc.ParserEventType.OpenObject: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case ParserEventType.SimpleValue: {
+            case bc.ParserEventType.SimpleValue: {
                 //const $ = data.type[1]
                 //place your code here
                 //in strict JSON, the value is a string, a number, null, true or false
                 break
             }
-            case ParserEventType.TaggedUnion: {
+            case bc.ParserEventType.TaggedUnion: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case ParserEventType.WhiteSpace: {
+            case bc.ParserEventType.WhiteSpace: {
                 //const $ = data.type[1]
                 //place your code here
                 break
@@ -83,7 +83,7 @@ export const parserEventConsumer: IParserEventConsumer = {
             default:
                 assertUnreachable(data.type[0])
         }
-        return false
+        return p.result(false)
     },
     onEnd: () => {
         //place your code here
@@ -104,7 +104,7 @@ const parser = bc.createParser(
     },
 )
 
-streamifyArray(
+p20.streamifyArray(
     [dataAsString],
     null,
     null,

@@ -6,7 +6,7 @@
 */
 import * as p from "pareto"
 import * as Char from "./Characters"
-import { ITokenStreamConsumer, TokenStreamConsumerData, TokenStreamConsumerDataType } from "./ITokenStreamConsumer"
+import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
 import {
     RootState,
     ObjectState,
@@ -24,6 +24,7 @@ import { Location, Range, printRange } from "./location"
 import { RangeError } from "./errors"
 import { IParserEventConsumer, ParserEventType, ParserEvent } from "./IParserEventConsumer"
 import { OnDataReturnValue } from "./IStreamConsumer"
+import { TokenDataType, TokenData } from "./TokenData"
 
 const DEBUG = false
 
@@ -93,57 +94,57 @@ class Parser implements ITokenStreamConsumer {
         this.onerror = onerror
         this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
     }
-    public onData(data: TokenStreamConsumerData): OnDataReturnValue {
+    public onData(data: TokenData): OnDataReturnValue {
         switch (data.type[0]) {
-            case TokenStreamConsumerDataType.BlockCommentBegin: {
+            case TokenDataType.BlockCommentBegin: {
                 const $ = data.type[1]
                 return this.onBlockCommentBegin($.range)
             }
-            case TokenStreamConsumerDataType.BlockCommentEnd: {
+            case TokenDataType.BlockCommentEnd: {
                 const $ = data.type[1]
                 return this.onBlockCommentEnd($.range)
             }
-            case TokenStreamConsumerDataType.LineCommentBegin: {
+            case TokenDataType.LineCommentBegin: {
                 const $ = data.type[1]
                 return this.onLineCommentBegin($.range)
             }
-            case TokenStreamConsumerDataType.LineCommentEnd: {
+            case TokenDataType.LineCommentEnd: {
                 const $ = data.type[1]
                 return this.onLineCommentEnd($.location)
             }
-            case TokenStreamConsumerDataType.NewLine: {
+            case TokenDataType.NewLine: {
                 const $ = data.type[1]
                 return this.onNewLine($.range)
             }
-            case TokenStreamConsumerDataType.Punctuation: {
+            case TokenDataType.Punctuation: {
                 const $ = data.type[1]
                 return this.onPunctuation($.char, $.range)
             }
-            case TokenStreamConsumerDataType.Snippet: {
+            case TokenDataType.Snippet: {
                 const $ = data.type[1]
                 return this.onSnippet($.chunk, $.begin, $.end)
             }
-            case TokenStreamConsumerDataType.QuotedStringBegin: {
+            case TokenDataType.QuotedStringBegin: {
                 const $ = data.type[1]
                 return this.onQuotedStringBegin($.range, $.quote)
             }
-            case TokenStreamConsumerDataType.QuotedStringEnd: {
+            case TokenDataType.QuotedStringEnd: {
                 const $ = data.type[1]
                 return this.onQuotedStringEnd($.range, $.quote)
             }
-            case TokenStreamConsumerDataType.UnquotedTokenBegin: {
+            case TokenDataType.UnquotedTokenBegin: {
                 const $ = data.type[1]
                 return this.onUnquotedTokenBegin($.location)
             }
-            case TokenStreamConsumerDataType.UnquotedTokenEnd: {
+            case TokenDataType.UnquotedTokenEnd: {
                 const $ = data.type[1]
                 return this.onUnquotedTokenEnd($.location)
             }
-            case TokenStreamConsumerDataType.WhiteSpaceBegin: {
+            case TokenDataType.WhiteSpaceBegin: {
                 const $ = data.type[1]
                 return this.onWhitespaceBegin($.location)
             }
-            case TokenStreamConsumerDataType.WhiteSpaceEnd: {
+            case TokenDataType.WhiteSpaceEnd: {
                 const $ = data.type[1]
                 return this.onWhitespaceEnd($.location)
             }
@@ -299,7 +300,7 @@ class Parser implements ITokenStreamConsumer {
                         return assertUnreachable($[0])
                 }
                 this.parserEventsConsumer = this.headerConsumer.onHeaderStart(range)
-                return false
+                return p.result(false)
             case Char.Punctuation.hash:
                 switch ($[0]) {
                     case StackContextType.ARRAY: {
@@ -349,7 +350,7 @@ class Parser implements ITokenStreamConsumer {
                 }
                 this.headerConsumer.onCompact(range)
                 this.onHeaderEnd(range)
-                return false
+                return p.result(false)
             case Char.Punctuation.closeAngleBracket:
                 return this.onArrayClose(curChar, range)
             case Char.Punctuation.closeBracket:
@@ -390,7 +391,7 @@ class Parser implements ITokenStreamConsumer {
                 })
             default:
                 this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
-                return false
+                return p.result(false)
         }
     }
     public onSnippet(chunk: string, begin: number, end: number): OnDataReturnValue {
@@ -428,7 +429,7 @@ class Parser implements ITokenStreamConsumer {
             default:
                 assertUnreachable(this.currentToken[0])
         }
-        return false
+        return p.result(false)
     }
     public onNewLine(range: Range): OnDataReturnValue {
         if (DEBUG) console.log(`onNewLine`)
@@ -454,7 +455,7 @@ class Parser implements ITokenStreamConsumer {
         )
 
         this.indentationState = [IndentationState.lineIsDitry]
-        return false
+        return p.result(false)
     }
     public onLineCommentEnd(location: Location): OnDataReturnValue {
         if (DEBUG) console.log(`onLineCommentEnd`)
@@ -510,33 +511,15 @@ class Parser implements ITokenStreamConsumer {
         }], range)
 
         this.indentationState = [IndentationState.lineIsDitry]
-        return false
+        return p.result(false)
     }
     private tempOnData(data: ParserEvent): OnDataReturnValue {
-        let abortRequested = false
-        const promises: p.ISafePromise<boolean>[] = []
         if (this.parserEventsConsumer === undefined) {
             console.error("dropping token, no events consumer")
             //throw new Error("unexpected missing parser event consumer")
-            return false
+            return p.result(false)
         } else {
-            const onDataReturnValue = this.parserEventsConsumer.onData(data)
-            if (typeof onDataReturnValue === "boolean") {
-                if (onDataReturnValue === true) {
-                    abortRequested = true
-                }
-            } else {
-                promises.push(onDataReturnValue)
-            }
-            if (promises.length === 0) {
-                return abortRequested
-            }
-            return p.mergeArrayOfSafePromises(promises).mapResult(results => {
-                if (abortRequested) {
-                    return p.result(true)
-                }
-                return p.result(results.includes(true))//if 1 promise requested an abort
-            })
+            return this.parserEventsConsumer.onData(data)
         }
     }
     public onBlockCommentEnd(end: Range): OnDataReturnValue {
@@ -577,7 +560,7 @@ class Parser implements ITokenStreamConsumer {
         this.indentationState = [IndentationState.lineIsDitry]
 
         this.setCurrentToken([TokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], { start: location, end: location })
-        return false
+        return p.result(false)
     }
     public onUnquotedTokenEnd(location: Location): OnDataReturnValue {
         if (DEBUG) console.log(`onUnquotedTokenEnd`)
@@ -614,7 +597,7 @@ class Parser implements ITokenStreamConsumer {
             this.indentationState = [IndentationState.foundIndentation, $]
         }
         this.setCurrentToken([TokenType.WHITESPACE, $], { start: location, end: location })
-        return false
+        return p.result(false)
     }
     public onWhitespaceEnd(location: Location): OnDataReturnValue {
         if (DEBUG) console.log(`onWhitespaceEnd`)
@@ -640,7 +623,7 @@ class Parser implements ITokenStreamConsumer {
     public onQuotedStringBegin(begin: Range, quote: string): OnDataReturnValue {
         if (DEBUG) console.log(`onQuotedStringBegin`)
         this.setCurrentToken([TokenType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
-        return false
+        return p.result(false)
     }
 
     public onQuotedStringEnd(end: Range, quote: string | null): OnDataReturnValue {

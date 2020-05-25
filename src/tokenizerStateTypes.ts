@@ -1,39 +1,39 @@
 import { Location } from "./location"
 
 export enum TokenType {
-    COMMENT,
+    BLOCK_COMMENT,
+    LINE_COMMENT,
     QUOTED_STRING,
     UNQUOTED_TOKEN,
     WHITESPACE,
-    NEWLINE,
+    NONE,
 }
 
 export type CurrentToken =
-    | [TokenType.COMMENT, CommentContext]
-    | [TokenType.NEWLINE, NewLineContext]
+    | [TokenType.BLOCK_COMMENT, BlockCommentContext]
+    | [TokenType.LINE_COMMENT]
+    | [TokenType.NONE, NoneContext]
     | [TokenType.UNQUOTED_TOKEN]
     | [TokenType.QUOTED_STRING, StringContext]
     | [TokenType.WHITESPACE]
 
-export type CommentContextState =
-    | [CommentState.BLOCK_COMMENT, {
-        foundAsterisk: null | Location
-    }]
-    | [CommentState.FOUND_SOLIDUS, { start: Location }]
-    | [CommentState.LINE_COMMENT]
+export type BlockCommentContext = {
+    foundAsterisk: null | Location
+}
 
-export enum FoundNewLineCharacter {
+export enum FoundCharacterType {
+    SOLIDUS,
     CARRIAGE_RETURN,
     LINE_FEED,
 }
 
-export type NewLineContext = {
-    foundNewLineCharacter: FoundNewLineCharacter
+export type FoundCharacter = {
+    type: FoundCharacterType
     startLocation: Location
 }
 
-export type CommentContext = {
-    state: CommentContextState
+export type NoneContext = {
+    foundCharacter: FoundCharacter | null
 }
 
 export type Unicode = {
@@ -45,15 +45,4 @@ export type StringContext = {
     slashed: boolean
     readonly startCharacter: number
     unicode: null | Unicode
-}
-
-export enum CommentState {
-    FOUND_SOLIDUS,
-    LINE_COMMENT,
-    BLOCK_COMMENT
-}
-
-export enum SimpleValueType {
-    QUOTED_STRING,
-    UNQUOTED_STRING,
 }

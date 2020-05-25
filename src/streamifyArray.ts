@@ -9,15 +9,14 @@ export function streamifyArray<DataType, EndDataType>(
 ): void {
     const streamFunction = p20.streamifyArray(
         array,
-        endData,
     )
     streamFunction(
         limiter,
         data => {
             return streamConsumer.onData(data)
         },
-        (aborted, endData2) => {
-            return streamConsumer.onEnd(aborted, endData2)
+        aborted => {
+            return streamConsumer.onEnd(aborted, endData)
         }
     )
 }

@@ -1,6 +1,6 @@
 import * as p from "pareto"
 
-export type OnDataReturnValue = boolean | p.ISafePromise<boolean>
+export type OnDataReturnValue = p.DataOrPromise<boolean>
 
 export interface IStreamConsumer<DataType, EndDataType> {
     onData(data: DataType): OnDataReturnValue

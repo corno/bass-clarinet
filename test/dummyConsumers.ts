@@ -1,8 +1,9 @@
+import * as p from "pareto"
 import { IParserEventConsumer, HeaderConsumer } from "../src"
 
 export const dummyParserEventConsumer: IParserEventConsumer = {
     onData: () => {
-        return false
+        return p.result(false)
     },
     onEnd: () => {
         //

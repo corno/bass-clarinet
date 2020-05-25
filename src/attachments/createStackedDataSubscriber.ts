@@ -3,6 +3,7 @@
     no-underscore-dangle: "off",
     complexity: off,
 */
+import * as p from "pareto"
 import { IParserEventConsumer, ParserEvent, ParserEventType } from "../IParserEventConsumer"
 import { Location, Range } from "../location"
 import { createDummyValueHandler } from "./dummyHandlers"
@@ -455,12 +456,11 @@ export function createStackedDataSubscriber(
                 default:
                     assertUnreachable(data.type[0])
             }
-            return false
+            return p.result(false)
         },
         onEnd: (aborted: boolean, location: Location): void => {
             const range = { start: location, end: location }
-            unfoldLoop:
-            while (true) {
+            unwindLoop: while (true) {
                 function popStack() {
                     const popped = stack.pop()
                     if (popped === undefined) {
@@ -476,7 +476,7 @@ export function createStackedDataSubscriber(
                             $.rootValueHandler.onMissing()
                             $.rootValueHandler = null
                         }
-                        break unfoldLoop
+                        break unwindLoop
                     }
                     case "array": {
                         raiseError(onError, "unexpected end of document, still in array", range)
