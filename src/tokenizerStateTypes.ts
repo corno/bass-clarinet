@@ -18,7 +18,7 @@ export type CurrentToken =
     | [TokenType.WHITESPACE]
 
 export type BlockCommentContext = {
-    foundAsterisk: null | Location
+    locationOfFoundAsterisk: null | Location
 }
 
 export enum FoundCharacterType {

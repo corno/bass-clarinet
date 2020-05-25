@@ -153,6 +153,7 @@ class Parser implements ITokenStreamConsumer {
         }
     }
     public onEnd(aborted: boolean, location: Location): void {
+
         const range = { start: location, end: location }
         unwindLoop: while (true) {
             switch (this.currentContext[0]) {

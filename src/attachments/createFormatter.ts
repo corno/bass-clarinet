@@ -53,7 +53,7 @@ export function createFormatter(
 		location: Location,
 		newValue: string,
 	) => void,
-	onDone: () => void,
+	onEnd: () => void,
 ): IParserEventConsumer {
 	let precedingWhitespace: null | TokenInfo = null
 
@@ -372,10 +372,11 @@ export function createFormatter(
 			return p.result(false)
 		},
 		onEnd: () => {
+
 			if (precedingWhitespace !== null) {
 				del(precedingWhitespace.range)
 			}
-			onDone()
+			onEnd()
 		},
 	}
 	return ds

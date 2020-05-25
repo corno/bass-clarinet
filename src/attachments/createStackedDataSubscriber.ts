@@ -458,7 +458,7 @@ export function createStackedDataSubscriber(
             }
             return p.result(false)
         },
-        onEnd: (aborted: boolean, location: Location): void => {
+        onEnd: (_aborted: boolean, location: Location): void => {
             const range = { start: location, end: location }
             unwindLoop: while (true) {
                 function popStack() {

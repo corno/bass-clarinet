@@ -22,7 +22,7 @@ const DEBUG = false
 const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
 
-// const selectedJSONTests: string[] = ["newline"]
+// const selectedJSONTests: string[] = ["string chunk span"]
 // const selectedExtensionTests: string[] = []
 
 function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: boolean) {

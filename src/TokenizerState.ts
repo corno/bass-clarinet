@@ -42,7 +42,7 @@ function getStateDescription(stackContext: CurrentToken | null): string {
 export class Chunk {
     public currentIndex: number
     public str: string
-    constructor(str: string){
+    constructor(str: string) {
         this.str = str
         this.currentIndex = -1
     }
@@ -53,7 +53,6 @@ export class Chunk {
 }
 
 export class TokenizerState {
-    public atEnd = false
     private readonly location = {
         position: -1,
         column: 0,
@@ -113,9 +112,7 @@ export class TokenizerState {
         //         this.index
         //     )
         // }
-        if (cc === null) {
-            this.atEnd = true
-        } else {
+        if (cc !== null) {
             this.location.position++
             //set the position
             switch (cc) {
@@ -135,7 +132,7 @@ export class TokenizerState {
         }
         chunk.currentIndex++
     }
-    public handleDanglingToken (): TokenData | null {
+    public handleDanglingToken(): TokenData | null {
         const ct = this.currentTokenType
         switch (ct[0]) {
             case TokenType.BLOCK_COMMENT: {
@@ -260,50 +257,48 @@ export class TokenizerState {
 
                     if (nextChar === null) {
                         //end of the chunk
-                        //store it and wait for more input
+                        //flush it and wait for more input
                         if (snippetStart !== null) {
-                            const ss = snippetStart
-                            return onSnippet2(currentChunk.str, ss, currentChunk.currentIndex)
+                            return onSnippet2(currentChunk.str, snippetStart, currentChunk.currentIndex + 1)
                         }
                         return null
                     }
 
-                    //whatever character is next, it is part of the block comment, so consume it
-
-                    this.consumeNextChar(currentChunk)
-
-                    if (snippetStart === null) {
-                        snippetStart = currentChunk.currentIndex
-                    }
-                    if ($$.foundAsterisk === null) {
-                        if (nextChar === Char.Comment.asterisk) {
-                            $$.foundAsterisk = this.getCurrentLocation()
-                            //possible end of comment
-
-                            //is this needed?
-                            if (snippetStart !== null) {
-                                const ss = snippetStart
-                                snippetStart = null
-                                return onSnippet2(currentChunk.str, ss, currentChunk.currentIndex)
-                            }
-                        }
-                    } else {
+                    if ($$.locationOfFoundAsterisk !== null) {
                         if (nextChar === Char.Comment.solidus) {
                             //end of block comment
+                            this.consumeNextChar(currentChunk)
                             this.setCurrentTokenType([TokenType.NONE, { foundCharacter: null }])
                             return {
                                 type: [TokenDataType.BlockCommentEnd, {
-                                    range: { start: $$.foundAsterisk, end: this.getNextLocation() },
+                                    range: { start: $$.locationOfFoundAsterisk, end: this.getNextLocation() },
                                 }],
                             }
                         } else {
                             //false alarm, not the end of the comment
 
+                            //don't consume next token yet
+                            $$.locationOfFoundAsterisk = null
+                            return onSnippet2("*", 0, 1)
+                        }
+                    } else {
+
+                        if (nextChar === Char.Comment.asterisk) {
+                            this.consumeNextChar(currentChunk)
+
+                            $$.locationOfFoundAsterisk = this.getCurrentLocation()
+                            //possible end of comment
+
+                            if (snippetStart !== null) {
+                                return onSnippet2(currentChunk.str, snippetStart, currentChunk.currentIndex)
+                            }
+                        } else {
+                            this.consumeNextChar(currentChunk)
+
                             if (snippetStart === null) {
                                 snippetStart = currentChunk.currentIndex
                             }
-                            $$.foundAsterisk = null
-                            return onSnippet2("*", 0, 1)
+
                         }
 
                     }
@@ -487,7 +482,7 @@ export class TokenizerState {
                                 } else if (nextChar === Char.Comment.asterisk) {
                                     this.consumeNextChar(currentChunk)
 
-                                    this.setCurrentTokenType([TokenType.BLOCK_COMMENT, { foundAsterisk: null }])
+                                    this.setCurrentTokenType([TokenType.BLOCK_COMMENT, { locationOfFoundAsterisk: null }])
                                     return {
                                         type: [TokenDataType.BlockCommentBegin, {
                                             range: { start: $.foundCharacter.startLocation, end: this.getNextLocation() },
@@ -528,19 +523,19 @@ export class TokenizerState {
 
                     if (nextChar === null) {
                         //end of the chunk
-                        //store it and wait for more input
 
                         if (snippetStart !== null) {
-                            return onSnippet2(currentChunk.str, snippetStart, currentChunk.currentIndex)
+                            return onSnippet2(currentChunk.str, snippetStart, currentChunk.currentIndex + 1)
                         }
                         return null
                     }
                     if ($.slashed) {
                         const flushChar = (str: string) => {
+                            this.consumeNextChar(currentChunk)
+                            $.slashed = false
                             return onSnippet2(str, 0, str.length)
                         }
 
-                        this.consumeNextChar(currentChunk)
                         if (nextChar === Char.QuotedString.quotationMark) { return flushChar('\"') }
                         else if (nextChar === Char.QuotedString.apostrophe) { return flushChar('\'') } //deviation from the JSON standard
                         else if (nextChar === Char.QuotedString.reverseSolidus) { return flushChar('\\') }
@@ -552,6 +547,8 @@ export class TokenizerState {
                         else if (nextChar === Char.QuotedString.t) { return flushChar('\t') }
                         else if (nextChar === Char.QuotedString.u) {
                             // \uxxxx
+                            $.slashed = false
+                            this.consumeNextChar(currentChunk)
                             $.unicode = {
                                 charactersLeft: 4,
                                 foundCharacters: "",
@@ -559,12 +556,13 @@ export class TokenizerState {
                         }
                         else {
                             //no special character
+                            this.consumeNextChar(currentChunk)
+
                             this.raiseError(
                                 `expected special character after escape slash, but found ${String.fromCharCode(nextChar)}`,
                                 { start: this.getCurrentLocation(), end: this.getNextLocation() }
                             )
                         }
-                        $.slashed = false
 
                     } else if ($.unicode !== null) {
 
@@ -578,12 +576,11 @@ export class TokenizerState {
 
                         }
                     } else {
-
                         //not slashed, not unicode
                         if (nextChar === Char.QuotedString.reverseSolidus) {//backslash
 
-                            this.consumeNextChar(currentChunk)
                             $.slashed = true
+                            this.consumeNextChar(currentChunk)
                             if (snippetStart !== null) {
                                 return onSnippet2(currentChunk.str, snippetStart, currentChunk.currentIndex)
                             }
@@ -592,10 +589,12 @@ export class TokenizerState {
                              * THE QUOTED STRING IS FINISHED
                              */
 
-                            this.consumeNextChar(currentChunk)
                             if (snippetStart !== null) {
-                                return onSnippet2(currentChunk.str, snippetStart, currentChunk.currentIndex)
+                                return onSnippet2(currentChunk.str, snippetStart, currentChunk.currentIndex + 1)
                             }
+
+                            this.consumeNextChar(currentChunk)
+
                             const rangeInfo = {
                                 start: this.getCurrentLocation(),
                                 end: this.getNextLocation(),
