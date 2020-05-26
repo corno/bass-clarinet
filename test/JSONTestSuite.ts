@@ -2,9 +2,9 @@ import * as fs from "fs"
 import { describe } from "mocha"
 import assert from "assert"
 import * as path from "path"
+import * as p20 from "pareto-20"
 import * as bc from "../src"
 import { dummyHeaderConsumer } from "./dummyConsumers"
-import { streamifyArray } from "../src/streamifyArray"
 
 function tokenizeStrings(
     strings: string[],
@@ -12,7 +12,7 @@ function tokenizeStrings(
     onError: () => void,
 ) {
 
-    streamifyArray(
+    p20.streamifyArrayToConsumer(
         strings,
         null,
         null,

@@ -1,10 +1,6 @@
 import { Location, Range } from "./location"
 import { IStreamConsumer } from "./IStreamConsumer"
 
-export type PropertyData = {
-    keyRange: Range
-}
-
 export type SimpleValueData = {
     value: string
     quote: string | null

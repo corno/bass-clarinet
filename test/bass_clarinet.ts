@@ -3,6 +3,7 @@
     complexity: "off",
 */
 import * as p from "pareto"
+import * as p20 from "pareto-20"
 import * as bc from "../src"
 import { describe } from "mocha"
 import * as chai from "chai"
@@ -11,7 +12,6 @@ import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
 import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, IParserEventConsumer } from "../src"
 import { createStreamSplitter } from "../src/createStreamSplitter"
-import { streamifyArray } from "../src/streamifyArray"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -408,7 +408,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
         )
 
-        streamifyArray(
+        p20.streamifyArrayToConsumer(
             chunks,
             null,
             null,

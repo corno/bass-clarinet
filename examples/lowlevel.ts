@@ -1,6 +1,6 @@
 import * as bc from "../src"
 import * as p from "pareto"
-import * as p20 from "../src/streamifyArray"
+import * as p20 from "pareto-20"
 import * as fs from "fs"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -104,7 +104,7 @@ const parser = bc.createParser(
     },
 )
 
-p20.streamifyArray(
+p20.streamifyArrayToConsumer(
     [dataAsString],
     null,
     null,

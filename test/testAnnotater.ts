@@ -1,10 +1,10 @@
 /* eslint
     no-console:"off",
 */
+import * as p20 from "pareto-20"
 import { JSONTests } from "./ownJSONTestset"
 import { createAnnotator } from "../examples/annotater"
 import * as bc from "../src"
-import { streamifyArray } from "../src/streamifyArray"
 
 const annotater = createAnnotator("", str => console.log(str))
 
@@ -26,7 +26,7 @@ Object.keys(JSONTests).forEach(testName => {
         },
     )
     createAnnotator("", str => console.log(str))
-    streamifyArray(
+    p20.streamifyArrayToConsumer(
         [test.text],
         null,
         null,

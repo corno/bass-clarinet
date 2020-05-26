@@ -6,8 +6,3 @@ export * from "./createStreamTokenizer"
 export * from "./attachments"
 export * from "./location"
 export { TokenizerOptions } from "./Tokenizer"
-
-//temp
-
-export * from "./streamifyArray"
-export * from "./IStreamConsumer"

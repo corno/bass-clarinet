@@ -1,6 +1,6 @@
 import * as bc from "../src"
 import * as fs from "fs"
-import * as p20 from "../src/streamifyArray"
+import * as p20 from "pareto-20"
 
 const [, , path] = process.argv
 
@@ -103,7 +103,7 @@ const prsr = bc.createParser(
 createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
 
-p20.streamifyArray(
+p20.streamifyArrayToConsumer(
     [dataAsString],
     null,
     null,

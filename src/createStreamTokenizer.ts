@@ -7,8 +7,8 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 import { Range } from "./location"
 import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
-import { OnDataReturnValue, IStreamConsumer } from "./IStreamConsumer"
 import { Chunk, Tokenizer, TokenizerOptions, LocationState } from "./Tokenizer"
+import { IStreamConsumer } from "./IStreamConsumer"
 
 const DEBUG = false
 
@@ -30,13 +30,14 @@ class StreamTokenizer implements IStreamConsumer<string, null> {
         )
         this.tokenizerState = new Tokenizer(this.locationState, onerror)
     }
-    private loopUntilPromiseOrEnd(currentChunk: Chunk): OnDataReturnValue {
+    private loopUntilPromiseOrEnd(currentChunk: Chunk): p.DataOrPromise<boolean> {
         if (this.aborted) {
             //ignore this data
             return p.result(true)
         }
         while (true) {
-            if (currentChunk.lookahead() === null) {
+            const la = currentChunk.lookahead()
+            if (la === null) {
                 return p.result(false)
             }
 
@@ -45,6 +46,7 @@ class StreamTokenizer implements IStreamConsumer<string, null> {
             if (tokenData !== null) {
                 const onDataResult = this.tokenStreamConsumer.onData(tokenData)
                 if (onDataResult instanceof Array) {
+                    //console.log(tokenData)
                     if (onDataResult[0] === true) {
                         this.aborted = true
                         return p.result(true)
@@ -64,7 +66,7 @@ class StreamTokenizer implements IStreamConsumer<string, null> {
             }
         }
     }
-    public onData(chunk: string): OnDataReturnValue {
+    public onData(chunk: string): p.DataOrPromise<boolean> {
         if (DEBUG) console.log(`write -> [${JSON.stringify(chunk)}]`)
         const currentChunk = new Chunk(chunk)
         return this.loopUntilPromiseOrEnd(currentChunk)

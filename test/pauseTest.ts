@@ -4,7 +4,6 @@
 import * as p20 from "pareto-20"
 import * as bc from "../src";
 import { dummyParserEventConsumer } from "./dummyConsumers";
-import { streamifyArray } from "../src/streamifyArray";
 
 const parser = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
@@ -17,14 +16,17 @@ const parser = bc.createParser(
             //
         },
         onHeaderEnd: () => {
+            console.log("!!!!!!!!!!!!!!!!!!!!!")
             return {
                 onData: _data => {
+                    //return p20.result(false)
+
                     return p20.wrapSafeFunction(onResult => {
-                        setInterval(
+                        setTimeout(
                             () => {
                                 onResult(false)
                             },
-                            1
+                            1000
                         )
                     })
                 },
@@ -51,18 +53,25 @@ const parser = bc.createParser(
 //     }, 500)
 // }
 
+
+//2 strings:
 const chunks = [
     `[
     "A", "B", "C"`,
     `]`,
 ]
 
-streamifyArray(
-    chunks,
-    null,
-    null,
-    bc.createStreamTokenizer(
-        parser,
-        err => { console.error("FOUND TOKENIZER ERROR", err) },
+
+export function doIt(): void {
+    p20.streamifyArrayToConsumer(
+        chunks,
+        null,
+        null,
+        bc.createStreamTokenizer(
+            parser,
+            err => { console.error("FOUND TOKENIZER ERROR", err) },
+        )
     )
-)
+}
+
+doIt()

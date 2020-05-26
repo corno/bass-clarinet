@@ -1,11 +1,11 @@
 import * as p from "pareto"
-import { IStreamConsumer, OnDataReturnValue } from "./IStreamConsumer"
+import { IStreamConsumer } from "./IStreamConsumer"
 
 export function createStreamSplitter<DataType, EndDataType>(
     subStreamConsumers: IStreamConsumer<DataType, EndDataType>[]
 ): IStreamConsumer<DataType, EndDataType> {
     return {
-        onData: (data: DataType): OnDataReturnValue => {
+        onData: (data: DataType): p.DataOrPromise<boolean> => {
             let abortRequested = false
             const promises: p.DataOrPromise<boolean>[] = []
             subStreamConsumers.forEach(s => {
