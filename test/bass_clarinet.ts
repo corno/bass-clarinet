@@ -177,7 +177,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
                 },
                 simpleValue: () => {
-                    //
+                    return p.result(false)
                 },
                 taggedUnion: () => {
                     return {

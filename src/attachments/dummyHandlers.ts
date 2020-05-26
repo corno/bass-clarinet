@@ -1,3 +1,4 @@
+import * as p from "pareto"
 import { ArrayHandler, ObjectHandler, ValueHandler, RequiredValueHandler, TaggedUnionHandler } from "./handlers"
 
 export function createDummyRequiredValueHandler(): RequiredValueHandler {
@@ -13,8 +14,9 @@ export function createDummyValueHandler(): ValueHandler {
     return {
         array: (): ArrayHandler => createDummyArrayHandler(),
         object: (): ObjectHandler => createDummyObjectHandler(),
-        simpleValue: (): void => {
+        simpleValue: (): p.DataOrPromise<boolean> => {
             //do nothing
+            return p.result(false)
         },
         taggedUnion: (): TaggedUnionHandler => {
             return {

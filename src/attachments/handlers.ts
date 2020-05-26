@@ -1,3 +1,4 @@
+import * as p from "pareto"
 import { Range } from "../location"
 import {
     SimpleValueData,
@@ -35,7 +36,7 @@ export type OnObject = (range: Range, data: OpenData, preData: PreData) => Objec
 
 export type OnArray = (range: Range, data: OpenData, preData: PreData) => ArrayHandler
 
-export type OnSimpleValue = (range: Range, data: SimpleValueData, preData: PreData) => void
+export type OnSimpleValue = (range: Range, data: SimpleValueData, preData: PreData) => p.DataOrPromise<boolean>
 
 export type OnTaggedUnion = (range: Range, beginpreData: PreData) => TaggedUnionHandler
 export type OnOption = (range: Range, option: string, optionpreData: PreData) => RequiredValueHandler

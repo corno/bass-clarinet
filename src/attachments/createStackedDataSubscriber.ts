@@ -194,7 +194,7 @@ export function createStackedDataSubscriber(
                         innerRange: $.innerRange,
                     })
                     //place your code here
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.CloseArray: {
                     const $ = data.type[1]
@@ -245,7 +245,7 @@ export function createStackedDataSubscriber(
                                 assertUnreachable(currentContext[0])
                         }
                     }
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.CloseObject: {
                     const $ = data.type[1]
@@ -299,17 +299,17 @@ export function createStackedDataSubscriber(
                                 assertUnreachable(currentContext[0])
                         }
                     }
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.Colon: {
                     //const $ = data.type[1]
                     lineIsDirty = true
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.Comma: {
                     //const $ = data.type[1]
                     lineIsDirty = true
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.LineComment: {
                     const $ = data.type[1]
@@ -321,12 +321,12 @@ export function createStackedDataSubscriber(
                         outerRange: data.range,
                         innerRange: $.innerRange,
                     })
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.NewLine: {
                     lineIsDirty = false
                     indentation = ""
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.OpenArray: {
                     const $ = data.type[1]
@@ -338,7 +338,7 @@ export function createStackedDataSubscriber(
                     )
                     stack.push(currentContext)
                     currentContext = ["array", { arrayHandler: arrayHandler }]
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.OpenObject: {
                     const $ = data.type[1]
@@ -355,25 +355,25 @@ export function createStackedDataSubscriber(
                         objectHandler: objectHandler,
                         propertyHandler: null,
                     }]
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.SimpleValue: {
                     const $ = data.type[1]
                     lineIsDirty = true
                     function onSimpleValue(vh: ValueHandler) {
                         if (DEBUG) { console.log("on simple value", $.value) }
-                        vh.simpleValue(
+                        const res = vh.simpleValue(
                             data.range,
                             $,
                             flushPreData()
                         )
                         wrapupValue(data.range)
+                        return res
                     }
                     switch (currentContext[0]) {
                         case "array": {
                             const $ = currentContext[1]
-                            onSimpleValue($.arrayHandler.element())
-                            break
+                            return onSimpleValue($.arrayHandler.element())
                         }
                         case "object": {
                             const $$ = currentContext[1]
@@ -388,10 +388,10 @@ export function createStackedDataSubscriber(
                                         flushPreData()
                                     )
                                 }
+                                return p.result(false)
                             } else {
-                                onSimpleValue($$.propertyHandler.valueHandler)
+                                return onSimpleValue($$.propertyHandler.valueHandler)
                             }
-                            break
                         }
                         case "root": {
                             const $ = currentContext[1]
@@ -399,8 +399,7 @@ export function createStackedDataSubscriber(
                             const vh = $.rootValueHandler !== null
                                 ? $.rootValueHandler.valueHandler
                                 : createDummyValueHandler()
-                            onSimpleValue(vh)
-                            break
+                            return onSimpleValue(vh)
                         }
                         case "taggedunion": {
                             const $$ = currentContext[1]
@@ -418,9 +417,7 @@ export function createStackedDataSubscriber(
                                 }
                                 case "expecting value": {
                                     const $$$ = $$.state[1]
-                                    onSimpleValue($$$.valueHandler)
-
-                                    break
+                                    return onSimpleValue($$$.valueHandler)
                                 }
                                 default:
                                     assertUnreachable($$.state[0])
@@ -430,7 +427,7 @@ export function createStackedDataSubscriber(
                         default:
                             return assertUnreachable(currentContext[0])
                     }
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.TaggedUnion: {
                     lineIsDirty = true
@@ -444,19 +441,18 @@ export function createStackedDataSubscriber(
                             ),
                         }],
                     }]
-                    break
+                    return p.result(false)
                 }
                 case ParserEventType.WhiteSpace: {
                     const $ = data.type[1]
                     if (!lineIsDirty) {
                         indentation = $.value
                     }
-                    break
+                    return p.result(false)
                 }
                 default:
-                    assertUnreachable(data.type[0])
+                    return assertUnreachable(data.type[0])
             }
-            return p.result(false)
         },
         onEnd: (_aborted: boolean, location: Location): void => {
             const range = { start: location, end: location }

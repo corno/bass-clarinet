@@ -1,3 +1,4 @@
+import * as p from "pareto"
 import * as bc from "../src"
 
 function createRequiredValuesAnnotater(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
@@ -38,6 +39,7 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
             } else {
                 writer(`${indentation}${data.value} // ${bc.printRange(range)}`)
             }
+            return p.result(false)
         },
         taggedUnion: (range, _taggedUnionData) => {
             writer(`| ${indentation}`)

@@ -1,6 +1,8 @@
+import * as p from "pareto"
+import * as p20 from "pareto-20"
 import * as bc from "../src"
 import * as fs from "fs"
-import * as p20 from "pareto-20"
+
 
 const [, , path] = process.argv
 
@@ -50,6 +52,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
             } else {
                 writer(`${data.value}`)
             }
+            return p.result(false)
         },
         taggedUnion: () => {
             return {
