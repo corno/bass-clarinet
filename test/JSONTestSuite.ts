@@ -16,7 +16,7 @@ function tokenizeStrings(
         strings,
         null,
         null,
-        bc.createTokenizer(
+        bc.createStreamTokenizer(
             consumer,
             onError
         )

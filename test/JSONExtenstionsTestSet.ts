@@ -1,5 +1,4 @@
 /* eslint
-    @typescript-eslint/camelcase: "off",
     camelcase:"off",
 */
 import { TestDefinitions } from "./testDefinition";

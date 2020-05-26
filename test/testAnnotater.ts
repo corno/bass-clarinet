@@ -30,7 +30,7 @@ Object.keys(JSONTests).forEach(testName => {
         [test.text],
         null,
         null,
-        bc.createTokenizer(
+        bc.createStreamTokenizer(
             parser,
             err => console.error(err),
         )

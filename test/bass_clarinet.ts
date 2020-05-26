@@ -412,7 +412,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             chunks,
             null,
             null,
-            bc.createTokenizer(
+            bc.createStreamTokenizer(
                 parser,
                 (message, _location) => {
                     if (DEBUG) console.log("found error")

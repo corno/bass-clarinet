@@ -107,7 +107,7 @@ p20.streamifyArray(
     [dataAsString],
     null,
     null,
-    bc.createTokenizer(
+    bc.createStreamTokenizer(
         prsr,
         err => { console.error("FOUND TOKENIZER ERROR", err) },
     )
