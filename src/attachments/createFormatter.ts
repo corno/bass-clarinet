@@ -3,7 +3,7 @@
 */
 import * as p from "pareto"
 import { Range, Location } from "../location"
-import { IParserEventConsumer, ParserEventType } from "../IParserEventConsumer"
+import { ParserEvent, ParserEventType } from "../ParserEvent"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")
@@ -54,7 +54,7 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onEnd: () => void,
-): IParserEventConsumer {
+): p.IStreamConsumer<ParserEvent, Location> {
 	let precedingWhitespace: null | TokenInfo = null
 
 	const stack: Style[] = []
@@ -231,7 +231,7 @@ export function createFormatter(
 		currentRequiredStyle = style
 	}
 
-	const ds: IParserEventConsumer = {
+	const ds: p.IStreamConsumer<ParserEvent, Location> = {
 
 		onData: data => {
 			switch (data.type[0]) {

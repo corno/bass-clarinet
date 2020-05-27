@@ -284,8 +284,7 @@ a comment
         )
     }
     'root type': 'root'
-)
-{
+){
     "a": "B"
     "b": "X"
     "c": "C"

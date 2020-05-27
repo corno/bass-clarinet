@@ -4,7 +4,7 @@
     complexity: off,
 */
 import * as p from "pareto"
-import { IParserEventConsumer, ParserEvent, ParserEventType } from "../IParserEventConsumer"
+import { ParserEventType, ParserEvent } from "../ParserEvent"
 import { Location, Range } from "../location"
 import { createDummyValueHandler } from "./dummyHandlers"
 import {
@@ -62,7 +62,7 @@ export function createStackedDataSubscriber(
     valueHandler: RequiredValueHandler,
     onError: (error: RangeError) => void,
     onend: (preData: PreData) => void
-): IParserEventConsumer {
+): p.IStreamConsumer<ParserEvent, Location> {
     const stack: ContextType[] = []
     let comments: Comment[] = []
     let indentation = ""
@@ -180,7 +180,7 @@ export function createStackedDataSubscriber(
     //     }
     // }
 
-    const ds: IParserEventConsumer = {
+    const ds: p.IStreamConsumer<ParserEvent, Location> = {
         onData: (data: ParserEvent) => {
             switch (data.type[0]) {
                 case ParserEventType.BlockComment: {

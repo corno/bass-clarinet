@@ -1,5 +1,5 @@
 export * from "./errors"
-export * from "./IParserEventConsumer"
+export * from "./ParserEvent"
 export * from "./createParser"
 export * from "./ITokenStreamConsumer"
 export * from "./createStreamTokenizer"

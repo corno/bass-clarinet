@@ -2,6 +2,7 @@ import * as bc from "../src"
 import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as fs from "fs"
+import { ParserEvent } from "../src/ParserEvent"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -16,7 +17,7 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: bc.IParserEventConsumer = {
+export const parserEventConsumer: p.IStreamConsumer<ParserEvent, bc.Location> = {
     onData: data => {
         switch (data.type[0]) {
             case bc.ParserEventType.BlockComment: {

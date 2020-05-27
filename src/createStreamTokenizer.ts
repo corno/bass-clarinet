@@ -8,11 +8,10 @@ import * as p20 from "pareto-20"
 import { Range } from "./location"
 import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
 import { Chunk, Tokenizer, TokenizerOptions, LocationState } from "./Tokenizer"
-import { IStreamConsumer } from "./IStreamConsumer"
 
 const DEBUG = false
 
-class StreamTokenizer implements IStreamConsumer<string, null> {
+class StreamTokenizer implements p.IStreamConsumer<string, null> {
 
     private readonly tokenizerState: Tokenizer
     private readonly locationState: LocationState
@@ -88,6 +87,6 @@ export function createStreamTokenizer(
     tokenStreamConsumer: ITokenStreamConsumer,
     onerror: (message: string, range: Range) => void,
     opt?: TokenizerOptions
-): IStreamConsumer<string, null> {
+): p.IStreamConsumer<string, null> {
     return new StreamTokenizer(tokenStreamConsumer, onerror, opt)
 }

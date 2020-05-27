@@ -2,6 +2,7 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as bc from "../src"
 import * as fs from "fs"
+import { ParserEvent } from "../src"
 
 
 const [, , path] = process.argv
@@ -68,7 +69,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.IParserEventConsumer {
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): p.IStreamConsumer<ParserEvent, bc.Location> {
     const datasubscriber = bc.createStackedDataSubscriber(
         {
             valueHandler: createValuesPrettyPrinter(indentation, writer),

@@ -10,7 +10,7 @@ import * as chai from "chai"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, IParserEventConsumer } from "../src"
+import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, ParserEvent } from "../src"
 import { createStreamSplitter } from "../src/createStreamSplitter"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -64,7 +64,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             const escaped = JSON.stringify(str)
             return escaped.substring(1, escaped.length - 1) //remove quotes
         }
-        const outputter: bc.IParserEventConsumer = {
+        const outputter: p.IStreamConsumer<ParserEvent, bc.Location> = {
             onData: data => {
                 switch (data.type[0]) {
                     case ParserEventType.BlockComment: {
@@ -201,7 +201,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 //
             }
         )
-        const eventSubscriber: bc.IParserEventConsumer = {
+        const eventSubscriber: p.IStreamConsumer<ParserEvent, bc.Location> = {
             onData: data => {
                 switch (data.type[0]) {
                     case ParserEventType.BlockComment: {
@@ -329,12 +329,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 )
             },
         )
-        const schemaDataSubscribers: IParserEventConsumer[] = [
+        const schemaDataSubscribers: p.IStreamConsumer<ParserEvent, bc.Location>[] = [
             outputter,
             eventSubscriber,
             formatter,
         ]
-        const instanceDataSubscribers: IParserEventConsumer[] = [
+        const instanceDataSubscribers: p.IStreamConsumer<ParserEvent, bc.Location>[] = [
             outputter,
             eventSubscriber,
             stackedSubscriber,

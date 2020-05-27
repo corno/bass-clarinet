@@ -4,9 +4,9 @@
     max-classes-per-file: "off",
 */
 import * as p from "pareto"
-import { IParserEventConsumer, ParserEvent, ParserEventType } from "../IParserEventConsumer"
+import { ParserEventType, ParserEvent } from "../ParserEvent"
 import { HeaderConsumer } from "../createParser"
-import { Range } from "../location"
+import { Range, Location } from "../location"
 import * as Char from "./NumberCharacters"
 import { RangeError } from "../errors"
 
@@ -135,7 +135,7 @@ class StrictJSONHeaderValidator implements HeaderConsumer {
     }
 }
 
-class StrictJSONValidator implements IParserEventConsumer {
+class StrictJSONValidator implements p.IStreamConsumer<ParserEvent, Location> {
     private readonly onError: OnError
     private readonly stack: ContextType[] = []
     private currentContext: ContextType = ["root", {}]
@@ -474,6 +474,6 @@ export function createStrictJSONHeaderValidator(onError: OnError): HeaderConsume
     return new StrictJSONHeaderValidator(onError)
 }
 
-export function createStrictJSONValidator(onError: OnError): IParserEventConsumer {
+export function createStrictJSONValidator(onError: OnError): p.IStreamConsumer<ParserEvent, Location> {
     return new StrictJSONValidator(onError)
 }

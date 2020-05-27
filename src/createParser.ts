@@ -22,7 +22,7 @@ import {
 } from "./parserStateTypes"
 import { Location, Range, printRange } from "./location"
 import { RangeError } from "./errors"
-import { IParserEventConsumer, ParserEventType, ParserEvent } from "./IParserEventConsumer"
+import { ParserEvent, ParserEventType } from "./ParserEvent"
 import { TokenDataType, TokenData } from "./TokenData"
 
 const DEBUG = false
@@ -71,16 +71,16 @@ function getContextDescription(stackContext: StackContext): string {
 }
 
 export interface HeaderConsumer {
-    onHeaderStart(range: Range): IParserEventConsumer
+    onHeaderStart(range: Range): p.IStreamConsumer<ParserEvent, Location>
     onCompact(range: Range): void
-    onHeaderEnd(range: Range): IParserEventConsumer
+    onHeaderEnd(range: Range): p.IStreamConsumer<ParserEvent, Location>
 }
 
-class Parser implements ITokenStreamConsumer {
+class Parser {
     public readonly stack = new Array<StackContext>()
     public readonly headerConsumer: HeaderConsumer
     private currentContext: StackContext
-    private parserEventsConsumer?: IParserEventConsumer
+    private parserEventsConsumer?: p.IStreamConsumer<ParserEvent, Location>
     private currentToken: CurrentToken = [TokenType.NONE]
     private readonly onerror: (message: string, range: Range) => void
     private indentationState: IndentationData = [IndentationState.lineIsVirgin]
@@ -94,61 +94,505 @@ class Parser implements ITokenStreamConsumer {
         this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
     }
     public onData(data: TokenData): p.DataOrPromise<boolean> {
-        switch (data.type[0]) {
-            case TokenDataType.BlockCommentBegin: {
-                const $ = data.type[1]
-                return this.onBlockCommentBegin($.range)
+        const $ = this.currentContext
+        switch ($[0]) {
+            case StackContextType.ARRAY: {
+                switch (data.type[0]) {
+                    case TokenDataType.BlockCommentBegin: {
+                        const $ = data.type[1]
+                        return this.onBlockCommentBegin($.range)
+                    }
+                    case TokenDataType.BlockCommentEnd: {
+                        const $ = data.type[1]
+                        return this.onBlockCommentEnd($.range)
+                    }
+                    case TokenDataType.LineCommentBegin: {
+                        const $ = data.type[1]
+                        return this.onLineCommentBegin($.range)
+                    }
+                    case TokenDataType.LineCommentEnd: {
+                        const $ = data.type[1]
+                        return this.onLineCommentEnd($.location)
+                    }
+                    case TokenDataType.NewLine: {
+                        const $ = data.type[1]
+                        return this.onNewLine($.range)
+                    }
+                    case TokenDataType.Punctuation: {
+                        const $ = data.type[1]
+                        const curChar = $.char
+                        const range = $.range
+
+                        this.indentationState = [IndentationState.lineIsDitry]
+                        switch (curChar) {
+                            case Char.Punctuation.exclamationMark:
+                                this.raiseError("unexpected !", range)
+                                return p.result(false)
+                            case Char.Punctuation.hash:
+                                this.raiseError("unexpected '#', expected a value after a comma", range)
+                                return p.result(false)
+                            case Char.Punctuation.closeAngleBracket:
+                                return this.onArrayClose(curChar, range)
+                            case Char.Punctuation.closeBracket:
+                                return this.onArrayClose(curChar, range)
+                            case Char.Punctuation.comma:
+                                //
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.Comma, {
+                                    }],
+                                })
+                            case Char.Punctuation.openAngleBracket:
+                                return this.onArrayOpen(curChar, range)
+                            case Char.Punctuation.openBracket:
+                                return this.onArrayOpen(curChar, range)
+                            case Char.Punctuation.closeBrace:
+                                return this.onObjectClose(curChar, range)
+                            case Char.Punctuation.closeParen:
+                                return this.onObjectClose(curChar, range)
+                            case Char.Punctuation.colon:
+                                //
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.Colon, {
+                                    }],
+                                })
+                            case Char.Punctuation.openBrace:
+                                return this.onObjectOpen(curChar, range)
+                            case Char.Punctuation.openParen:
+                                return this.onObjectOpen(curChar, range)
+                            case Char.Punctuation.verticalLine:
+                                this.onNonStringValue(range)
+                                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.TaggedUnion, {
+                                    }],
+                                })
+                            default:
+                                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
+                                return p.result(false)
+                        }
+                    }
+                    case TokenDataType.Snippet: {
+                        const $ = data.type[1]
+                        return this.onSnippet($.chunk, $.begin, $.end)
+                    }
+                    case TokenDataType.QuotedStringBegin: {
+                        const $ = data.type[1]
+                        return this.onQuotedStringBegin($.range, $.quote)
+                    }
+                    case TokenDataType.QuotedStringEnd: {
+                        const $ = data.type[1]
+                        return this.onQuotedStringEnd($.range, $.quote)
+                    }
+                    case TokenDataType.UnquotedTokenBegin: {
+                        const $ = data.type[1]
+                        return this.onUnquotedTokenBegin($.location)
+                    }
+                    case TokenDataType.UnquotedTokenEnd: {
+                        const $ = data.type[1]
+                        return this.onUnquotedTokenEnd($.location)
+                    }
+                    case TokenDataType.WhiteSpaceBegin: {
+                        const $ = data.type[1]
+                        return this.onWhitespaceBegin($.location)
+                    }
+                    case TokenDataType.WhiteSpaceEnd: {
+                        const $ = data.type[1]
+                        return this.onWhitespaceEnd($.location)
+                    }
+                    default:
+                        return assertUnreachable(data.type[0])
+                }
             }
-            case TokenDataType.BlockCommentEnd: {
-                const $ = data.type[1]
-                return this.onBlockCommentEnd($.range)
+            case StackContextType.OBJECT: {
+
+                switch (data.type[0]) {
+                    case TokenDataType.BlockCommentBegin: {
+                        const $ = data.type[1]
+                        return this.onBlockCommentBegin($.range)
+                    }
+                    case TokenDataType.BlockCommentEnd: {
+                        const $ = data.type[1]
+                        return this.onBlockCommentEnd($.range)
+                    }
+                    case TokenDataType.LineCommentBegin: {
+                        const $ = data.type[1]
+                        return this.onLineCommentBegin($.range)
+                    }
+                    case TokenDataType.LineCommentEnd: {
+                        const $ = data.type[1]
+                        return this.onLineCommentEnd($.location)
+                    }
+                    case TokenDataType.NewLine: {
+                        const $ = data.type[1]
+                        return this.onNewLine($.range)
+                    }
+                    case TokenDataType.Punctuation: {
+                        const $ = data.type[1]
+                        const curChar = $.char
+                        const range = $.range
+                        this.indentationState = [IndentationState.lineIsDitry]
+                        switch (curChar) {
+                            case Char.Punctuation.exclamationMark:
+                                this.raiseError("unexpected !", range)
+                                return p.result(false)
+                            case Char.Punctuation.hash:
+                                this.raiseError("unexpected '#'", range)
+                                return p.result(false)
+                            case Char.Punctuation.closeAngleBracket:
+                                return this.onArrayClose(curChar, range)
+                            case Char.Punctuation.closeBracket:
+                                return this.onArrayClose(curChar, range)
+                            case Char.Punctuation.comma:
+                                //
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.Comma, {
+                                    }],
+                                })
+                            case Char.Punctuation.openAngleBracket:
+                                return this.onArrayOpen(curChar, range)
+                            case Char.Punctuation.openBracket:
+                                return this.onArrayOpen(curChar, range)
+                            case Char.Punctuation.closeBrace:
+                                return this.onObjectClose(curChar, range)
+                            case Char.Punctuation.closeParen:
+                                return this.onObjectClose(curChar, range)
+                            case Char.Punctuation.colon:
+                                //
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.Colon, {
+                                    }],
+                                })
+                            case Char.Punctuation.openBrace:
+                                return this.onObjectOpen(curChar, range)
+                            case Char.Punctuation.openParen:
+                                return this.onObjectOpen(curChar, range)
+                            case Char.Punctuation.verticalLine:
+                                this.onNonStringValue(range)
+                                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.TaggedUnion, {
+                                    }],
+                                })
+                            default:
+                                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
+                                return p.result(false)
+                        }
+                    }
+                    case TokenDataType.Snippet: {
+                        const $ = data.type[1]
+                        return this.onSnippet($.chunk, $.begin, $.end)
+                    }
+                    case TokenDataType.QuotedStringBegin: {
+                        const $ = data.type[1]
+                        return this.onQuotedStringBegin($.range, $.quote)
+                    }
+                    case TokenDataType.QuotedStringEnd: {
+                        const $ = data.type[1]
+                        return this.onQuotedStringEnd($.range, $.quote)
+                    }
+                    case TokenDataType.UnquotedTokenBegin: {
+                        const $ = data.type[1]
+                        return this.onUnquotedTokenBegin($.location)
+                    }
+                    case TokenDataType.UnquotedTokenEnd: {
+                        const $ = data.type[1]
+                        return this.onUnquotedTokenEnd($.location)
+                    }
+                    case TokenDataType.WhiteSpaceBegin: {
+                        const $ = data.type[1]
+                        return this.onWhitespaceBegin($.location)
+                    }
+                    case TokenDataType.WhiteSpaceEnd: {
+                        const $ = data.type[1]
+                        return this.onWhitespaceEnd($.location)
+                    }
+                    default:
+                        return assertUnreachable(data.type[0])
+                }
             }
-            case TokenDataType.LineCommentBegin: {
-                const $ = data.type[1]
-                return this.onLineCommentBegin($.range)
+            case StackContextType.ROOT: {
+
+                switch (data.type[0]) {
+                    case TokenDataType.BlockCommentBegin: {
+                        return p.result(false)
+                    }
+                    case TokenDataType.BlockCommentEnd: {
+                        return p.result(false)
+                    }
+                    case TokenDataType.LineCommentBegin: {
+                        return p.result(false)
+                    }
+                    case TokenDataType.LineCommentEnd: {
+                        return p.result(false)
+                    }
+                    case TokenDataType.NewLine: {
+                        return p.result(false)
+                    }
+                    case TokenDataType.Punctuation: {
+                        const $$$ = data.type[1]
+
+                        const curChar = $$$.char
+                        const range = $$$.range
+
+                        this.indentationState = [IndentationState.lineIsDitry]
+                        const $$ = $[1]
+                        switch (curChar) {
+                            case Char.Punctuation.exclamationMark:
+                                /**
+                                 * ROOT PROCESSING
+                                 */
+                                switch ($$.state) {
+                                    case RootState.EXPECTING_END: {
+                                        this.raiseError(`Unexpected data after end`, range)
+                                        break
+                                    }
+                                    case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
+                                        this.raiseError("unexpected '!', expected '#' or value", range)
+                                        break
+                                    }
+                                    case RootState.EXPECTING_SCHEMA: {
+                                        this.raiseError("unexpected '!', expected schema value", range)
+                                        break
+                                    }
+                                    case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                                        this.raiseError("unexpected '!', expected root value", range)
+                                        break
+                                    }
+                                    case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                                        $$.state = RootState.EXPECTING_SCHEMA
+                                        break
+                                    default:
+                                        return assertUnreachable($$.state)
+                                }
+                                this.parserEventsConsumer = this.headerConsumer.onHeaderStart(range)
+                                return p.result(false)
+                            case Char.Punctuation.hash:
+                                /**
+                                 * ROOT PROCESSING
+                                 */
+                                switch ($$.state) {
+                                    case RootState.EXPECTING_END: {
+                                        this.raiseError("unexpected '#', expected no more data", range)
+                                        break
+                                    }
+                                    case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
+                                        $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
+                                        break
+                                    }
+                                    case RootState.EXPECTING_SCHEMA: {
+                                        this.raiseError("unexpected '#', expected the schema", range)
+                                        break
+                                    }
+                                    case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                                        this.raiseError("unexpected '#', expected the root value", range)
+                                        break
+                                    }
+                                    case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                                        this.raiseError("unexpected '#', expected an '!' (to specify a schema) or a value", range)
+                                        break
+                                    default:
+                                        return assertUnreachable($$.state)
+                                }
+                                this.headerConsumer.onCompact(range)
+                                this.onHeaderEnd(range)
+                                return p.result(false)
+                            case Char.Punctuation.closeAngleBracket:
+                                return this.onArrayClose(curChar, range)
+                            case Char.Punctuation.closeBracket:
+                                return this.onArrayClose(curChar, range)
+                            case Char.Punctuation.comma:
+                                //
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.Comma, {
+                                    }],
+                                })
+                            case Char.Punctuation.openAngleBracket:
+                                return this.onArrayOpen(curChar, range)
+                            case Char.Punctuation.openBracket:
+                                return this.onArrayOpen(curChar, range)
+                            case Char.Punctuation.closeBrace:
+                                return this.onObjectClose(curChar, range)
+                            case Char.Punctuation.closeParen:
+                                return this.onObjectClose(curChar, range)
+                            case Char.Punctuation.colon:
+                                //
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.Colon, {
+                                    }],
+                                })
+                            case Char.Punctuation.openBrace:
+                                return this.onObjectOpen(curChar, range)
+                            case Char.Punctuation.openParen:
+                                return this.onObjectOpen(curChar, range)
+                            case Char.Punctuation.verticalLine:
+                                this.onNonStringValue(range)
+                                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.TaggedUnion, {
+                                    }],
+                                })
+                            default:
+                                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
+                                return p.result(false)
+                        }
+                    }
+                    case TokenDataType.Snippet: {
+                        const $ = data.type[1]
+                        return this.onSnippet($.chunk, $.begin, $.end)
+                    }
+                    case TokenDataType.QuotedStringBegin: {
+                        const $ = data.type[1]
+                        return this.onQuotedStringBegin($.range, $.quote)
+                    }
+                    case TokenDataType.QuotedStringEnd: {
+                        const $ = data.type[1]
+                        return this.onQuotedStringEnd($.range, $.quote)
+                    }
+                    case TokenDataType.UnquotedTokenBegin: {
+                        const $ = data.type[1]
+                        return this.onUnquotedTokenBegin($.location)
+                    }
+                    case TokenDataType.UnquotedTokenEnd: {
+                        const $ = data.type[1]
+                        return this.onUnquotedTokenEnd($.location)
+                    }
+                    case TokenDataType.WhiteSpaceBegin: {
+                        const $ = data.type[1]
+                        return this.onWhitespaceBegin($.location)
+                    }
+                    case TokenDataType.WhiteSpaceEnd: {
+                        const $ = data.type[1]
+                        return this.onWhitespaceEnd($.location)
+                    }
+                    default:
+                        return assertUnreachable(data.type[0])
+                }
             }
-            case TokenDataType.LineCommentEnd: {
-                const $ = data.type[1]
-                return this.onLineCommentEnd($.location)
-            }
-            case TokenDataType.NewLine: {
-                const $ = data.type[1]
-                return this.onNewLine($.range)
-            }
-            case TokenDataType.Punctuation: {
-                const $ = data.type[1]
-                return this.onPunctuation($.char, $.range)
-            }
-            case TokenDataType.Snippet: {
-                const $ = data.type[1]
-                return this.onSnippet($.chunk, $.begin, $.end)
-            }
-            case TokenDataType.QuotedStringBegin: {
-                const $ = data.type[1]
-                return this.onQuotedStringBegin($.range, $.quote)
-            }
-            case TokenDataType.QuotedStringEnd: {
-                const $ = data.type[1]
-                return this.onQuotedStringEnd($.range, $.quote)
-            }
-            case TokenDataType.UnquotedTokenBegin: {
-                const $ = data.type[1]
-                return this.onUnquotedTokenBegin($.location)
-            }
-            case TokenDataType.UnquotedTokenEnd: {
-                const $ = data.type[1]
-                return this.onUnquotedTokenEnd($.location)
-            }
-            case TokenDataType.WhiteSpaceBegin: {
-                const $ = data.type[1]
-                return this.onWhitespaceBegin($.location)
-            }
-            case TokenDataType.WhiteSpaceEnd: {
-                const $ = data.type[1]
-                return this.onWhitespaceEnd($.location)
+            case StackContextType.TAGGED_UNION: {
+
+                switch (data.type[0]) {
+                    case TokenDataType.BlockCommentBegin: {
+                        const $ = data.type[1]
+                        return this.onBlockCommentBegin($.range)
+                    }
+                    case TokenDataType.BlockCommentEnd: {
+                        const $ = data.type[1]
+                        return this.onBlockCommentEnd($.range)
+                    }
+                    case TokenDataType.LineCommentBegin: {
+                        const $ = data.type[1]
+                        return this.onLineCommentBegin($.range)
+                    }
+                    case TokenDataType.LineCommentEnd: {
+                        const $ = data.type[1]
+                        return this.onLineCommentEnd($.location)
+                    }
+                    case TokenDataType.NewLine: {
+                        const $ = data.type[1]
+                        return this.onNewLine($.range)
+                    }
+                    case TokenDataType.Punctuation: {
+                        const $ = data.type[1]
+
+
+                        const curChar = $.char
+                        const range = $.range
+
+
+                        this.indentationState = [IndentationState.lineIsDitry]
+                        switch (curChar) {
+                            case Char.Punctuation.exclamationMark:
+                                this.raiseError("unexpected !", range)
+                                return p.result(false)
+                            case Char.Punctuation.hash:
+                                this.raiseError("unexpected '#'", range)
+                                return p.result(false)
+                            case Char.Punctuation.closeAngleBracket:
+                                return this.onArrayClose(curChar, range)
+                            case Char.Punctuation.closeBracket:
+                                return this.onArrayClose(curChar, range)
+                            case Char.Punctuation.comma:
+                                //
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.Comma, {
+                                    }],
+                                })
+                            case Char.Punctuation.openAngleBracket:
+                                return this.onArrayOpen(curChar, range)
+                            case Char.Punctuation.openBracket:
+                                return this.onArrayOpen(curChar, range)
+                            case Char.Punctuation.closeBrace:
+                                return this.onObjectClose(curChar, range)
+                            case Char.Punctuation.closeParen:
+                                return this.onObjectClose(curChar, range)
+                            case Char.Punctuation.colon:
+                                //
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.Colon, {
+                                    }],
+                                })
+                            case Char.Punctuation.openBrace:
+                                return this.onObjectOpen(curChar, range)
+                            case Char.Punctuation.openParen:
+                                return this.onObjectOpen(curChar, range)
+                            case Char.Punctuation.verticalLine:
+                                this.onNonStringValue(range)
+                                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
+                                return this.tempOnData({
+                                    range: range,
+                                    type: [ParserEventType.TaggedUnion, {
+                                    }],
+                                })
+                            default:
+                                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
+                                return p.result(false)
+                        }
+                    }
+                    case TokenDataType.Snippet: {
+                        const $ = data.type[1]
+                        return this.onSnippet($.chunk, $.begin, $.end)
+                    }
+                    case TokenDataType.QuotedStringBegin: {
+                        const $ = data.type[1]
+                        return this.onQuotedStringBegin($.range, $.quote)
+                    }
+                    case TokenDataType.QuotedStringEnd: {
+                        const $ = data.type[1]
+                        return this.onQuotedStringEnd($.range, $.quote)
+                    }
+                    case TokenDataType.UnquotedTokenBegin: {
+                        const $ = data.type[1]
+                        return this.onUnquotedTokenBegin($.location)
+                    }
+                    case TokenDataType.UnquotedTokenEnd: {
+                        const $ = data.type[1]
+                        return this.onUnquotedTokenEnd($.location)
+                    }
+                    case TokenDataType.WhiteSpaceBegin: {
+                        const $ = data.type[1]
+                        return this.onWhitespaceBegin($.location)
+                    }
+                    case TokenDataType.WhiteSpaceEnd: {
+                        const $ = data.type[1]
+                        return this.onWhitespaceEnd($.location)
+                    }
+                    default:
+                        return assertUnreachable(data.type[0])
+                }
             }
             default:
-                return assertUnreachable(data.type[0])
+                return assertUnreachable($[0])
         }
     }
     public onEnd(aborted: boolean, location: Location): void {
@@ -244,155 +688,6 @@ class Parser implements ITokenStreamConsumer {
             throw new Error("unexpected missing parser event consumer")
         }
         this.parserEventsConsumer.onEnd(aborted, location)
-    }
-    public onPunctuation(curChar: number, range: Range): p.DataOrPromise<boolean> {
-        if (DEBUG) console.log(`onPunctuation`, curChar, String.fromCharCode(curChar))
-        const $ = this.currentContext
-        this.indentationState = [IndentationState.lineIsDitry]
-
-
-        switch (curChar) {
-            case Char.Punctuation.exclamationMark:
-                switch ($[0]) {
-                    case StackContextType.ARRAY: {
-                        this.raiseError("unexpected !", range)
-                        break
-                    }
-                    case StackContextType.OBJECT: {
-                        this.raiseError("unexpected !", range)
-                        break
-                    }
-                    case StackContextType.ROOT: {
-                        /**
-                         * ROOT PROCESSING
-                         */
-                        const $$ = $[1]
-                        switch ($$.state) {
-                            case RootState.EXPECTING_END: {
-                                this.raiseError(`Unexpected data after end`, range)
-                                break
-                            }
-                            case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                                this.raiseError("unexpected '!', expected '#' or value", range)
-                                break
-                            }
-                            case RootState.EXPECTING_SCHEMA: {
-                                this.raiseError("unexpected '!', expected schema value", range)
-                                break
-                            }
-                            case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                                this.raiseError("unexpected '!', expected root value", range)
-                                break
-                            }
-                            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                                $$.state = RootState.EXPECTING_SCHEMA
-                                break
-                            default:
-                                return assertUnreachable($$.state)
-                        }
-                        break
-                    }
-                    case StackContextType.TAGGED_UNION: {
-                        this.raiseError("unexpected !", range)
-                        break
-                    }
-                    default:
-                        return assertUnreachable($[0])
-                }
-                this.parserEventsConsumer = this.headerConsumer.onHeaderStart(range)
-                return p.result(false)
-            case Char.Punctuation.hash:
-                switch ($[0]) {
-                    case StackContextType.ARRAY: {
-                        this.raiseError("unexpected '#', expected a value after a comma", range)
-                        break
-                    }
-                    case StackContextType.OBJECT: {
-                        this.raiseError("unexpected '#'", range)
-                        break
-                    }
-                    case StackContextType.ROOT: {
-                        /**
-                         * ROOT PROCESSING
-                         */
-                        const $$ = $[1]
-                        switch ($$.state) {
-                            case RootState.EXPECTING_END: {
-                                this.raiseError("unexpected '#', expected no more data", range)
-                                break
-                            }
-                            case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                                $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
-                                break
-                            }
-                            case RootState.EXPECTING_SCHEMA: {
-                                this.raiseError("unexpected '#', expected the schema", range)
-                                break
-                            }
-                            case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                                this.raiseError("unexpected '#', expected the root value", range)
-                                break
-                            }
-                            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                                this.raiseError("unexpected '#', expected an '!' (to specify a schema) or a value", range)
-                                break
-                            default:
-                                return assertUnreachable($$.state)
-                        }
-                        break
-                    }
-                    case StackContextType.TAGGED_UNION: {
-                        this.raiseError("unexpected '#'", range)
-                        break
-                    }
-                    default:
-                        return assertUnreachable($[0])
-                }
-                this.headerConsumer.onCompact(range)
-                this.onHeaderEnd(range)
-                return p.result(false)
-            case Char.Punctuation.closeAngleBracket:
-                return this.onArrayClose(curChar, range)
-            case Char.Punctuation.closeBracket:
-                return this.onArrayClose(curChar, range)
-            case Char.Punctuation.comma:
-                //
-                return this.tempOnData({
-                    range: range,
-                    type: [ParserEventType.Comma, {
-                    }],
-                })
-            case Char.Punctuation.openAngleBracket:
-                return this.onArrayOpen(curChar, range)
-            case Char.Punctuation.openBracket:
-                return this.onArrayOpen(curChar, range)
-            case Char.Punctuation.closeBrace:
-                return this.onObjectClose(curChar, range)
-            case Char.Punctuation.closeParen:
-                return this.onObjectClose(curChar, range)
-            case Char.Punctuation.colon:
-                //
-                return this.tempOnData({
-                    range: range,
-                    type: [ParserEventType.Colon, {
-                    }],
-                })
-            case Char.Punctuation.openBrace:
-                return this.onObjectOpen(curChar, range)
-            case Char.Punctuation.openParen:
-                return this.onObjectOpen(curChar, range)
-            case Char.Punctuation.verticalLine:
-                this.onNonStringValue(range)
-                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                return this.tempOnData({
-                    range: range,
-                    type: [ParserEventType.TaggedUnion, {
-                    }],
-                })
-            default:
-                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
-                return p.result(false)
-        }
     }
     public onSnippet(chunk: string, begin: number, end: number): p.DataOrPromise<boolean> {
         if (DEBUG) console.log(`onSnippet`)
@@ -932,10 +1227,26 @@ class Parser implements ITokenStreamConsumer {
     }
 }
 
+class StreamParser implements ITokenStreamConsumer {
+    private readonly parser: Parser
+    constructor(
+        headerSubscriber: HeaderConsumer,
+        onerror: (message: string, range: Range) => void,
+    ) {
+        this.parser = new Parser(headerSubscriber, onerror)
+    }
+    public onData(data: TokenData): p.DataOrPromise<boolean> {
+        return this.parser.onData(data)
+    }
+    public onEnd(aborted: boolean, location: Location): void {
+        return this.parser.onEnd(aborted, location)
+    }
+}
+
 export function createParser(
     onerror: (message: string, range: Range) => void,
     headerSubscriber: HeaderConsumer,
 ): ITokenStreamConsumer {
-    const p = new Parser(headerSubscriber, onerror)
+    const p = new StreamParser(headerSubscriber, onerror)
     return p
 }

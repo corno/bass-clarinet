@@ -1,5 +1,4 @@
-import { Location, Range } from "./location"
-import { IStreamConsumer } from "./IStreamConsumer"
+import { Range } from "./location"
 
 export type SimpleValueData = {
     value: string
@@ -64,5 +63,3 @@ export type ParserEvent = {
     }]
     | [ParserEventType.WhiteSpace, WhiteSpaceData]
 }
-
-export type IParserEventConsumer = IStreamConsumer<ParserEvent, Location>

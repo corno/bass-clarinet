@@ -4,7 +4,7 @@ import {
     SimpleValueData,
     OpenData,
     CloseData,
-} from "../IParserEventConsumer"
+} from "../ParserEvent"
 
 export type PreData = {
     comments: Comment[]
