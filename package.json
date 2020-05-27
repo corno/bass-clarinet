@@ -80,6 +80,6 @@
   },
   "license": "BSD-2-Clause",
   "dependencies": {
-    "pareto": "^0.33.1"
+    "pareto": "^0.35.0"
   }
 }
