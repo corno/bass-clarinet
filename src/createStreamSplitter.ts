@@ -4,9 +4,9 @@ export function createStreamSplitter<DataType, EndDataType>(
     subStreamConsumers: p.IStreamConsumer<DataType, EndDataType>[]
 ): p.IStreamConsumer<DataType, EndDataType> {
     return {
-        onData: (data: DataType): p.DataOrPromise<boolean> => {
+        onData: (data: DataType): p.IValue<boolean> => {
             let abortRequested = false
-            const promises: p.DataOrPromise<boolean>[] = []
+            const promises: p.IValue<boolean>[] = []
             subStreamConsumers.forEach(s => {
                 const returnValue = s.onData(data)
                 if (returnValue instanceof Array) {
@@ -20,7 +20,7 @@ export function createStreamSplitter<DataType, EndDataType>(
             if (promises.length === 0) {
                 return p.result(abortRequested)
             }
-            return p.mergeArrayOfSafePromises(promises).mapResult(abortResquests => {
+            return p.mergeArrayOfSafeValues(promises).mapResult(abortResquests => {
                 return p.result(abortRequested || abortResquests.includes(true)) //if 1 promise requested an abort
             })
         },

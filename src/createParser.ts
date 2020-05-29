@@ -93,7 +93,7 @@ class Parser {
         this.onerror = onerror
         this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
     }
-    public onData(data: TokenData): p.DataOrPromise<boolean> {
+    public onData(data: TokenData): p.IValue<boolean> {
         const $ = this.currentContext
         switch ($[0]) {
             case StackContextType.ARRAY: {
@@ -689,7 +689,7 @@ class Parser {
         }
         this.parserEventsConsumer.onEnd(aborted, location)
     }
-    public onSnippet(chunk: string, begin: number, end: number): p.DataOrPromise<boolean> {
+    public onSnippet(chunk: string, begin: number, end: number): p.IValue<boolean> {
         if (DEBUG) console.log(`onSnippet`)
 
         switch (this.currentToken[0]) {
@@ -726,7 +726,7 @@ class Parser {
         }
         return p.result(false)
     }
-    public onNewLine(range: Range): p.DataOrPromise<boolean> {
+    public onNewLine(range: Range): p.IValue<boolean> {
         if (DEBUG) console.log(`onNewLine`)
 
         this.indentationState = [IndentationState.lineIsVirgin]
@@ -737,7 +737,7 @@ class Parser {
             }],
         })
     }
-    public onLineCommentBegin(range: Range): p.DataOrPromise<boolean> {
+    public onLineCommentBegin(range: Range): p.IValue<boolean> {
         if (DEBUG) console.log(`onLineCommentBegin`)
 
         this.setCurrentToken(
@@ -752,7 +752,7 @@ class Parser {
         this.indentationState = [IndentationState.lineIsDitry]
         return p.result(false)
     }
-    public onLineCommentEnd(location: Location): p.DataOrPromise<boolean> {
+    public onLineCommentEnd(location: Location): p.IValue<boolean> {
         if (DEBUG) console.log(`onLineCommentEnd`)
 
         if (this.currentToken[0] !== TokenType.LINE_COMMENT) {
@@ -796,7 +796,7 @@ class Parser {
                 return assertUnreachable(this.indentationState[0])
         }
     }
-    public onBlockCommentBegin(range: Range): p.DataOrPromise<boolean> {
+    public onBlockCommentBegin(range: Range): p.IValue<boolean> {
         if (DEBUG) console.log(`onBlockCommentBegin`)
 
         this.setCurrentToken([TokenType.BLOCK_COMMENT, {
@@ -808,7 +808,7 @@ class Parser {
         this.indentationState = [IndentationState.lineIsDitry]
         return p.result(false)
     }
-    private tempOnData(data: ParserEvent): p.DataOrPromise<boolean> {
+    private tempOnData(data: ParserEvent): p.IValue<boolean> {
         if (this.parserEventsConsumer === undefined) {
             console.error("dropping token, no events consumer")
             //throw new Error("unexpected missing parser event consumer")
@@ -817,7 +817,7 @@ class Parser {
             return this.parserEventsConsumer.onData(data)
         }
     }
-    public onBlockCommentEnd(end: Range): p.DataOrPromise<boolean> {
+    public onBlockCommentEnd(end: Range): p.IValue<boolean> {
         if (DEBUG) console.log(`onBlockCommentEnd`)
 
         if (this.currentToken[0] !== TokenType.BLOCK_COMMENT) {
@@ -849,7 +849,7 @@ class Parser {
         this.unsetCurrentToken(end)
         return od
     }
-    public onUnquotedTokenBegin(location: Location): p.DataOrPromise<boolean> {
+    public onUnquotedTokenBegin(location: Location): p.IValue<boolean> {
         if (DEBUG) console.log(`onUnquotedTokenBegin`)
 
         this.indentationState = [IndentationState.lineIsDitry]
@@ -857,7 +857,7 @@ class Parser {
         this.setCurrentToken([TokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], { start: location, end: location })
         return p.result(false)
     }
-    public onUnquotedTokenEnd(location: Location): p.DataOrPromise<boolean> {
+    public onUnquotedTokenEnd(location: Location): p.IValue<boolean> {
         if (DEBUG) console.log(`onUnquotedTokenEnd`)
 
         if (this.currentToken[0] !== TokenType.UNQUOTED_TOKEN) {
@@ -883,7 +883,7 @@ class Parser {
         return od
     }
 
-    public onWhitespaceBegin(location: Location): p.DataOrPromise<boolean> {
+    public onWhitespaceBegin(location: Location): p.IValue<boolean> {
         if (DEBUG) console.log(`onWhitespaceBegin`)
         const $: WhitespaceContext = { whitespaceNode: "", start: location }
 
@@ -894,7 +894,7 @@ class Parser {
         this.setCurrentToken([TokenType.WHITESPACE, $], { start: location, end: location })
         return p.result(false)
     }
-    public onWhitespaceEnd(location: Location): p.DataOrPromise<boolean> {
+    public onWhitespaceEnd(location: Location): p.IValue<boolean> {
         if (DEBUG) console.log(`onWhitespaceEnd`)
 
         if (this.currentToken[0] !== TokenType.WHITESPACE) {
@@ -915,13 +915,13 @@ class Parser {
         return od
     }
 
-    public onQuotedStringBegin(begin: Range, quote: string): p.DataOrPromise<boolean> {
+    public onQuotedStringBegin(begin: Range, quote: string): p.IValue<boolean> {
         if (DEBUG) console.log(`onQuotedStringBegin`)
         this.setCurrentToken([TokenType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
         return p.result(false)
     }
 
-    public onQuotedStringEnd(end: Range, quote: string | null): p.DataOrPromise<boolean> {
+    public onQuotedStringEnd(end: Range, quote: string | null): p.IValue<boolean> {
         if (DEBUG) console.log(`onQuotedStringEnd`)
         if (this.currentToken[0] !== TokenType.QUOTED_STRING) {
             throw new ParserStackPanicError(`Unexpected unquoted token end`, end)
@@ -934,7 +934,7 @@ class Parser {
         }
         this.wrapupBeforeValue(range)
         const $ = this.currentContext
-        const onStringValue = (): p.DataOrPromise<boolean> => {
+        const onStringValue = (): p.IValue<boolean> => {
             const od = this.tempOnData({
                 range: range,
                 type: [ParserEventType.SimpleValue,
@@ -1008,7 +1008,7 @@ class Parser {
                 return assertUnreachable($[0])
         }
     }
-    private onObjectOpen(curChar: number, range: Range): p.DataOrPromise<boolean> {
+    private onObjectOpen(curChar: number, range: Range): p.IValue<boolean> {
         this.onNonStringValue(range)
         this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
         return this.tempOnData({
@@ -1018,7 +1018,7 @@ class Parser {
             }],
         })
     }
-    private onObjectClose(curChar: number, range: Range): p.DataOrPromise<boolean> {
+    private onObjectClose(curChar: number, range: Range): p.IValue<boolean> {
         if (this.currentContext[0] !== StackContextType.OBJECT) {
             this.raiseError("not in an object", range)
             return this.tempOnData({
@@ -1235,7 +1235,7 @@ class StreamParser implements ITokenStreamConsumer {
     ) {
         this.parser = new Parser(headerSubscriber, onerror)
     }
-    public onData(data: TokenData): p.DataOrPromise<boolean> {
+    public onData(data: TokenData): p.IValue<boolean> {
         return this.parser.onData(data)
     }
     public onEnd(aborted: boolean, location: Location): void {

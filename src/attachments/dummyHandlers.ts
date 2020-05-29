@@ -14,7 +14,7 @@ export function createDummyValueHandler(): ValueHandler {
     return {
         array: (): ArrayHandler => createDummyArrayHandler(),
         object: (): ObjectHandler => createDummyObjectHandler(),
-        simpleValue: (): p.DataOrPromise<boolean> => {
+        simpleValue: (): p.IValue<boolean> => {
             //do nothing
             return p.result(false)
         },

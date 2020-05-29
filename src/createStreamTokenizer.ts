@@ -29,7 +29,7 @@ class StreamTokenizer implements p.IStreamConsumer<string, null> {
         )
         this.tokenizerState = new Tokenizer(this.locationState, onerror)
     }
-    private loopUntilPromiseOrEnd(currentChunk: Chunk): p.DataOrPromise<boolean> {
+    private loopUntilPromiseOrEnd(currentChunk: Chunk): p.IValue<boolean> {
         if (this.aborted) {
             //ignore this data
             return p.result(true)
@@ -53,7 +53,7 @@ class StreamTokenizer implements p.IStreamConsumer<string, null> {
                         //token is handled properly, continue the loop
                     }
                 } else {
-                    return p.wrap.SafePromise(onDataResult).mapResult(abortRequested => {
+                    return p.wrap.Value(onDataResult).mapResult(abortRequested => {
                         if (abortRequested) {
                             this.aborted = true
                             return p.result(true)
@@ -65,7 +65,7 @@ class StreamTokenizer implements p.IStreamConsumer<string, null> {
             }
         }
     }
-    public onData(chunk: string): p.DataOrPromise<boolean> {
+    public onData(chunk: string): p.IValue<boolean> {
         if (DEBUG) console.log(`write -> [${JSON.stringify(chunk)}]`)
         const currentChunk = new Chunk(chunk)
         return this.loopUntilPromiseOrEnd(currentChunk)
@@ -75,7 +75,7 @@ class StreamTokenizer implements p.IStreamConsumer<string, null> {
         const tokenData = this.tokenizerState.handleDanglingToken()
         if (tokenData !== null) {
             const onDataReturnValue = this.tokenStreamConsumer.onData(tokenData)
-            p20.handleDataOrPromise(onDataReturnValue, _abort => {
+            onDataReturnValue.handle(_abort => {
                 //nothing to abort anymore
             })
         }
