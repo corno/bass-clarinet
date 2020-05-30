@@ -6,7 +6,7 @@
 import * as p from "pareto"
 import { ParserEventType, ParserEvent } from "../ParserEvent"
 import { HeaderConsumer, ParserEventConsumer } from "../createParser"
-import { Range, Location } from "../location"
+import { Range } from "../location"
 import * as Char from "./NumberCharacters"
 import { RangeError } from "../errors"
 

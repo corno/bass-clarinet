@@ -3,7 +3,7 @@
 */
 import * as p from "pareto"
 import { Range, Location } from "../location"
-import { ParserEvent, ParserEventType } from "../ParserEvent"
+import { ParserEventType } from "../ParserEvent"
 import { ParserEventConsumer } from "../createParser"
 
 function assertUnreachable(_x: never) {
