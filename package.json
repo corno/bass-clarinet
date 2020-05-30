@@ -67,8 +67,8 @@
     "testOwnSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/bass_clarinet.js",
     "testJSONTestSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
     "update2latest": "ncu -u --packageFile package.json && nsi",
-    "update2latestAndPublishMinor": "npm run update2latest && git commit -am \"u2l\" && npm run pubMin",
-    "update2latestAndPublishPath": "npm run update2latest && git commit -am \"u2l\" && npm run pubPatch"
+    "update2latestAndPublishMinor": "npm run validatePublishReadiness && npm run update2latest && npm run test && git commit -am \"u2l\" && npm run pubMin",
+    "update2latestAndPublishPath": "npm run validatePublishReadiness && npm run update2latest && npm run test && git commit -am \"u2l\" && npm run pubPatch"
   },
   "engines": {
     "node": ">=8.0.0",
