@@ -10,14 +10,14 @@ import { Chunk, Tokenizer, TokenizerOptions, LocationState } from "./Tokenizer"
 
 const DEBUG = false
 
-class StreamTokenizer<ReturnType> implements p.IStreamConsumer<string, null, ReturnType> {
+class StreamTokenizer<ReturnType, ErrorType> implements p.IStreamConsumer<string, null, ReturnType, ErrorType> {
 
     private readonly tokenizerState: Tokenizer
     private readonly locationState: LocationState
-    private readonly tokenStreamConsumer: ITokenStreamConsumer<ReturnType>
+    private readonly tokenStreamConsumer: ITokenStreamConsumer<ReturnType, ErrorType>
     private aborted = false
 
-    constructor(tokenStreamConsumer: ITokenStreamConsumer<ReturnType>, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions) {
+    constructor(tokenStreamConsumer: ITokenStreamConsumer<ReturnType, ErrorType>, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions) {
         this.tokenStreamConsumer = tokenStreamConsumer
         this.locationState = new LocationState(
             opt === undefined
@@ -70,7 +70,7 @@ class StreamTokenizer<ReturnType> implements p.IStreamConsumer<string, null, Ret
         return this.loopUntilPromiseOrEnd(currentChunk)
     }
 
-    public onEnd(aborted: boolean): p.IValue<ReturnType> {
+    public onEnd(aborted: boolean): p.IUnsafeValue<ReturnType, ErrorType> {
         const tokenData = this.tokenizerState.handleDanglingToken()
         if (tokenData !== null) {
             const onDataReturnValue = this.tokenStreamConsumer.onData(tokenData)
@@ -82,10 +82,10 @@ class StreamTokenizer<ReturnType> implements p.IStreamConsumer<string, null, Ret
     }
 }
 
-export function createStreamTokenizer<ReturnType>(
-    tokenStreamConsumer: ITokenStreamConsumer<ReturnType>,
+export function createStreamTokenizer<ReturnType, ErrorType>(
+    tokenStreamConsumer: ITokenStreamConsumer<ReturnType, ErrorType>,
     onerror: (message: string, range: Range) => void,
     opt?: TokenizerOptions
-): p.IStreamConsumer<string, null, ReturnType> {
+): p.IStreamConsumer<string, null, ReturnType, ErrorType> {
     return new StreamTokenizer(tokenStreamConsumer, onerror, opt)
 }

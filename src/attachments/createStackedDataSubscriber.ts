@@ -17,6 +17,7 @@ import {
     TaggedUnionHandler,
 } from "./handlers"
 import { RangeError } from "../errors"
+import { ParserEventConsumer } from "../createParser"
 
 const DEBUG = false
 
@@ -58,11 +59,11 @@ function raiseError(onError: (error: RangeError) => void, message: string, range
  * and
  * 'onopenarray' with 'onclosearray'
  */
-export function createStackedDataSubscriber<ReturnType>(
+export function createStackedDataSubscriber<ReturnType, ErrorType>(
     valueHandler: RequiredValueHandler,
     onError: (error: RangeError) => void,
-    onEnd: (preData: PreData) => p.IValue<ReturnType>
-): p.IStreamConsumer<ParserEvent, Location, ReturnType> {
+    onEnd: (preData: PreData) => p.IUnsafeValue<ReturnType, ErrorType>
+): ParserEventConsumer<ReturnType, ErrorType> {
     const stack: ContextType[] = []
     let comments: Comment[] = []
     let indentation = ""
@@ -175,7 +176,7 @@ export function createStackedDataSubscriber<ReturnType>(
     //     }
     // }
 
-    const ds: p.IStreamConsumer<ParserEvent, Location, ReturnType> = {
+    const ds: ParserEventConsumer<ReturnType, ErrorType> = {
         onData: (data: ParserEvent) => {
             switch (data.type[0]) {
                 case ParserEventType.BlockComment: {
@@ -449,7 +450,7 @@ export function createStackedDataSubscriber<ReturnType>(
                     return assertUnreachable(data.type[0])
             }
         },
-        onEnd: (_aborted: boolean, location: Location): p.IValue<ReturnType> => {
+        onEnd: (_aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> => {
             const range = { start: location, end: location }
             unwindLoop: while (true) {
                 function popStack() {

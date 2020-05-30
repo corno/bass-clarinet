@@ -5,7 +5,7 @@
 */
 import * as p from "pareto"
 import { ParserEventType, ParserEvent } from "../ParserEvent"
-import { HeaderConsumer } from "../createParser"
+import { HeaderConsumer, ParserEventConsumer } from "../createParser"
 import { Range, Location } from "../location"
 import * as Char from "./NumberCharacters"
 import { RangeError } from "../errors"
@@ -109,7 +109,7 @@ type ContextType =
         // valueHandler: null | ValueHandler
     }]
 
-class StrictJSONHeaderValidator implements HeaderConsumer<null> {
+class StrictJSONHeaderValidator implements HeaderConsumer<null, null> {
     private readonly onError: OnError
 
 
@@ -123,7 +123,7 @@ class StrictJSONHeaderValidator implements HeaderConsumer<null> {
                 return p.result(false)
             },
             onEnd: () => {
-                return p.result(null)
+                return p.success<null, null>(null)
             },
         }
     }
@@ -135,7 +135,7 @@ class StrictJSONHeaderValidator implements HeaderConsumer<null> {
     }
 }
 
-class StrictJSONValidator implements p.IStreamConsumer<ParserEvent, Location, null> {
+class StrictJSONValidator implements ParserEventConsumer<null, null> {
     private readonly onError: OnError
     private readonly stack: ContextType[] = []
     private currentContext: ContextType = ["root", {}]
@@ -366,7 +366,7 @@ class StrictJSONValidator implements p.IStreamConsumer<ParserEvent, Location, nu
         return p.result(false)
     }
     public onEnd() {
-        return p.result(null)
+        return p.success<null, null>(null)
     }
     private push(newContext: ContextType) {
         this.stack.push(this.currentContext)
@@ -470,10 +470,10 @@ class StrictJSONValidator implements p.IStreamConsumer<ParserEvent, Location, nu
     }
 }
 
-export function createStrictJSONHeaderValidator(onError: OnError): HeaderConsumer<null> {
+export function createStrictJSONHeaderValidator(onError: OnError): HeaderConsumer<null, null> {
     return new StrictJSONHeaderValidator(onError)
 }
 
-export function createStrictJSONValidator(onError: OnError): p.IStreamConsumer<ParserEvent, Location, null> {
+export function createStrictJSONValidator(onError: OnError): ParserEventConsumer<null, null> {
     return new StrictJSONValidator(onError)
 }

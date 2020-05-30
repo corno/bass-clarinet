@@ -1,6 +1,7 @@
 import * as p from "pareto"
 import * as bc from "../src"
 import { ParserEvent } from "../src/ParserEvent"
+import { ParserEventConsumer } from "../src"
 
 function createRequiredValuesAnnotater(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
     return {
@@ -57,15 +58,15 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
     }
 }
 
-export function createAnnotator(indentation: string, writer: (str: string) => void): p.IStreamConsumer<ParserEvent, bc.Location, null> {
-    const ds = bc.createStackedDataSubscriber(
+export function createAnnotator(indentation: string, writer: (str: string) => void): ParserEventConsumer<null, null> {
+    const ds = bc.createStackedDataSubscriber<null, null>(
         createRequiredValuesAnnotater(indentation, writer),
         error => {
             throw new bc.RangeError(error.message, error.range)
         },
         () => {
             //do nothing
-            return p.result(null)
+            return p.success(null)
         }
     )
     return ds

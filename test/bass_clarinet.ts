@@ -10,7 +10,7 @@ import * as chai from "chai"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, ParserEvent } from "../src"
+import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, ParserEvent, ParserEventConsumer } from "../src"
 import { createStreamSplitter } from "../src/createStreamSplitter"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -64,7 +64,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             const escaped = JSON.stringify(str)
             return escaped.substring(1, escaped.length - 1) //remove quotes
         }
-        const outputter: p.IStreamConsumer<ParserEvent, bc.Location, null> = {
+        const outputter: ParserEventConsumer<null, null> = {
             onData: data => {
                 switch (data.type[0]) {
                     case ParserEventType.BlockComment: {
@@ -141,7 +141,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         .replace(/\r/g, "\n")
                     )
                 }
-                return p.result(null)
+                return p.success(null)
             },
         }
 
@@ -199,10 +199,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 actualEvents.push(["stacked error", error.rangeLessMessage])
             },
             () => {
-                return p.result(null)
+                return p.success<null, null>(null)
             }
         )
-        const eventSubscriber: p.IStreamConsumer<ParserEvent, bc.Location, null> = {
+        const eventSubscriber: ParserEventConsumer<null, null> = {
             onData: data => {
                 switch (data.type[0]) {
                     case ParserEventType.BlockComment: {
@@ -286,7 +286,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (expectedEvents !== undefined) {
                     chai.assert.deepEqual(actualEvents, expectedEvents)
                 }
-                return p.result(null)
+                return p.success(null)
             },
         }
 
@@ -333,12 +333,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
             },
         )
-        const schemaDataSubscribers: p.IStreamConsumer<ParserEvent, bc.Location, null>[] = [
+        const schemaDataSubscribers: ParserEventConsumer<null, null>[] = [
             outputter,
             eventSubscriber,
             formatter,
         ]
-        const instanceDataSubscribers: p.IStreamConsumer<ParserEvent, bc.Location, null>[] = [
+        const instanceDataSubscribers: ParserEventConsumer<null, null>[] = [
             outputter,
             eventSubscriber,
             stackedSubscriber,

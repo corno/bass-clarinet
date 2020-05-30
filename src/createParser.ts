@@ -70,24 +70,26 @@ function getContextDescription(stackContext: StackContext): string {
     }
 }
 
-export interface HeaderConsumer<ReturnType> {
-    onHeaderStart(range: Range): p.IStreamConsumer<ParserEvent, Location, null>
+export type ParserEventConsumer<ReturnType, ErrorType> = p.IStreamConsumer<ParserEvent, Location, ReturnType, ErrorType>
+
+export interface HeaderConsumer<ReturnType, ErrorType> {
+    onHeaderStart(range: Range): ParserEventConsumer<null, null>
     onCompact(range: Range): void
-    onHeaderEnd(range: Range): p.IStreamConsumer<ParserEvent, Location, ReturnType>
+    onHeaderEnd(range: Range): ParserEventConsumer<ReturnType, ErrorType>
 }
 
-class Parser<ReturnType> {
+class Parser<ReturnType, ErrorType> {
     public readonly stack = new Array<StackContext>()
-    public readonly headerConsumer: HeaderConsumer<ReturnType>
+    public readonly headerConsumer: HeaderConsumer<ReturnType, ErrorType>
     private currentContext: StackContext
-    private schemaEventsConsumer?: p.IStreamConsumer<ParserEvent, Location, null>
-    private instanceEventsConsumer?: p.IStreamConsumer<ParserEvent, Location, ReturnType>
+    private schemaEventsConsumer?: ParserEventConsumer<null, null>
+    private instanceEventsConsumer?: ParserEventConsumer<ReturnType, ErrorType>
     private currentToken: CurrentToken = [TokenType.NONE]
     private readonly onerror: (message: string, range: Range) => void
     private indentationState: IndentationData = [IndentationState.lineIsVirgin]
 
     constructor(
-        headerSubscriber: HeaderConsumer<ReturnType>,
+        headerSubscriber: HeaderConsumer<ReturnType, ErrorType>,
         onerror: (message: string, range: Range) => void,
     ) {
         this.headerConsumer = headerSubscriber
@@ -596,7 +598,7 @@ class Parser<ReturnType> {
                 return assertUnreachable($[0])
         }
     }
-    public onEnd(aborted: boolean, location: Location): p.IValue<ReturnType> {
+    public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
 
         const range = { start: location, end: location }
         unwindLoop: while (true) {
@@ -1230,10 +1232,10 @@ class Parser<ReturnType> {
     }
 }
 
-class StreamParser<ReturnType> implements ITokenStreamConsumer<ReturnType> {
-    private readonly parser: Parser<ReturnType>
+class StreamParser<ReturnType, ErrorType> implements ITokenStreamConsumer<ReturnType, ErrorType> {
+    private readonly parser: Parser<ReturnType, ErrorType>
     constructor(
-        headerSubscriber: HeaderConsumer<ReturnType>,
+        headerSubscriber: HeaderConsumer<ReturnType, ErrorType>,
         onerror: (message: string, range: Range) => void,
     ) {
         this.parser = new Parser(headerSubscriber, onerror)
@@ -1241,15 +1243,15 @@ class StreamParser<ReturnType> implements ITokenStreamConsumer<ReturnType> {
     public onData(data: TokenData): p.IValue<boolean> {
         return this.parser.onData(data)
     }
-    public onEnd(aborted: boolean, location: Location): p.IValue<ReturnType> {
+    public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
         return this.parser.onEnd(aborted, location)
     }
 }
 
-export function createParser<ReturnType>(
+export function createParser<ReturnType, ErrorType>(
     onerror: (message: string, range: Range) => void,
-    headerSubscriber: HeaderConsumer<ReturnType>,
-): ITokenStreamConsumer<ReturnType> {
-    const p = new StreamParser(headerSubscriber, onerror)
+    headerConsumer: HeaderConsumer<ReturnType, ErrorType>,
+): ITokenStreamConsumer<ReturnType, ErrorType> {
+    const p = new StreamParser(headerConsumer, onerror)
     return p
 }

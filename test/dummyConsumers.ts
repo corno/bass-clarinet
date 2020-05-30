@@ -1,16 +1,16 @@
 import * as p from "pareto"
-import * as bc from "../src"
+import { ParserEventConsumer, HeaderConsumer } from "../src"
 
-export const dummyParserEventConsumer: p.IStreamConsumer<bc.ParserEvent, bc.Location, null> = {
+export const dummyParserEventConsumer: ParserEventConsumer<null, null> = {
     onData: () => {
         return p.result(false)
     },
     onEnd: () => {
-        return p.result(null)
+        return p.success(null)
     },
 }
 
-export const dummyHeaderConsumer: bc.HeaderConsumer<null> = {
+export const dummyHeaderConsumer: HeaderConsumer<null, null> = {
     onCompact: () => {
         //
     },

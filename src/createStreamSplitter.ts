@@ -2,8 +2,8 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 
 export function createStreamSplitter<DataType, EndDataType>(
-    subStreamConsumers: p.IStreamConsumer<DataType, EndDataType, null>[]
-): p.IStreamConsumer<DataType, EndDataType, null> {
+    subStreamConsumers: p.IStreamConsumer<DataType, EndDataType, null, null>[]
+): p.IStreamConsumer<DataType, EndDataType, null, null> {
     return {
         onData: (data: DataType): p.IValue<boolean> => {
             let abortRequested = false
@@ -25,15 +25,15 @@ export function createStreamSplitter<DataType, EndDataType>(
                 return p.result(abortRequested || abortResquests.includes(true)) //if 1 promise requested an abort
             })
         },
-        onEnd: (aborted: boolean, endData: EndDataType): p.IValue<null> => {
-            subStreamConsumers.forEach(s => {
-                s.onEnd(aborted, endData).handle(
-                    _res => {
-                        //
-                    }
-                )
+        onEnd: (aborted: boolean, endData: EndDataType): p.IUnsafeValue<null, null> => {
+            return p20.createArray(
+                subStreamConsumers
+            ).mergeUnsafeValues(v => v.onEnd(aborted, endData)
+            ).mapError(() => {
+                return p.result(null)
+            }).mapResult(() => {
+                return p.result(null)
             })
-            return p.result(null)
         },
     }
 }

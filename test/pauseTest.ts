@@ -33,7 +33,7 @@ const parser = bc.createParser(
                 },
                 onEnd: () => {
                     console.log("Reached end")
-                    return p.result(null)
+                    return p.success<null, null>(null)
                 },
             }
         },
