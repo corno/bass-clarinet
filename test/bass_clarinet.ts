@@ -10,7 +10,7 @@ import * as chai from "chai"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, ParserEvent, ParserEventConsumer } from "../src"
+import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, ParserEventConsumer } from "../src"
 import { createStreamSplitter } from "../src/createStreamSplitter"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -22,11 +22,10 @@ const DEBUG = false
 const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
 
-// const selectedJSONTests: string[] = ["string chunk span"]
-// const selectedExtensionTests: string[] = []
+// const selectedJSONTests: string[] = []
+// const selectedExtensionTests: string[] = ["schema 2"]
 
 function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: boolean) {
-    const expectedEvents = test.events
     return function () {
         if (DEBUG) console.log("CHUNKS:", chunks)
 
@@ -280,12 +279,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 }
                 return p.result(false)
             },
-            onEnd: (_aborted, location) => {
+            onEnd: (_aborted, location): p.IUnsafeValue<null, null> => {
                 if (DEBUG) console.log("found end")
                 actualEvents.push(["end", getLocation(test.testForLocation, location)])
-                if (expectedEvents !== undefined) {
-                    chai.assert.deepEqual(actualEvents, expectedEvents)
-                }
                 return p.success(null)
             },
         }
@@ -321,14 +317,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
             () => {
 
-                const expectedFormattedText = test.formattedText ? test.formattedText : test.text
-                chai.assert.equal(
-                    formattedText
-                        .replace(/\r\n/g, "\n")
-                        .replace(/\n\r/g, "\n")
-                        .replace(/\r/g, "\n"),
-                    expectedFormattedText
-                )
                 return p.result(null)
 
             },
@@ -412,7 +400,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
         )
 
-        p20.streamifyArrayToConsumer(
+        return p.wrap.UnsafeValue( p20.streamifyArrayToConsumer(
             chunks,
             null,
             null,
@@ -424,7 +412,21 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     actualEvents.push(["tokenizererror", message])
                 },
             )
-        )
+        )).convertToNativePromise().then(() => {
+            //
+
+            if (test.events !== undefined) {
+                chai.assert.deepEqual(actualEvents, test.events)
+            }
+            const expectedFormattedText = test.formattedText ? test.formattedText : test.text
+            chai.assert.equal(
+                formattedText
+                    .replace(/\r\n/g, "\n")
+                    .replace(/\n\r/g, "\n")
+                    .replace(/\r/g, "\n"),
+                expectedFormattedText
+            )
+        })
     }
 }
 

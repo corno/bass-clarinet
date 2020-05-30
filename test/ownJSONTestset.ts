@@ -10,6 +10,7 @@ export const JSONTests: TestDefinitions = {
         events: [
             ["parsererror", "expected the schema start (!) or root value"],
             ["end", undefined],
+            ["stacked error", "missing value"],
         ],
     },
     "just a string": {
@@ -341,6 +342,7 @@ export const JSONTests: TestDefinitions = {
             ["token", "quotedstring", 'bar', undefined],
             ['parsererror', 'unexpected end of document, still in array'],
             ["end", undefined],
+            ['stacked error', 'unexpected end of document, still in array'],
         ],
     },
     "string invalid escape": {
@@ -747,6 +749,8 @@ export const JSONTests: TestDefinitions = {
             ['parsererror', 'unexpected end of document, still in array'],
             ['parsererror', 'unexpected end of document, still in array'],
             ["end", [1, 23]],
+            ['stacked error', 'unexpected end of document, still in array'],
+            ['stacked error', 'unexpected end of document, still in array'],
         ],
     },
     "incomplete json terminates ending in comma": {
@@ -760,6 +764,7 @@ export const JSONTests: TestDefinitions = {
             ["token", "closearray", "]", undefined],
             ['parsererror', 'unexpected end of document, still in array'],
             ["end", undefined],
+            ['stacked error', 'unexpected end of document, still in array'],
         ],
     },
     "json org": {
@@ -989,6 +994,7 @@ export const JSONTests: TestDefinitions = {
             ["token", "openobject", "{", undefined],
             ["parsererror", "unexpected end of document, still in object"],
             ["end", undefined],
+            ["stacked error", "unexpected end of document, still in object"],
         ],
     },
     "wrong inline formatting": {

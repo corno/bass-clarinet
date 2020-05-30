@@ -145,6 +145,8 @@ a comment
             ["parsererror", "unexpected end of document, still in tagged union"],
             //["closetaggedunion"],
             ["end", undefined],
+            ["stacked error", "missing value"],
+            ["stacked error", "unexpected end of document, still in tagged union"],
         ],
     },
     "incomplete tagged union in object": {
@@ -224,7 +226,7 @@ a comment
             ["end", undefined],
         ],
     },
-    "schema optional": {
+    "schema": {
         text: '!"a schema" 42',
         testHeaders: true,
         events: [
@@ -232,6 +234,18 @@ a comment
             ["token", "quotedstring", "a schema", undefined],
             ["headerend"],
             ["token", "unquotedtoken", "42", undefined],
+            ["end", undefined],
+        ],
+    },
+    "schema 2": {
+        text: '!"a schema" ( )',
+        testHeaders: true,
+        events: [
+            ["token", "headerstart"],
+            ["token", "quotedstring", "a schema", undefined],
+            ["headerend"],
+            ["token", "openobject", "(", undefined],
+            ["token", "closeobject", ")", undefined],
             ["end", undefined],
         ],
     },
@@ -459,6 +473,7 @@ a comment
             ["parsererror", "expected hash or rootvalue"],
             ["headerend"],
             ["end", undefined],
+            ["stacked error", "missing value"],
         ],
     },
 }

@@ -17,7 +17,6 @@ const parser = bc.createParser(
             //
         },
         onHeaderEnd: () => {
-            console.log("!!!!!!!!!!!!!!!!!!!!!")
             return {
                 onData: _data => {
                     //return p20.result(false)

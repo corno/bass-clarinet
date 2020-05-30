@@ -21,6 +21,13 @@ import { ParserEventConsumer } from "../createParser"
 
 const DEBUG = false
 
+// class StackedDataSubscriberPanic extends RangeError {
+//     constructor(message: string, range: Range) {
+//         super(`stack panic: ${message}`, range)
+//     }
+// }
+
+
 class StackedDataSubscriberPanic extends RangeError {
     constructor(message: string, range: Range) {
         super(`stack panic: ${message}`, range)
@@ -85,7 +92,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
     function pop(range: Range) {
         const previousContext = stack.pop()
         if (previousContext === undefined) {
-            raiseError(onError, "lost context", range)
+            throw new StackedDataSubscriberPanic("unexpected end of stack", range)
         } else {
             currentContext = previousContext
         }
@@ -453,14 +460,6 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
         onEnd: (_aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> => {
             const range = { start: location, end: location }
             unwindLoop: while (true) {
-                function popStack() {
-                    const popped = stack.pop()
-                    if (popped === undefined) {
-                        throw new StackedDataSubscriberPanic("unexpected end of stack", range)
-                    } else {
-                        currentContext = popped
-                    }
-                }
                 switch (currentContext[0]) {
                     case "root": {
                         const $ = currentContext[1]
@@ -472,7 +471,8 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                     }
                     case "array": {
                         raiseError(onError, "unexpected end of document, still in array", range)
-                        popStack()
+                        pop(range)
+                        wrapupValue(range)
                         break
                     }
                     case "object": {
@@ -482,7 +482,8 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                             $.propertyHandler = null
                         }
                         raiseError(onError, "unexpected end of document, still in object", range)
-                        popStack()
+                        pop(range)
+                        wrapupValue(range)
                         break
                     }
                     case "taggedunion": {
@@ -504,7 +505,8 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                 assertUnreachable($.state[0])
                         }
                         raiseError(onError, "unexpected end of document, still in tagged union", range)
-                        popStack()
+                        pop(range)
+                        wrapupValue(range)
 
                         break
                     }
