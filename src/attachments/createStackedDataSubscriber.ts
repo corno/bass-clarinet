@@ -58,17 +58,15 @@ function raiseError(onError: (error: RangeError) => void, message: string, range
  * and
  * 'onopenarray' with 'onclosearray'
  */
-export function createStackedDataSubscriber(
+export function createStackedDataSubscriber<ReturnType>(
     valueHandler: RequiredValueHandler,
     onError: (error: RangeError) => void,
-    onend: (preData: PreData) => void
-): p.IStreamConsumer<ParserEvent, Location> {
+    onEnd: (preData: PreData) => p.IValue<ReturnType>
+): p.IStreamConsumer<ParserEvent, Location, ReturnType> {
     const stack: ContextType[] = []
     let comments: Comment[] = []
     let indentation = ""
     let lineIsDirty = false
-
-    let endIsSignalled = false
 
     let currentContext: ContextType = ["root", { rootValueHandler: valueHandler }]
 
@@ -137,10 +135,7 @@ export function createStackedDataSubscriber(
                 break
             }
             case "root": {
-                endIsSignalled = true
                 currentContext[1].rootValueHandler = null
-
-                onend(flushPreData())
                 break
             }
             case "taggedunion": {
@@ -180,7 +175,7 @@ export function createStackedDataSubscriber(
     //     }
     // }
 
-    const ds: p.IStreamConsumer<ParserEvent, Location> = {
+    const ds: p.IStreamConsumer<ParserEvent, Location, ReturnType> = {
         onData: (data: ParserEvent) => {
             switch (data.type[0]) {
                 case ParserEventType.BlockComment: {
@@ -454,7 +449,7 @@ export function createStackedDataSubscriber(
                     return assertUnreachable(data.type[0])
             }
         },
-        onEnd: (_aborted: boolean, location: Location): void => {
+        onEnd: (_aborted: boolean, location: Location): p.IValue<ReturnType> => {
             const range = { start: location, end: location }
             unwindLoop: while (true) {
                 function popStack() {
@@ -516,9 +511,7 @@ export function createStackedDataSubscriber(
                         assertUnreachable(currentContext[0])
                 }
             }
-            if (!endIsSignalled) {
-                onend(flushPreData())
-            }
+            return onEnd(flushPreData())
         },
     }
     return ds

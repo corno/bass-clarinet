@@ -64,7 +64,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             const escaped = JSON.stringify(str)
             return escaped.substring(1, escaped.length - 1) //remove quotes
         }
-        const outputter: p.IStreamConsumer<ParserEvent, bc.Location> = {
+        const outputter: p.IStreamConsumer<ParserEvent, bc.Location, null> = {
             onData: data => {
                 switch (data.type[0]) {
                     case ParserEventType.BlockComment: {
@@ -141,6 +141,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         .replace(/\r/g, "\n")
                     )
                 }
+                return p.result(null)
             },
         }
 
@@ -198,10 +199,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 actualEvents.push(["stacked error", error.rangeLessMessage])
             },
             () => {
-                //
+                return p.result(null)
             }
         )
-        const eventSubscriber: p.IStreamConsumer<ParserEvent, bc.Location> = {
+        const eventSubscriber: p.IStreamConsumer<ParserEvent, bc.Location, null> = {
             onData: data => {
                 switch (data.type[0]) {
                     case ParserEventType.BlockComment: {
@@ -285,6 +286,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (expectedEvents !== undefined) {
                     chai.assert.deepEqual(actualEvents, expectedEvents)
                 }
+                return p.result(null)
             },
         }
 
@@ -327,14 +329,16 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         .replace(/\r/g, "\n"),
                     expectedFormattedText
                 )
+                return p.result(null)
+
             },
         )
-        const schemaDataSubscribers: p.IStreamConsumer<ParserEvent, bc.Location>[] = [
+        const schemaDataSubscribers: p.IStreamConsumer<ParserEvent, bc.Location, null>[] = [
             outputter,
             eventSubscriber,
             formatter,
         ]
-        const instanceDataSubscribers: p.IStreamConsumer<ParserEvent, bc.Location>[] = [
+        const instanceDataSubscribers: p.IStreamConsumer<ParserEvent, bc.Location, null>[] = [
             outputter,
             eventSubscriber,
             stackedSubscriber,

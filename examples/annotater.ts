@@ -57,7 +57,7 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
     }
 }
 
-export function createAnnotator(indentation: string, writer: (str: string) => void): p.IStreamConsumer<ParserEvent, bc.Location> {
+export function createAnnotator(indentation: string, writer: (str: string) => void): p.IStreamConsumer<ParserEvent, bc.Location, null> {
     const ds = bc.createStackedDataSubscriber(
         createRequiredValuesAnnotater(indentation, writer),
         error => {
@@ -65,6 +65,7 @@ export function createAnnotator(indentation: string, writer: (str: string) => vo
         },
         () => {
             //do nothing
+            return p.result(null)
         }
     )
     return ds

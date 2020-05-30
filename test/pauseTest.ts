@@ -2,6 +2,7 @@
     no-console: "off",
 */
 import * as p20 from "pareto-20"
+import * as p from "pareto"
 import * as bc from "../src";
 import { dummyParserEventConsumer } from "./dummyConsumers";
 
@@ -32,6 +33,7 @@ const parser = bc.createParser(
                 },
                 onEnd: () => {
                     console.log("Reached end")
+                    return p.result(null)
                 },
             }
         },

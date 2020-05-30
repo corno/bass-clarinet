@@ -109,7 +109,7 @@ type ContextType =
         // valueHandler: null | ValueHandler
     }]
 
-class StrictJSONHeaderValidator implements HeaderConsumer {
+class StrictJSONHeaderValidator implements HeaderConsumer<null> {
     private readonly onError: OnError
 
 
@@ -123,7 +123,7 @@ class StrictJSONHeaderValidator implements HeaderConsumer {
                 return p.result(false)
             },
             onEnd: () => {
-                //
+                return p.result(null)
             },
         }
     }
@@ -135,7 +135,7 @@ class StrictJSONHeaderValidator implements HeaderConsumer {
     }
 }
 
-class StrictJSONValidator implements p.IStreamConsumer<ParserEvent, Location> {
+class StrictJSONValidator implements p.IStreamConsumer<ParserEvent, Location, null> {
     private readonly onError: OnError
     private readonly stack: ContextType[] = []
     private currentContext: ContextType = ["root", {}]
@@ -366,7 +366,7 @@ class StrictJSONValidator implements p.IStreamConsumer<ParserEvent, Location> {
         return p.result(false)
     }
     public onEnd() {
-        //
+        return p.result(null)
     }
     private push(newContext: ContextType) {
         this.stack.push(this.currentContext)
@@ -470,10 +470,10 @@ class StrictJSONValidator implements p.IStreamConsumer<ParserEvent, Location> {
     }
 }
 
-export function createStrictJSONHeaderValidator(onError: OnError): HeaderConsumer {
+export function createStrictJSONHeaderValidator(onError: OnError): HeaderConsumer<null> {
     return new StrictJSONHeaderValidator(onError)
 }
 
-export function createStrictJSONValidator(onError: OnError): p.IStreamConsumer<ParserEvent, Location> {
+export function createStrictJSONValidator(onError: OnError): p.IStreamConsumer<ParserEvent, Location, null> {
     return new StrictJSONValidator(onError)
 }

@@ -4,21 +4,20 @@
     max-classes-per-file: "off",
 */
 import * as p from "pareto"
-import * as p20 from "pareto-20"
 import { Range } from "./location"
 import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
 import { Chunk, Tokenizer, TokenizerOptions, LocationState } from "./Tokenizer"
 
 const DEBUG = false
 
-class StreamTokenizer implements p.IStreamConsumer<string, null> {
+class StreamTokenizer<ReturnType> implements p.IStreamConsumer<string, null, ReturnType> {
 
     private readonly tokenizerState: Tokenizer
     private readonly locationState: LocationState
-    private readonly tokenStreamConsumer: ITokenStreamConsumer
+    private readonly tokenStreamConsumer: ITokenStreamConsumer<ReturnType>
     private aborted = false
 
-    constructor(tokenStreamConsumer: ITokenStreamConsumer, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions) {
+    constructor(tokenStreamConsumer: ITokenStreamConsumer<ReturnType>, onerror: (message: string, range: Range) => void, opt?: TokenizerOptions) {
         this.tokenStreamConsumer = tokenStreamConsumer
         this.locationState = new LocationState(
             opt === undefined
@@ -71,7 +70,7 @@ class StreamTokenizer implements p.IStreamConsumer<string, null> {
         return this.loopUntilPromiseOrEnd(currentChunk)
     }
 
-    public onEnd(aborted: boolean): void {
+    public onEnd(aborted: boolean): p.IValue<ReturnType> {
         const tokenData = this.tokenizerState.handleDanglingToken()
         if (tokenData !== null) {
             const onDataReturnValue = this.tokenStreamConsumer.onData(tokenData)
@@ -79,14 +78,14 @@ class StreamTokenizer implements p.IStreamConsumer<string, null> {
                 //nothing to abort anymore
             })
         }
-        this.tokenStreamConsumer.onEnd(aborted, this.locationState.getCurrentLocation())
+        return this.tokenStreamConsumer.onEnd(aborted, this.locationState.getCurrentLocation())
     }
 }
 
-export function createStreamTokenizer(
-    tokenStreamConsumer: ITokenStreamConsumer,
+export function createStreamTokenizer<ReturnType>(
+    tokenStreamConsumer: ITokenStreamConsumer<ReturnType>,
     onerror: (message: string, range: Range) => void,
     opt?: TokenizerOptions
-): p.IStreamConsumer<string, null> {
+): p.IStreamConsumer<string, null, ReturnType> {
     return new StreamTokenizer(tokenStreamConsumer, onerror, opt)
 }

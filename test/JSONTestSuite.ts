@@ -8,11 +8,11 @@ import { dummyHeaderConsumer } from "./dummyConsumers"
 
 function tokenizeStrings(
     strings: string[],
-    consumer: bc.ITokenStreamConsumer,
+    consumer: bc.ITokenStreamConsumer<null>,
     onError: () => void,
 ) {
 
-    p20.streamifyArrayToConsumer(
+    return p20.streamifyArrayToConsumer(
         strings,
         null,
         null,
@@ -33,7 +33,7 @@ describe('parsing', () => {
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = bc.createParser(
+                        const parser = bc.createParser<null>(
                             () => {
                                 foundError = true
                             },
@@ -56,7 +56,7 @@ describe('parsing', () => {
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = bc.createParser(
+                        const parser = bc.createParser<null>(
                             () => {
                                 foundError = true
                             },
@@ -78,7 +78,7 @@ describe('parsing', () => {
                 case "i":
                     try {
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = bc.createParser(
+                        const parser = bc.createParser<null>(
                             () => {
                                 //do nothing with error
                             },
@@ -108,7 +108,7 @@ describe('transform', () => {
         it(file, () => {
             try {
                 const data = fs.readFileSync(path.join(transformDir, file), { encoding: "utf-8" })
-                const parser = bc.createParser(
+                const parser = bc.createParser<null>(
                     () => {
                         //do nothing with error
                     },

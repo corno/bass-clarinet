@@ -17,7 +17,7 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: p.IStreamConsumer<ParserEvent, bc.Location> = {
+export const parserEventConsumer: p.IStreamConsumer<ParserEvent, bc.Location, null> = {
     onData: data => {
         switch (data.type[0]) {
             case bc.ParserEventType.BlockComment: {
@@ -88,6 +88,7 @@ export const parserEventConsumer: p.IStreamConsumer<ParserEvent, bc.Location> = 
     },
     onEnd: () => {
         //place your code here
+        return p.result(null)
     },
 }
 const parser = bc.createParser(

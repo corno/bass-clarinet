@@ -53,8 +53,8 @@ export function createFormatter(
 		location: Location,
 		newValue: string,
 	) => void,
-	onEnd: () => void,
-): p.IStreamConsumer<ParserEvent, Location> {
+	onEnd: () => p.IValue<null>,
+): p.IStreamConsumer<ParserEvent, Location, null> {
 	let precedingWhitespace: null | TokenInfo = null
 
 	const stack: Style[] = []
@@ -231,7 +231,7 @@ export function createFormatter(
 		currentRequiredStyle = style
 	}
 
-	const ds: p.IStreamConsumer<ParserEvent, Location> = {
+	const ds: p.IStreamConsumer<ParserEvent, Location, null> = {
 
 		onData: data => {
 			switch (data.type[0]) {
@@ -376,7 +376,7 @@ export function createFormatter(
 			if (precedingWhitespace !== null) {
 				del(precedingWhitespace.range)
 			}
-			onEnd()
+			return onEnd()
 		},
 	}
 	return ds

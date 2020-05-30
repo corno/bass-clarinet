@@ -70,23 +70,24 @@ function getContextDescription(stackContext: StackContext): string {
     }
 }
 
-export interface HeaderConsumer {
-    onHeaderStart(range: Range): p.IStreamConsumer<ParserEvent, Location>
+export interface HeaderConsumer<ReturnType> {
+    onHeaderStart(range: Range): p.IStreamConsumer<ParserEvent, Location, null>
     onCompact(range: Range): void
-    onHeaderEnd(range: Range): p.IStreamConsumer<ParserEvent, Location>
+    onHeaderEnd(range: Range): p.IStreamConsumer<ParserEvent, Location, ReturnType>
 }
 
-class Parser {
+class Parser<ReturnType> {
     public readonly stack = new Array<StackContext>()
-    public readonly headerConsumer: HeaderConsumer
+    public readonly headerConsumer: HeaderConsumer<ReturnType>
     private currentContext: StackContext
-    private parserEventsConsumer?: p.IStreamConsumer<ParserEvent, Location>
+    private schemaEventsConsumer?: p.IStreamConsumer<ParserEvent, Location, null>
+    private instanceEventsConsumer?: p.IStreamConsumer<ParserEvent, Location, ReturnType>
     private currentToken: CurrentToken = [TokenType.NONE]
     private readonly onerror: (message: string, range: Range) => void
     private indentationState: IndentationData = [IndentationState.lineIsVirgin]
 
     constructor(
-        headerSubscriber: HeaderConsumer,
+        headerSubscriber: HeaderConsumer<ReturnType>,
         onerror: (message: string, range: Range) => void,
     ) {
         this.headerConsumer = headerSubscriber
@@ -370,7 +371,7 @@ class Parser {
                                     default:
                                         return assertUnreachable($$.state)
                                 }
-                                this.parserEventsConsumer = this.headerConsumer.onHeaderStart(range)
+                                this.schemaEventsConsumer = this.headerConsumer.onHeaderStart(range)
                                 return p.result(false)
                             case Char.Punctuation.hash:
                                 /**
@@ -595,7 +596,7 @@ class Parser {
                 return assertUnreachable($[0])
         }
     }
-    public onEnd(aborted: boolean, location: Location): void {
+    public onEnd(aborted: boolean, location: Location): p.IValue<ReturnType> {
 
         const range = { start: location, end: location }
         unwindLoop: while (true) {
@@ -684,10 +685,10 @@ class Parser {
             default:
                 assertUnreachable($$.state)
         }
-        if (this.parserEventsConsumer === undefined) {
+        if (this.instanceEventsConsumer === undefined) {
             throw new Error("unexpected missing parser event consumer")
         }
-        this.parserEventsConsumer.onEnd(aborted, location)
+        return this.instanceEventsConsumer.onEnd(aborted, location)
     }
     public onSnippet(chunk: string, begin: number, end: number): p.IValue<boolean> {
         if (DEBUG) console.log(`onSnippet`)
@@ -809,13 +810,15 @@ class Parser {
         return p.result(false)
     }
     private tempOnData(data: ParserEvent): p.IValue<boolean> {
-        if (this.parserEventsConsumer === undefined) {
-            console.error("dropping token, no events consumer")
-            //throw new Error("unexpected missing parser event consumer")
-            return p.result(false)
-        } else {
-            return this.parserEventsConsumer.onData(data)
+        if (this.instanceEventsConsumer !== undefined) {
+            return this.instanceEventsConsumer.onData(data)
         }
+        if (this.schemaEventsConsumer !== undefined) {
+            return this.schemaEventsConsumer.onData(data)
+        }
+        console.error("dropping token, no events consumer")
+        //throw new Error("unexpected missing parser event consumer")
+        return p.result(false)
     }
     public onBlockCommentEnd(end: Range): p.IValue<boolean> {
         if (DEBUG) console.log(`onBlockCommentEnd`)
@@ -1122,7 +1125,7 @@ class Parser {
         this.currentToken = [TokenType.NONE]
     }
     private onHeaderEnd(range: Range) {
-        this.parserEventsConsumer = this.headerConsumer.onHeaderEnd(range)
+        this.instanceEventsConsumer = this.headerConsumer.onHeaderEnd(range)
     }
     private wrapupBeforeValue(range: Range) {
         const $ = this.currentContext
@@ -1227,10 +1230,10 @@ class Parser {
     }
 }
 
-class StreamParser implements ITokenStreamConsumer {
-    private readonly parser: Parser
+class StreamParser<ReturnType> implements ITokenStreamConsumer<ReturnType> {
+    private readonly parser: Parser<ReturnType>
     constructor(
-        headerSubscriber: HeaderConsumer,
+        headerSubscriber: HeaderConsumer<ReturnType>,
         onerror: (message: string, range: Range) => void,
     ) {
         this.parser = new Parser(headerSubscriber, onerror)
@@ -1238,15 +1241,15 @@ class StreamParser implements ITokenStreamConsumer {
     public onData(data: TokenData): p.IValue<boolean> {
         return this.parser.onData(data)
     }
-    public onEnd(aborted: boolean, location: Location): void {
+    public onEnd(aborted: boolean, location: Location): p.IValue<ReturnType> {
         return this.parser.onEnd(aborted, location)
     }
 }
 
-export function createParser(
+export function createParser<ReturnType>(
     onerror: (message: string, range: Range) => void,
-    headerSubscriber: HeaderConsumer,
-): ITokenStreamConsumer {
+    headerSubscriber: HeaderConsumer<ReturnType>,
+): ITokenStreamConsumer<ReturnType> {
     const p = new StreamParser(headerSubscriber, onerror)
     return p
 }

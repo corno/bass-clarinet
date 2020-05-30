@@ -69,7 +69,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): p.IStreamConsumer<ParserEvent, bc.Location> {
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): p.IStreamConsumer<ParserEvent, bc.Location, null> {
     const datasubscriber = bc.createStackedDataSubscriber(
         {
             valueHandler: createValuesPrettyPrinter(indentation, writer),
@@ -82,6 +82,7 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
         },
         _comments => {
             //onEnd
+            return p.result(null)
         }
     )
     return datasubscriber
