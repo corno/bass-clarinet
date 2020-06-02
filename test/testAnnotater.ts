@@ -25,10 +25,8 @@ Object.keys(JSONTests).forEach(testName => {
             },
         },
     )
-    createAnnotator("", str => console.log(str))
-    p20.streamifyArrayToConsumer(
-        [test.text],
-        null,
+    createAnnotator("", str => console.log(str))  
+      p20.createArray([test.text]).streamify().handle(
         null,
         bc.createStreamTokenizer(
             parser,

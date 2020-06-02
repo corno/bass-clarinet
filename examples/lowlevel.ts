@@ -106,12 +106,13 @@ const parser = bc.createParser(
     },
 )
 
-p20.streamifyArrayToConsumer(
-    [dataAsString],
+const st = 
+bc.createStreamTokenizer(
+    parser,
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
+)
+
+p20.createArray([dataAsString]).streamify().handle(
     null,
-    null,
-    bc.createStreamTokenizer(
-        parser,
-        err => { console.error("FOUND TOKENIZER ERROR", err) },
-    )
+    st
 )

@@ -11,10 +11,7 @@ function tokenizeStrings(
     consumer: bc.ITokenStreamConsumer<null, null>,
     onError: () => void,
 ) {
-
-    return p20.streamifyArrayToConsumer(
-        strings,
-        null,
+    p20.createArray(strings).streamify().handle(
         null,
         bc.createStreamTokenizer(
             consumer,

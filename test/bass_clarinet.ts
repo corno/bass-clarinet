@@ -400,19 +400,19 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
         )
 
-        return p.wrap.UnsafeValue( p20.streamifyArrayToConsumer(
-            chunks,
-            null,
-            null,
-            bc.createStreamTokenizer(
-                parser,
-                (message, _location) => {
-                    if (DEBUG) console.log("found error")
+        const st = bc.createStreamTokenizer(
+            parser,
+            (message, _location) => {
+                if (DEBUG) console.log("found error")
 
-                    actualEvents.push(["tokenizererror", message])
-                },
-            )
-        )).convertToNativePromise().then(() => {
+                actualEvents.push(["tokenizererror", message])
+            },
+        )
+        return p20.createArray(chunks).streamify().toUnsafeValue(
+            null,
+            data => st.onData(data),
+            (aborted, endData) => st.onEnd(aborted, endData)
+        ).convertToNativePromise(() => "Error found").then(() => {
             //
 
             if (test.events !== undefined) {

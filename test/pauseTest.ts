@@ -64,9 +64,7 @@ const chunks = [
 
 
 export function doIt(): void {
-    p20.streamifyArrayToConsumer(
-        chunks,
-        null,
+    p20.createArray(chunks).streamify().handle(
         null,
         bc.createStreamTokenizer(
             parser,

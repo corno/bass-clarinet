@@ -108,9 +108,7 @@ const prsr = bc.createParser(
 createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
 
-p20.streamifyArrayToConsumer(
-    [dataAsString],
-    null,
+p20.createArray([dataAsString]).streamify().handle(
     null,
     bc.createStreamTokenizer(
         prsr,
