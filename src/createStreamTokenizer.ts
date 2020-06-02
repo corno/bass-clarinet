@@ -43,24 +43,15 @@ class StreamTokenizer<ReturnType, ErrorType> implements p.IStreamConsumer<string
 
             if (tokenData !== null) {
                 const onDataResult = this.tokenStreamConsumer.onData(tokenData)
-                if (onDataResult instanceof Array) {
-                    //console.log(tokenData)
-                    if (onDataResult[0] === true) {
+                return onDataResult.mapResult(abortRequested => {
+
+                    if (abortRequested) {
                         this.aborted = true
                         return p.result(true)
                     } else {
-                        //token is handled properly, continue the loop
+                        return this.loopUntilPromiseOrEnd(currentChunk)
                     }
-                } else {
-                    return p.wrap.Value(onDataResult).mapResult(abortRequested => {
-                        if (abortRequested) {
-                            this.aborted = true
-                            return p.result(true)
-                        } else {
-                            return this.loopUntilPromiseOrEnd(currentChunk)
-                        }
-                    })
-                }
+                })
             }
         }
     }
