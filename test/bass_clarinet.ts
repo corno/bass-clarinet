@@ -410,8 +410,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         )
         return p20.createArray(chunks).streamify().toUnsafeValue(
             null,
-            data => st.onData(data),
-            (aborted, endData) => st.onEnd(aborted, endData)
+            st
         ).convertToNativePromise(() => "Error found").then(() => {
             //
 
