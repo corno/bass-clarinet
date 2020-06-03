@@ -1,4 +1,8 @@
-import { Location, Range } from "./location"
+import { Location, Range, printRange, printLocation } from "./location"
+
+function assertUnreachable<RT>(_x: never): RT {
+    throw new Error("unreachable")
+}
 
 export enum TokenDataType {
     BlockCommentBegin,
@@ -14,6 +18,65 @@ export enum TokenDataType {
     UnquotedTokenEnd,
     WhiteSpaceBegin,
     WhiteSpaceEnd,
+}
+
+export function printTokenData(tokenData: TokenData): string {
+    switch (tokenData.type[0]) {
+        case TokenDataType.BlockCommentBegin: {
+            const $ = tokenData.type[1]
+            return `BlockCommentBegin (${printRange($.range)})`
+        }
+        case TokenDataType.BlockCommentEnd: {
+            const $ = tokenData.type[1]
+            return `BlockCommentEnd (${printRange($.range)})`
+        }
+        case TokenDataType.LineCommentBegin: {
+            const $ = tokenData.type[1]
+            return `LineCommentBegin (${printRange($.range)})`
+        }
+        case TokenDataType.LineCommentEnd: {
+            const $ = tokenData.type[1]
+            return `LineCommentEnd (${printLocation($.location)})`
+        }
+        case TokenDataType.NewLine: {
+            const $ = tokenData.type[1]
+            return `NewLine (${printRange($.range)})`
+        }
+        case TokenDataType.Punctuation: {
+            const $ = tokenData.type[1]
+            return `Punctuation: '${String.fromCharCode($.char)}' (${printRange($.range)})`
+        }
+        case TokenDataType.QuotedStringBegin: {
+            const $ = tokenData.type[1]
+            return `QuotedStringBegin: '${$.quote}' (${printRange($.range)})`
+        }
+        case TokenDataType.QuotedStringEnd: {
+            const $ = tokenData.type[1]
+            return `QuotedStringEnd: ${$.quote === null ? 'n/a': `'${$.quote}'`} (${printRange($.range)})`
+        }
+        case TokenDataType.Snippet: {
+            const $ = tokenData.type[1]
+            return `Snippet ${$.begin}-${$.end}`
+        }
+        case TokenDataType.UnquotedTokenBegin: {
+            const $ = tokenData.type[1]
+            return `UnquotedTokenBegin (${printLocation($.location)})`
+        }
+        case TokenDataType.UnquotedTokenEnd: {
+            const $ = tokenData.type[1]
+            return `UnquotedTokenEnd (${printLocation($.location)})`
+        }
+        case TokenDataType.WhiteSpaceBegin: {
+            const $ = tokenData.type[1]
+            return `WhiteSpaceBegin (${printLocation($.location)})`
+        }
+        case TokenDataType.WhiteSpaceEnd: {
+            const $ = tokenData.type[1]
+            return `WhiteSpaceEnd (${printLocation($.location)})`
+        }
+        default:
+            return assertUnreachable(tokenData.type[0])
+    }
 }
 
 export type TokenData = {
