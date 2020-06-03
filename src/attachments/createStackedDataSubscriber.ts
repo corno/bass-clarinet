@@ -457,61 +457,63 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                     return assertUnreachable(data.type[0])
             }
         },
-        onEnd: (_aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> => {
+        onEnd: (aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> => {
             const range = { start: location, end: location }
-            unwindLoop: while (true) {
-                switch (currentContext[0]) {
-                    case "root": {
-                        const $ = currentContext[1]
-                        if ($.rootValueHandler !== null) {
-                            $.rootValueHandler.onMissing()
-                            $.rootValueHandler = null
-                        }
-                        break unwindLoop
-                    }
-                    case "array": {
-                        raiseError(onError, "unexpected end of document, still in array", range)
-                        pop(range)
-                        wrapupValue(range)
-                        break
-                    }
-                    case "object": {
-                        const $ = currentContext[1]
-                        if ($.propertyHandler !== null) {
-                            $.propertyHandler.onMissing()
-                            $.propertyHandler = null
-                        }
-                        raiseError(onError, "unexpected end of document, still in object", range)
-                        pop(range)
-                        wrapupValue(range)
-                        break
-                    }
-                    case "taggedunion": {
-                        const $ = currentContext[1]
-                        switch ($.state[0]) {
-                            case "expecting option": {
-                                const $$ = $.state[1]
-                                $$.handler.missingOption()
-                                break
+            if (!aborted) {
+                unwindLoop: while (true) {
+                    switch (currentContext[0]) {
+                        case "root": {
+                            const $ = currentContext[1]
+                            if ($.rootValueHandler !== null) {
+                                $.rootValueHandler.onMissing()
+                                $.rootValueHandler = null
                             }
-                            case "expecting value": {
-                                const $$ = $.state[1]
-                                //option not yet parsed
-                                $$.onMissing()
-
-                                break
-                            }
-                            default:
-                                assertUnreachable($.state[0])
+                            break unwindLoop
                         }
-                        raiseError(onError, "unexpected end of document, still in tagged union", range)
-                        pop(range)
-                        wrapupValue(range)
+                        case "array": {
+                            raiseError(onError, "unexpected end of document, still in array", range)
+                            pop(range)
+                            wrapupValue(range)
+                            break
+                        }
+                        case "object": {
+                            const $ = currentContext[1]
+                            if ($.propertyHandler !== null) {
+                                $.propertyHandler.onMissing()
+                                $.propertyHandler = null
+                            }
+                            raiseError(onError, "unexpected end of document, still in object", range)
+                            pop(range)
+                            wrapupValue(range)
+                            break
+                        }
+                        case "taggedunion": {
+                            const $ = currentContext[1]
+                            switch ($.state[0]) {
+                                case "expecting option": {
+                                    const $$ = $.state[1]
+                                    $$.handler.missingOption()
+                                    break
+                                }
+                                case "expecting value": {
+                                    const $$ = $.state[1]
+                                    //option not yet parsed
+                                    $$.onMissing()
 
-                        break
+                                    break
+                                }
+                                default:
+                                    assertUnreachable($.state[0])
+                            }
+                            raiseError(onError, "unexpected end of document, still in tagged union", range)
+                            pop(range)
+                            wrapupValue(range)
+
+                            break
+                        }
+                        default:
+                            assertUnreachable(currentContext[0])
                     }
-                    default:
-                        assertUnreachable(currentContext[0])
                 }
             }
             return onEnd(flushPreData())

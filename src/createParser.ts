@@ -601,91 +601,93 @@ class Parser<ReturnType, ErrorType> {
     public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
 
         const range = { start: location, end: location }
-        unwindLoop: while (true) {
-            switch (this.currentContext[0]) {
-                case StackContextType.ARRAY: {
-                    this.raiseError("unexpected end of document, still in array", range)
+        if (!aborted) {
+            unwindLoop: while (true) {
+                switch (this.currentContext[0]) {
+                    case StackContextType.ARRAY: {
+                        this.raiseError("unexpected end of document, still in array", range)
+                        break
+                    }
+                    case StackContextType.OBJECT: {
+                        this.raiseError("unexpected end of document, still in object", range)
+                        break
+                    }
+                    case StackContextType.ROOT: {
+                        break unwindLoop
+                        break
+                    }
+                    case StackContextType.TAGGED_UNION: {
+                        this.raiseError("unexpected end of document, still in tagged union", range)
+                        break
+                    }
+                    default:
+                        assertUnreachable(this.currentContext[0])
+                }
+                const popped = this.stack.pop()
+                if (popped === undefined) {
+                    throw new ParserStackPanicError("unexpected end of stack", range)
+                } else {
+                    this.currentContext = popped
+                    // switch (popped[0]) {
+                    //     case StackContextType.ARRAY: {
+                    //         //const $ = popped[1]
+                    //         this.oncurrentdata.signal(s => s.onCloseArray({
+                    //             range: range,
+                    //             closeCharacter: undefined,
+                    //             pauser: undefined,
+                    //         }))
+                    //         break
+                    //     }
+                    //     case StackContextType.OBJECT: {
+                    //         //const $ = popped[1]
+                    //         this.oncurrentdata.signal(s => s.onCloseObject({
+                    //             range: range,
+                    //             closeCharacter: undefined,
+                    //             pauser: undefined,
+                    //         }))
+                    //         break
+                    //     }
+                    //     case StackContextType.ROOT: {
+                    //         //const $ = popped[1]
+
+                    //         break
+                    //     }
+                    //     case StackContextType.TAGGED_UNION: {
+                    //         //const $ = popped[1]
+
+                    //         break
+                    //     }
+                    //     default:
+                    //         return assertUnreachable(popped[0])
+                    // }
+                }
+            }
+            const $$ = this.currentContext[1]
+            switch ($$.state) {
+                case RootState.EXPECTING_END: {
                     break
                 }
-                case StackContextType.OBJECT: {
-                    this.raiseError("unexpected end of document, still in object", range)
+                case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
+                    this.raiseError("expected hash or rootvalue", range)
+                    this.onHeaderEnd(range)
                     break
                 }
-                case StackContextType.ROOT: {
-                    break unwindLoop
+                case RootState.EXPECTING_SCHEMA: {
+                    this.raiseError("expected the schema", range)
+                    this.onHeaderEnd(range)
                     break
                 }
-                case StackContextType.TAGGED_UNION: {
-                    this.raiseError("unexpected end of document, still in tagged union", range)
+                case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                    this.raiseError("expected the root value", range)
                     break
                 }
+                case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                    this.raiseError("expected the schema start (!) or root value", range)
+                    this.onHeaderEnd(range)
+                    break
                 default:
-                    assertUnreachable(this.currentContext[0])
+                    assertUnreachable($$.state)
             }
-            const popped = this.stack.pop()
-            if (popped === undefined) {
-                throw new ParserStackPanicError("unexpected end of stack", range)
-            } else {
-                this.currentContext = popped
-                // switch (popped[0]) {
-                //     case StackContextType.ARRAY: {
-                //         //const $ = popped[1]
-                //         this.oncurrentdata.signal(s => s.onCloseArray({
-                //             range: range,
-                //             closeCharacter: undefined,
-                //             pauser: undefined,
-                //         }))
-                //         break
-                //     }
-                //     case StackContextType.OBJECT: {
-                //         //const $ = popped[1]
-                //         this.oncurrentdata.signal(s => s.onCloseObject({
-                //             range: range,
-                //             closeCharacter: undefined,
-                //             pauser: undefined,
-                //         }))
-                //         break
-                //     }
-                //     case StackContextType.ROOT: {
-                //         //const $ = popped[1]
-
-                //         break
-                //     }
-                //     case StackContextType.TAGGED_UNION: {
-                //         //const $ = popped[1]
-
-                //         break
-                //     }
-                //     default:
-                //         return assertUnreachable(popped[0])
-                // }
-            }
-        }
-        const $$ = this.currentContext[1]
-        switch ($$.state) {
-            case RootState.EXPECTING_END: {
-                break
-            }
-            case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                this.raiseError("expected hash or rootvalue", range)
-                this.onHeaderEnd(range)
-                break
-            }
-            case RootState.EXPECTING_SCHEMA: {
-                this.raiseError("expected the schema", range)
-                this.onHeaderEnd(range)
-                break
-            }
-            case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                this.raiseError("expected the root value", range)
-                break
-            }
-            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                this.raiseError("expected the schema start (!) or root value", range)
-                this.onHeaderEnd(range)
-                break
-            default:
-                assertUnreachable($$.state)
         }
         if (this.instanceEventsConsumer === undefined) {
             throw new Error("unexpected missing parser event consumer")
