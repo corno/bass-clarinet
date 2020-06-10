@@ -79,9 +79,10 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
     let currentContext: ContextType = ["root", { rootValueHandler: valueHandler }]
 
     function flushContextData(): ContextData {
-        const contextData = {
-            comments: comments,
+        const contextData: ContextData = {
+            commentsBefore: comments,
             indentation: indentation,
+            lineCommentAfter: null,
         }
         comments = []
         indentation = ""

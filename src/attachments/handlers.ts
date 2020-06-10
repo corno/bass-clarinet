@@ -7,8 +7,9 @@ import {
 } from "../ParserEvent"
 
 export type ContextData = {
-    comments: Comment[]
+    commentsBefore: Comment[]
     indentation: string
+    lineCommentAfter: null | Comment
 }
 
 export enum AfterValueContext {
