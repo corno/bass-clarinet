@@ -6,7 +6,7 @@ import {
     CloseData,
 } from "../ParserEvent"
 
-export type PreData = {
+export type ContextData = {
     comments: Comment[]
     indentation: string
 }
@@ -18,13 +18,13 @@ export enum AfterValueContext {
 }
 
 export type ObjectHandler = {
-    property: (range: Range, key: string, preData: PreData) => RequiredValueHandler
-    end: (range: Range, data: CloseData, preData: PreData) => void
+    property: (range: Range, key: string, contextData: ContextData) => RequiredValueHandler
+    end: (range: Range, data: CloseData, contextData: ContextData) => void
 }
 
 export type ArrayHandler = {
     element: () => ValueHandler
-    end: (range: Range, data: CloseData, preData: PreData) => void
+    end: (range: Range, data: CloseData, contextData: ContextData) => void
 }
 
 export type TaggedUnionHandler = {
@@ -32,14 +32,14 @@ export type TaggedUnionHandler = {
     missingOption: () => void
 }
 
-export type OnObject = (range: Range, data: OpenData, preData: PreData) => ObjectHandler
+export type OnObject = (range: Range, data: OpenData, contextData: ContextData) => ObjectHandler
 
-export type OnArray = (range: Range, data: OpenData, preData: PreData) => ArrayHandler
+export type OnArray = (range: Range, data: OpenData, contextData: ContextData) => ArrayHandler
 
-export type OnSimpleValue = (range: Range, data: SimpleValueData, preData: PreData) => p.IValue<boolean>
+export type OnSimpleValue = (range: Range, data: SimpleValueData, contextData: ContextData) => p.IValue<boolean>
 
-export type OnTaggedUnion = (range: Range, beginpreData: PreData) => TaggedUnionHandler
-export type OnOption = (range: Range, option: string, optionpreData: PreData) => RequiredValueHandler
+export type OnTaggedUnion = (range: Range, begincontextData: ContextData) => TaggedUnionHandler
+export type OnOption = (range: Range, option: string, optioncontextData: ContextData) => RequiredValueHandler
 
 export type OnMissing = () => void
 

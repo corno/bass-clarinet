@@ -13,7 +13,7 @@ import {
     ObjectHandler,
     ArrayHandler,
     Comment,
-    PreData,
+    ContextData,
     TaggedUnionHandler,
 } from "./handlers"
 import { RangeError } from "../errors"
@@ -69,7 +69,7 @@ function raiseError(onError: (error: RangeError) => void, message: string, range
 export function createStackedDataSubscriber<ReturnType, ErrorType>(
     valueHandler: RequiredValueHandler,
     onError: (error: RangeError) => void,
-    onEnd: (preData: PreData) => p.IUnsafeValue<ReturnType, ErrorType>
+    onEnd: (contextData: ContextData) => p.IUnsafeValue<ReturnType, ErrorType>
 ): ParserEventConsumer<ReturnType, ErrorType> {
     const stack: ContextType[] = []
     let comments: Comment[] = []
@@ -78,15 +78,15 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
 
     let currentContext: ContextType = ["root", { rootValueHandler: valueHandler }]
 
-    function flushPreData(): PreData {
-        const preData = {
+    function flushContextData(): ContextData {
+        const contextData = {
             comments: comments,
             indentation: indentation,
         }
         comments = []
         indentation = ""
         lineIsDirty = false
-        return preData
+        return contextData
     }
 
     function pop(range: Range) {
@@ -209,7 +209,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                 currentContext[1].arrayHandler.end(
                                     data.range,
                                     $,
-                                    flushPreData()
+                                    flushContextData()
                                 )
                                 pop(data.range)
                                 wrapupValue(data.range)
@@ -274,7 +274,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                 currentContext[1].objectHandler.end(
                                     data.range,
                                     $,
-                                    flushPreData()
+                                    flushContextData()
                                 )
                                 pop(data.range)
                                 wrapupValue(data.range)
@@ -337,7 +337,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                     const arrayHandler = initValueHandler().array(
                         data.range,
                         $,
-                        flushPreData()
+                        flushContextData()
                     )
                     stack.push(currentContext)
                     currentContext = ["array", { arrayHandler: arrayHandler }]
@@ -351,7 +351,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                     const objectHandler = vh.object(
                         data.range,
                         $,
-                        flushPreData()
+                        flushContextData()
                     )
                     stack.push(currentContext)
                     currentContext = ["object", {
@@ -368,7 +368,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                         const res = vh.simpleValue(
                             data.range,
                             $,
-                            flushPreData()
+                            flushContextData()
                         )
                         wrapupValue(data.range)
                         return res
@@ -388,7 +388,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                     currentContext[1].propertyHandler = currentContext[1].objectHandler.property(
                                         data.range,
                                         $.value,
-                                        flushPreData()
+                                        flushContextData()
                                     )
                                 }
                                 return p.result(false)
@@ -413,7 +413,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                     const rvh = $$$.handler.option(
                                         data.range,
                                         $.value,
-                                        flushPreData()
+                                        flushContextData()
                                     )
                                     $$.state = ["expecting value", rvh]
                                     break
@@ -440,7 +440,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                         state: ["expecting option", {
                             handler: initValueHandler().taggedUnion(
                                 data.range,
-                                flushPreData(),
+                                flushContextData(),
                             ),
                         }],
                     }]
@@ -516,7 +516,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                     }
                 }
             }
-            return onEnd(flushPreData())
+            return onEnd(flushContextData())
         },
     }
     return ds
