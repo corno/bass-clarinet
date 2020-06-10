@@ -15,20 +15,20 @@ export const extensionTests: TestDefinitions = {
             ["end", undefined],
         ],
     },
-    "single line comment": {
-        text: '[ 1, "a" //a comment\r\n]',
-        formattedText: '[ 1, "a" //a comment\n]',
-        skipRoundTripCheck: true,
+    "line comment": {
+        text: '[ 1, "a" //a line comment\r\n]',
+        formattedText: '[ 1, "a" //a line comment\n]',
+        skipRoundTripCheck: false,
         events: [
             ["token", "openarray", "[", undefined],
             ["token", "unquotedtoken", "1", undefined],
             ["token", "quotedstring", "a", undefined],
-            ["token", "linecomment", "a comment", undefined],
+            ["token", "linecomment", "a line comment", undefined],
             ["token", "closearray", "]", undefined],
             ["end", undefined],
         ],
     },
-    "multi line comment": {
+    "block comment": {
         text: '[ 1, "a" /*a comment\t\t\n\t\t*/ ]',
         formattedText: '[ 1, "a" /*a comment\n*/ ]',
         events: [
@@ -40,7 +40,7 @@ export const extensionTests: TestDefinitions = {
             ["end", undefined],
         ],
     },
-    "multi line comment 2": {
+    "block comment 2": {
         text: '[ 1, "a" /*a comment b * c*/ ]',
         events: [
             ["token", "openarray", "[", undefined],
@@ -51,7 +51,7 @@ export const extensionTests: TestDefinitions = {
             ["end", undefined],
         ],
     },
-    "multi line comment 3": {
+    "block comment 3": {
         text: `[
     "A"
             /*
@@ -72,7 +72,7 @@ export const extensionTests: TestDefinitions = {
             ["end", undefined],
         ],
     },
-    "multi line comment 4": {
+    "block comment 4": {
         text: `[
     "A"
 /*
