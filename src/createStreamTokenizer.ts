@@ -65,11 +65,13 @@ class StreamTokenizer<ReturnType, ErrorType> implements p.IStreamConsumer<string
         const tokenData = this.tokenizerState.handleDanglingToken()
         if (tokenData !== null) {
             const onDataReturnValue = this.tokenStreamConsumer.onData(tokenData)
-            onDataReturnValue.handle(_abort => {
+            return onDataReturnValue.try(_abort => {
                 //nothing to abort anymore
+                return this.tokenStreamConsumer.onEnd(aborted, this.locationState.getCurrentLocation())
             })
+        } else {
+            return this.tokenStreamConsumer.onEnd(aborted, this.locationState.getCurrentLocation())
         }
-        return this.tokenStreamConsumer.onEnd(aborted, this.locationState.getCurrentLocation())
     }
 }
 
