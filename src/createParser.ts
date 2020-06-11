@@ -140,7 +140,7 @@ class Parser<ReturnType, ErrorType> {
                                 return this.onArrayClose(curChar, range)
                             case Char.Punctuation.comma:
                                 //
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.Comma, {
                                     }],
@@ -155,7 +155,7 @@ class Parser<ReturnType, ErrorType> {
                                 return this.onObjectClose(curChar, range)
                             case Char.Punctuation.colon:
                                 //
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.Colon, {
                                     }],
@@ -167,7 +167,7 @@ class Parser<ReturnType, ErrorType> {
                             case Char.Punctuation.verticalLine:
                                 this.onNonStringValue(range)
                                 this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.TaggedUnion, {
                                     }],
@@ -250,7 +250,7 @@ class Parser<ReturnType, ErrorType> {
                                 return this.onArrayClose(curChar, range)
                             case Char.Punctuation.comma:
                                 //
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.Comma, {
                                     }],
@@ -265,7 +265,7 @@ class Parser<ReturnType, ErrorType> {
                                 return this.onObjectClose(curChar, range)
                             case Char.Punctuation.colon:
                                 //
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.Colon, {
                                     }],
@@ -277,7 +277,7 @@ class Parser<ReturnType, ErrorType> {
                             case Char.Punctuation.verticalLine:
                                 this.onNonStringValue(range)
                                 this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.TaggedUnion, {
                                     }],
@@ -411,7 +411,7 @@ class Parser<ReturnType, ErrorType> {
                                 return this.onArrayClose(curChar, range)
                             case Char.Punctuation.comma:
                                 //
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.Comma, {
                                     }],
@@ -426,7 +426,7 @@ class Parser<ReturnType, ErrorType> {
                                 return this.onObjectClose(curChar, range)
                             case Char.Punctuation.colon:
                                 //
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.Colon, {
                                     }],
@@ -438,7 +438,7 @@ class Parser<ReturnType, ErrorType> {
                             case Char.Punctuation.verticalLine:
                                 this.onNonStringValue(range)
                                 this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.TaggedUnion, {
                                     }],
@@ -525,7 +525,7 @@ class Parser<ReturnType, ErrorType> {
                                 return this.onArrayClose(curChar, range)
                             case Char.Punctuation.comma:
                                 //
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.Comma, {
                                     }],
@@ -540,7 +540,7 @@ class Parser<ReturnType, ErrorType> {
                                 return this.onObjectClose(curChar, range)
                             case Char.Punctuation.colon:
                                 //
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.Colon, {
                                     }],
@@ -552,7 +552,7 @@ class Parser<ReturnType, ErrorType> {
                             case Char.Punctuation.verticalLine:
                                 this.onNonStringValue(range)
                                 this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                return this.tempOnData({
+                                return this.sendEvent({
                                     range: range,
                                     type: [ParserEventType.TaggedUnion, {
                                     }],
@@ -736,7 +736,7 @@ class Parser<ReturnType, ErrorType> {
 
         this.indentationState = [IndentationState.lineIsVirgin]
 
-        return this.tempOnData({
+        return this.sendEvent({
             range: range,
             type: [ParserEventType.NewLine, {
             }],
@@ -765,7 +765,7 @@ class Parser<ReturnType, ErrorType> {
         }
 
         const $ = this.currentToken[1]
-        const od = this.tempOnData({
+        const od = this.sendEvent({
             range: {
                 start: $.start.start,
                 end: location,
@@ -813,7 +813,7 @@ class Parser<ReturnType, ErrorType> {
         this.indentationState = [IndentationState.lineIsDitry]
         return p.result(false)
     }
-    private tempOnData(data: ParserEvent): p.IValue<boolean> {
+    private sendEvent(data: ParserEvent): p.IValue<boolean> {
         if (this.instanceEventsConsumer !== undefined) {
             return this.instanceEventsConsumer.onData(data)
         }
@@ -831,7 +831,7 @@ class Parser<ReturnType, ErrorType> {
             throw new ParserStackPanicError(`Unexpected block comment end`, end)
         }
         const $ = this.currentToken[1]
-        const od = this.tempOnData({
+        const od = this.sendEvent({
             range: {
                 start: $.start.start,
                 end: end.end,
@@ -876,7 +876,7 @@ class Parser<ReturnType, ErrorType> {
             end: location,
         }
         this.onNonStringValue(range)
-        const od = this.tempOnData({
+        const od = this.sendEvent({
             range: range,
             type: [ParserEventType.SimpleValue,
             {
@@ -912,7 +912,7 @@ class Parser<ReturnType, ErrorType> {
             start: $.start,
             end: location,
         }
-        const od = this.tempOnData({
+        const od = this.sendEvent({
             range: range,
             type: [ParserEventType.WhiteSpace, {
                 value: $.whitespaceNode,
@@ -942,7 +942,7 @@ class Parser<ReturnType, ErrorType> {
         this.wrapupBeforeValue(range)
         const $ = this.currentContext
         const onStringValue = (): p.IValue<boolean> => {
-            const od = this.tempOnData({
+            const od = this.sendEvent({
                 range: range,
                 type: [ParserEventType.SimpleValue,
                 {
@@ -965,7 +965,7 @@ class Parser<ReturnType, ErrorType> {
                 const $$ = $[1]
                 switch ($$.state) {
                     case ObjectState.EXPECTING_KEY:
-                        const od = this.tempOnData({
+                        const od = this.sendEvent({
                             range: range,
                             type: [ParserEventType.SimpleValue,
                             {
@@ -993,7 +993,7 @@ class Parser<ReturnType, ErrorType> {
                 const $$ = $[1]
                 switch ($$.state) {
                     case TaggedUnionState.EXPECTING_OPTION:
-                        const od = this.tempOnData({
+                        const od = this.sendEvent({
                             range: range,
                             type: [ParserEventType.SimpleValue,
                             {
@@ -1018,7 +1018,7 @@ class Parser<ReturnType, ErrorType> {
     private onObjectOpen(curChar: number, range: Range): p.IValue<boolean> {
         this.onNonStringValue(range)
         this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
-        return this.tempOnData({
+        return this.sendEvent({
             range: range,
             type: [ParserEventType.OpenObject, {
                 openCharacter: String.fromCharCode(curChar),
@@ -1028,7 +1028,7 @@ class Parser<ReturnType, ErrorType> {
     private onObjectClose(curChar: number, range: Range): p.IValue<boolean> {
         if (this.currentContext[0] !== StackContextType.OBJECT) {
             this.raiseError("not in an object", range)
-            return this.tempOnData({
+            return this.sendEvent({
                 range: range,
                 type: [ParserEventType.CloseObject, {
                     closeCharacter: String.fromCharCode(curChar),
@@ -1038,7 +1038,7 @@ class Parser<ReturnType, ErrorType> {
             if (this.currentContext[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
                 this.raiseError("missing property value", range)
             }
-            const od = this.tempOnData({
+            const od = this.sendEvent({
                 range: range,
                 type: [ParserEventType.CloseObject, {
                     closeCharacter: String.fromCharCode(curChar),
@@ -1051,7 +1051,7 @@ class Parser<ReturnType, ErrorType> {
     private onArrayOpen(curChar: number, range: Range) {
         this.onNonStringValue(range)
         this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
-        return this.tempOnData({
+        return this.sendEvent({
             range: range,
             type: [ParserEventType.OpenArray, {
                 openCharacter: String.fromCharCode(curChar),
@@ -1065,7 +1065,7 @@ class Parser<ReturnType, ErrorType> {
         } else {
             this.popContext(range)
         }
-        return this.tempOnData({
+        return this.sendEvent({
             range: range,
             type: [ParserEventType.CloseArray, {
                 closeCharacter: String.fromCharCode(curChar),
