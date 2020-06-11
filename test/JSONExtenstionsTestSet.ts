@@ -190,6 +190,16 @@ a comment
             ["end", undefined],
         ],
     },
+    "tagged union with string at end": {
+        text: '| "foo" "a string"',
+        events: [
+            ["token", "opentaggedunion", undefined],
+            ["token", "quotedstring"/*option*/, "foo", undefined],
+            ["token", "quotedstring", "a string", undefined],
+            //["closetaggedunion"],
+            ["end", undefined],
+        ],
+    },
     "tagged union with missing data": {
         text: '{ "bla": | "foo" //comment\n}',
         events: [
