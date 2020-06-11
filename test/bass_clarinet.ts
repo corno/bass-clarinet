@@ -176,10 +176,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     }
 
                 },
-                simpleValue: (_range, _data, _contextData) => {
-                    // if (contextData.lineCommentAfter !== null) {
-                    //     console.log(contextData.lineCommentAfter)
-                    // }
+                simpleValue: (_range, _data, contextData) => {
+                    if (contextData.lineCommentAfter !== null) {
+                        console.log("YEP")
+                    }
                     return p.result(false)
                 },
                 taggedUnion: () => {
