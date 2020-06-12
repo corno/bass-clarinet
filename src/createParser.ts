@@ -75,7 +75,7 @@ export type ParserEventConsumer<ReturnType, ErrorType> = p.IStreamConsumer<Parse
 export interface HeaderConsumer<ReturnType, ErrorType> {
     onHeaderStart(range: Range): ParserEventConsumer<null, null>
     onCompact(range: Range): void
-    onHeaderEnd(range: Range): ParserEventConsumer<ReturnType, ErrorType>
+    onHeaderEnd(location: Location): ParserEventConsumer<ReturnType, ErrorType>
 }
 
 class Parser<ReturnType, ErrorType> {
@@ -403,7 +403,7 @@ class Parser<ReturnType, ErrorType> {
                                         return assertUnreachable($$.state)
                                 }
                                 this.headerConsumer.onCompact(range)
-                                this.onHeaderEnd(range)
+                                this.onHeaderEnd(range.end)
                                 return p.result(false)
                             case Char.Punctuation.closeAngleBracket:
                                 return this.onArrayClose(curChar, range)
@@ -669,12 +669,12 @@ class Parser<ReturnType, ErrorType> {
                 }
                 case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
                     this.raiseError("expected hash or rootvalue", range)
-                    this.onHeaderEnd(range)
+                    this.onHeaderEnd(location)
                     break
                 }
                 case RootState.EXPECTING_SCHEMA: {
                     this.raiseError("expected the schema", range)
-                    this.onHeaderEnd(range)
+                    this.onHeaderEnd(location)
                     break
                 }
                 case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
@@ -683,7 +683,7 @@ class Parser<ReturnType, ErrorType> {
                 }
                 case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
                     this.raiseError("expected the schema start (!) or root value", range)
-                    this.onHeaderEnd(range)
+                    this.onHeaderEnd(location)
                     break
                 default:
                     assertUnreachable($$.state)
@@ -939,7 +939,7 @@ class Parser<ReturnType, ErrorType> {
             start: $tok.start.start,
             end: end.end,
         }
-        this.wrapupBeforeValue(range)
+        this.wrapupBeforeValue(end)
         const $ = this.currentContext
         const onStringValue = (): p.IValue<boolean> => {
             const od = this.sendEvent({
@@ -1128,8 +1128,11 @@ class Parser<ReturnType, ErrorType> {
         }
         this.currentToken = [TokenType.NONE]
     }
-    private onHeaderEnd(range: Range) {
-        this.instanceEventsConsumer = this.headerConsumer.onHeaderEnd(range)
+    private onHeaderEnd(location: Location) {
+        if (this.schemaEventsConsumer !== undefined) {
+            this.schemaEventsConsumer.onEnd(false, location)
+        }
+        this.instanceEventsConsumer = this.headerConsumer.onHeaderEnd(location)
     }
     private wrapupBeforeValue(range: Range) {
         const $ = this.currentContext
@@ -1148,7 +1151,7 @@ class Parser<ReturnType, ErrorType> {
                         break
                     }
                     case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                        this.onHeaderEnd(range)
+                        this.onHeaderEnd(range.end)
                         break
                     }
                     case RootState.EXPECTING_SCHEMA: {
@@ -1158,7 +1161,7 @@ class Parser<ReturnType, ErrorType> {
                         break
                     }
                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                        this.onHeaderEnd(range)
+                        this.onHeaderEnd(range.end)
                         break
                     default:
                         assertUnreachable($$.state)

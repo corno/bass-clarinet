@@ -119,8 +119,8 @@ export const JSONTests: TestDefinitions = {
             ["token", "quotedstring"/*key*/, "baz", undefined],
             ["parsererror", "missing property value"],
             ["token", "closeobject", "}", undefined],
-            ["stacked error", "missing value"],
             ["end", undefined],
+            ["stacked error", "missing value"],
         ],
     },
     "three byte utf8": {
@@ -179,8 +179,8 @@ export const JSONTests: TestDefinitions = {
             ["token", "quotedstring"/*key*/, "foo", undefined],
             ["parsererror", "missing property value"],
             ["token", "closeobject", "}", undefined],
-            ["stacked error", "missing value"],
             ["end", undefined],
+            ["stacked error", "missing value"],
         ],
     },
     "foobar": {

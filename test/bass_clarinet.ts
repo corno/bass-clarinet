@@ -338,7 +338,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         type HeaderSubscriber = {
             onHeaderStart(range: bc.Range): void
             onCompact(range: bc.Range): void
-            onHeaderEnd(range: bc.Range): void
+            onHeaderEnd(location: bc.Location): void
         }
         const headerSubscribers: HeaderSubscriber[] = [
             {
@@ -394,9 +394,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         s.onCompact(range)
                     })
                 },
-                onHeaderEnd: range => {
+                onHeaderEnd: location => {
                     headerSubscribers.forEach(s => {
-                        s.onHeaderEnd(range)
+                        s.onHeaderEnd(location)
                     })
                     return createStreamSplitter(instanceDataSubscribers)
                 },
