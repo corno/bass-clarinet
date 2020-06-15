@@ -2,7 +2,7 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as bc from "../src"
 import * as fs from "fs"
-import { ParserEvent, ParserEventConsumer } from "../src"
+import { ParserEventConsumer } from "../src"
 
 
 const [, , path] = process.argv
@@ -93,13 +93,10 @@ const pp = createPrettyPrinter("\r\n", str => process.stdout.write(str))
 const prsr = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
     {
-        onHeaderStart: () => {
+        onSchemaDataStart: () => {
             return pp
         },
-        onCompact: () => {
-            //
-        },
-        onHeaderEnd: () => {
+        onInstanceDataStart: () => {
             return pp
         },
     },

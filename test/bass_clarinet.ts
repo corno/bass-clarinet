@@ -1,6 +1,7 @@
 /* eslint
     no-console:"off",
     complexity: "off",
+    max-classes-per-file: "off",
 */
 import * as p from "pareto"
 import * as p20 from "pareto-20"
@@ -10,7 +11,7 @@ import * as chai from "chai"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, ParserEventConsumer } from "../src"
+import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, ParserEventConsumer, createStrictJSONValidator, ParserEvent } from "../src"
 import { createStreamSplitter } from "../src/createStreamSplitter"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -24,6 +25,111 @@ const selectedExtensionTests = Object.keys(extensionTests)
 
 // const selectedJSONTests: string[] = []
 // const selectedExtensionTests: string[] = ["schema 2"]
+
+type OnError = (message: string, range: bc.Range) => void
+
+interface HeaderSubscriber {
+    onSchemaDataStart(range: bc.Range): void
+    onInstanceDataStart(compact: null | bc.Range, location: bc.Location): void
+}
+
+class StrictJSONHeaderValidator implements HeaderSubscriber {
+    private readonly onError: OnError
+
+    constructor(onError: OnError) {
+        this.onError = onError
+    }
+    onSchemaDataStart(range: bc.Range) {
+        this.onError(`headers are not allowed in strict JSON`, range)
+    }
+    onInstanceDataStart() {
+        return createStrictJSONValidator(this.onError)
+    }
+}
+
+
+class OutPutter implements ParserEventConsumer<null, null> {
+    readonly out: string[]
+    constructor(out: string[]) {
+        this.out = out
+    }
+    onData(data: ParserEvent) {
+        switch (data.type[0]) {
+            case ParserEventType.BlockComment: {
+                const $ = data.type[1]
+                this.out.push(`/*${$.comment}*/`)
+                break
+            }
+            case ParserEventType.CloseArray: {
+                const $ = data.type[1]
+                this.out.push($.closeCharacter)
+                break
+            }
+            case ParserEventType.CloseObject: {
+                const $ = data.type[1]
+                this.out.push($.closeCharacter)
+                break
+            }
+            case ParserEventType.Colon: {
+                this.out.push(":")
+                break
+            }
+            case ParserEventType.Comma: {
+                this.out.push(",")
+                break
+            }
+            case ParserEventType.LineComment: {
+                const $ = data.type[1]
+                this.out.push(`//${$.comment}`)
+                break
+            }
+            case ParserEventType.NewLine: {
+                this.out.push("\n")
+                break
+            }
+            case ParserEventType.OpenArray: {
+                const $ = data.type[1]
+                this.out.push($.openCharacter)
+                break
+            }
+            case ParserEventType.OpenObject: {
+                const $ = data.type[1]
+                this.out.push($.openCharacter)
+                break
+            }
+            case ParserEventType.SimpleValue: {
+                const $ = data.type[1]
+                if ($.quote !== null) {
+
+                    function serialize(str: string) {
+                        const escaped = JSON.stringify(str)
+                        return escaped.substring(1, escaped.length - 1) //remove quotes
+                    }
+                    this.out.push(`${$.quote}${serialize($.value)}${$.terminated ? $.quote : ""}`)
+                } else {
+                    this.out.push($.value)
+                }
+                break
+            }
+            case ParserEventType.TaggedUnion: {
+                this.out.push("|")
+                break
+            }
+            case ParserEventType.WhiteSpace: {
+                const $ = data.type[1]
+                this.out.push($.value)
+                break
+            }
+            default:
+                assertUnreachable(data.type[0])
+        }
+        return p.result(false)
+    }
+    //do the check
+    onEnd(): p.IUnsafeValue<null, null> {
+        return p.success(null)
+    }
+}
 
 function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: boolean) {
     return function () {
@@ -57,92 +163,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         /*
         RECREATE THE ORIGINAL STRING
         */
-        const out: string[] = []
-
-        function serialize(str: string) {
-            const escaped = JSON.stringify(str)
-            return escaped.substring(1, escaped.length - 1) //remove quotes
-        }
-        const outputter: ParserEventConsumer<null, null> = {
-            onData: data => {
-                switch (data.type[0]) {
-                    case ParserEventType.BlockComment: {
-                        const $ = data.type[1]
-                        out.push(`/*${$.comment}*/`)
-                        break
-                    }
-                    case ParserEventType.CloseArray: {
-                        const $ = data.type[1]
-                        out.push($.closeCharacter)
-                        break
-                    }
-                    case ParserEventType.CloseObject: {
-                        const $ = data.type[1]
-                        out.push($.closeCharacter)
-                        break
-                    }
-                    case ParserEventType.Colon: {
-                        out.push(":")
-                        break
-                    }
-                    case ParserEventType.Comma: {
-                        out.push(",")
-                        break
-                    }
-                    case ParserEventType.LineComment: {
-                        const $ = data.type[1]
-                        out.push(`//${$.comment}`)
-                        break
-                    }
-                    case ParserEventType.NewLine: {
-                        out.push("\n")
-                        break
-                    }
-                    case ParserEventType.OpenArray: {
-                        const $ = data.type[1]
-                        out.push($.openCharacter)
-                        break
-                    }
-                    case ParserEventType.OpenObject: {
-                        const $ = data.type[1]
-                        out.push($.openCharacter)
-                        break
-                    }
-                    case ParserEventType.SimpleValue: {
-                        const $ = data.type[1]
-                        if ($.quote !== null) {
-                            out.push(`${$.quote}${serialize($.value)}${$.terminated ? $.quote : ""}`)
-                        } else {
-                            out.push($.value)
-                        }
-                        break
-                    }
-                    case ParserEventType.TaggedUnion: {
-                        out.push("|")
-                        break
-                    }
-                    case ParserEventType.WhiteSpace: {
-                        const $ = data.type[1]
-                        out.push($.value)
-                        break
-                    }
-                    default:
-                        assertUnreachable(data.type[0])
-                }
-                return p.result(false)
-            },
-            //do the check
-            onEnd: () => {
-                if (!test.skipRoundTripCheck) {
-                    chai.assert.equal(out.join(""), chunks.join("")
-                        .replace(/\r\n/g, "\n")
-                        .replace(/\n\r/g, "\n")
-                        .replace(/\r/g, "\n")
-                    )
-                }
-                return p.success(null)
-            },
-        }
 
         function createTestRequiredValueHandler(): RequiredValueHandler {
             return {
@@ -292,64 +312,63 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         let formattedText = test.text
         let offset = 0
 
-        const formatter = bc.createFormatter(
-            (range, newValue) => {
-                formattedText =
-                    formattedText.substr(0, offset + range.start.position) +
-                    newValue +
-                    formattedText.substr(offset + range.end.position)
-                offset +=
-                    + newValue.length
-                    - range.end.position
-                    + range.start.position
-            },
-            range => {
-                formattedText =
-                    formattedText.substr(0, offset + range.start.position) +
-                    formattedText.substr(offset + range.end.position)
-                offset +=
-                    - range.end.position
-                    + range.start.position
-            },
-            (location, value) => {
-                formattedText =
-                    formattedText.substr(0, offset + location.position) +
-                    value +
-                    formattedText.substr(offset + location.position)
-                offset += value.length
-            },
-            () => {
+        function createFormatter(trimTrailingWhitespace: boolean) {
+            return bc.createFormatter(
+                (range, newValue) => {
+                    formattedText =
+                        formattedText.substr(0, offset + range.start.position) +
+                        newValue +
+                        formattedText.substr(offset + range.end.position)
+                    offset +=
+                        + newValue.length
+                        - range.end.position
+                        + range.start.position
+                },
+                range => {
+                    formattedText =
+                        formattedText.substr(0, offset + range.start.position) +
+                        formattedText.substr(offset + range.end.position)
+                    offset +=
+                        - range.end.position
+                        + range.start.position
+                },
+                (location, value) => {
+                    formattedText =
+                        formattedText.substr(0, offset + location.position) +
+                        value +
+                        formattedText.substr(offset + location.position)
+                    offset += value.length
+                },
+                () => {
 
-                return p.result(null)
+                    return p.result(null)
 
-            },
-        )
+                },
+                trimTrailingWhitespace,
+            )
+        }
+        const out: string[] = []
         const schemaDataSubscribers: ParserEventConsumer<null, null>[] = [
-            outputter,
+            new OutPutter(out),
             eventSubscriber,
-            formatter,
+            createFormatter(false),
         ]
         const instanceDataSubscribers: ParserEventConsumer<null, null>[] = [
-            outputter,
+            new OutPutter(out),
             eventSubscriber,
             stackedSubscriber,
-            formatter,
+            createFormatter(true),
         ]
-        type HeaderSubscriber = {
-            onHeaderStart(range: bc.Range): void
-            onCompact(range: bc.Range): void
-            onHeaderEnd(location: bc.Location): void
-        }
         const headerSubscribers: HeaderSubscriber[] = [
             {
-                onHeaderStart: () => {
+                onSchemaDataStart: () => {
                     out.push("!")
                     return []
                 },
-                onCompact: () => {
-                    out.push("#")
-                },
-                onHeaderEnd: () => {
+                onInstanceDataStart: compact => {
+                    if (compact) {
+                        out.push("# ")
+                    }
                     return []
                 },
             },
@@ -357,19 +376,19 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
         if (test.testHeaders) {
             headerSubscribers.push({
-                onHeaderStart: _range => {
-                    actualEvents.push(["token", "headerstart"])
+                onSchemaDataStart: _range => {
+                    actualEvents.push(["token", "schema data start"])
                 },
-                onHeaderEnd: () => {
-                    actualEvents.push(["headerend"])
-                },
-                onCompact: () => {
-                    actualEvents.push(["token", "compact"])
+                onInstanceDataStart: compact => {
+                    if (compact !== null) {
+                        actualEvents.push(["token", "compact"])
+                    }
+                    actualEvents.push(["instance data start", compact !== null])
                 },
             })
         }
         if (strictJSON) {
-            headerSubscribers.push(bc.createStrictJSONHeaderValidator((v, _range) => {
+            headerSubscribers.push(new StrictJSONHeaderValidator((v, _range) => {
                 actualEvents.push(["validationerror", v])
             }))
             instanceDataSubscribers.push(bc.createStrictJSONValidator((v, _range) => {
@@ -383,20 +402,15 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 actualEvents.push(["parsererror", message])
             },
             {
-                onHeaderStart: range => {
+                onSchemaDataStart: range => {
                     headerSubscribers.forEach(s => {
-                        s.onHeaderStart(range)
+                        s.onSchemaDataStart(range)
                     })
                     return createStreamSplitter(schemaDataSubscribers)
                 },
-                onCompact: range => {
+                onInstanceDataStart: (compact, location) => {
                     headerSubscribers.forEach(s => {
-                        s.onCompact(range)
-                    })
-                },
-                onHeaderEnd: location => {
-                    headerSubscribers.forEach(s => {
-                        s.onHeaderEnd(location)
+                        s.onInstanceDataStart(compact, location)
                     })
                     return createStreamSplitter(instanceDataSubscribers)
                 },
@@ -421,6 +435,14 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 chai.assert.deepEqual(actualEvents, test.events)
             }
             const expectedFormattedText = test.formattedText ? test.formattedText : test.text
+
+            if (!test.skipRoundTripCheck) {
+                chai.assert.equal(out.join(""), chunks.join("")
+                    .replace(/\r\n/g, "\n")
+                    .replace(/\n\r/g, "\n")
+                    .replace(/\r/g, "\n")
+                )
+            }
             chai.assert.equal(
                 formattedText
                     .replace(/\r\n/g, "\n")

@@ -11,13 +11,10 @@ export const dummyParserEventConsumer: ParserEventConsumer<null, null> = {
 }
 
 export const dummyHeaderConsumer: HeaderConsumer<null, null> = {
-    onCompact: () => {
-        //
-    },
-    onHeaderStart: () => {
+    onSchemaDataStart: () => {
         return dummyParserEventConsumer
     },
-    onHeaderEnd: () => {
+    onInstanceDataStart: () => {
         return dummyParserEventConsumer
     },
 }

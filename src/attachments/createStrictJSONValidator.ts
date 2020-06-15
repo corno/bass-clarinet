@@ -5,7 +5,7 @@
 */
 import * as p from "pareto"
 import { ParserEventType, ParserEvent } from "../ParserEvent"
-import { HeaderConsumer, ParserEventConsumer } from "../createParser"
+import { ParserEventConsumer } from "../createParser"
 import { Range } from "../location"
 import * as Char from "./NumberCharacters"
 import { RangeError } from "../errors"
@@ -108,32 +108,6 @@ type ContextType =
         // readonly parentValueHandler: ValueHandler
         // valueHandler: null | ValueHandler
     }]
-
-class StrictJSONHeaderValidator implements HeaderConsumer<null, null> {
-    private readonly onError: OnError
-
-
-    constructor(onError: OnError) {
-        this.onError = onError
-    }
-    onHeaderStart(range: Range) {
-        this.onError(`headers are not allowed in strict JSON`, range)
-        return {
-            onData: () => {
-                return p.result(false)
-            },
-            onEnd: () => {
-                return p.success<null, null>(null)
-            },
-        }
-    }
-    onCompact() {
-        //
-    }
-    onHeaderEnd() {
-        return createStrictJSONValidator(this.onError)
-    }
-}
 
 class StrictJSONValidator implements ParserEventConsumer<null, null> {
     private readonly onError: OnError
@@ -468,10 +442,6 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 return assertUnreachable(this.currentContext[0])
         }
     }
-}
-
-export function createStrictJSONHeaderValidator(onError: OnError): HeaderConsumer<null, null> {
-    return new StrictJSONHeaderValidator(onError)
 }
 
 export function createStrictJSONValidator(onError: OnError): ParserEventConsumer<null, null> {

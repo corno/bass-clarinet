@@ -73,9 +73,8 @@ function getContextDescription(stackContext: StackContext): string {
 export type ParserEventConsumer<ReturnType, ErrorType> = p.IStreamConsumer<ParserEvent, Location, ReturnType, ErrorType>
 
 export interface HeaderConsumer<ReturnType, ErrorType> {
-    onHeaderStart(range: Range): ParserEventConsumer<null, null>
-    onCompact(range: Range): void
-    onHeaderEnd(location: Location): ParserEventConsumer<ReturnType, ErrorType>
+    onSchemaDataStart(range: Range): ParserEventConsumer<null, null>
+    onInstanceDataStart(compact: null | Range, location: Location): ParserEventConsumer<ReturnType, ErrorType>
 }
 
 class Parser<ReturnType, ErrorType> {
@@ -165,12 +164,14 @@ class Parser<ReturnType, ErrorType> {
                             case Char.Punctuation.openParen:
                                 return this.onObjectOpen(curChar, range)
                             case Char.Punctuation.verticalLine:
-                                this.onNonStringValue(range)
-                                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.TaggedUnion, {
-                                    }],
+                                return this.onNonStringValue(range).mapResult(() => {
+                                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
+                                    return this.sendEvent({
+                                        range: range,
+                                        type: [ParserEventType.TaggedUnion, {
+                                        }],
+                                    })
+
                                 })
                             default:
                                 this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
@@ -275,12 +276,14 @@ class Parser<ReturnType, ErrorType> {
                             case Char.Punctuation.openParen:
                                 return this.onObjectOpen(curChar, range)
                             case Char.Punctuation.verticalLine:
-                                this.onNonStringValue(range)
-                                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.TaggedUnion, {
-                                    }],
+                                return this.onNonStringValue(range).mapResult(() => {
+                                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
+                                    return this.sendEvent({
+                                        range: range,
+                                        type: [ParserEventType.TaggedUnion, {
+                                        }],
+                                    })
+
                                 })
                             default:
                                 this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
@@ -373,7 +376,7 @@ class Parser<ReturnType, ErrorType> {
                                     default:
                                         return assertUnreachable($$.state)
                                 }
-                                this.schemaEventsConsumer = this.headerConsumer.onHeaderStart(range)
+                                this.schemaEventsConsumer = this.headerConsumer.onSchemaDataStart(range)
                                 return p.result(false)
                             case Char.Punctuation.hash:
                                 /**
@@ -402,9 +405,7 @@ class Parser<ReturnType, ErrorType> {
                                     default:
                                         return assertUnreachable($$.state)
                                 }
-                                this.headerConsumer.onCompact(range)
-                                this.onHeaderEnd(range.end)
-                                return p.result(false)
+                                return this.startInstanceData(range, range.end)
                             case Char.Punctuation.closeAngleBracket:
                                 return this.onArrayClose(curChar, range)
                             case Char.Punctuation.closeBracket:
@@ -436,12 +437,14 @@ class Parser<ReturnType, ErrorType> {
                             case Char.Punctuation.openParen:
                                 return this.onObjectOpen(curChar, range)
                             case Char.Punctuation.verticalLine:
-                                this.onNonStringValue(range)
-                                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.TaggedUnion, {
-                                    }],
+                                return this.onNonStringValue(range).mapResult(() => {
+                                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
+                                    return this.sendEvent({
+                                        range: range,
+                                        type: [ParserEventType.TaggedUnion, {
+                                        }],
+                                    })
+
                                 })
                             default:
                                 this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
@@ -550,12 +553,14 @@ class Parser<ReturnType, ErrorType> {
                             case Char.Punctuation.openParen:
                                 return this.onObjectOpen(curChar, range)
                             case Char.Punctuation.verticalLine:
-                                this.onNonStringValue(range)
-                                this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.TaggedUnion, {
-                                    }],
+                                return this.onNonStringValue(range).mapResult(() => {
+                                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
+                                    return this.sendEvent({
+                                        range: range,
+                                        type: [ParserEventType.TaggedUnion, {
+                                        }],
+                                    })
+
                                 })
                             default:
                                 this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
@@ -600,8 +605,18 @@ class Parser<ReturnType, ErrorType> {
     }
     public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
 
+        const sendEnd = (): p.IUnsafeValue<ReturnType, ErrorType> => {
+            if (this.instanceEventsConsumer === undefined) {
+                throw new Error("unexpected missing parser event consumer")
+            }
+            return this.instanceEventsConsumer.onEnd(aborted, location)
+
+        }
+
         const range = { start: location, end: location }
-        if (!aborted) {
+        if (aborted) {
+            return sendEnd()
+        } else {
             unwindLoop: while (true) {
                 switch (this.currentContext[0]) {
                     case StackContextType.ARRAY: {
@@ -663,36 +678,35 @@ class Parser<ReturnType, ErrorType> {
                 }
             }
             const $$ = this.currentContext[1]
-            switch ($$.state) {
-                case RootState.EXPECTING_END: {
-                    break
+            const wrapup = (): p.IValue<boolean> => {
+                switch ($$.state) {
+                    case RootState.EXPECTING_END: {
+                        return p.result(false)
+                    }
+                    case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
+                        this.raiseError("expected hash or rootvalue", range)
+                        return this.startInstanceData(null, location)
+                    }
+                    case RootState.EXPECTING_SCHEMA: {
+                        this.raiseError("expected the schema", range)
+                        return this.startInstanceData(null, location)
+                    }
+                    case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
+                        this.raiseError("expected the root value", range)
+                        return p.result(false)
+                    }
+                    case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                        this.raiseError("expected the schema start (!) or root value", range)
+                        return this.startInstanceData(null, location)
+                    default:
+                        return assertUnreachable($$.state)
                 }
-                case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                    this.raiseError("expected hash or rootvalue", range)
-                    this.onHeaderEnd(location)
-                    break
-                }
-                case RootState.EXPECTING_SCHEMA: {
-                    this.raiseError("expected the schema", range)
-                    this.onHeaderEnd(location)
-                    break
-                }
-                case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                    this.raiseError("expected the root value", range)
-                    break
-                }
-                case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                    this.raiseError("expected the schema start (!) or root value", range)
-                    this.onHeaderEnd(location)
-                    break
-                default:
-                    assertUnreachable($$.state)
             }
+            return wrapup().try(() => {
+                return sendEnd()
+            })
+
         }
-        if (this.instanceEventsConsumer === undefined) {
-            throw new Error("unexpected missing parser event consumer")
-        }
-        return this.instanceEventsConsumer.onEnd(aborted, location)
     }
     public onSnippet(chunk: string, begin: number, end: number): p.IValue<boolean> {
         if (DEBUG) console.log(`onSnippet`)
@@ -875,19 +889,21 @@ class Parser<ReturnType, ErrorType> {
             start: $.start,
             end: location,
         }
-        this.onNonStringValue(range)
-        const od = this.sendEvent({
-            range: range,
-            type: [ParserEventType.SimpleValue,
-            {
-                value: $.unquotedTokenNode,
-                quote: null,
-                terminated: null,
-            }],
+        return this.onNonStringValue(range).mapResult(() => {
+            const od = this.sendEvent({
+                range: range,
+                type: [ParserEventType.SimpleValue,
+                {
+                    value: $.unquotedTokenNode,
+                    quote: null,
+                    terminated: null,
+                }],
+            })
+            this.wrapupAfterValue(range)
+            this.unsetCurrentToken({ start: location, end: location })
+            return od
+
         })
-        this.wrapupAfterValue(range)
-        this.unsetCurrentToken({ start: location, end: location })
-        return od
     }
 
     public onWhitespaceBegin(location: Location): p.IValue<boolean> {
@@ -939,90 +955,94 @@ class Parser<ReturnType, ErrorType> {
             start: $tok.start.start,
             end: end.end,
         }
-        this.wrapupBeforeValue(end)
-        const $ = this.currentContext
-        const onStringValue = (): p.IValue<boolean> => {
-            const od = this.sendEvent({
-                range: range,
-                type: [ParserEventType.SimpleValue,
-                {
-                    value: value,
-                    //startCharacter: $tok.startCharacter,
-                    terminated: quote !== null,
-                    quote: $tok.startCharacter,
-                }],
-            })
-            this.wrapupAfterValue(range)
-            return od
-        }
-        this.unsetCurrentToken(end)
+        return this.wrapupBeforeValue(end).mapResult(() => {
+            const $ = this.currentContext
+            const onStringValue = (): p.IValue<boolean> => {
+                const od = this.sendEvent({
+                    range: range,
+                    type: [ParserEventType.SimpleValue,
+                    {
+                        value: value,
+                        //startCharacter: $tok.startCharacter,
+                        terminated: quote !== null,
+                        quote: $tok.startCharacter,
+                    }],
+                })
+                this.wrapupAfterValue(range)
+                return od
+            }
+            this.unsetCurrentToken(end)
 
-        switch ($[0]) {
-            case StackContextType.ARRAY: {
-                return onStringValue()
-            }
-            case StackContextType.OBJECT: {
-                const $$ = $[1]
-                switch ($$.state) {
-                    case ObjectState.EXPECTING_KEY:
-                        const od = this.sendEvent({
-                            range: range,
-                            type: [ParserEventType.SimpleValue,
-                            {
-                                value: value,
-                                quote: $tok.startCharacter,
-                                terminated: quote !== null,
-                            }],
-                        })
-                        $$.state = ObjectState.EXPECTING_OBJECT_VALUE
-                        return od
-                    case ObjectState.EXPECTING_OBJECT_VALUE:
-                        const osv = onStringValue()
-                        $$.state = ObjectState.EXPECTING_KEY
-                        return osv
-                    default:
-                        return assertUnreachable($$.state)
+            switch ($[0]) {
+                case StackContextType.ARRAY: {
+                    return onStringValue()
                 }
-            }
-            case StackContextType.ROOT: {
-                const osv = onStringValue()
-                this.setRootStateAfterValue($[1])
-                return osv
-            }
-            case StackContextType.TAGGED_UNION: {
-                const $$ = $[1]
-                switch ($$.state) {
-                    case TaggedUnionState.EXPECTING_OPTION:
-                        const od = this.sendEvent({
-                            range: range,
-                            type: [ParserEventType.SimpleValue,
-                            {
-                                value: value,
-                                quote: $tok.startCharacter,
-                                terminated: quote !== null,
-                            }],
-                        })
-                        $$.state = TaggedUnionState.EXPECTING_VALUE
-                        return od
-                    case TaggedUnionState.EXPECTING_VALUE: {
-                        return onStringValue()
+                case StackContextType.OBJECT: {
+                    const $$ = $[1]
+                    switch ($$.state) {
+                        case ObjectState.EXPECTING_KEY:
+                            const od = this.sendEvent({
+                                range: range,
+                                type: [ParserEventType.SimpleValue,
+                                {
+                                    value: value,
+                                    quote: $tok.startCharacter,
+                                    terminated: quote !== null,
+                                }],
+                            })
+                            $$.state = ObjectState.EXPECTING_OBJECT_VALUE
+                            return od
+                        case ObjectState.EXPECTING_OBJECT_VALUE:
+                            const osv = onStringValue()
+                            $$.state = ObjectState.EXPECTING_KEY
+                            return osv
+                        default:
+                            return assertUnreachable($$.state)
                     }
-                    default:
-                        return assertUnreachable($$.state)
                 }
+                case StackContextType.ROOT: {
+                    const osv = onStringValue()
+                    this.setRootStateAfterValue($[1])
+                    return osv
+                }
+                case StackContextType.TAGGED_UNION: {
+                    const $$ = $[1]
+                    switch ($$.state) {
+                        case TaggedUnionState.EXPECTING_OPTION:
+                            const od = this.sendEvent({
+                                range: range,
+                                type: [ParserEventType.SimpleValue,
+                                {
+                                    value: value,
+                                    quote: $tok.startCharacter,
+                                    terminated: quote !== null,
+                                }],
+                            })
+                            $$.state = TaggedUnionState.EXPECTING_VALUE
+                            return od
+                        case TaggedUnionState.EXPECTING_VALUE: {
+                            return onStringValue()
+                        }
+                        default:
+                            return assertUnreachable($$.state)
+                    }
+                }
+                default:
+                    return assertUnreachable($[0])
             }
-            default:
-                return assertUnreachable($[0])
-        }
+
+        })
     }
     private onObjectOpen(curChar: number, range: Range): p.IValue<boolean> {
-        this.onNonStringValue(range)
-        this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
-        return this.sendEvent({
-            range: range,
-            type: [ParserEventType.OpenObject, {
-                openCharacter: String.fromCharCode(curChar),
-            }],
+        return this.onNonStringValue(range).mapResult(() => {
+            this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
+            return this.sendEvent({
+                range: range,
+                type: [ParserEventType.OpenObject, {
+                    openCharacter: String.fromCharCode(curChar),
+                }],
+            })
+
         })
     }
     private onObjectClose(curChar: number, range: Range): p.IValue<boolean> {
@@ -1049,13 +1069,15 @@ class Parser<ReturnType, ErrorType> {
         }
     }
     private onArrayOpen(curChar: number, range: Range) {
-        this.onNonStringValue(range)
-        this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
-        return this.sendEvent({
-            range: range,
-            type: [ParserEventType.OpenArray, {
-                openCharacter: String.fromCharCode(curChar),
-            }],
+        return this.onNonStringValue(range).mapResult(() => {
+            this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
+            return this.sendEvent({
+                range: range,
+                type: [ParserEventType.OpenArray, {
+                    openCharacter: String.fromCharCode(curChar),
+                }],
+            })
+
         })
     }
     private onArrayClose(curChar: number, range: Range) {
@@ -1073,49 +1095,48 @@ class Parser<ReturnType, ErrorType> {
         })
     }
     private onNonStringValue(range: Range) {
-        this.wrapupBeforeValue(range)
-        const $ = this.currentContext
-        switch ($[0]) {
-            case StackContextType.ARRAY: {
-                break
-            }
-            case StackContextType.OBJECT: {
-                const $$ = $[1]
-                switch ($$.state) {
-                    case ObjectState.EXPECTING_KEY:
-                        //this.raiseError("expected key", range)
-                        break
-                    case ObjectState.EXPECTING_OBJECT_VALUE:
-                        $$.state = ObjectState.EXPECTING_KEY
-                        break
-                    default:
-                        assertUnreachable($$.state)
+        return this.wrapupBeforeValue(range).mapResult((): p.IValue<boolean> => {
+            const $ = this.currentContext
+            switch ($[0]) {
+                case StackContextType.ARRAY: {
+                    return p.result(false)
                 }
-                break
-            }
-            case StackContextType.ROOT: {
-                this.setRootStateAfterValue($[1])
-                break
-            }
-            case StackContextType.TAGGED_UNION: {
-                const $$ = $[1]
-                switch ($$.state) {
-                    case TaggedUnionState.EXPECTING_OPTION:
-                        this.raiseError("expected option", range)
-                        break
-                    case TaggedUnionState.EXPECTING_VALUE: {
-                        break
+                case StackContextType.OBJECT: {
+                    const $$ = $[1]
+                    switch ($$.state) {
+                        case ObjectState.EXPECTING_KEY:
+                            //this.raiseError("expected key", range)
+                            return p.result(false)
+                        case ObjectState.EXPECTING_OBJECT_VALUE:
+                            $$.state = ObjectState.EXPECTING_KEY
+                            return p.result(false)
+                        default:
+                            return assertUnreachable($$.state)
                     }
-                    default:
-                        assertUnreachable($$.state)
                 }
-                break
+                case StackContextType.ROOT: {
+                    this.setRootStateAfterValue($[1])
+                    return p.result(false)
+                }
+                case StackContextType.TAGGED_UNION: {
+                    const $$ = $[1]
+                    switch ($$.state) {
+                        case TaggedUnionState.EXPECTING_OPTION:
+                            this.raiseError("expected option", range)
+                            return p.result(false)
+                        case TaggedUnionState.EXPECTING_VALUE: {
+                            return p.result(false)
+                        }
+                        default:
+                            return assertUnreachable($$.state)
+                    }
+                }
+                default:
+                    return assertUnreachable($[0])
             }
-            default:
-                assertUnreachable($[0])
-        }
-    }
 
+        })
+    }
     private setCurrentToken(contextType: CurrentToken, range: Range) {
         if (this.currentToken[0] !== TokenType.NONE) {
             throw new ParserStackPanicError(`unexpected start of token`, range)
@@ -1128,51 +1149,63 @@ class Parser<ReturnType, ErrorType> {
         }
         this.currentToken = [TokenType.NONE]
     }
-    private onHeaderEnd(location: Location) {
+    private startInstanceData(compact: null | Range, location: Location) {
         if (this.schemaEventsConsumer !== undefined) {
-            this.schemaEventsConsumer.onEnd(false, location)
+
+            return this.schemaEventsConsumer.onEnd(false, location).reworkAndCatch(
+                () => {
+
+                    this.instanceEventsConsumer = this.headerConsumer.onInstanceDataStart(compact, location)
+                    return p.result(false)
+                },
+                () => {
+
+                    this.instanceEventsConsumer = this.headerConsumer.onInstanceDataStart(compact, location)
+                    return p.result(false)
+                },
+            )
+        } else {
+            this.instanceEventsConsumer = this.headerConsumer.onInstanceDataStart(compact, location)
+            return p.result(false)
+
         }
-        this.instanceEventsConsumer = this.headerConsumer.onHeaderEnd(location)
     }
-    private wrapupBeforeValue(range: Range) {
+    private wrapupBeforeValue(range: Range): p.IValue<boolean> {
         const $ = this.currentContext
         switch ($[0]) {
             case StackContextType.ARRAY: {
-                break
+                return p.result(false)
             }
             case StackContextType.OBJECT: {
-                break
+                return p.result(false)
             }
             case StackContextType.ROOT: {
                 const $$ = $[1]
                 switch ($$.state) {
                     case RootState.EXPECTING_END: {
                         this.raiseError(`Unexpected data after end`, range)
-                        break
+                        return p.result(false)
                     }
                     case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                        this.onHeaderEnd(range.end)
-                        break
+                        return this.startInstanceData(null, range.end)
                     }
                     case RootState.EXPECTING_SCHEMA: {
-                        break
+                        return p.result(false)
                     }
                     case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                        break
+                        return p.result(false)
                     }
                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                        this.onHeaderEnd(range.end)
-                        break
+                        return this.startInstanceData(null, range.end)
                     default:
-                        assertUnreachable($$.state)
+                        return assertUnreachable($$.state)
                 }
-                break
             }
             case StackContextType.TAGGED_UNION: {
-                break
+                return p.result(false)
             }
             default:
-                assertUnreachable($[0])
+                return assertUnreachable($[0])
         }
     }
     private setRootStateAfterValue(rootContext: RootContext) {

@@ -15,10 +15,10 @@ export type EventDefinition =
     | ["token", "blockcomment", string, TestRange?]
     | ["parsererror", string]
     | ["tokenizererror", string]
-    | ["token", "headerstart", TestRange?]
+    | ["token", "schema data start", TestRange?]
     | ["token", "compact", TestRange?]
     | ["end", TestLocation?]
-    | ["headerend"]
+    | ["instance data start", boolean]
     | ["validationerror", string]
     | ["stacked error", string]
 // [AnyEvent, string?, number?, number?]
@@ -46,9 +46,9 @@ export type AnyEvent =
     | DataEvent
 
 export type HeaderEvent =
-    | "headerstart"
+    | "schema data start"
     | "compact"
-    | "headerend"
+    | "instance data start"
 
 export type DataEvent =
 

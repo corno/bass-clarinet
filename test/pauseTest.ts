@@ -10,13 +10,10 @@ const parser = bc.createParser(
     err => { console.error("FOUND PARSER ERROR", err) },
 
     {
-        onHeaderStart: () => {
+        onSchemaDataStart: () => {
             return dummyParserEventConsumer
         },
-        onCompact: () => {
-            //
-        },
-        onHeaderEnd: () => {
+        onInstanceDataStart: () => {
             return {
                 onData: _data => {
                     //return p20.result(false)

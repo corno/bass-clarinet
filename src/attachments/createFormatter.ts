@@ -55,6 +55,7 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onEnd: () => p.IValue<null>,
+	trimTrailingWhitespace: boolean,
 ): ParserEventConsumer<null, null> {
 	let precedingWhitespace: null | TokenInfo = null
 
@@ -374,7 +375,7 @@ export function createFormatter(
 		},
 		onEnd: () => {
 
-			if (precedingWhitespace !== null) {
+			if (precedingWhitespace !== null && trimTrailingWhitespace) {
 				del(precedingWhitespace.range)
 			}
 			return onEnd().try(() => {

@@ -14,19 +14,16 @@ Object.keys(JSONTests).forEach(testName => {
     const parser = bc.createParser(
         err => console.error(err),
         {
-            onHeaderStart: () => {
+            onSchemaDataStart: () => {
                 return annotater
             },
-            onCompact: () => {
-                //
-            },
-            onHeaderEnd: () => {
+            onInstanceDataStart: () => {
                 return annotater
             },
         },
     )
-    createAnnotator("", str => console.log(str))  
-      p20.createArray([test.text]).streamify().handle(
+    createAnnotator("", str => console.log(str))
+    p20.createArray([test.text]).streamify().handle(
         null,
         bc.createStreamTokenizer(
             parser,

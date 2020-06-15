@@ -977,10 +977,11 @@ export const JSONTests: TestDefinitions = {
         text: '!"foo" { }',
         testHeaders: true,
         events: [
-            ["token", "headerstart"],
+            ["token", "schema data start"],
             ["validationerror", "headers are not allowed in strict JSON"],
             ["token", "quotedstring", "foo", undefined],
-            ["headerend"],
+            ["end", undefined],
+            ["instance data start", false],
             ["token", "openobject", "{", undefined],
             ["token", "closeobject", "}", undefined],
             ["end", undefined],
@@ -990,7 +991,7 @@ export const JSONTests: TestDefinitions = {
         text: '{',
         testHeaders: true,
         events: [
-            ["headerend"],
+            ["instance data start", false],
             ["token", "openobject", "{", undefined],
             ["parsererror", "unexpected end of document, still in object"],
             ["end", undefined],
@@ -1002,7 +1003,7 @@ export const JSONTests: TestDefinitions = {
         formattedText: '[ "", "" ]',
         testHeaders: true,
         events: [
-            ["headerend"],
+            ["instance data start", false],
             ["token", "openarray", "[", undefined],
             ["token", "quotedstring", "", undefined],
             ["token", "quotedstring", "", undefined],
@@ -1015,7 +1016,7 @@ export const JSONTests: TestDefinitions = {
         formattedText: '[\n    "",\n    ""\n]',
         testHeaders: true,
         events: [
-            ["headerend"],
+            ["instance data start", false],
             ["token", "openarray", "[", undefined],
             ["token", "quotedstring", "", undefined],
             ["token", "quotedstring", "", undefined],
@@ -1028,7 +1029,7 @@ export const JSONTests: TestDefinitions = {
         formattedText: '"foo"',
         testHeaders: true,
         events: [
-            ["headerend"],
+            ["instance data start", false],
             ["token", "quotedstring", "foo", undefined],
             ["end", undefined],
         ],
