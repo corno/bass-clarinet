@@ -6,7 +6,7 @@
 */
 import * as p from "pareto"
 import { ParserEventType, ParserEvent } from "../ParserEvent"
-import { Location, Range } from "../location"
+import { Location, Range, createRangeFromSingleLocation } from "../location"
 import { createDummyValueHandler as createDummyOnValue } from "./dummyHandlers"
 import {
     RequiredValueHandler,
@@ -559,7 +559,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
             }
             function onEnd2() {
 
-                const range = { start: location, end: location }
+                const range = createRangeFromSingleLocation(location)
                 if (!aborted) {
                     unwindLoop: while (true) {
                         switch (state.currentContext[0]) {

@@ -9,7 +9,7 @@ import {
     CurrentToken,
     FoundCharacterType,
 } from "./tokenizerStateTypes"
-import { Location, Range } from "./location"
+import { Location, Range, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
 import { TokenDataType, TokenData } from "./TokenData"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -73,6 +73,9 @@ export class LocationState {
             line: this.location.line,
             column: this.location.column + 1,
         }
+    }
+    public getCurrentCharacterRange(): Range {
+        return createRangeFromLocations(this.getCurrentLocation(), this.getNextLocation())
     }
     public getNextLocation(): Location {
         return {
@@ -219,13 +222,10 @@ export class Tokenizer {
         const ct = this.currentTokenType
         switch (ct[0]) {
             case TokenType.BLOCK_COMMENT: {
-                this.onError("unterminated block comment", { start: this.locationState.getCurrentLocation(), end: this.locationState.getCurrentLocation() })
+                this.onError("unterminated block comment", createRangeFromSingleLocation(this.locationState.getCurrentLocation()))
                 return {
                     type: [TokenDataType.BlockCommentEnd, {
-                        range: {
-                            start: this.locationState.getCurrentLocation(),
-                            end: this.locationState.getCurrentLocation(),
-                        },
+                        range: createRangeFromSingleLocation(this.locationState.getCurrentLocation()),
                     }],
                 }
             }
@@ -240,31 +240,28 @@ export class Tokenizer {
                 const $ = ct[1]
                 if ($.foundCharacter !== null) {
                     if ($.foundCharacter.type === FoundCharacterType.SOLIDUS) {
-                        this.onError("found dangling slash at the end of the document", {
-                            start: this.locationState.getCurrentLocation(),
-                            end: this.locationState.getNextLocation(),
-                        })
+                        this.onError("found dangling slash at the end of the document", this.locationState.getCurrentCharacterRange())
                         return null
                     }
                     return {
                         type: [TokenDataType.NewLine, {
-                            range: {
-                                start: $.foundCharacter.startLocation,
-                                end: this.locationState.getCurrentLocation(),
-                            },
+                            range: createRangeFromLocations(
+                                $.foundCharacter.startLocation,
+                                this.locationState.getCurrentLocation(),
+                            ),
                         }],
                     }
                 } else {
                     return null
                 }
             case TokenType.QUOTED_STRING: {
-                this.onError("unterminated string", { start: this.locationState.getCurrentLocation(), end: this.locationState.getCurrentLocation() })
+                this.onError("unterminated string", createRangeFromLocations(this.locationState.getCurrentLocation(), this.locationState.getCurrentLocation()))
                 return {
                     type: [TokenDataType.QuotedStringEnd, {
-                        range: {
-                            start: this.locationState.getCurrentLocation(),
-                            end: this.locationState.getCurrentLocation(),
-                        },
+                        range: createRangeFromLocations(
+                            this.locationState.getCurrentLocation(),
+                            this.locationState.getCurrentLocation(),
+                        ),
                         quote: null,
                     }],
                 }
@@ -300,7 +297,7 @@ export class Tokenizer {
                                     [TokenType.NONE, { foundCharacter: null }],
                                     {
                                         type: [TokenDataType.BlockCommentEnd, {
-                                            range: { start: $$.locationOfFoundAsterisk, end: this.locationState.getCurrentLocation() },
+                                            range: createRangeFromLocations($$.locationOfFoundAsterisk, this.locationState.getCurrentLocation()),
                                         }],
                                     }
                                 )]
@@ -368,7 +365,7 @@ export class Tokenizer {
                                             [TokenType.NONE, { foundCharacter: null }],
                                             {
                                                 type: [TokenDataType.NewLine, {
-                                                    range: { start: $.foundCharacter.startLocation, end: this.locationState.getCurrentLocation() },
+                                                    range: createRangeFromLocations($.foundCharacter.startLocation, this.locationState.getCurrentLocation()),
                                                 }],
                                             }
                                         ),
@@ -389,7 +386,7 @@ export class Tokenizer {
                                             [TokenType.NONE, { foundCharacter: null }],
                                             {
                                                 type: [TokenDataType.NewLine, {
-                                                    range: { start: $.foundCharacter.startLocation, end: this.locationState.getCurrentLocation() },
+                                                    range: createRangeFromLocations($.foundCharacter.startLocation, this.locationState.getCurrentLocation()),
                                                 }],
                                             }
                                         ),
@@ -403,7 +400,7 @@ export class Tokenizer {
                                             [TokenType.LINE_COMMENT],
                                             {
                                                 type: [TokenDataType.LineCommentBegin, {
-                                                    range: { start: $.foundCharacter.startLocation, end: this.locationState.getCurrentLocation() },
+                                                    range: createRangeFromLocations($.foundCharacter.startLocation, this.locationState.getCurrentLocation()),
                                                 }],
                                             }
                                         )]
@@ -414,16 +411,13 @@ export class Tokenizer {
                                             [TokenType.BLOCK_COMMENT, { locationOfFoundAsterisk: null }],
                                             {
                                                 type: [TokenDataType.BlockCommentBegin, {
-                                                    range: { start: $.foundCharacter.startLocation, end: this.locationState.getNextLocation() },
+                                                    range: createRangeFromLocations($.foundCharacter.startLocation, this.locationState.getNextLocation()),
                                                 }],
                                             }
                                         )]
 
                                     } else {
-                                        this.onError("found dangling slash", {
-                                            start: this.locationState.getCurrentLocation(),
-                                            end: this.locationState.getNextLocation(),
-                                        })
+                                        this.onError("found dangling slash", this.locationState.getCurrentCharacterRange())
                                         $.foundCharacter = null
                                         return [false, null]
                                     }
@@ -487,7 +481,7 @@ export class Tokenizer {
                                         {
                                             type: [TokenDataType.QuotedStringBegin, {
                                                 quote: String.fromCharCode(nextChar),
-                                                range: { start: this.locationState.getCurrentLocation(), end: this.locationState.getNextLocation() },
+                                                range: this.locationState.getCurrentCharacterRange(),
                                             }],
                                         }
                                     )]
@@ -502,7 +496,7 @@ export class Tokenizer {
                                         {
                                             type: [TokenDataType.QuotedStringBegin, {
                                                 quote: String.fromCharCode(nextChar),
-                                                range: { start: this.locationState.getCurrentLocation(), end: this.locationState.getNextLocation() },
+                                                range: this.locationState.getCurrentCharacterRange(),
                                             }],
                                         }
                                     )]
@@ -540,10 +534,7 @@ export class Tokenizer {
                                     } else {
                                         return [true, {
                                             type: [TokenDataType.Punctuation, {
-                                                range: {
-                                                    start: this.locationState.getCurrentLocation(),
-                                                    end: this.locationState.getNextLocation(),
-                                                },
+                                                range: this.locationState.getCurrentCharacterRange(),
                                                 char: nextChar,
                                             }],
                                         }]
@@ -595,10 +586,7 @@ export class Tokenizer {
 
                                 this.onError(
                                     `expected special character after escape slash, but found ${String.fromCharCode(nextChar)}`,
-                                    {
-                                        start: this.locationState.getCurrentLocation(),
-                                        end: this.locationState.getNextLocation(),
-                                    }
+                                    this.locationState.getCurrentCharacterRange()
                                 )
                                 return [true, null]
                             }
@@ -627,10 +615,7 @@ export class Tokenizer {
                                  */
 
                                 return snippet.ensureFlushed(() => {
-                                    const rangeInfo = {
-                                        start: this.locationState.getCurrentLocation(),
-                                        end: this.locationState.getNextLocation(),
-                                    }
+                                    const rangeInfo = this.locationState.getCurrentCharacterRange()
 
                                     return [true, this.changeCurrentTokenType(
                                         [TokenType.NONE, { foundCharacter: null }],

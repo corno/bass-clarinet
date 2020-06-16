@@ -20,7 +20,7 @@ import {
     IndentationData,
     WhitespaceContext,
 } from "./parserStateTypes"
-import { Location, Range, printRange } from "./location"
+import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
 import { RangeError } from "./errors"
 import { ParserEvent, ParserEventType } from "./ParserEvent"
 import { TokenDataType, TokenData } from "./TokenData"
@@ -405,7 +405,7 @@ class Parser<ReturnType, ErrorType> {
                                     default:
                                         return assertUnreachable($$.state)
                                 }
-                                return this.startInstanceData(range, range.end)
+                                return this.startInstanceData(range, getEndLocationFromRange(range))
                             case Char.Punctuation.closeAngleBracket:
                                 return this.onArrayClose(curChar, range)
                             case Char.Punctuation.closeBracket:
@@ -613,7 +613,7 @@ class Parser<ReturnType, ErrorType> {
 
         }
 
-        const range = { start: location, end: location }
+        const range = createRangeFromSingleLocation(location)
         if (aborted) {
             return sendEnd()
         } else {
@@ -775,29 +775,28 @@ class Parser<ReturnType, ErrorType> {
         if (DEBUG) console.log(`onLineCommentEnd`)
 
         if (this.currentToken[0] !== TokenType.LINE_COMMENT) {
-            throw new ParserStackPanicError(`Unexpected line comment end`, { start: location, end: location })
+            throw new ParserStackPanicError(`Unexpected line comment end`, createRangeFromSingleLocation(location))
         }
 
         const $ = this.currentToken[1]
+        const range = createRangeFromLocations($.start.start, location)
+        const endOfStart = getEndLocationFromRange($.start)
         const od = this.sendEvent({
-            range: {
-                start: $.start.start,
-                end: location,
-            },
+            range: range,
             type: [ParserEventType.LineComment, {
                 comment: $.commentNode,
-                innerRange: {
-                    start: {
-                        position: $.start.end.position,
-                        line: $.start.end.line,
-                        column: $.start.end.column,
+                innerRange: createRangeFromLocations(
+                    {
+                        position: endOfStart.position,
+                        line: endOfStart.line,
+                        column: endOfStart.column,
                     },
-                    end: location,
-                },
+                    location,
+                ),
                 indentation: $.indentation,
             }],
         })
-        this.unsetCurrentToken({ start: location, end: location })
+        this.unsetCurrentToken(createRangeFromSingleLocation(location))
         return od
     }
     private getIndentation(): null | string {
@@ -845,25 +844,26 @@ class Parser<ReturnType, ErrorType> {
             throw new ParserStackPanicError(`Unexpected block comment end`, end)
         }
         const $ = this.currentToken[1]
+        const endOfStart = getEndLocationFromRange($.start)
         const od = this.sendEvent({
-            range: {
-                start: $.start.start,
-                end: end.end,
-            },
+            range: createRangeFromLocations(
+                $.start.start,
+                getEndLocationFromRange(end),
+            ),
             type: [ParserEventType.BlockComment, {
                 comment: $.commentNode,
-                innerRange: {
-                    start: {
-                        position: $.start.end.position,
-                        line: $.start.end.line,
-                        column: $.start.end.column,
+                innerRange: createRangeFromLocations(
+                    {
+                        position: endOfStart.position,
+                        line: endOfStart.line,
+                        column: endOfStart.column,
                     },
-                    end: {
+                    {
                         position: end.start.position,
                         line: end.start.line,
                         column: end.start.column,
                     },
-                },
+                ),
                 indentation: $.indentation,
             }],
         })
@@ -875,20 +875,17 @@ class Parser<ReturnType, ErrorType> {
 
         this.indentationState = [IndentationState.lineIsDitry]
 
-        this.setCurrentToken([TokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], { start: location, end: location })
+        this.setCurrentToken([TokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], createRangeFromSingleLocation(location))
         return p.result(false)
     }
     public onUnquotedTokenEnd(location: Location): p.IValue<boolean> {
         if (DEBUG) console.log(`onUnquotedTokenEnd`)
 
         if (this.currentToken[0] !== TokenType.UNQUOTED_TOKEN) {
-            throw new ParserStackPanicError(`Unexpected unquoted token end`, { start: location, end: location })
+            throw new ParserStackPanicError(`Unexpected unquoted token end`, createRangeFromSingleLocation(location))
         }
         const $ = this.currentToken[1]
-        const range = {
-            start: $.start,
-            end: location,
-        }
+        const range = createRangeFromLocations($.start, location)
         return this.onNonStringValue(range).mapResult(() => {
             const od = this.sendEvent({
                 range: range,
@@ -900,7 +897,7 @@ class Parser<ReturnType, ErrorType> {
                 }],
             })
             this.wrapupAfterValue(range)
-            this.unsetCurrentToken({ start: location, end: location })
+            this.unsetCurrentToken(createRangeFromSingleLocation(location))
             return od
 
         })
@@ -914,27 +911,24 @@ class Parser<ReturnType, ErrorType> {
 
             this.indentationState = [IndentationState.foundIndentation, $]
         }
-        this.setCurrentToken([TokenType.WHITESPACE, $], { start: location, end: location })
+        this.setCurrentToken([TokenType.WHITESPACE, $], createRangeFromSingleLocation(location))
         return p.result(false)
     }
     public onWhitespaceEnd(location: Location): p.IValue<boolean> {
         if (DEBUG) console.log(`onWhitespaceEnd`)
 
         if (this.currentToken[0] !== TokenType.WHITESPACE) {
-            throw new ParserStackPanicError(`Unexpected whitespace end`, { start: location, end: location })
+            throw new ParserStackPanicError(`Unexpected whitespace end`, createRangeFromSingleLocation(location))
         }
         const $ = this.currentToken[1]
-        const range = {
-            start: $.start,
-            end: location,
-        }
+        const range = createRangeFromLocations($.start, location)
         const od = this.sendEvent({
             range: range,
             type: [ParserEventType.WhiteSpace, {
                 value: $.whitespaceNode,
             }],
         })
-        this.unsetCurrentToken({ start: location, end: location })
+        this.unsetCurrentToken(createRangeFromSingleLocation(location))
         return od
     }
 
@@ -951,10 +945,8 @@ class Parser<ReturnType, ErrorType> {
         }
         const $tok = this.currentToken[1]
         const value = $tok.quotedStringNode
-        const range = {
-            start: $tok.start.start,
-            end: end.end,
-        }
+        const range = createRangeFromLocations($tok.start.start, getEndLocationFromRange(end))
+
         return this.wrapupBeforeValue(end).mapResult(() => {
             const $ = this.currentContext
             const onStringValue = (): p.IValue<boolean> => {
@@ -1187,7 +1179,7 @@ class Parser<ReturnType, ErrorType> {
                         return p.result(false)
                     }
                     case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                        return this.startInstanceData(null, range.end)
+                        return this.startInstanceData(null, getEndLocationFromRange(range))
                     }
                     case RootState.EXPECTING_SCHEMA: {
                         return p.result(false)
@@ -1196,7 +1188,7 @@ class Parser<ReturnType, ErrorType> {
                         return p.result(false)
                     }
                     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                        return this.startInstanceData(null, range.end)
+                        return this.startInstanceData(null, getEndLocationFromRange(range))
                     default:
                         return assertUnreachable($$.state)
                 }
