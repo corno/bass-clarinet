@@ -16,63 +16,65 @@ const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
 function createRequiredValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
     return {
-        valueHandler: createValuesPrettyPrinter(indentation, writer),
+        onValue: createValuesPrettyPrinter(indentation, writer),
         onMissing: () => {
             //write out an empty string to fix this missing data?
         },
     }
 }
 
-function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
-    return {
-        array: (beginRange, beginMetaData) => {
-            writer(beginMetaData.openCharacter)
-            return {
-                element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
-                end: _endRange => {
-                    writer(`${indentation}${bc.printRange(beginRange)}`)
-                },
-            }
+function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.OnValue {
+    return () => {
+        return {
+            array: (beginRange, beginMetaData) => {
+                writer(beginMetaData.openCharacter)
+                return {
+                    element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
+                    end: _endRange => {
+                        writer(`${indentation}${bc.printRange(beginRange)}`)
+                    },
+                }
 
-        },
-        object: (_range, data) => {
-            writer(data.openCharacter)
-            return {
-                property: (_keyRange, key) => {
-                    writer(`${indentation}\t"${key}": `)
-                    return createRequiredValuesPrettyPrinter(`${indentation}\t`, writer)
-                },
-                end: range => {
-                    writer(`${indentation}${bc.printRange(range)}`)
-                },
-            }
-        },
-        simpleValue: (_range, data) => {
-            if (data.quote !== null) {
-                writer(`${JSON.stringify(data.value)}`)
-            } else {
-                writer(`${data.value}`)
-            }
-            return p.result(false)
-        },
-        taggedUnion: () => {
-            return {
-                option: (_range, option) => {
-                    writer(`| "${option}" `)
-                    return createRequiredValuesPrettyPrinter(`${indentation}`, writer)
-                },
-                missingOption: () => {
-                    //
-                },
-            }
-        },
+            },
+            object: (_beginRange, data) => {
+                writer(data.openCharacter)
+                return {
+                    property: (_keyRange, key) => {
+                        writer(`${indentation}\t"${key}": `)
+                        return createRequiredValuesPrettyPrinter(`${indentation}\t`, writer)
+                    },
+                    end: endRange => {
+                        writer(`${indentation}${bc.printRange(endRange)}`)
+                    },
+                }
+            },
+            simpleValue: (_range, data) => {
+                if (data.quote !== null) {
+                    writer(`${JSON.stringify(data.value)}`)
+                } else {
+                    writer(`${data.value}`)
+                }
+                return p.result(false)
+            },
+            taggedUnion: () => {
+                return {
+                    option: (_range, option) => {
+                        writer(`| "${option}" `)
+                        return createRequiredValuesPrettyPrinter(`${indentation}`, writer)
+                    },
+                    missingOption: () => {
+                        //
+                    },
+                }
+            },
+        }
     }
 }
 
 export function createPrettyPrinter(indentation: string, writer: (str: string) => void): ParserEventConsumer<null, null> {
     const datasubscriber = bc.createStackedDataSubscriber<null, null>(
         {
-            valueHandler: createValuesPrettyPrinter(indentation, writer),
+            onValue: createValuesPrettyPrinter(indentation, writer),
             onMissing: () => {
                 //
             },

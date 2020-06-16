@@ -11,7 +11,7 @@ import * as chai from "chai"
 import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
-import { createStackedDataSubscriber, ValueHandler, RequiredValueHandler, ParserEventType, ParserEventConsumer, createStrictJSONValidator, ParserEvent } from "../src"
+import { createStackedDataSubscriber, OnValue, RequiredValueHandler, ParserEventType, ParserEventConsumer, createStrictJSONValidator, ParserEvent } from "../src"
 import { createStreamSplitter } from "../src/createStreamSplitter"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -166,52 +166,54 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
         function createTestRequiredValueHandler(): RequiredValueHandler {
             return {
-                valueHandler: createTestValueHandler(),
+                onValue: createTestValueHandler(),
                 onMissing: () => {
                     actualEvents.push(["stacked error", "missing value"])
 
                 },
             }
         }
-        function createTestValueHandler(): ValueHandler {
-            return {
-                array: () => {
-                    return {
-                        element: () => {
-                            return createTestValueHandler()
-                        },
-                        end: () => {
-                            //
-                        },
-                    }
-                },
-                object: () => {
-                    return {
-                        property: () => {
-                            return createTestRequiredValueHandler()
-                        },
-                        end: () => {
-                            //
-                        },
-                    }
+        function createTestValueHandler(): OnValue {
+            return contextData => {
+                return {
+                    array: () => {
+                        return {
+                            element: () => {
+                                return createTestValueHandler()
+                            },
+                            end: () => {
+                                //
+                            },
+                        }
+                    },
+                    object: () => {
+                        return {
+                            property: () => {
+                                return createTestRequiredValueHandler()
+                            },
+                            end: () => {
+                                //
+                            },
+                        }
 
-                },
-                simpleValue: (_range, _data, contextData) => {
-                    if (contextData.lineCommentAfter !== null) {
-                        console.log("YEP")
-                    }
-                    return p.result(false)
-                },
-                taggedUnion: () => {
-                    return {
-                        missingOption: () => {
-                            //
-                        },
-                        option: () => {
-                            return createTestRequiredValueHandler()
-                        },
-                    }
-                },
+                    },
+                    simpleValue: () => {
+                        if (contextData.lineCommentAfter !== null) {
+                            console.log("YEP")
+                        }
+                        return p.result(false)
+                    },
+                    taggedUnion: () => {
+                        return {
+                            missingOption: () => {
+                                //
+                            },
+                            option: () => {
+                                return createTestRequiredValueHandler()
+                            },
+                        }
+                    },
+                }
             }
         }
 

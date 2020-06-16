@@ -7,15 +7,16 @@
 import * as p from "pareto"
 import { ParserEventType, ParserEvent } from "../ParserEvent"
 import { Location, Range } from "../location"
-import { createDummyValueHandler } from "./dummyHandlers"
+import { createDummyValueHandler as createDummyOnValue } from "./dummyHandlers"
 import {
     RequiredValueHandler,
-    ValueHandler,
+    OnValue,
     ObjectHandler,
     ArrayHandler,
     Comment,
     ContextData,
     TaggedUnionHandler,
+    ValueHandler,
 } from "./handlers"
 import { RangeError } from "../errors"
 import { ParserEventConsumer } from "../createParser"
@@ -105,7 +106,7 @@ class State {
                 return assertUnreachable(this.currentContext[0])
         }
     }
-    public initValueHandler(): ValueHandler {
+    public initValueHandler(): OnValue {
         switch (this.currentContext[0]) {
             case "array": {
                 return this.currentContext[1].arrayHandler.element()
@@ -114,9 +115,9 @@ class State {
                 if (this.currentContext[1].propertyHandler === null) {
                     //expected a key or end of the object
                     //error is already reported by parser
-                    return createDummyValueHandler()
+                    return createDummyOnValue()
                 } else {
-                    return this.currentContext[1].propertyHandler.valueHandler
+                    return this.currentContext[1].propertyHandler.onValue
                 }
             }
             case "root": {
@@ -124,17 +125,17 @@ class State {
                 if (vh === null) {
                     //expected end of document
                     //error is already reported by parser
-                    return createDummyValueHandler()
+                    return createDummyOnValue()
 
                 }
-                return vh.valueHandler
+                return vh.onValue
             }
             case "taggedunion": {
                 if (this.currentContext[1].state[0] !== "expecting value") {
                     //error is already reported by parser
-                    return createDummyValueHandler()
+                    return createDummyOnValue()
                 } else {
-                    return this.currentContext[1].state[1].valueHandler
+                    return this.currentContext[1].state[1].onValue
                 }
             }
             default:
@@ -313,11 +314,7 @@ function processParserEvent(
         case ParserEventType.OpenArray: {
             const $ = data.type[1]
             return ["event", contextData => {
-                const arrayHandler = state.initValueHandler().array(
-                    data.range,
-                    $,
-                    contextData
-                )
+                const arrayHandler = state.initValueHandler()(contextData).array(data.range, $)
                 state.push(["array", { arrayHandler: arrayHandler }])
                 return p.result(false)
             }]
@@ -325,12 +322,11 @@ function processParserEvent(
         case ParserEventType.OpenObject: {
             const $ = data.type[1]
             return ["event", contextData => {
-                const vh = state.initValueHandler()
+                const vh = state.initValueHandler()(contextData)
 
                 const objectHandler = vh.object(
                     data.range,
-                    $,
-                    contextData
+                    $
                 )
                 state.push(["object", {
                     objectHandler: objectHandler,
@@ -349,13 +345,12 @@ function processParserEvent(
                     return vh.simpleValue(
                         data.range,
                         $,
-                        contextData
                     )
                 }
                 switch (state.currentContext[0]) {
                     case "array": {
                         const $ = state.currentContext[1]
-                        return onSimpleValue($.arrayHandler.element())
+                        return onSimpleValue($.arrayHandler.element()(contextData))
                     }
                     case "object": {
                         const $$ = state.currentContext[1]
@@ -374,16 +369,16 @@ function processParserEvent(
                             }
                         } else {
                             const $$$ = $$.propertyHandler
-                            return onSimpleValue($$$.valueHandler)
+                            return onSimpleValue($$$.onValue(contextData))
                         }
                     }
                     case "root": {
                         const $ = state.currentContext[1]
                         //handle case when root value was already processed
                         const vh = $.rootValueHandler !== null
-                            ? $.rootValueHandler.valueHandler
-                            : createDummyValueHandler()
-                        return onSimpleValue(vh)
+                            ? $.rootValueHandler.onValue
+                            : createDummyOnValue()
+                        return onSimpleValue(vh(contextData))
                     }
                     case "taggedunion": {
                         const $$ = state.currentContext[1]
@@ -400,7 +395,7 @@ function processParserEvent(
                             }
                             case "expecting value": {
                                 const $$$ = $$.state[1]
-                                return onSimpleValue($$$.valueHandler)
+                                return onSimpleValue($$$.onValue(contextData))
                             }
                             default:
                                 return assertUnreachable($$.state[0])
@@ -416,9 +411,8 @@ function processParserEvent(
             return ["event", contextData => {
                 state.push(["taggedunion", {
                     state: ["expecting option", {
-                        handler: state.initValueHandler().taggedUnion(
+                        handler: state.initValueHandler()(contextData).taggedUnion(
                             data.range,
-                            contextData,
                         ),
                     }],
                 }])

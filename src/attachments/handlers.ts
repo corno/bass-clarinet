@@ -24,7 +24,7 @@ export type ObjectHandler = {
 }
 
 export type ArrayHandler = {
-    element: () => ValueHandler
+    element: () => OnValue
     end: (range: Range, data: CloseData, contextData: ContextData) => void
 }
 
@@ -33,21 +33,24 @@ export type TaggedUnionHandler = {
     missingOption: () => void
 }
 
-export type OnObject = (range: Range, data: OpenData, contextData: ContextData) => ObjectHandler
+export type OnObject = (range: Range, data: OpenData) => ObjectHandler
 
-export type OnArray = (range: Range, data: OpenData, contextData: ContextData) => ArrayHandler
+export type OnArray = (range: Range, data: OpenData) => ArrayHandler
 
-export type OnSimpleValue = (range: Range, data: SimpleValueData, contextData: ContextData) => p.IValue<boolean>
+export type OnSimpleValue = (range: Range, data: SimpleValueData) => p.IValue<boolean>
 
-export type OnTaggedUnion = (range: Range, begincontextData: ContextData) => TaggedUnionHandler
+export type OnTaggedUnion = (range: Range) => TaggedUnionHandler
 export type OnOption = (range: Range, option: string, optioncontextData: ContextData) => RequiredValueHandler
 
 export type OnMissing = () => void
 
 export interface RequiredValueHandler {
-    valueHandler: ValueHandler
+    onValue: OnValue
     onMissing: OnMissing
 }
+
+export type OnValue = (contextData: ContextData) => ValueHandler
+
 export interface ValueHandler {
     object: OnObject
     array: OnArray
