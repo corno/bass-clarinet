@@ -2,9 +2,12 @@ import { Location, Range } from "./location"
 
 export enum RootState {
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
+    AFTER,
+}
+
+export enum RootState2 {
     EXPECTING_SCHEMA,
-    EXPECTING_HASH_OR_ROOTVALUE,
-    EXPECTING_ROOTVALUE_AFTER_HEADER,
+    EXPECTING_VALUE,
     EXPECTING_END, // no more input expected
 }
 
@@ -18,18 +21,14 @@ export enum TaggedUnionState {
     EXPECTING_VALUE,
 }
 
-export type StackContext =
-    | [StackContextType.ROOT, RootContext]
-    | [StackContextType.ARRAY, {
-        //
-    }]
-    | [StackContextType.OBJECT, ObjectContext]
-    | [StackContextType.TAGGED_UNION, TaggedUnionContext]
-
 export enum StackContextType {
+    ROOT,
+    NONROOT,
+}
+
+export enum StackContextType2 {
     ARRAY,
     OBJECT,
-    ROOT,
     TAGGED_UNION,
 }
 
@@ -40,10 +39,6 @@ export type ArrayContext = {
 export type ObjectContext = {
     state: ObjectState
     readonly openChar: number
-}
-
-export type RootContext = {
-    state: RootState
 }
 
 export type TaggedUnionContext = {
@@ -90,9 +85,9 @@ export enum IndentationState {
 }
 
 export type IndentationData =
-| [IndentationState.foundIndentation, WhitespaceContext]
-| [IndentationState.lineIsVirgin]
-| [IndentationState.lineIsDitry]
+    | [IndentationState.foundIndentation, WhitespaceContext]
+    | [IndentationState.lineIsVirgin]
+    | [IndentationState.lineIsDitry]
 
 export type QuotedStringContext = {
     readonly startCharacter: string

@@ -39,6 +39,10 @@ export type CloseData = {
     closeCharacter: string
 }
 
+export type PunctionationData = {
+    char: number
+}
+
 export type ParserEvent = {
     range: Range
     type:
@@ -62,4 +66,27 @@ export type ParserEvent = {
         //
     }]
     | [ParserEventType.WhiteSpace, WhiteSpaceData]
+}
+
+
+export enum ParserPreEventType {
+    BlockComment,
+    LineComment,
+    NewLine,
+    Punctuation,
+    SimpleValue,
+    WhiteSpace
+}
+
+export type ParserPreEvent = {
+    range: Range
+    type:
+    | [ParserPreEventType.BlockComment, CommentData]
+    | [ParserPreEventType.LineComment, CommentData]
+    | [ParserPreEventType.NewLine, {
+        //
+    }]
+    | [ParserPreEventType.Punctuation, PunctionationData]
+    | [ParserPreEventType.SimpleValue, SimpleValueData]
+    | [ParserPreEventType.WhiteSpace, WhiteSpaceData]
 }

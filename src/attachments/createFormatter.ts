@@ -290,7 +290,7 @@ export function createFormatter(
 						del(precedingWhitespace.range)
 					}
 					precedingWhitespace = null
-					function x() {
+					function startBlock() {
 						if (currentRequiredStyle === null) {
 							currentRequiredStyle = Style.block
 							indentLevel += 1
@@ -310,15 +310,15 @@ export function createFormatter(
 							break
 						}
 						case PrecedingTokenType.other: {
-							x()
+							startBlock()
 							break
 						}
 						case PrecedingTokenType.option: {
-							x()
+							startBlock()
 							break
 						}
 						case PrecedingTokenType.pipe: {
-							x()
+							startBlock()
 							break
 						}
 						default:

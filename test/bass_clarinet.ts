@@ -397,23 +397,21 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             }))
         }
         const parser = bc.createParser(
+            range => {
+                headerSubscribers.forEach(s => {
+                    s.onSchemaDataStart(range)
+                })
+                return createStreamSplitter(schemaDataSubscribers)
+            },
+            (compact, location) => {
+                headerSubscribers.forEach(s => {
+                    s.onInstanceDataStart(compact, location)
+                })
+                return createStreamSplitter(instanceDataSubscribers)
+            },
             (message, _range) => {
                 if (DEBUG) console.log("found error")
                 actualEvents.push(["parsererror", message])
-            },
-            {
-                onSchemaDataStart: range => {
-                    headerSubscribers.forEach(s => {
-                        s.onSchemaDataStart(range)
-                    })
-                    return createStreamSplitter(schemaDataSubscribers)
-                },
-                onInstanceDataStart: (compact, location) => {
-                    headerSubscribers.forEach(s => {
-                        s.onInstanceDataStart(compact, location)
-                    })
-                    return createStreamSplitter(instanceDataSubscribers)
-                },
             },
         )
 

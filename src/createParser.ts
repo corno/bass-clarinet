@@ -5,27 +5,47 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import * as Char from "./Characters"
 import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
 import {
     RootState,
     ObjectState,
     TaggedUnionState,
-    StackContext,
     StackContextType,
+    StackContextType2,
     CurrentToken,
     TokenType,
-    RootContext,
     IndentationState,
     IndentationData,
     WhitespaceContext,
+    ObjectContext,
+    TaggedUnionContext,
+    RootState2,
 } from "./parserStateTypes"
 import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
 import { RangeError } from "./errors"
-import { ParserEvent, ParserEventType } from "./ParserEvent"
+import { ParserEvent, ParserEventType, ParserPreEvent, ParserPreEventType, PunctionationData, SimpleValueData } from "./ParserEvent"
 import { TokenDataType, TokenData } from "./TokenData"
+import * as Char from "./Characters"
 
 const DEBUG = false
+
+type StackContext = {
+    range: Range
+    type:
+    | [StackContextType2.ARRAY, {
+        //
+    }]
+    | [StackContextType2.OBJECT, ObjectContext]
+    | [StackContextType2.TAGGED_UNION, TaggedUnionContext]
+}
+
+export type Context<ReturnType, ErrorType> = {
+    unwind: () => void
+    getDescription: () => string
+    type:
+    | [StackContextType.ROOT, RootContext<ReturnType, ErrorType>]
+    | [StackContextType.NONROOT, StackContext]
+}
 
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -38,677 +58,286 @@ class ParserStackPanicError extends RangeError {
     }
 }
 
-function getContextDescription(stackContext: StackContext): string {
-    switch (stackContext[0]) {
-        case StackContextType.ROOT: {
-            switch (stackContext[1].state) {
-                case RootState.EXPECTING_END: return "EXPECTING_END"
-                case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: return "EXPECTING_ROOTVALUE_AFTER_HEADER"
-                case RootState.EXPECTING_HASH_OR_ROOTVALUE: return "EXPECTING_ROOTVALUE_OR_HASH"
-                case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: return "EXPECTING_SCHEMA_START_OR_ROOT_VALUE"
-                case RootState.EXPECTING_SCHEMA: return "EXPECTING_SCHEMA"
-                default: return assertUnreachable(stackContext[1].state)
-            }
-        }
-        case StackContextType.OBJECT: {
-            switch (stackContext[1].state) {
-                case ObjectState.EXPECTING_OBJECT_VALUE: return "EXPECTING_OBJECTVALUE"
-                case ObjectState.EXPECTING_KEY: return "EXPECTING_KEY"
-                default: return assertUnreachable(stackContext[1].state)
-            }
-        }
-        case StackContextType.ARRAY: return "EXPECTING_ARRAYVALUE"
-        case StackContextType.TAGGED_UNION: {
-            switch (stackContext[1].state) {
-                case TaggedUnionState.EXPECTING_OPTION: return "EXPECTING_OPTION"
-                case TaggedUnionState.EXPECTING_VALUE: return "EXPECTING_VALUE"
-                default: return assertUnreachable(stackContext[1].state)
-            }
-        }
-        default:
-            return assertUnreachable(stackContext[0])
-    }
-}
-
 export type ParserEventConsumer<ReturnType, ErrorType> = p.IStreamConsumer<ParserEvent, Location, ReturnType, ErrorType>
 
-export interface HeaderConsumer<ReturnType, ErrorType> {
-    onSchemaDataStart(range: Range): ParserEventConsumer<null, null>
-    onInstanceDataStart(compact: null | Range, location: Location): ParserEventConsumer<ReturnType, ErrorType>
-}
-
-class Parser<ReturnType, ErrorType> {
-    public readonly stack = new Array<StackContext>()
-    public readonly headerConsumer: HeaderConsumer<ReturnType, ErrorType>
-    private currentContext: StackContext
-    private schemaEventsConsumer?: ParserEventConsumer<null, null>
-    private instanceEventsConsumer?: ParserEventConsumer<ReturnType, ErrorType>
+class PreParser<ReturnType, ErrorType> {
+    private readonly parser: Parser<ReturnType, ErrorType>
     private currentToken: CurrentToken = [TokenType.NONE]
-    private readonly onerror: (message: string, range: Range) => void
     private indentationState: IndentationData = [IndentationState.lineIsVirgin]
-
-    constructor(
-        headerSubscriber: HeaderConsumer<ReturnType, ErrorType>,
-        onerror: (message: string, range: Range) => void,
-    ) {
-        this.headerConsumer = headerSubscriber
-        this.onerror = onerror
-        this.currentContext = [StackContextType.ROOT, { state: RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE }]
+    constructor(parser: Parser<ReturnType, ErrorType>) {
+        this.parser = parser
     }
     public onData(data: TokenData): p.IValue<boolean> {
-        const $ = this.currentContext
-        switch ($[0]) {
-            case StackContextType.ARRAY: {
-                switch (data.type[0]) {
-                    case TokenDataType.BlockCommentBegin: {
-                        const $ = data.type[1]
-                        return this.onBlockCommentBegin($.range)
-                    }
-                    case TokenDataType.BlockCommentEnd: {
-                        const $ = data.type[1]
-                        return this.onBlockCommentEnd($.range)
-                    }
-                    case TokenDataType.LineCommentBegin: {
-                        const $ = data.type[1]
-                        return this.onLineCommentBegin($.range)
-                    }
-                    case TokenDataType.LineCommentEnd: {
-                        const $ = data.type[1]
-                        return this.onLineCommentEnd($.location)
-                    }
-                    case TokenDataType.NewLine: {
-                        const $ = data.type[1]
-                        return this.onNewLine($.range)
-                    }
-                    case TokenDataType.Punctuation: {
-                        const $ = data.type[1]
-                        const curChar = $.char
-                        const range = $.range
+        //const $ = this.getCurrentContext()
 
-                        this.indentationState = [IndentationState.lineIsDitry]
-                        switch (curChar) {
-                            case Char.Punctuation.exclamationMark:
-                                this.raiseError("unexpected !", range)
-                                return p.result(false)
-                            case Char.Punctuation.hash:
-                                this.raiseError("unexpected '#', expected a value after a comma", range)
-                                return p.result(false)
-                            case Char.Punctuation.closeAngleBracket:
-                                return this.onArrayClose(curChar, range)
-                            case Char.Punctuation.closeBracket:
-                                return this.onArrayClose(curChar, range)
-                            case Char.Punctuation.comma:
-                                //
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.Comma, {
-                                    }],
-                                })
-                            case Char.Punctuation.openAngleBracket:
-                                return this.onArrayOpen(curChar, range)
-                            case Char.Punctuation.openBracket:
-                                return this.onArrayOpen(curChar, range)
-                            case Char.Punctuation.closeBrace:
-                                return this.onObjectClose(curChar, range)
-                            case Char.Punctuation.closeParen:
-                                return this.onObjectClose(curChar, range)
-                            case Char.Punctuation.colon:
-                                //
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.Colon, {
-                                    }],
-                                })
-                            case Char.Punctuation.openBrace:
-                                return this.onObjectOpen(curChar, range)
-                            case Char.Punctuation.openParen:
-                                return this.onObjectOpen(curChar, range)
-                            case Char.Punctuation.verticalLine:
-                                return this.onNonStringValue(range).mapResult(() => {
-                                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                    return this.sendEvent({
-                                        range: range,
-                                        type: [ParserEventType.TaggedUnion, {
-                                        }],
-                                    })
-
-                                })
-                            default:
-                                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
-                                return p.result(false)
-                        }
-                    }
-                    case TokenDataType.Snippet: {
-                        const $ = data.type[1]
-                        return this.onSnippet($.chunk, $.begin, $.end)
-                    }
-                    case TokenDataType.QuotedStringBegin: {
-                        const $ = data.type[1]
-                        return this.onQuotedStringBegin($.range, $.quote)
-                    }
-                    case TokenDataType.QuotedStringEnd: {
-                        const $ = data.type[1]
-                        return this.onQuotedStringEnd($.range, $.quote)
-                    }
-                    case TokenDataType.UnquotedTokenBegin: {
-                        const $ = data.type[1]
-                        return this.onUnquotedTokenBegin($.location)
-                    }
-                    case TokenDataType.UnquotedTokenEnd: {
-                        const $ = data.type[1]
-                        return this.onUnquotedTokenEnd($.location)
-                    }
-                    case TokenDataType.WhiteSpaceBegin: {
-                        const $ = data.type[1]
-                        return this.onWhitespaceBegin($.location)
-                    }
-                    case TokenDataType.WhiteSpaceEnd: {
-                        const $ = data.type[1]
-                        return this.onWhitespaceEnd($.location)
-                    }
-                    default:
-                        return assertUnreachable(data.type[0])
-                }
+        switch (data.type[0]) {
+            case TokenDataType.BlockCommentBegin: {
+                const $ = data.type[1]
+                return this.onBlockCommentBegin($.range)
             }
-            case StackContextType.OBJECT: {
-
-                switch (data.type[0]) {
-                    case TokenDataType.BlockCommentBegin: {
-                        const $ = data.type[1]
-                        return this.onBlockCommentBegin($.range)
-                    }
-                    case TokenDataType.BlockCommentEnd: {
-                        const $ = data.type[1]
-                        return this.onBlockCommentEnd($.range)
-                    }
-                    case TokenDataType.LineCommentBegin: {
-                        const $ = data.type[1]
-                        return this.onLineCommentBegin($.range)
-                    }
-                    case TokenDataType.LineCommentEnd: {
-                        const $ = data.type[1]
-                        return this.onLineCommentEnd($.location)
-                    }
-                    case TokenDataType.NewLine: {
-                        const $ = data.type[1]
-                        return this.onNewLine($.range)
-                    }
-                    case TokenDataType.Punctuation: {
-                        const $ = data.type[1]
-                        const curChar = $.char
-                        const range = $.range
-                        this.indentationState = [IndentationState.lineIsDitry]
-                        switch (curChar) {
-                            case Char.Punctuation.exclamationMark:
-                                this.raiseError("unexpected !", range)
-                                return p.result(false)
-                            case Char.Punctuation.hash:
-                                this.raiseError("unexpected '#'", range)
-                                return p.result(false)
-                            case Char.Punctuation.closeAngleBracket:
-                                return this.onArrayClose(curChar, range)
-                            case Char.Punctuation.closeBracket:
-                                return this.onArrayClose(curChar, range)
-                            case Char.Punctuation.comma:
-                                //
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.Comma, {
-                                    }],
-                                })
-                            case Char.Punctuation.openAngleBracket:
-                                return this.onArrayOpen(curChar, range)
-                            case Char.Punctuation.openBracket:
-                                return this.onArrayOpen(curChar, range)
-                            case Char.Punctuation.closeBrace:
-                                return this.onObjectClose(curChar, range)
-                            case Char.Punctuation.closeParen:
-                                return this.onObjectClose(curChar, range)
-                            case Char.Punctuation.colon:
-                                //
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.Colon, {
-                                    }],
-                                })
-                            case Char.Punctuation.openBrace:
-                                return this.onObjectOpen(curChar, range)
-                            case Char.Punctuation.openParen:
-                                return this.onObjectOpen(curChar, range)
-                            case Char.Punctuation.verticalLine:
-                                return this.onNonStringValue(range).mapResult(() => {
-                                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                    return this.sendEvent({
-                                        range: range,
-                                        type: [ParserEventType.TaggedUnion, {
-                                        }],
-                                    })
-
-                                })
-                            default:
-                                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
-                                return p.result(false)
-                        }
-                    }
-                    case TokenDataType.Snippet: {
-                        const $ = data.type[1]
-                        return this.onSnippet($.chunk, $.begin, $.end)
-                    }
-                    case TokenDataType.QuotedStringBegin: {
-                        const $ = data.type[1]
-                        return this.onQuotedStringBegin($.range, $.quote)
-                    }
-                    case TokenDataType.QuotedStringEnd: {
-                        const $ = data.type[1]
-                        return this.onQuotedStringEnd($.range, $.quote)
-                    }
-                    case TokenDataType.UnquotedTokenBegin: {
-                        const $ = data.type[1]
-                        return this.onUnquotedTokenBegin($.location)
-                    }
-                    case TokenDataType.UnquotedTokenEnd: {
-                        const $ = data.type[1]
-                        return this.onUnquotedTokenEnd($.location)
-                    }
-                    case TokenDataType.WhiteSpaceBegin: {
-                        const $ = data.type[1]
-                        return this.onWhitespaceBegin($.location)
-                    }
-                    case TokenDataType.WhiteSpaceEnd: {
-                        const $ = data.type[1]
-                        return this.onWhitespaceEnd($.location)
-                    }
-                    default:
-                        return assertUnreachable(data.type[0])
-                }
+            case TokenDataType.BlockCommentEnd: {
+                const $ = data.type[1]
+                return this.onBlockCommentEnd($.range)
             }
-            case StackContextType.ROOT: {
-
-                switch (data.type[0]) {
-                    case TokenDataType.BlockCommentBegin: {
-                        return p.result(false)
-                    }
-                    case TokenDataType.BlockCommentEnd: {
-                        return p.result(false)
-                    }
-                    case TokenDataType.LineCommentBegin: {
-                        return p.result(false)
-                    }
-                    case TokenDataType.LineCommentEnd: {
-                        return p.result(false)
-                    }
-                    case TokenDataType.NewLine: {
-                        return p.result(false)
-                    }
-                    case TokenDataType.Punctuation: {
-                        const $$$ = data.type[1]
-
-                        const curChar = $$$.char
-                        const range = $$$.range
-
-                        this.indentationState = [IndentationState.lineIsDitry]
-                        const $$ = $[1]
-                        switch (curChar) {
-                            case Char.Punctuation.exclamationMark:
-                                /**
-                                 * ROOT PROCESSING
-                                 */
-                                switch ($$.state) {
-                                    case RootState.EXPECTING_END: {
-                                        this.raiseError(`Unexpected data after end`, range)
-                                        break
-                                    }
-                                    case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                                        this.raiseError("unexpected '!', expected '#' or value", range)
-                                        break
-                                    }
-                                    case RootState.EXPECTING_SCHEMA: {
-                                        this.raiseError("unexpected '!', expected schema value", range)
-                                        break
-                                    }
-                                    case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                                        this.raiseError("unexpected '!', expected root value", range)
-                                        break
-                                    }
-                                    case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                                        $$.state = RootState.EXPECTING_SCHEMA
-                                        break
-                                    default:
-                                        return assertUnreachable($$.state)
-                                }
-                                this.schemaEventsConsumer = this.headerConsumer.onSchemaDataStart(range)
-                                return p.result(false)
-                            case Char.Punctuation.hash:
-                                /**
-                                 * ROOT PROCESSING
-                                 */
-                                switch ($$.state) {
-                                    case RootState.EXPECTING_END: {
-                                        this.raiseError("unexpected '#', expected no more data", range)
-                                        break
-                                    }
-                                    case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                                        $$.state = RootState.EXPECTING_ROOTVALUE_AFTER_HEADER
-                                        break
-                                    }
-                                    case RootState.EXPECTING_SCHEMA: {
-                                        this.raiseError("unexpected '#', expected the schema", range)
-                                        break
-                                    }
-                                    case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                                        this.raiseError("unexpected '#', expected the root value", range)
-                                        break
-                                    }
-                                    case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                                        this.raiseError("unexpected '#', expected an '!' (to specify a schema) or a value", range)
-                                        break
-                                    default:
-                                        return assertUnreachable($$.state)
-                                }
-                                return this.startInstanceData(range, getEndLocationFromRange(range))
-                            case Char.Punctuation.closeAngleBracket:
-                                return this.onArrayClose(curChar, range)
-                            case Char.Punctuation.closeBracket:
-                                return this.onArrayClose(curChar, range)
-                            case Char.Punctuation.comma:
-                                //
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.Comma, {
-                                    }],
-                                })
-                            case Char.Punctuation.openAngleBracket:
-                                return this.onArrayOpen(curChar, range)
-                            case Char.Punctuation.openBracket:
-                                return this.onArrayOpen(curChar, range)
-                            case Char.Punctuation.closeBrace:
-                                return this.onObjectClose(curChar, range)
-                            case Char.Punctuation.closeParen:
-                                return this.onObjectClose(curChar, range)
-                            case Char.Punctuation.colon:
-                                //
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.Colon, {
-                                    }],
-                                })
-                            case Char.Punctuation.openBrace:
-                                return this.onObjectOpen(curChar, range)
-                            case Char.Punctuation.openParen:
-                                return this.onObjectOpen(curChar, range)
-                            case Char.Punctuation.verticalLine:
-                                return this.onNonStringValue(range).mapResult(() => {
-                                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                    return this.sendEvent({
-                                        range: range,
-                                        type: [ParserEventType.TaggedUnion, {
-                                        }],
-                                    })
-
-                                })
-                            default:
-                                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
-                                return p.result(false)
-                        }
-                    }
-                    case TokenDataType.Snippet: {
-                        const $ = data.type[1]
-                        return this.onSnippet($.chunk, $.begin, $.end)
-                    }
-                    case TokenDataType.QuotedStringBegin: {
-                        const $ = data.type[1]
-                        return this.onQuotedStringBegin($.range, $.quote)
-                    }
-                    case TokenDataType.QuotedStringEnd: {
-                        const $ = data.type[1]
-                        return this.onQuotedStringEnd($.range, $.quote)
-                    }
-                    case TokenDataType.UnquotedTokenBegin: {
-                        const $ = data.type[1]
-                        return this.onUnquotedTokenBegin($.location)
-                    }
-                    case TokenDataType.UnquotedTokenEnd: {
-                        const $ = data.type[1]
-                        return this.onUnquotedTokenEnd($.location)
-                    }
-                    case TokenDataType.WhiteSpaceBegin: {
-                        const $ = data.type[1]
-                        return this.onWhitespaceBegin($.location)
-                    }
-                    case TokenDataType.WhiteSpaceEnd: {
-                        const $ = data.type[1]
-                        return this.onWhitespaceEnd($.location)
-                    }
-                    default:
-                        return assertUnreachable(data.type[0])
-                }
+            case TokenDataType.LineCommentBegin: {
+                const $ = data.type[1]
+                return this.onLineCommentBegin($.range)
             }
-            case StackContextType.TAGGED_UNION: {
-
-                switch (data.type[0]) {
-                    case TokenDataType.BlockCommentBegin: {
-                        const $ = data.type[1]
-                        return this.onBlockCommentBegin($.range)
-                    }
-                    case TokenDataType.BlockCommentEnd: {
-                        const $ = data.type[1]
-                        return this.onBlockCommentEnd($.range)
-                    }
-                    case TokenDataType.LineCommentBegin: {
-                        const $ = data.type[1]
-                        return this.onLineCommentBegin($.range)
-                    }
-                    case TokenDataType.LineCommentEnd: {
-                        const $ = data.type[1]
-                        return this.onLineCommentEnd($.location)
-                    }
-                    case TokenDataType.NewLine: {
-                        const $ = data.type[1]
-                        return this.onNewLine($.range)
-                    }
-                    case TokenDataType.Punctuation: {
-                        const $ = data.type[1]
-
-
-                        const curChar = $.char
-                        const range = $.range
-
-
-                        this.indentationState = [IndentationState.lineIsDitry]
-                        switch (curChar) {
-                            case Char.Punctuation.exclamationMark:
-                                this.raiseError("unexpected !", range)
-                                return p.result(false)
-                            case Char.Punctuation.hash:
-                                this.raiseError("unexpected '#'", range)
-                                return p.result(false)
-                            case Char.Punctuation.closeAngleBracket:
-                                return this.onArrayClose(curChar, range)
-                            case Char.Punctuation.closeBracket:
-                                return this.onArrayClose(curChar, range)
-                            case Char.Punctuation.comma:
-                                //
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.Comma, {
-                                    }],
-                                })
-                            case Char.Punctuation.openAngleBracket:
-                                return this.onArrayOpen(curChar, range)
-                            case Char.Punctuation.openBracket:
-                                return this.onArrayOpen(curChar, range)
-                            case Char.Punctuation.closeBrace:
-                                return this.onObjectClose(curChar, range)
-                            case Char.Punctuation.closeParen:
-                                return this.onObjectClose(curChar, range)
-                            case Char.Punctuation.colon:
-                                //
-                                return this.sendEvent({
-                                    range: range,
-                                    type: [ParserEventType.Colon, {
-                                    }],
-                                })
-                            case Char.Punctuation.openBrace:
-                                return this.onObjectOpen(curChar, range)
-                            case Char.Punctuation.openParen:
-                                return this.onObjectOpen(curChar, range)
-                            case Char.Punctuation.verticalLine:
-                                return this.onNonStringValue(range).mapResult(() => {
-                                    this.pushContext([StackContextType.TAGGED_UNION, { state: TaggedUnionState.EXPECTING_OPTION }])
-                                    return this.sendEvent({
-                                        range: range,
-                                        type: [ParserEventType.TaggedUnion, {
-                                        }],
-                                    })
-
-                                })
-                            default:
-                                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
-                                return p.result(false)
-                        }
-                    }
-                    case TokenDataType.Snippet: {
-                        const $ = data.type[1]
-                        return this.onSnippet($.chunk, $.begin, $.end)
-                    }
-                    case TokenDataType.QuotedStringBegin: {
-                        const $ = data.type[1]
-                        return this.onQuotedStringBegin($.range, $.quote)
-                    }
-                    case TokenDataType.QuotedStringEnd: {
-                        const $ = data.type[1]
-                        return this.onQuotedStringEnd($.range, $.quote)
-                    }
-                    case TokenDataType.UnquotedTokenBegin: {
-                        const $ = data.type[1]
-                        return this.onUnquotedTokenBegin($.location)
-                    }
-                    case TokenDataType.UnquotedTokenEnd: {
-                        const $ = data.type[1]
-                        return this.onUnquotedTokenEnd($.location)
-                    }
-                    case TokenDataType.WhiteSpaceBegin: {
-                        const $ = data.type[1]
-                        return this.onWhitespaceBegin($.location)
-                    }
-                    case TokenDataType.WhiteSpaceEnd: {
-                        const $ = data.type[1]
-                        return this.onWhitespaceEnd($.location)
-                    }
-                    default:
-                        return assertUnreachable(data.type[0])
-                }
+            case TokenDataType.LineCommentEnd: {
+                const $ = data.type[1]
+                return this.onLineCommentEnd($.location)
+            }
+            case TokenDataType.NewLine: {
+                const $ = data.type[1]
+                return this.onNewLine($.range)
+            }
+            case TokenDataType.Punctuation: {
+                const $ = data.type[1]
+                this.indentationState = [IndentationState.lineIsDitry]
+                return this.parser.onData({
+                    range: $.range,
+                    type: [ParserPreEventType.Punctuation, {
+                        char: $.char,
+                    }],
+                })
+            }
+            case TokenDataType.Snippet: {
+                const $ = data.type[1]
+                return this.onSnippet($.chunk, $.begin, $.end)
+            }
+            case TokenDataType.QuotedStringBegin: {
+                const $ = data.type[1]
+                return this.onQuotedStringBegin($.range, $.quote)
+            }
+            case TokenDataType.QuotedStringEnd: {
+                const $ = data.type[1]
+                return this.onQuotedStringEnd($.range, $.quote)
+            }
+            case TokenDataType.UnquotedTokenBegin: {
+                const $ = data.type[1]
+                return this.onUnquotedTokenBegin($.location)
+            }
+            case TokenDataType.UnquotedTokenEnd: {
+                const $ = data.type[1]
+                return this.onUnquotedTokenEnd($.location)
+            }
+            case TokenDataType.WhiteSpaceBegin: {
+                const $ = data.type[1]
+                return this.onWhitespaceBegin($.location)
+            }
+            case TokenDataType.WhiteSpaceEnd: {
+                const $ = data.type[1]
+                return this.onWhitespaceEnd($.location)
             }
             default:
-                return assertUnreachable($[0])
+                return assertUnreachable(data.type[0])
         }
     }
     public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
+        return this.parser.onEnd(aborted, location)
+    }
+    private onBlockCommentBegin(range: Range): p.IValue<boolean> {
+        if (DEBUG) console.log(`onBlockCommentBegin`)
 
-        const sendEnd = (): p.IUnsafeValue<ReturnType, ErrorType> => {
-            if (this.instanceEventsConsumer === undefined) {
-                throw new Error("unexpected missing parser event consumer")
-            }
-            return this.instanceEventsConsumer.onEnd(aborted, location)
+        this.setCurrentToken([TokenType.BLOCK_COMMENT, {
+            commentNode: "",
+            start: range,
+            indentation: this.getIndentation(),
+        }], range)
 
+        this.indentationState = [IndentationState.lineIsDitry]
+        return p.result(false)
+    }
+    private setCurrentToken(contextType: CurrentToken, range: Range) {
+        if (this.currentToken[0] !== TokenType.NONE) {
+            throw new ParserStackPanicError(`unexpected start of token`, range)
         }
-
-        const range = createRangeFromSingleLocation(location)
-        if (aborted) {
-            return sendEnd()
-        } else {
-            unwindLoop: while (true) {
-                switch (this.currentContext[0]) {
-                    case StackContextType.ARRAY: {
-                        this.raiseError("unexpected end of document, still in array", range)
-                        break
-                    }
-                    case StackContextType.OBJECT: {
-                        this.raiseError("unexpected end of document, still in object", range)
-                        break
-                    }
-                    case StackContextType.ROOT: {
-                        break unwindLoop
-                        break
-                    }
-                    case StackContextType.TAGGED_UNION: {
-                        this.raiseError("unexpected end of document, still in tagged union", range)
-                        break
-                    }
-                    default:
-                        assertUnreachable(this.currentContext[0])
-                }
-                const popped = this.stack.pop()
-                if (popped === undefined) {
-                    throw new ParserStackPanicError("unexpected end of stack", range)
-                } else {
-                    this.currentContext = popped
-                    // switch (popped[0]) {
-                    //     case StackContextType.ARRAY: {
-                    //         //const $ = popped[1]
-                    //         this.oncurrentdata.signal(s => s.onCloseArray({
-                    //             range: range,
-                    //             closeCharacter: undefined,
-                    //             pauser: undefined,
-                    //         }))
-                    //         break
-                    //     }
-                    //     case StackContextType.OBJECT: {
-                    //         //const $ = popped[1]
-                    //         this.oncurrentdata.signal(s => s.onCloseObject({
-                    //             range: range,
-                    //             closeCharacter: undefined,
-                    //             pauser: undefined,
-                    //         }))
-                    //         break
-                    //     }
-                    //     case StackContextType.ROOT: {
-                    //         //const $ = popped[1]
-
-                    //         break
-                    //     }
-                    //     case StackContextType.TAGGED_UNION: {
-                    //         //const $ = popped[1]
-
-                    //         break
-                    //     }
-                    //     default:
-                    //         return assertUnreachable(popped[0])
-                    // }
-                }
+        this.currentToken = contextType
+    }
+    private unsetCurrentToken(range: Range) {
+        if (this.currentToken[0] === TokenType.NONE) {
+            throw new ParserStackPanicError(`unexpected, parser is already in 'none' mode`, range)
+        }
+        this.currentToken = [TokenType.NONE]
+    }
+    private getIndentation(): null | string {
+        switch (this.indentationState[0]) {
+            case IndentationState.foundIndentation: {
+                return this.indentationState[1].whitespaceNode
             }
-            const $$ = this.currentContext[1]
-            const wrapup = (): p.IValue<boolean> => {
-                switch ($$.state) {
-                    case RootState.EXPECTING_END: {
-                        return p.result(false)
-                    }
-                    case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                        this.raiseError("expected hash or rootvalue", range)
-                        return this.startInstanceData(null, location)
-                    }
-                    case RootState.EXPECTING_SCHEMA: {
-                        this.raiseError("expected the schema", range)
-                        return this.startInstanceData(null, location)
-                    }
-                    case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                        this.raiseError("expected the root value", range)
-                        return p.result(false)
-                    }
-                    case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                        this.raiseError("expected the schema start (!) or root value", range)
-                        return this.startInstanceData(null, location)
-                    default:
-                        return assertUnreachable($$.state)
-                }
+            case IndentationState.lineIsVirgin: {
+                return null
             }
-            return wrapup().try(() => {
-                return sendEnd()
-            })
-
+            case IndentationState.lineIsDitry: {
+                return null
+            }
+            default:
+                return assertUnreachable(this.indentationState[0])
         }
     }
-    public onSnippet(chunk: string, begin: number, end: number): p.IValue<boolean> {
+    private onBlockCommentEnd(end: Range): p.IValue<boolean> {
+        if (DEBUG) console.log(`onBlockCommentEnd`)
+
+        if (this.currentToken[0] !== TokenType.BLOCK_COMMENT) {
+            throw new ParserStackPanicError(`Unexpected block comment end`, end)
+        }
+        const $ = this.currentToken[1]
+        const endOfStart = getEndLocationFromRange($.start)
+        const od = this.parser.onData({
+            range: createRangeFromLocations(
+                $.start.start,
+                getEndLocationFromRange(end),
+            ),
+            type: [ParserPreEventType.BlockComment, {
+                comment: $.commentNode,
+                innerRange: createRangeFromLocations(
+                    {
+                        position: endOfStart.position,
+                        line: endOfStart.line,
+                        column: endOfStart.column,
+                    },
+                    {
+                        position: end.start.position,
+                        line: end.start.line,
+                        column: end.start.column,
+                    },
+                ),
+                indentation: $.indentation,
+            }],
+        })
+        this.unsetCurrentToken(end)
+        return od
+    }
+    private onUnquotedTokenBegin(location: Location): p.IValue<boolean> {
+        if (DEBUG) console.log(`onUnquotedTokenBegin`)
+
+        this.indentationState = [IndentationState.lineIsDitry]
+
+        this.setCurrentToken([TokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], createRangeFromSingleLocation(location))
+        return p.result(false)
+    }
+    private onUnquotedTokenEnd(location: Location): p.IValue<boolean> {
+        if (DEBUG) console.log(`onUnquotedTokenEnd`)
+
+        if (this.currentToken[0] !== TokenType.UNQUOTED_TOKEN) {
+            throw new ParserStackPanicError(`Unexpected unquoted token end`, createRangeFromSingleLocation(location))
+        }
+        const $ = this.currentToken[1]
+
+        const $tok = this.currentToken[1]
+        const value = $tok.unquotedTokenNode
+        const range = createRangeFromLocations($.start, location)
+        this.unsetCurrentToken(createRangeFromSingleLocation(location))
+        return this.parser.onData({
+            range: range,
+            type: [ParserPreEventType.SimpleValue, {
+                value: value,
+                //startCharacter: $tok.startCharacter,
+                terminated: null,
+                quote: null,
+            }],
+        })
+    }
+
+    private onWhitespaceBegin(location: Location): p.IValue<boolean> {
+        if (DEBUG) console.log(`onWhitespaceBegin`)
+        const $: WhitespaceContext = { whitespaceNode: "", start: location }
+
+        if (this.indentationState[0] === IndentationState.lineIsVirgin) {
+
+            this.indentationState = [IndentationState.foundIndentation, $]
+        }
+        this.setCurrentToken([TokenType.WHITESPACE, $], createRangeFromSingleLocation(location))
+        return p.result(false)
+    }
+    private onWhitespaceEnd(location: Location): p.IValue<boolean> {
+        if (DEBUG) console.log(`onWhitespaceEnd`)
+
+        if (this.currentToken[0] !== TokenType.WHITESPACE) {
+            throw new ParserStackPanicError(`Unexpected whitespace end`, createRangeFromSingleLocation(location))
+        }
+        const $ = this.currentToken[1]
+        const range = createRangeFromLocations($.start, location)
+        const od = this.parser.onData({
+            range: range,
+            type: [ParserPreEventType.WhiteSpace, {
+                value: $.whitespaceNode,
+            }],
+        })
+        this.unsetCurrentToken(createRangeFromSingleLocation(location))
+        return od
+    }
+
+    private onQuotedStringBegin(begin: Range, quote: string): p.IValue<boolean> {
+        if (DEBUG) console.log(`onQuotedStringBegin`)
+        this.setCurrentToken([TokenType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
+        return p.result(false)
+    }
+
+    private onQuotedStringEnd(end: Range, quote: string | null): p.IValue<boolean> {
+        if (DEBUG) console.log(`onQuotedStringEnd`)
+        if (this.currentToken[0] !== TokenType.QUOTED_STRING) {
+            throw new ParserStackPanicError(`Unexpected unquoted token end`, end)
+        }
+        const $tok = this.currentToken[1]
+        const value = $tok.quotedStringNode
+        const range = createRangeFromLocations($tok.start.start, getEndLocationFromRange(end))
+
+        this.unsetCurrentToken(end)
+        return this.parser.onData({
+            range: range,
+            type: [ParserPreEventType.SimpleValue, {
+                value: value,
+                //startCharacter: $tok.startCharacter,
+                terminated: quote !== null,
+                quote: $tok.startCharacter,
+            }],
+        })
+    }
+    private onLineCommentBegin(range: Range): p.IValue<boolean> {
+        if (DEBUG) console.log(`onLineCommentBegin`)
+
+        this.setCurrentToken(
+            [TokenType.LINE_COMMENT, {
+                commentNode: "",
+                start: range,
+                indentation: this.getIndentation(),
+            }],
+            range
+        )
+
+        this.indentationState = [IndentationState.lineIsDitry]
+        return p.result(false)
+    }
+    private onLineCommentEnd(location: Location): p.IValue<boolean> {
+        if (DEBUG) console.log(`onLineCommentEnd`)
+
+        if (this.currentToken[0] !== TokenType.LINE_COMMENT) {
+            throw new ParserStackPanicError(`Unexpected line comment end`, createRangeFromSingleLocation(location))
+        }
+
+        const $ = this.currentToken[1]
+        const range = createRangeFromLocations($.start.start, location)
+        const endOfStart = getEndLocationFromRange($.start)
+        const od = this.parser.onData({
+            range: range,
+            type: [ParserPreEventType.LineComment, {
+                comment: $.commentNode,
+                innerRange: createRangeFromLocations(
+                    {
+                        position: endOfStart.position,
+                        line: endOfStart.line,
+                        column: endOfStart.column,
+                    },
+                    location,
+                ),
+                indentation: $.indentation,
+            }],
+        })
+        this.unsetCurrentToken(createRangeFromSingleLocation(location))
+        return od
+    }
+    private onSnippet(chunk: string, begin: number, end: number): p.IValue<boolean> {
         if (DEBUG) console.log(`onSnippet`)
 
         switch (this.currentToken[0]) {
@@ -745,289 +374,575 @@ class Parser<ReturnType, ErrorType> {
         }
         return p.result(false)
     }
-    public onNewLine(range: Range): p.IValue<boolean> {
+    private onNewLine(range: Range): p.IValue<boolean> {
         if (DEBUG) console.log(`onNewLine`)
 
         this.indentationState = [IndentationState.lineIsVirgin]
 
-        return this.sendEvent({
+        return this.parser.onData({
             range: range,
-            type: [ParserEventType.NewLine, {
+            type: [ParserPreEventType.NewLine, {
             }],
         })
     }
-    public onLineCommentBegin(range: Range): p.IValue<boolean> {
-        if (DEBUG) console.log(`onLineCommentBegin`)
+}
 
-        this.setCurrentToken(
-            [TokenType.LINE_COMMENT, {
-                commentNode: "",
-                start: range,
-                indentation: this.getIndentation(),
-            }],
-            range
-        )
+export type AfterContext<ReturnType, ErrorType> = {
+    schemaEventsConsumer: ParserEventConsumer<null, null> | null
+    instanceEventsConsumer: ParserEventConsumer<ReturnType, ErrorType> | null
 
-        this.indentationState = [IndentationState.lineIsDitry]
-        return p.result(false)
+    state: RootContext2
+}
+
+export type RootContext<ReturnType, ErrorType> = {
+    state:
+    | [RootState.AFTER, AfterContext<ReturnType, ErrorType>]
+    | [RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE]
+}
+
+export type RootContext2 =
+    | [RootState2.EXPECTING_END, {
+        foo: boolean
+    }]
+    | [RootState2.EXPECTING_VALUE, {
+        foundHash: boolean
+    }]
+    | [RootState2.EXPECTING_SCHEMA]
+
+
+class Stack {
+    public readonly imp = new Array<StackContext>()
+    public currentContext: StackContext | null = null
+
+    public pushContext(context: StackContext) {
+        //if (DEBUG) console.log(`pushed context ${this.getCurrentContext().getDescription()}>${context.getDescription()}`)
+        if (this.currentContext !== null) {
+            this.imp.push(this.currentContext)
+        }
+        this.currentContext = context
     }
-    public onLineCommentEnd(location: Location): p.IValue<boolean> {
-        if (DEBUG) console.log(`onLineCommentEnd`)
+    public popContext(range: Range) {
+        const popped = this.imp.pop()
+        if (popped === undefined) {
+            this.currentContext = null
+        } else {
+            //if (DEBUG) console.log(`popped context ${popped.getDescription()}<${this.getCurrentContext().getDescription()}`)
+            this.currentContext = popped
 
-        if (this.currentToken[0] !== TokenType.LINE_COMMENT) {
-            throw new ParserStackPanicError(`Unexpected line comment end`, createRangeFromSingleLocation(location))
+            switch (popped.type[0]) {
+                case StackContextType2.ARRAY:
+                    break
+                case StackContextType2.OBJECT:
+                    break
+                case StackContextType2.TAGGED_UNION:
+                    this.popContext(range)
+                    break
+                default:
+                    assertUnreachable(popped.type[0])
+            }
+        }
+    }
+}
+
+class Parser<ReturnType, ErrorType> {
+    private readonly rootContext: RootContext<ReturnType, ErrorType> = { state: [RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE] }
+    private readonly stck = new Stack()
+    private readonly onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>
+    private readonly onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>
+    private readonly onerror: (message: string, range: Range) => void
+
+    constructor(
+
+        onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
+        onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
+        onerror: (message: string, range: Range) => void,
+    ) {
+        this.onSchemaDataStart = onSchemaDataStart
+        this.onInstanceDataStart = onInstanceDataStart
+        this.onerror = onerror
+    }
+    private getCurrentContext(): Context<ReturnType, ErrorType> {
+        if (this.stck.currentContext === null) {
+            return {
+                unwind: () => {
+                    //
+                },
+                getDescription: () => {
+                    switch (this.rootContext.state[0]) {
+                        case RootState.AFTER: {
+                            const $ = this.rootContext.state[1]
+                            switch ($.state[0]) {
+                                case RootState2.EXPECTING_END: return "EXPECTING_END"
+                                case RootState2.EXPECTING_VALUE: return "EXPECTING_VALUE"
+                                case RootState2.EXPECTING_SCHEMA: return "EXPECTING_SCHEMA"
+                                default: return assertUnreachable($.state[0])
+                            }
+                        }
+                        case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: return "EXPECTING_SCHEMA_START_OR_ROOT_VALUE"
+                        default: return assertUnreachable(this.rootContext.state[0])
+                    }
+                },
+                type: [StackContextType.ROOT, this.rootContext],
+            }
+        } else {
+            const cc = this.stck.currentContext
+            return {
+                unwind: () => {
+                    switch (cc.type[0]) {
+                        case StackContextType2.ARRAY: {
+                            this.raiseError("unexpected end of document, still in array", cc.range)
+
+                            break
+                        }
+                        case StackContextType2.OBJECT: {
+                            this.raiseError("unexpected end of document, still in object", cc.range)
+
+                            break
+                        }
+                        case StackContextType2.TAGGED_UNION: {
+                            this.raiseError("unexpected end of document, still in tagged union", cc.range)
+
+                            break
+                        }
+                        default:
+                            assertUnreachable(cc.type[0])
+                    }
+                },
+                getDescription: () => {
+                    return ""
+                },
+                type: [StackContextType.NONROOT, this.stck.currentContext],
+            }
+        }
+    }
+    public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
+
+        const sendEnd = (): p.IUnsafeValue<ReturnType, ErrorType> => {
+            if (this.rootContext.state[0] !== RootState.AFTER) {
+                throw new Error("unexpected missing parser event consumer")
+            }
+            if (this.rootContext.state[1].instanceEventsConsumer === null) {
+                throw new Error("unexpected missing parser event consumer")
+            }
+            return this.rootContext.state[1].instanceEventsConsumer.onEnd(aborted, location)
         }
 
-        const $ = this.currentToken[1]
-        const range = createRangeFromLocations($.start.start, location)
-        const endOfStart = getEndLocationFromRange($.start)
-        const od = this.sendEvent({
-            range: range,
-            type: [ParserEventType.LineComment, {
-                comment: $.commentNode,
-                innerRange: createRangeFromLocations(
-                    {
-                        position: endOfStart.position,
-                        line: endOfStart.line,
-                        column: endOfStart.column,
-                    },
-                    location,
-                ),
-                indentation: $.indentation,
-            }],
-        })
-        this.unsetCurrentToken(createRangeFromSingleLocation(location))
-        return od
+        const range = createRangeFromSingleLocation(location)
+        if (aborted) {
+            return sendEnd()
+        } else {
+            unwindLoop: while (true) {
+                this.getCurrentContext().unwind()
+
+                const popped = this.stck.imp.pop()
+                if (popped === undefined) {
+                    this.stck.currentContext = null
+                    break unwindLoop
+                } else {
+                    this.stck.currentContext = popped
+                }
+            }
+            switch (this.rootContext.state[0]) {
+                case RootState.AFTER: {
+                    const $ = this.rootContext.state[1]
+                    const forceInstanceData = () => {
+                        return this.startInstanceData($, null, location).try(() => {
+                            return sendEnd()
+                        })
+                    }
+                    switch ($.state[0]) {
+                        case RootState2.EXPECTING_END: {
+                            return p.result(false).try(() => {
+                                return sendEnd()
+                            })
+                        }
+                        case RootState2.EXPECTING_VALUE: {
+                            const $$ = $.state[1]
+                            if (!$$.foundHash) {
+                                this.raiseError("expected '#' or rootvalue", range)
+
+                            } else {
+                                this.raiseError("expected the root value", range)
+                            }
+                            return forceInstanceData()
+                        }
+                        case RootState2.EXPECTING_SCHEMA: {
+                            this.raiseError("expected the schema", range)
+                            return forceInstanceData()
+                        }
+                        default:
+                            return assertUnreachable($.state)
+                    }
+                }
+                case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                    this.raiseError("expected the schema start (!) or root value", range)
+
+                    return this.onInstanceDataStart(null, location).onEnd(false, location)
+                default:
+                    return assertUnreachable(this.rootContext.state)
+            }
+
+        }
     }
-    private getIndentation(): null | string {
-        switch (this.indentationState[0]) {
-            case IndentationState.foundIndentation: {
-                return this.indentationState[1].whitespaceNode
+    private onSimpleValue(range: Range, data: SimpleValueData): p.IValue<boolean> {
+
+        const cc = this.getCurrentContext()
+
+        const y = (data2: SimpleValueData) => {
+            return this.sendEvent({
+                range: range,
+                type: [ParserEventType.SimpleValue, data2],
+            })
+        }
+
+        switch (cc.type[0]) {
+            case StackContextType.NONROOT: {
+                const $3 = cc.type[1]
+                switch ($3.type[0]) {
+                    case StackContextType2.ARRAY: {
+
+                        return y(data)
+                    }
+                    case StackContextType2.OBJECT: {
+                        const $$ = $3.type[1]
+
+                        switch ($$.state) {
+                            case ObjectState.EXPECTING_KEY:
+                                $$.state = ObjectState.EXPECTING_OBJECT_VALUE
+                                return y(data)
+
+                            case ObjectState.EXPECTING_OBJECT_VALUE:
+
+                                $$.state = ObjectState.EXPECTING_KEY
+                                return y(data)
+
+                            default:
+                                return assertUnreachable($$.state)
+                        }
+                    }
+                    case StackContextType2.TAGGED_UNION: {
+                        const $$ = $3.type[1]
+
+                        switch ($$.state) {
+                            case TaggedUnionState.EXPECTING_OPTION:
+                                $$.state = TaggedUnionState.EXPECTING_VALUE
+                                return y(data)
+                            case TaggedUnionState.EXPECTING_VALUE: {
+                                this.stck.popContext(range)
+                                return y(data)
+                            }
+                            default:
+                                return assertUnreachable($$.state)
+                        }
+                    }
+                    default:
+                        return assertUnreachable($3.type[0])
+                }
             }
-            case IndentationState.lineIsVirgin: {
-                return null
-            }
-            case IndentationState.lineIsDitry: {
-                return null
+            case StackContextType.ROOT: {
+                const $$ = cc.type[1]
+
+                return this.wrapupRootBeforeValue($$, range).mapResult(() => {
+
+
+                    this.setRootStateAfterValue($$)
+                    return y(data)
+                })
             }
             default:
-                return assertUnreachable(this.indentationState[0])
+                return assertUnreachable(cc.type[0])
+        }
+
+    }
+    public onData(data: ParserPreEvent): p.IValue<boolean> {
+        switch (data.type[0]) {
+            case ParserPreEventType.BlockComment: {
+                const $ = data.type[1]
+
+                return this.sendEvent({
+                    range: data.range,
+                    type: [ParserEventType.BlockComment, $],
+                })
+            }
+            case ParserPreEventType.LineComment: {
+                const $ = data.type[1]
+
+                return this.sendEvent({
+                    range: data.range,
+                    type: [ParserEventType.LineComment, $],
+                })
+            }
+            case ParserPreEventType.NewLine: {
+                const $ = data.type[1]
+
+                return this.sendEvent({
+                    range: data.range,
+                    type: [ParserEventType.NewLine, $],
+                })
+            }
+            case ParserPreEventType.Punctuation: {
+                const $ = data.type[1]
+                return this.onPunctuation(data.range, $)
+            }
+            case ParserPreEventType.SimpleValue: {
+                const $ = data.type[1]
+
+                return this.onSimpleValue(
+                    data.range,
+                    $,
+                )
+            }
+            case ParserPreEventType.WhiteSpace: {
+                const $ = data.type[1]
+
+                return this.sendEvent({
+                    range: data.range,
+                    type: [ParserEventType.WhiteSpace, $],
+                })
+            }
+            default:
+                return assertUnreachable(data.type[0])
         }
     }
-    public onBlockCommentBegin(range: Range): p.IValue<boolean> {
-        if (DEBUG) console.log(`onBlockCommentBegin`)
+    private onBodyPunctuation(range: Range, data: PunctionationData): p.IValue<boolean> {
+        const curChar = data.char
+        switch (curChar) {
+            case Char.Punctuation.exclamationMark:
+                this.raiseError("unexpected !", range)
+                return p.result(false)
+            case Char.Punctuation.hash:
+                this.raiseError("unexpected '#', expected a value after a comma", range)
+                return p.result(false)
+            case Char.Punctuation.closeAngleBracket:
+                return this.onArrayClose(curChar, range)
+            case Char.Punctuation.closeBracket:
+                return this.onArrayClose(curChar, range)
+            case Char.Punctuation.comma:
+                //
+                return this.sendEvent({
+                    range: range,
+                    type: [ParserEventType.Comma, {
+                    }],
+                })
+            case Char.Punctuation.openAngleBracket:
+                return this.onArrayOpen(curChar, range)
+            case Char.Punctuation.openBracket:
+                return this.onArrayOpen(curChar, range)
+            case Char.Punctuation.closeBrace:
+                return this.onObjectClose(curChar, range)
+            case Char.Punctuation.closeParen:
+                return this.onObjectClose(curChar, range)
+            case Char.Punctuation.colon:
+                //
+                return this.sendEvent({
+                    range: range,
+                    type: [ParserEventType.Colon, {
+                    }],
+                })
+            case Char.Punctuation.openBrace:
+                return this.onObjectOpen(curChar, range)
+            case Char.Punctuation.openParen:
+                return this.onObjectOpen(curChar, range)
+            case Char.Punctuation.verticalLine:
+                return this.onTaggedUnion(range)
 
-        this.setCurrentToken([TokenType.BLOCK_COMMENT, {
-            commentNode: "",
-            start: range,
-            indentation: this.getIndentation(),
-        }], range)
+            default:
+                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
+                return p.result(false)
+        }
+    }
+    private onPunctuation(range: Range, data: PunctionationData): p.IValue<boolean> {
 
-        this.indentationState = [IndentationState.lineIsDitry]
-        return p.result(false)
+        const $ = this.getCurrentContext()
+        switch ($.type[0]) {
+            case StackContextType.NONROOT: {
+                return this.onBodyPunctuation(range, data)
+            }
+            case StackContextType.ROOT: {
+
+                const curChar = data.char
+
+                const $$2 = $.type[1]
+                switch (curChar) {
+                    case Char.Punctuation.exclamationMark:
+                        /**
+                         * ROOT PROCESSING
+                         */
+                        switch ($$2.state[0]) {
+                            case RootState.AFTER: {
+                                const $$4 = $$2.state[1]
+                                switch ($$4.state[0]) {
+                                    case RootState2.EXPECTING_END: {
+                                        this.raiseError(`Unexpected data after end`, range)
+                                        break
+                                    }
+                                    case RootState2.EXPECTING_VALUE: {
+                                        const $ = $$4.state[1]
+                                        if ($.foundHash) {
+                                            this.raiseError("unexpected '!', expected root value", range)
+                                        } else {
+                                            this.raiseError("unexpected '!', expected '#' or value", range)
+                                        }
+                                        break
+                                    }
+                                    case RootState2.EXPECTING_SCHEMA: {
+                                        this.raiseError("unexpected '!', expected schema value", range)
+                                        break
+                                    }
+                                    default:
+                                        return assertUnreachable($$4.state)
+                                }
+                                break
+                            }
+                            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                                $$2.state = [RootState.AFTER, {
+                                    schemaEventsConsumer: this.onSchemaDataStart(range),
+                                    instanceEventsConsumer: null,
+                                    state: [RootState2.EXPECTING_SCHEMA],
+                                }]
+                                break
+                            default:
+                                return assertUnreachable($$2.state)
+                        }
+                        return p.result(false)
+                    case Char.Punctuation.hash:
+                        /**
+                         * ROOT PROCESSING
+                         */
+                        switch ($$2.state[0]) {
+                            case RootState.AFTER: {
+                                const $$4 = $$2.state[1]
+                                switch ($$4.state[0]) {
+                                    case RootState2.EXPECTING_END: {
+                                        this.raiseError("unexpected '#', expected no more data", range)
+                                        break
+                                    }
+                                    case RootState2.EXPECTING_SCHEMA: {
+                                        this.raiseError("unexpected '#', expected the schema", range)
+                                        break
+                                    }
+                                    case RootState2.EXPECTING_VALUE: {
+                                        const $$ = $$4.state[1]
+                                        if ($$.foundHash) {
+                                            this.raiseError("unexpected '#', expected the root value", range)
+
+                                        }
+                                        $$.foundHash = true
+                                        break
+                                    }
+                                    default:
+                                        return assertUnreachable($$4.state[0])
+                                }
+                                return this.startInstanceData($$4, range, getEndLocationFromRange(range))
+                            }
+                            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                                this.raiseError("unexpected '#', expected an '!' (to specify a schema) or a value", range)
+                                this.rootContext.state = [RootState.AFTER, {
+                                    schemaEventsConsumer: null,
+                                    instanceEventsConsumer: null,
+                                    state: [RootState2.EXPECTING_END, {
+                                        foo: true,
+                                    }],
+                                }]
+                                return this.startInstanceData(this.rootContext.state[1], range, getEndLocationFromRange(range))
+                            default:
+                                return assertUnreachable($$2.state)
+                        }
+                    default:
+                        //not a # of a !
+                        // switch ($$2.state[0]) {
+                        //     case RootState.AFTER: {
+                        //         const $$4 = $$2.state[1]
+                        //         switch ($$4.state[0]) {
+                        //             case RootState2.EXPECTING_END: {
+                        //                 break
+                        //             }
+                        //             case RootState2.EXPECTING_HASH_OR_ROOTVALUE: {
+                        //                 break
+                        //             }
+                        //             case RootState2.EXPECTING_SCHEMA: {
+                        //                 break
+                        //             }
+                        //             case RootState2.EXPECTING_ROOTVALUE_AFTER_HASH: {
+                        //                 break
+                        //             }
+                        //             default:
+                        //                 assertUnreachable($$4.state[0])
+                        //         }
+                        //         break
+                        //     }
+                        //     case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                        //         break
+                        //     default:
+                        //         assertUnreachable($$2.state)
+                        // }
+                        return this.wrapupRootBeforeValue($$2, range).mapResult((): p.IValue<boolean> => {
+                            return this.onBodyPunctuation(range, data)
+                        })
+                }
+            }
+            default:
+                return assertUnreachable($.type[0])
+        }
+    }
+    private onTaggedUnion(range: Range) {
+
+        const taggedUnion = { state: TaggedUnionState.EXPECTING_OPTION }
+        return this.onComplexValue(range).mapResult(() => {
+            // this.pushContext({
+            //     unwind: () => {
+            //         this.raiseError("unexpected end of document, still in tagged union", range)
+            //     },
+            //     getDescription: () => {
+
+            //         switch (taggedUnion.state) {
+            //             case TaggedUnionState.EXPECTING_OPTION: return "EXPECTING_OPTION"
+            //             case TaggedUnionState.EXPECTING_VALUE: return "EXPECTING_VALUE"
+            //             default: return assertUnreachable(taggedUnion.state)
+            //         }
+            //     },
+            //     type: [StackContextType.NONROOT, { type: [StackContextType2.TAGGED_UNION, taggedUnion] }],
+            // })
+            this.stck.pushContext({ range: range, type: [StackContextType2.TAGGED_UNION, taggedUnion] })
+            return this.sendEvent({
+                range: range,
+                type: [ParserEventType.TaggedUnion, {
+                }],
+            })
+
+        })
     }
     private sendEvent(data: ParserEvent): p.IValue<boolean> {
-        if (this.instanceEventsConsumer !== undefined) {
-            return this.instanceEventsConsumer.onData(data)
+        if (this.rootContext.state[0] === RootState.AFTER && this.rootContext.state[1].instanceEventsConsumer !== null) {
+            return this.rootContext.state[1].instanceEventsConsumer.onData(data)
         }
-        if (this.schemaEventsConsumer !== undefined) {
-            return this.schemaEventsConsumer.onData(data)
+        if (this.rootContext.state[0] === RootState.AFTER && this.rootContext.state[1].schemaEventsConsumer !== null) {
+            return this.rootContext.state[1].schemaEventsConsumer.onData(data)
         }
         console.error("dropping token, no events consumer")
         //throw new Error("unexpected missing parser event consumer")
         return p.result(false)
     }
-    public onBlockCommentEnd(end: Range): p.IValue<boolean> {
-        if (DEBUG) console.log(`onBlockCommentEnd`)
-
-        if (this.currentToken[0] !== TokenType.BLOCK_COMMENT) {
-            throw new ParserStackPanicError(`Unexpected block comment end`, end)
-        }
-        const $ = this.currentToken[1]
-        const endOfStart = getEndLocationFromRange($.start)
-        const od = this.sendEvent({
-            range: createRangeFromLocations(
-                $.start.start,
-                getEndLocationFromRange(end),
-            ),
-            type: [ParserEventType.BlockComment, {
-                comment: $.commentNode,
-                innerRange: createRangeFromLocations(
-                    {
-                        position: endOfStart.position,
-                        line: endOfStart.line,
-                        column: endOfStart.column,
-                    },
-                    {
-                        position: end.start.position,
-                        line: end.start.line,
-                        column: end.start.column,
-                    },
-                ),
-                indentation: $.indentation,
-            }],
-        })
-        this.unsetCurrentToken(end)
-        return od
-    }
-    public onUnquotedTokenBegin(location: Location): p.IValue<boolean> {
-        if (DEBUG) console.log(`onUnquotedTokenBegin`)
-
-        this.indentationState = [IndentationState.lineIsDitry]
-
-        this.setCurrentToken([TokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], createRangeFromSingleLocation(location))
-        return p.result(false)
-    }
-    public onUnquotedTokenEnd(location: Location): p.IValue<boolean> {
-        if (DEBUG) console.log(`onUnquotedTokenEnd`)
-
-        if (this.currentToken[0] !== TokenType.UNQUOTED_TOKEN) {
-            throw new ParserStackPanicError(`Unexpected unquoted token end`, createRangeFromSingleLocation(location))
-        }
-        const $ = this.currentToken[1]
-        const range = createRangeFromLocations($.start, location)
-        return this.onNonStringValue(range).mapResult(() => {
-            const od = this.sendEvent({
-                range: range,
-                type: [ParserEventType.SimpleValue,
-                {
-                    value: $.unquotedTokenNode,
-                    quote: null,
-                    terminated: null,
-                }],
-            })
-            this.wrapupAfterValue(range)
-            this.unsetCurrentToken(createRangeFromSingleLocation(location))
-            return od
-
-        })
-    }
-
-    public onWhitespaceBegin(location: Location): p.IValue<boolean> {
-        if (DEBUG) console.log(`onWhitespaceBegin`)
-        const $: WhitespaceContext = { whitespaceNode: "", start: location }
-
-        if (this.indentationState[0] === IndentationState.lineIsVirgin) {
-
-            this.indentationState = [IndentationState.foundIndentation, $]
-        }
-        this.setCurrentToken([TokenType.WHITESPACE, $], createRangeFromSingleLocation(location))
-        return p.result(false)
-    }
-    public onWhitespaceEnd(location: Location): p.IValue<boolean> {
-        if (DEBUG) console.log(`onWhitespaceEnd`)
-
-        if (this.currentToken[0] !== TokenType.WHITESPACE) {
-            throw new ParserStackPanicError(`Unexpected whitespace end`, createRangeFromSingleLocation(location))
-        }
-        const $ = this.currentToken[1]
-        const range = createRangeFromLocations($.start, location)
-        const od = this.sendEvent({
-            range: range,
-            type: [ParserEventType.WhiteSpace, {
-                value: $.whitespaceNode,
-            }],
-        })
-        this.unsetCurrentToken(createRangeFromSingleLocation(location))
-        return od
-    }
-
-    public onQuotedStringBegin(begin: Range, quote: string): p.IValue<boolean> {
-        if (DEBUG) console.log(`onQuotedStringBegin`)
-        this.setCurrentToken([TokenType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
-        return p.result(false)
-    }
-
-    public onQuotedStringEnd(end: Range, quote: string | null): p.IValue<boolean> {
-        if (DEBUG) console.log(`onQuotedStringEnd`)
-        if (this.currentToken[0] !== TokenType.QUOTED_STRING) {
-            throw new ParserStackPanicError(`Unexpected unquoted token end`, end)
-        }
-        const $tok = this.currentToken[1]
-        const value = $tok.quotedStringNode
-        const range = createRangeFromLocations($tok.start.start, getEndLocationFromRange(end))
-
-        return this.wrapupBeforeValue(end).mapResult(() => {
-            const $ = this.currentContext
-            const onStringValue = (): p.IValue<boolean> => {
-                const od = this.sendEvent({
-                    range: range,
-                    type: [ParserEventType.SimpleValue,
-                    {
-                        value: value,
-                        //startCharacter: $tok.startCharacter,
-                        terminated: quote !== null,
-                        quote: $tok.startCharacter,
-                    }],
-                })
-                this.wrapupAfterValue(range)
-                return od
-            }
-            this.unsetCurrentToken(end)
-
-            switch ($[0]) {
-                case StackContextType.ARRAY: {
-                    return onStringValue()
-                }
-                case StackContextType.OBJECT: {
-                    const $$ = $[1]
-                    switch ($$.state) {
-                        case ObjectState.EXPECTING_KEY:
-                            const od = this.sendEvent({
-                                range: range,
-                                type: [ParserEventType.SimpleValue,
-                                {
-                                    value: value,
-                                    quote: $tok.startCharacter,
-                                    terminated: quote !== null,
-                                }],
-                            })
-                            $$.state = ObjectState.EXPECTING_OBJECT_VALUE
-                            return od
-                        case ObjectState.EXPECTING_OBJECT_VALUE:
-                            const osv = onStringValue()
-                            $$.state = ObjectState.EXPECTING_KEY
-                            return osv
-                        default:
-                            return assertUnreachable($$.state)
-                    }
-                }
-                case StackContextType.ROOT: {
-                    const osv = onStringValue()
-                    this.setRootStateAfterValue($[1])
-                    return osv
-                }
-                case StackContextType.TAGGED_UNION: {
-                    const $$ = $[1]
-                    switch ($$.state) {
-                        case TaggedUnionState.EXPECTING_OPTION:
-                            const od = this.sendEvent({
-                                range: range,
-                                type: [ParserEventType.SimpleValue,
-                                {
-                                    value: value,
-                                    quote: $tok.startCharacter,
-                                    terminated: quote !== null,
-                                }],
-                            })
-                            $$.state = TaggedUnionState.EXPECTING_VALUE
-                            return od
-                        case TaggedUnionState.EXPECTING_VALUE: {
-                            return onStringValue()
-                        }
-                        default:
-                            return assertUnreachable($$.state)
-                    }
-                }
-                default:
-                    return assertUnreachable($[0])
-            }
-
-        })
-    }
     private onObjectOpen(curChar: number, range: Range): p.IValue<boolean> {
-        return this.onNonStringValue(range).mapResult(() => {
-            this.pushContext([StackContextType.OBJECT, { state: ObjectState.EXPECTING_KEY, openChar: curChar }])
+        return this.onComplexValue(range).mapResult(() => {
+            const obj = {
+                state: ObjectState.EXPECTING_KEY, openChar: curChar,
+            }
+            // this.pushContext({
+            //     unwind: () => {
+            //         this.raiseError("unexpected end of document, still in object", range)
+            //     },
+            //     getDescription: () => {
+
+            //         switch (obj.state) {
+            //             case ObjectState.EXPECTING_OBJECT_VALUE: return "EXPECTING_OBJECTVALUE"
+            //             case ObjectState.EXPECTING_KEY: return "EXPECTING_KEY"
+            //             default: return assertUnreachable(obj.state)
+            //         }
+            //     },
+            //     type: [StackContextType.NONROOT, { type: [StackContextType2.OBJECT, obj] }],
+            // })
+            this.stck.pushContext({ range: range, type: [StackContextType2.OBJECT, obj] })
             return this.sendEvent({
                 range: range,
                 type: [ParserEventType.OpenObject, {
@@ -1038,7 +953,8 @@ class Parser<ReturnType, ErrorType> {
         })
     }
     private onObjectClose(curChar: number, range: Range): p.IValue<boolean> {
-        if (this.currentContext[0] !== StackContextType.OBJECT) {
+        const cc = this.getCurrentContext()
+        if (cc.type[0] !== StackContextType.NONROOT || cc.type[1].type[0] !== StackContextType2.OBJECT) {
             this.raiseError("not in an object", range)
             return this.sendEvent({
                 range: range,
@@ -1047,7 +963,7 @@ class Parser<ReturnType, ErrorType> {
                 }],
             })
         } else {
-            if (this.currentContext[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
+            if (cc.type[1].type[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
                 this.raiseError("missing property value", range)
             }
             const od = this.sendEvent({
@@ -1056,13 +972,22 @@ class Parser<ReturnType, ErrorType> {
                     closeCharacter: String.fromCharCode(curChar),
                 }],
             })
-            this.popContext(range)
+            this.stck.popContext(range)
             return od
         }
     }
     private onArrayOpen(curChar: number, range: Range) {
-        return this.onNonStringValue(range).mapResult(() => {
-            this.pushContext([StackContextType.ARRAY, { openChar: curChar }])
+        return this.onComplexValue(range).mapResult(() => {
+            // this.pushContext({
+            //     unwind: () => {
+            //         this.raiseError("unexpected end of document, still in array", range)
+            //     },
+            //     getDescription: () => {
+            //         return "EXPECTING_ARRAYVALUE"
+            //     },
+            //     type: [StackContextType.NONROOT, { type: [StackContextType2.ARRAY, { openChar: curChar }] }],
+            // })
+            this.stck.pushContext({ range: range, type: [StackContextType2.ARRAY, { openChar: curChar }] })
             return this.sendEvent({
                 range: range,
                 type: [ParserEventType.OpenArray, {
@@ -1073,11 +998,11 @@ class Parser<ReturnType, ErrorType> {
         })
     }
     private onArrayClose(curChar: number, range: Range) {
-        const $ = this.currentContext
-        if ($[0] !== StackContextType.ARRAY) {
+        const cc = this.getCurrentContext()
+        if (cc.type[0] !== StackContextType.NONROOT || cc.type[1].type[0] !== StackContextType2.ARRAY) {
             this.raiseError("not in an array", range)
         } else {
-            this.popContext(range)
+            this.stck.popContext(range)
         }
         return this.sendEvent({
             range: range,
@@ -1086,189 +1011,171 @@ class Parser<ReturnType, ErrorType> {
             }],
         })
     }
-    private onNonStringValue(range: Range) {
-        return this.wrapupBeforeValue(range).mapResult((): p.IValue<boolean> => {
-            const $ = this.currentContext
-            switch ($[0]) {
-                case StackContextType.ARRAY: {
-                    return p.result(false)
-                }
-                case StackContextType.OBJECT: {
-                    const $$ = $[1]
-                    switch ($$.state) {
-                        case ObjectState.EXPECTING_KEY:
-                            //this.raiseError("expected key", range)
-                            return p.result(false)
-                        case ObjectState.EXPECTING_OBJECT_VALUE:
-                            $$.state = ObjectState.EXPECTING_KEY
-                            return p.result(false)
-                        default:
-                            return assertUnreachable($$.state)
+    private onComplexValue(range: Range): p.IValue<boolean> {
+        const $ = this.getCurrentContext()
+        switch ($.type[0]) {
+            case StackContextType.NONROOT: {
+                const $3 = $.type[1]
+                switch ($3.type[0]) {
+                    case StackContextType2.ARRAY: {
+                        return p.result(false)
                     }
-                }
-                case StackContextType.ROOT: {
-                    this.setRootStateAfterValue($[1])
-                    return p.result(false)
-                }
-                case StackContextType.TAGGED_UNION: {
-                    const $$ = $[1]
-                    switch ($$.state) {
-                        case TaggedUnionState.EXPECTING_OPTION:
-                            this.raiseError("expected option", range)
-                            return p.result(false)
-                        case TaggedUnionState.EXPECTING_VALUE: {
-                            return p.result(false)
+                    case StackContextType2.OBJECT: {
+                        const $$ = $3.type[1]
+                        switch ($$.state) {
+                            case ObjectState.EXPECTING_KEY:
+                                return p.result(false)
+                            case ObjectState.EXPECTING_OBJECT_VALUE:
+                                $$.state = ObjectState.EXPECTING_KEY
+                                return p.result(false)
+                            default:
+                                return assertUnreachable($$.state)
                         }
-                        default:
-                            return assertUnreachable($$.state)
                     }
+                    case StackContextType2.TAGGED_UNION: {
+                        const $$ = $3.type[1]
+                        switch ($$.state) {
+                            case TaggedUnionState.EXPECTING_OPTION:
+                                this.raiseError("expected option", range)
+                                return p.result(false)
+                            case TaggedUnionState.EXPECTING_VALUE: {
+                                return p.result(false)
+                            }
+                            default:
+                                return assertUnreachable($$.state)
+                        }
+                    }
+                    default:
+                        return assertUnreachable($3.type[0])
                 }
-                default:
-                    return assertUnreachable($[0])
             }
+            case StackContextType.ROOT: {
+                const $$ = $.type[1]
 
-        })
-    }
-    private setCurrentToken(contextType: CurrentToken, range: Range) {
-        if (this.currentToken[0] !== TokenType.NONE) {
-            throw new ParserStackPanicError(`unexpected start of token`, range)
+                this.setRootStateAfterValue($$)
+                return p.result(false)
+            }
+            default:
+                return assertUnreachable($.type[0])
         }
-        this.currentToken = contextType
-    }
-    private unsetCurrentToken(range: Range) {
-        if (this.currentToken[0] === TokenType.NONE) {
-            throw new ParserStackPanicError(`unexpected, parser is already in 'none' mode`, range)
-        }
-        this.currentToken = [TokenType.NONE]
-    }
-    private startInstanceData(compact: null | Range, location: Location) {
-        if (this.schemaEventsConsumer !== undefined) {
 
-            return this.schemaEventsConsumer.onEnd(false, location).reworkAndCatch(
+    }
+    private startInstanceData(afterContext: AfterContext<ReturnType, ErrorType>, compact: null | Range, location: Location) {
+        if (afterContext.schemaEventsConsumer !== null) {
+
+            return afterContext.schemaEventsConsumer.onEnd(false, location).reworkAndCatch(
                 () => {
 
-                    this.instanceEventsConsumer = this.headerConsumer.onInstanceDataStart(compact, location)
+                    afterContext.instanceEventsConsumer = this.onInstanceDataStart(compact, location)
                     return p.result(false)
                 },
                 () => {
 
-                    this.instanceEventsConsumer = this.headerConsumer.onInstanceDataStart(compact, location)
+                    afterContext.instanceEventsConsumer = this.onInstanceDataStart(compact, location)
                     return p.result(false)
                 },
             )
         } else {
-            this.instanceEventsConsumer = this.headerConsumer.onInstanceDataStart(compact, location)
+            afterContext.instanceEventsConsumer = this.onInstanceDataStart(compact, location)
             return p.result(false)
 
         }
     }
-    private wrapupBeforeValue(range: Range): p.IValue<boolean> {
-        const $ = this.currentContext
-        switch ($[0]) {
-            case StackContextType.ARRAY: {
-                return p.result(false)
-            }
-            case StackContextType.OBJECT: {
-                return p.result(false)
-            }
-            case StackContextType.ROOT: {
-                const $$ = $[1]
-                switch ($$.state) {
-                    case RootState.EXPECTING_END: {
+    private wrapupRootBeforeValue(root: RootContext<ReturnType, ErrorType>, range: Range): p.IValue<boolean> {
+
+        switch (root.state[0]) {
+            case RootState.AFTER: {
+                const $$4 = root.state[1]
+                switch ($$4.state[0]) {
+                    case RootState2.EXPECTING_END: {
                         this.raiseError(`Unexpected data after end`, range)
                         return p.result(false)
                     }
-                    case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                        return this.startInstanceData(null, getEndLocationFromRange(range))
-                    }
-                    case RootState.EXPECTING_SCHEMA: {
+                    case RootState2.EXPECTING_SCHEMA: {
                         return p.result(false)
                     }
-                    case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                        return p.result(false)
+                    case RootState2.EXPECTING_VALUE: {
+                        const $$ = $$4.state[1]
+                        if ($$.foundHash) {
+                            return p.result(false)
+                        } else {
+                            return this.startInstanceData($$4, null, getEndLocationFromRange(range))
+                        }
                     }
-                    case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                        return this.startInstanceData(null, getEndLocationFromRange(range))
                     default:
-                        return assertUnreachable($$.state)
+                        return assertUnreachable($$4.state[0])
                 }
             }
-            case StackContextType.TAGGED_UNION: {
-                return p.result(false)
-            }
+            case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
+                this.rootContext.state = [RootState.AFTER, {
+                    schemaEventsConsumer: null,
+                    instanceEventsConsumer: null,
+                    state: [RootState2.EXPECTING_END, {
+                        foo: true,
+                    }],
+                }]
+                return this.startInstanceData(this.rootContext.state[1], null, getEndLocationFromRange(range))
             default:
-                return assertUnreachable($[0])
+                return assertUnreachable(root.state[0])
         }
     }
-    private setRootStateAfterValue(rootContext: RootContext) {
+    private setRootStateAfterValue(rootContext: RootContext<ReturnType, ErrorType>) {
         const $$ = rootContext
-        switch ($$.state) {
-            case RootState.EXPECTING_END: {
-                break
-            }
-            case RootState.EXPECTING_HASH_OR_ROOTVALUE: {
-                $$.state = RootState.EXPECTING_END
-                break
-            }
-            case RootState.EXPECTING_SCHEMA: {
-                $$.state = RootState.EXPECTING_HASH_OR_ROOTVALUE
-                break
-            }
-            case RootState.EXPECTING_ROOTVALUE_AFTER_HEADER: {
-                $$.state = RootState.EXPECTING_END
+        switch ($$.state[0]) {
+            case RootState.AFTER: {
+                const $$4 = $$.state[1]
+                switch ($$4.state[0]) {
+                    case RootState2.EXPECTING_END: {
+                        break
+                    }
+                    case RootState2.EXPECTING_VALUE: {
+                        if ($$4.instanceEventsConsumer === null) {
+                            throw new Error("missing instance events consumer")
+                        }
+                        $$4.state = [RootState2.EXPECTING_END, {
+                            foo: true,
+                        }]
+                        break
+                    }
+                    case RootState2.EXPECTING_SCHEMA: {
+                        $$4.state = [RootState2.EXPECTING_VALUE, {
+                            foundHash: false,
+                        }]
+                        break
+                    }
+                    default:
+                        assertUnreachable($$4.state[0])
+                }
                 break
             }
             case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE:
-                $$.state = RootState.EXPECTING_END
+                $$.state = [RootState.AFTER, {
+                    schemaEventsConsumer: null,
+                    instanceEventsConsumer: null,
+                    state: [RootState2.EXPECTING_END, {
+                        foo: true,
+                    }],
+                }]
                 break
             default:
-                assertUnreachable($$.state)
-        }
-    }
-    private wrapupAfterValue(range: Range) {
-        const currentContext = this.currentContext
-        switch (currentContext[0]) {
-            case StackContextType.ARRAY:
-                break
-            case StackContextType.OBJECT:
-                break
-            case StackContextType.ROOT:
-                break
-            case StackContextType.TAGGED_UNION:
-                this.popContext(range)
-                break
-            default:
-                assertUnreachable(currentContext[0])
+                assertUnreachable($$.state[0])
         }
     }
     private raiseError(message: string, range: Range) {
         if (DEBUG) { console.log("error raised:", message, printRange(range)) }
         this.onerror(message, range)
     }
-    private pushContext(context: StackContext) {
-        if (DEBUG) console.log(`pushed context ${getContextDescription(this.currentContext)}>${getContextDescription(context)}`)
-        this.stack.push(this.currentContext)
-        this.currentContext = context
-    }
-    private popContext(range: Range) {
-        const popped = this.stack.pop()
-        if (popped === undefined) {
-            throw new ParserStackPanicError("unexpected end of stack", range)
-        } else {
-            if (DEBUG) console.log(`popped context ${getContextDescription(popped)}<${getContextDescription(this.currentContext)}`)
-            this.currentContext = popped
-            this.wrapupAfterValue(range)
-        }
-    }
 }
 
 class StreamParser<ReturnType, ErrorType> implements ITokenStreamConsumer<ReturnType, ErrorType> {
-    private readonly parser: Parser<ReturnType, ErrorType>
+    private readonly parser: PreParser<ReturnType, ErrorType>
     constructor(
-        headerSubscriber: HeaderConsumer<ReturnType, ErrorType>,
+
+        onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
+        onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
         onerror: (message: string, range: Range) => void,
     ) {
-        this.parser = new Parser(headerSubscriber, onerror)
+        this.parser = new PreParser(new Parser(onSchemaDataStart, onInstanceDataStart, onerror))
     }
     public onData(data: TokenData): p.IValue<boolean> {
         return this.parser.onData(data)
@@ -1279,9 +1186,10 @@ class StreamParser<ReturnType, ErrorType> implements ITokenStreamConsumer<Return
 }
 
 export function createParser<ReturnType, ErrorType>(
+    onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
+    onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
     onerror: (message: string, range: Range) => void,
-    headerConsumer: HeaderConsumer<ReturnType, ErrorType>,
 ): ITokenStreamConsumer<ReturnType, ErrorType> {
-    const p = new StreamParser(headerConsumer, onerror)
+    const p = new StreamParser(onSchemaDataStart, onInstanceDataStart, onerror)
     return p
 }

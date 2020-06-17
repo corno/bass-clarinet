@@ -1,5 +1,5 @@
 import * as p from "pareto"
-import { ParserEventConsumer, HeaderConsumer } from "../src"
+import { ParserEventConsumer } from "../src"
 
 export const dummyParserEventConsumer: ParserEventConsumer<null, null> = {
     onData: () => {
@@ -7,14 +7,5 @@ export const dummyParserEventConsumer: ParserEventConsumer<null, null> = {
     },
     onEnd: () => {
         return p.success(null)
-    },
-}
-
-export const dummyHeaderConsumer: HeaderConsumer<null, null> = {
-    onSchemaDataStart: () => {
-        return dummyParserEventConsumer
-    },
-    onInstanceDataStart: () => {
-        return dummyParserEventConsumer
     },
 }

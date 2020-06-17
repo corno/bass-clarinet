@@ -484,11 +484,27 @@ a comment
             ["parsererror", "unexpected end of document, still in object"],
             ["parsererror", "unexpected end of document, still in object"],
             ["parsererror", "unexpected end of document, still in object"],
-            ["parsererror", "expected hash or rootvalue"],
+            ["parsererror", "expected '#' or rootvalue"],
             ["end", undefined],
             ["instance data start", false],
             ["end", undefined],
             ["stacked error", "missing value"],
+        ],
+    },
+    "comment": {
+        text: `//a comment
+( 
+    "y": /*should be a number*/ true
+)`,
+        testHeaders: true,
+        events: [
+            ["instance data start", false],
+            ["token", "openobject", "(", undefined],
+            ["token", "quotedstring", "y", undefined],
+            ["token", "blockcomment", "should be a number", undefined],
+            ["token", "unquotedtoken", "true", undefined],
+            ["token", "closeobject", ")", undefined],
+            ["end", undefined],
         ],
     },
 }

@@ -395,7 +395,6 @@ export class Tokenizer {
                                 case FoundCharacterType.SOLIDUS: { // a slash: /
 
                                     if (nextChar === Char.Comment.solidus) {
-
                                         return [true, this.changeCurrentTokenType(
                                             [TokenType.LINE_COMMENT],
                                             {

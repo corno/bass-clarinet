@@ -7,33 +7,30 @@ import * as bc from "../src";
 import { dummyParserEventConsumer } from "./dummyConsumers";
 
 const parser = bc.createParser(
-    err => { console.error("FOUND PARSER ERROR", err) },
-
-    {
-        onSchemaDataStart: () => {
-            return dummyParserEventConsumer
-        },
-        onInstanceDataStart: () => {
-            return {
-                onData: _data => {
-                    //return p20.result(false)
-
-                    return p20.wrapSafeFunction(onResult => {
-                        setTimeout(
-                            () => {
-                                onResult(false)
-                            },
-                            1000
-                        )
-                    })
-                },
-                onEnd: () => {
-                    console.log("Reached end")
-                    return p.success<null, null>(null)
-                },
-            }
-        },
+    () => {
+        return dummyParserEventConsumer
     },
+    () => {
+        return {
+            onData: _data => {
+                //return p20.result(false)
+
+                return p20.wrapSafeFunction(onResult => {
+                    setTimeout(
+                        () => {
+                            onResult(false)
+                        },
+                        1000
+                    )
+                })
+            },
+            onEnd: () => {
+                console.log("Reached end")
+                return p.success<null, null>(null)
+            },
+        }
+    },
+    err => { console.error("FOUND PARSER ERROR", err) },
 )
 
 //let counter = 0

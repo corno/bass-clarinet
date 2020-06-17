@@ -4,7 +4,7 @@ import assert from "assert"
 import * as path from "path"
 import * as p20 from "pareto-20"
 import * as bc from "../src"
-import { dummyHeaderConsumer } from "./dummyConsumers"
+import { dummyParserEventConsumer } from "./dummyConsumers"
 
 function tokenizeStrings(
     strings: string[],
@@ -31,10 +31,11 @@ describe('parsing', () => {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
                         const parser = bc.createParser(
+                            () => dummyParserEventConsumer,
+                            () => dummyParserEventConsumer,
                             () => {
                                 foundError = true
                             },
-                            dummyHeaderConsumer,
                         )
                         tokenizeStrings(
                             [data],
@@ -54,10 +55,11 @@ describe('parsing', () => {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
                         const parser = bc.createParser(
+                            () => dummyParserEventConsumer,
+                            () => dummyParserEventConsumer,
                             () => {
                                 foundError = true
                             },
-                            dummyHeaderConsumer,
                         )
                         tokenizeStrings(
                             [data],
@@ -76,10 +78,11 @@ describe('parsing', () => {
                     try {
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
                         const parser = bc.createParser(
+                            () => dummyParserEventConsumer,
+                            () => dummyParserEventConsumer,
                             () => {
                                 //do nothing with error
                             },
-                            dummyHeaderConsumer,
                         )
                         tokenizeStrings(
                             [data],
@@ -106,10 +109,11 @@ describe('transform', () => {
             try {
                 const data = fs.readFileSync(path.join(transformDir, file), { encoding: "utf-8" })
                 const parser = bc.createParser(
+                    () => dummyParserEventConsumer,
+                    () => dummyParserEventConsumer,
                     () => {
                         //do nothing with error
                     },
-                    dummyHeaderConsumer,
                 )
                 tokenizeStrings(
                     [data],

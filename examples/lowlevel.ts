@@ -92,15 +92,13 @@ export const parserEventConsumer: ParserEventConsumer<null, null> = {
     },
 }
 const parser = bc.createParser(
-    err => { console.error("FOUND PARSER ERROR", err) },
-    {
-        onSchemaDataStart: () => {
-            return parserEventConsumer
-        },
-        onInstanceDataStart: () => {
-            return parserEventConsumer
-        },
+    () => {
+        return parserEventConsumer
     },
+    () => {
+        return parserEventConsumer
+    },
+    err => { console.error("FOUND PARSER ERROR", err) },
 )
 
 const st = bc.createStreamTokenizer(

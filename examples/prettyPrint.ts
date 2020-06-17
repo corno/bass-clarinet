@@ -93,15 +93,14 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
 const pp = createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
 const prsr = bc.createParser(
-    err => { console.error("FOUND PARSER ERROR", err) },
-    {
-        onSchemaDataStart: () => {
-            return pp
-        },
-        onInstanceDataStart: () => {
-            return pp
-        },
+    () => {
+        return pp
     },
+    () => {
+        return pp
+    },
+    err => { console.error("FOUND PARSER ERROR", err) },
+
 )
 
 createPrettyPrinter("\r\n", str => process.stdout.write(str))
