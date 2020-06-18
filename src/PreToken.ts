@@ -4,7 +4,7 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-export enum TokenDataType {
+export enum PreTokenDataType {
     BlockCommentBegin,
     BlockCommentEnd,
     LineCommentBegin,
@@ -20,57 +20,57 @@ export enum TokenDataType {
     WhiteSpaceEnd,
 }
 
-export function printTokenData(tokenData: TokenData): string {
+export function printPreTokenData(tokenData: PreToken): string {
     switch (tokenData.type[0]) {
-        case TokenDataType.BlockCommentBegin: {
+        case PreTokenDataType.BlockCommentBegin: {
             const $ = tokenData.type[1]
             return `BlockCommentBegin (${printRange($.range)})`
         }
-        case TokenDataType.BlockCommentEnd: {
+        case PreTokenDataType.BlockCommentEnd: {
             const $ = tokenData.type[1]
             return `BlockCommentEnd (${printRange($.range)})`
         }
-        case TokenDataType.LineCommentBegin: {
+        case PreTokenDataType.LineCommentBegin: {
             const $ = tokenData.type[1]
             return `LineCommentBegin (${printRange($.range)})`
         }
-        case TokenDataType.LineCommentEnd: {
+        case PreTokenDataType.LineCommentEnd: {
             const $ = tokenData.type[1]
             return `LineCommentEnd (${printLocation($.location)})`
         }
-        case TokenDataType.NewLine: {
+        case PreTokenDataType.NewLine: {
             const $ = tokenData.type[1]
             return `NewLine (${printRange($.range)})`
         }
-        case TokenDataType.Punctuation: {
+        case PreTokenDataType.Punctuation: {
             const $ = tokenData.type[1]
             return `Punctuation: '${String.fromCharCode($.char)}' (${printRange($.range)})`
         }
-        case TokenDataType.QuotedStringBegin: {
+        case PreTokenDataType.QuotedStringBegin: {
             const $ = tokenData.type[1]
             return `QuotedStringBegin: '${$.quote}' (${printRange($.range)})`
         }
-        case TokenDataType.QuotedStringEnd: {
+        case PreTokenDataType.QuotedStringEnd: {
             const $ = tokenData.type[1]
             return `QuotedStringEnd: ${$.quote === null ? 'n/a': `'${$.quote}'`} (${printRange($.range)})`
         }
-        case TokenDataType.Snippet: {
+        case PreTokenDataType.Snippet: {
             const $ = tokenData.type[1]
             return `Snippet ${$.begin}-${$.end}`
         }
-        case TokenDataType.UnquotedTokenBegin: {
+        case PreTokenDataType.UnquotedTokenBegin: {
             const $ = tokenData.type[1]
             return `UnquotedTokenBegin (${printLocation($.location)})`
         }
-        case TokenDataType.UnquotedTokenEnd: {
+        case PreTokenDataType.UnquotedTokenEnd: {
             const $ = tokenData.type[1]
             return `UnquotedTokenEnd (${printLocation($.location)})`
         }
-        case TokenDataType.WhiteSpaceBegin: {
+        case PreTokenDataType.WhiteSpaceBegin: {
             const $ = tokenData.type[1]
             return `WhiteSpaceBegin (${printLocation($.location)})`
         }
-        case TokenDataType.WhiteSpaceEnd: {
+        case PreTokenDataType.WhiteSpaceEnd: {
             const $ = tokenData.type[1]
             return `WhiteSpaceEnd (${printLocation($.location)})`
         }
@@ -79,50 +79,50 @@ export function printTokenData(tokenData: TokenData): string {
     }
 }
 
-export type TokenData = {
+export type PreToken = {
     type:
-    | [TokenDataType.BlockCommentBegin, {
+    | [PreTokenDataType.BlockCommentBegin, {
         range: Range
     }]
-    | [TokenDataType.BlockCommentEnd, {
+    | [PreTokenDataType.BlockCommentEnd, {
         range: Range //| null
     }]
-    | [TokenDataType.LineCommentBegin, {
+    | [PreTokenDataType.LineCommentBegin, {
         range: Range
     }]
-    | [TokenDataType.LineCommentEnd, {
+    | [PreTokenDataType.LineCommentEnd, {
         location: Location //| null
     }]
-    | [TokenDataType.NewLine, {
+    | [PreTokenDataType.NewLine, {
         range: Range //| null
     }]
-    | [TokenDataType.Punctuation, {
+    | [PreTokenDataType.Punctuation, {
         char: number
         range: Range
     }]
-    | [TokenDataType.QuotedStringBegin, {
+    | [PreTokenDataType.QuotedStringBegin, {
         range: Range
         quote: string
     }]
-    | [TokenDataType.QuotedStringEnd, {
+    | [PreTokenDataType.QuotedStringEnd, {
         range: Range
         quote: string | null
     }]
-    | [TokenDataType.Snippet, {
+    | [PreTokenDataType.Snippet, {
         chunk: string
         begin: number
         end: number
     }]
-    | [TokenDataType.UnquotedTokenBegin, {
+    | [PreTokenDataType.UnquotedTokenBegin, {
         location: Location
     }]
-    | [TokenDataType.UnquotedTokenEnd, {
+    | [PreTokenDataType.UnquotedTokenEnd, {
         location: Location //| null
     }]
-    | [TokenDataType.WhiteSpaceBegin, {
+    | [PreTokenDataType.WhiteSpaceBegin, {
         location: Location
     }]
-    | [TokenDataType.WhiteSpaceEnd, {
+    | [PreTokenDataType.WhiteSpaceEnd, {
         location: Location //| null
     }]
 }

@@ -5,7 +5,7 @@
     max-classes-per-file: off,
 */
 import * as p from "pareto"
-import { ParserEventType, ParserEvent } from "../ParserEvent"
+import { ParserEventType, BodyEvent } from "../BodyEvent"
 import { Location, Range, createRangeFromSingleLocation } from "../location"
 import { createDummyValueHandler as createDummyOnValue } from "./dummyHandlers"
 import {
@@ -157,7 +157,7 @@ type ProcessResult =
 
 
 function processParserEvent(
-    data: ParserEvent,
+    data: BodyEvent,
     state: State,
     onError: (error: RangeError) => void,
 ): ProcessResult {
@@ -455,7 +455,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
 
 
     const ds: ParserEventConsumer<ReturnType, ErrorType> = {
-        onData: (data: ParserEvent): p.IValue<boolean> => {
+        onData: (data: BodyEvent): p.IValue<boolean> => {
             function flush(
                 gqe: GenerateQueuedEvent,
                 lineCommentAfter: Comment | null,

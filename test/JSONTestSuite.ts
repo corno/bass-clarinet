@@ -13,7 +13,7 @@ function tokenizeStrings(
 ) {
     p20.createArray(strings).streamify().handle(
         null,
-        bc.createStreamTokenizer(
+        bc.createStreamPreTokenizer(
             consumer,
             onError
         )

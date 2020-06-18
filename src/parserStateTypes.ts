@@ -2,13 +2,12 @@ import { Location, Range } from "./location"
 
 export enum RootState {
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
-    AFTER,
-}
-
-export enum RootState2 {
     EXPECTING_SCHEMA,
-    EXPECTING_VALUE,
-    EXPECTING_END, // no more input expected
+    PROCESSING_SCHEMA,
+    EXPECTING_HASH_OR_INSTANCE_DATA,
+    EXPECTING_INSTANCE_DATA_AFTER_HASH,
+    PROCESSING_INSTANCE_DATA,
+    EXPECTING_END, // no more input expected}
 }
 
 export enum ObjectState {
@@ -45,7 +44,7 @@ export type TaggedUnionContext = {
     state: TaggedUnionState
 }
 
-export enum TokenType {
+export enum CurrentTokenType {
     LINE_COMMENT,
     BLOCK_COMMENT,
     QUOTED_STRING,
@@ -55,12 +54,12 @@ export enum TokenType {
 }
 
 export type CurrentToken =
-    | [TokenType.NONE]
-    | [TokenType.LINE_COMMENT, CommentContext]
-    | [TokenType.BLOCK_COMMENT, CommentContext]
-    | [TokenType.UNQUOTED_TOKEN, UnquotedTokenContext]
-    | [TokenType.QUOTED_STRING, QuotedStringContext]
-    | [TokenType.WHITESPACE, WhitespaceContext]
+    | [CurrentTokenType.NONE]
+    | [CurrentTokenType.LINE_COMMENT, CommentContext]
+    | [CurrentTokenType.BLOCK_COMMENT, CommentContext]
+    | [CurrentTokenType.UNQUOTED_TOKEN, UnquotedTokenContext]
+    | [CurrentTokenType.QUOTED_STRING, QuotedStringContext]
+    | [CurrentTokenType.WHITESPACE, WhitespaceContext]
 
 
 export type CommentContext = {

@@ -1,20 +1,5 @@
 import { Range } from "./location"
-
-export type SimpleValueData = {
-    value: string
-    quote: string | null
-    terminated: boolean | null
-}
-
-export type WhiteSpaceData = {
-    value: string
-}
-
-export type CommentData = {
-    comment: string
-    innerRange: Range //without the open and close tokens:
-    indentation: null | string
-}
+import { CommentData, SimpleValueData, WhiteSpaceData } from "./Token"
 
 export enum ParserEventType {
     BlockComment,
@@ -39,11 +24,7 @@ export type CloseData = {
     closeCharacter: string
 }
 
-export type PunctionationData = {
-    char: number
-}
-
-export type ParserEvent = {
+export type BodyEvent = {
     range: Range
     type:
     | [ParserEventType.BlockComment, CommentData]
@@ -66,27 +47,4 @@ export type ParserEvent = {
         //
     }]
     | [ParserEventType.WhiteSpace, WhiteSpaceData]
-}
-
-
-export enum ParserPreEventType {
-    BlockComment,
-    LineComment,
-    NewLine,
-    Punctuation,
-    SimpleValue,
-    WhiteSpace
-}
-
-export type ParserPreEvent = {
-    range: Range
-    type:
-    | [ParserPreEventType.BlockComment, CommentData]
-    | [ParserPreEventType.LineComment, CommentData]
-    | [ParserPreEventType.NewLine, {
-        //
-    }]
-    | [ParserPreEventType.Punctuation, PunctionationData]
-    | [ParserPreEventType.SimpleValue, SimpleValueData]
-    | [ParserPreEventType.WhiteSpace, WhiteSpaceData]
 }

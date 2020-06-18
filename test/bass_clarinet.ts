@@ -23,7 +23,7 @@ const selectedJSONTests = Object.keys(JSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
 
 // const selectedJSONTests: string[] = []
-// const selectedExtensionTests: string[] = ["schema 2"]
+// const selectedExtensionTests: string[] = []
 
 type OnError = (message: string, range: bc.Range) => void
 
@@ -52,7 +52,7 @@ class OutPutter implements bc.ParserEventConsumer<null, null> {
     constructor(out: string[]) {
         this.out = out
     }
-    onData(data: bc.ParserEvent) {
+    onData(data: bc.BodyEvent) {
         switch (data.type[0]) {
             case bc.ParserEventType.BlockComment: {
                 const $ = data.type[1]
@@ -415,7 +415,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
         )
 
-        const st = bc.createStreamTokenizer(
+        const st = bc.createStreamPreTokenizer(
             parser,
             (message, _location) => {
                 if (DEBUG) console.log("found error")

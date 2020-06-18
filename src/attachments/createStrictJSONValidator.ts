@@ -4,7 +4,7 @@
     max-classes-per-file: "off",
 */
 import * as p from "pareto"
-import { ParserEventType, ParserEvent } from "../ParserEvent"
+import { ParserEventType, BodyEvent } from "../BodyEvent"
 import { ParserEventConsumer } from "../createParser"
 import { Range } from "../location"
 import * as Char from "./NumberCharacters"
@@ -119,7 +119,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
         this.onError = onError
     }
 
-    public onData(data: ParserEvent) {
+    public onData(data: BodyEvent) {
         switch (data.type[0]) {
             case ParserEventType.BlockComment: {
                 this.onError("block comments are not allowed in strict JSON", data.range)

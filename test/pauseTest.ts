@@ -60,7 +60,7 @@ const chunks = [
 export function doIt(): void {
     p20.createArray(chunks).streamify().handle(
         null,
-        bc.createStreamTokenizer(
+        bc.createStreamPreTokenizer(
             parser,
             err => { console.error("FOUND TOKENIZER ERROR", err) },
         )

@@ -1,10 +1,10 @@
 import * as p from "pareto"
 import { Range } from "../location"
 import {
-    SimpleValueData,
     OpenData,
     CloseData,
-} from "../ParserEvent"
+} from "../BodyEvent"
+import { SimpleValueData } from "../Token"
 
 export type ContextData = {
     commentsBefore: Comment[]

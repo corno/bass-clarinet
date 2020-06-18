@@ -6,13 +6,13 @@
 import * as p from "pareto"
 import { Range } from "./location"
 import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
-import { Chunk, Tokenizer, TokenizerOptions, LocationState } from "./Tokenizer"
+import { Chunk, PreTokenizer, TokenizerOptions, LocationState } from "./PreTokenizer"
 
 const DEBUG = false
 
 class StreamTokenizer<ReturnType, ErrorType> implements p.IStreamConsumer<string, null, ReturnType, ErrorType> {
 
-    private readonly tokenizerState: Tokenizer
+    private readonly tokenizerState: PreTokenizer
     private readonly locationState: LocationState
     private readonly tokenStreamConsumer: ITokenStreamConsumer<ReturnType, ErrorType>
     private aborted = false
@@ -26,7 +26,7 @@ class StreamTokenizer<ReturnType, ErrorType> implements p.IStreamConsumer<string
                     ? 4
                     : opt.spaces_per_tab
         )
-        this.tokenizerState = new Tokenizer(this.locationState, onerror)
+        this.tokenizerState = new PreTokenizer(this.locationState, onerror)
     }
     private loopUntilPromiseOrEnd(currentChunk: Chunk): p.IValue<boolean> {
         if (this.aborted) {
@@ -76,7 +76,7 @@ class StreamTokenizer<ReturnType, ErrorType> implements p.IStreamConsumer<string
     }
 }
 
-export function createStreamTokenizer<ReturnType, ErrorType>(
+export function createStreamPreTokenizer<ReturnType, ErrorType>(
     tokenStreamConsumer: ITokenStreamConsumer<ReturnType, ErrorType>,
     onerror: (message: string, range: Range) => void,
     opt?: TokenizerOptions
