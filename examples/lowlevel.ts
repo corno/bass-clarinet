@@ -20,63 +20,71 @@ const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 export const parserEventConsumer: ParserEventConsumer<null, null> = {
     onData: data => {
         switch (data.type[0]) {
-            case bc.ParserEventType.BlockComment: {
+            case bc.BodyEventType.CloseArray: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.ParserEventType.CloseArray: {
+            case bc.BodyEventType.CloseObject: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.ParserEventType.CloseObject: {
+            case bc.BodyEventType.Colon: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.ParserEventType.Colon: {
+            case bc.BodyEventType.Comma: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.ParserEventType.Comma: {
+            case bc.BodyEventType.OpenArray: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.ParserEventType.LineComment: {
+            case bc.BodyEventType.OpenObject: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.ParserEventType.NewLine: {
-                //const $ = data.type[1]
-                //place your code here
+            case bc.BodyEventType.Overhead: {
+                const $ = data.type[1]
+                switch ($.type[0]) {
+                    case bc.OverheadTokenType.BlockComment: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    case bc.OverheadTokenType.LineComment: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    case bc.OverheadTokenType.NewLine: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    case bc.OverheadTokenType.WhiteSpace: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    default:
+                        assertUnreachable($.type[0])
+                }
                 break
             }
-            case bc.ParserEventType.OpenArray: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case bc.ParserEventType.OpenObject: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case bc.ParserEventType.SimpleValue: {
+            case bc.BodyEventType.SimpleValue: {
                 //const $ = data.type[1]
                 //place your code here
                 //in strict JSON, the value is a string, a number, null, true or false
                 break
             }
-            case bc.ParserEventType.TaggedUnion: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case bc.ParserEventType.WhiteSpace: {
+            case bc.BodyEventType.TaggedUnion: {
                 //const $ = data.type[1]
                 //place your code here
                 break
@@ -99,6 +107,9 @@ const parser = bc.createParser(
         return parserEventConsumer
     },
     err => { console.error("FOUND PARSER ERROR", err) },
+    () => {
+        return p.result(false)
+    }
 )
 
 const st = bc.createStreamPreTokenizer(

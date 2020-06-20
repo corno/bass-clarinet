@@ -492,11 +492,12 @@ a comment
     },
     "comment": {
         text: `//a comment
-( 
+(
     "y": /*should be a number*/ true
 )`,
         testHeaders: true,
         events: [
+            ["token", "linecomment", "a comment", undefined],
             ["instance data start", false],
             ["token", "openobject", "(", undefined],
             ["token", "quotedstring", "y", undefined],

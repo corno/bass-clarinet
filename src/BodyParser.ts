@@ -14,8 +14,8 @@ import {
 
 } from "./parserStateTypes"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "./location"
-import { BodyEvent, ParserEventType } from "./BodyEvent"
-import {Token, TokenType, SimpleValueData, PunctionationData } from "./Token"
+import { BodyEvent, BodyEventType } from "./BodyEvent"
+import { Token, TokenType, SimpleValueData, PunctionationData } from "./Token"
 import * as Char from "./Characters"
 import { ParserEventConsumer } from "./createParser"
 
@@ -114,28 +114,12 @@ export class BodyParser<ReturnType, ErrorType> {
     }
     public onData(data: Token, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
         switch (data.type[0]) {
-            case TokenType.BlockComment: {
+            case TokenType.Overhead: {
                 const $ = data.type[1]
 
                 return this.sendEvent({
                     range: data.range,
-                    type: [ParserEventType.BlockComment, $],
-                })
-            }
-            case TokenType.LineComment: {
-                const $ = data.type[1]
-
-                return this.sendEvent({
-                    range: data.range,
-                    type: [ParserEventType.LineComment, $],
-                })
-            }
-            case TokenType.NewLine: {
-                const $ = data.type[1]
-
-                return this.sendEvent({
-                    range: data.range,
-                    type: [ParserEventType.NewLine, $],
+                    type: [BodyEventType.Overhead, $],
                 })
             }
             case TokenType.Punctuation: {
@@ -148,15 +132,6 @@ export class BodyParser<ReturnType, ErrorType> {
 
                 return this.onSimpleValue(data.range, $, onStackEmpty)
             }
-            case TokenType.WhiteSpace: {
-                const $ = data.type[1]
-
-                return this.sendEvent({
-                    range: data.range,
-                    type: [ParserEventType.WhiteSpace, $],
-                })
-
-            }
             default:
                 return assertUnreachable(data.type[0])
         }
@@ -166,7 +141,7 @@ export class BodyParser<ReturnType, ErrorType> {
         const y = (data2: SimpleValueData) => {
             return this.sendEvent({
                 range: range,
-                type: [ParserEventType.SimpleValue, data2],
+                type: [BodyEventType.SimpleValue, data2],
             })
         }
 
@@ -234,7 +209,7 @@ export class BodyParser<ReturnType, ErrorType> {
                 //
                 return this.sendEvent({
                     range: range,
-                    type: [ParserEventType.Comma, {
+                    type: [BodyEventType.Comma, {
                     }],
                 })
             case Char.Punctuation.openAngleBracket:
@@ -249,7 +224,7 @@ export class BodyParser<ReturnType, ErrorType> {
                 //
                 return this.sendEvent({
                     range: range,
-                    type: [ParserEventType.Colon, {
+                    type: [BodyEventType.Colon, {
                     }],
                 })
             case Char.Punctuation.openBrace:
@@ -271,7 +246,7 @@ export class BodyParser<ReturnType, ErrorType> {
             this.pushContext({ range: range, type: [StackContextType2.TAGGED_UNION, taggedUnion] })
             return this.sendEvent({
                 range: range,
-                type: [ParserEventType.TaggedUnion, {
+                type: [BodyEventType.TaggedUnion, {
                 }],
             })
 
@@ -288,7 +263,7 @@ export class BodyParser<ReturnType, ErrorType> {
             this.pushContext({ range: range, type: [StackContextType2.OBJECT, obj] })
             return this.sendEvent({
                 range: range,
-                type: [ParserEventType.OpenObject, {
+                type: [BodyEventType.OpenObject, {
                     openCharacter: String.fromCharCode(curChar),
                 }],
             })
@@ -298,7 +273,7 @@ export class BodyParser<ReturnType, ErrorType> {
     private onObjectClose(curChar: number, range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
         return this.sendEvent({
             range: range,
-            type: [ParserEventType.CloseObject, {
+            type: [BodyEventType.CloseObject, {
                 closeCharacter: String.fromCharCode(curChar),
             }],
         }).mapResult(() => {
@@ -318,7 +293,7 @@ export class BodyParser<ReturnType, ErrorType> {
             this.pushContext({ range: range, type: [StackContextType2.ARRAY, { openChar: curChar }] })
             return this.sendEvent({
                 range: range,
-                type: [ParserEventType.OpenArray, {
+                type: [BodyEventType.OpenArray, {
                     openCharacter: String.fromCharCode(curChar),
                 }],
             })
@@ -329,7 +304,7 @@ export class BodyParser<ReturnType, ErrorType> {
 
         return this.sendEvent({
             range: range,
-            type: [ParserEventType.CloseArray, {
+            type: [BodyEventType.CloseArray, {
                 closeCharacter: String.fromCharCode(curChar),
             }],
         }).mapResult(() => {

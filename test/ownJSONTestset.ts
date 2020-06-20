@@ -1026,7 +1026,7 @@ export const JSONTests: TestDefinitions = {
     },
     "trailing whitespace": {
         text: '"foo" ',
-        formattedText: '"foo"',
+        formattedText: '"foo" ',
         testHeaders: true,
         events: [
             ["instance data start", false],

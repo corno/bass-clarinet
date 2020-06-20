@@ -31,6 +31,9 @@ const parser = bc.createParser(
         }
     },
     err => { console.error("FOUND PARSER ERROR", err) },
+    () => {
+        return p.result(false)
+    },
 )
 
 //let counter = 0

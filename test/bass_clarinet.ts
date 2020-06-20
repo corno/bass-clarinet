@@ -19,11 +19,11 @@ function assertUnreachable<RT>(_x: never): RT {
 
 const DEBUG = false
 
-const selectedJSONTests = Object.keys(JSONTests)
-const selectedExtensionTests = Object.keys(extensionTests)
+//const selectedJSONTests = Object.keys(JSONTests)
+//const selectedExtensionTests = Object.keys(extensionTests)
 
-// const selectedJSONTests: string[] = []
-// const selectedExtensionTests: string[] = []
+const selectedJSONTests: string[] = []
+const selectedExtensionTests: string[] = ["comment"]
 
 type OnError = (message: string, range: bc.Range) => void
 
@@ -46,6 +46,31 @@ class StrictJSONHeaderValidator implements HeaderSubscriber {
     }
 }
 
+function outputOverheadToken(out: string[], $: bc.OverheadToken) {
+    switch ($.type[0]) {
+        case bc.OverheadTokenType.BlockComment: {
+            const $$ = $.type[1]
+            out.push(`/*${$$.comment}*/`)
+            break
+        }
+        case bc.OverheadTokenType.LineComment: {
+            const $$ = $.type[1]
+            out.push(`//${$$.comment}`)
+            break
+        }
+        case bc.OverheadTokenType.NewLine: {
+            out.push("\n")
+            break
+        }
+        case bc.OverheadTokenType.WhiteSpace: {
+            const $$ = $.type[1]
+            out.push($$.value)
+            break
+        }
+        default:
+            assertUnreachable($.type[0])
+    }
+}
 
 class OutPutter implements bc.ParserEventConsumer<null, null> {
     readonly out: string[]
@@ -54,49 +79,40 @@ class OutPutter implements bc.ParserEventConsumer<null, null> {
     }
     onData(data: bc.BodyEvent) {
         switch (data.type[0]) {
-            case bc.ParserEventType.BlockComment: {
-                const $ = data.type[1]
-                this.out.push(`/*${$.comment}*/`)
-                break
-            }
-            case bc.ParserEventType.CloseArray: {
+            case bc.BodyEventType.CloseArray: {
                 const $ = data.type[1]
                 this.out.push($.closeCharacter)
                 break
             }
-            case bc.ParserEventType.CloseObject: {
+            case bc.BodyEventType.CloseObject: {
                 const $ = data.type[1]
                 this.out.push($.closeCharacter)
                 break
             }
-            case bc.ParserEventType.Colon: {
+            case bc.BodyEventType.Colon: {
                 this.out.push(":")
                 break
             }
-            case bc.ParserEventType.Comma: {
+            case bc.BodyEventType.Comma: {
                 this.out.push(",")
                 break
             }
-            case bc.ParserEventType.LineComment: {
-                const $ = data.type[1]
-                this.out.push(`//${$.comment}`)
-                break
-            }
-            case bc.ParserEventType.NewLine: {
-                this.out.push("\n")
-                break
-            }
-            case bc.ParserEventType.OpenArray: {
+            case bc.BodyEventType.OpenArray: {
                 const $ = data.type[1]
                 this.out.push($.openCharacter)
                 break
             }
-            case bc.ParserEventType.OpenObject: {
+            case bc.BodyEventType.OpenObject: {
                 const $ = data.type[1]
                 this.out.push($.openCharacter)
                 break
             }
-            case bc.ParserEventType.SimpleValue: {
+            case bc.BodyEventType.Overhead: {
+                const $ = data.type[1]
+                outputOverheadToken(this.out, $)
+                break
+            }
+            case bc.BodyEventType.SimpleValue: {
                 const $ = data.type[1]
                 if ($.quote !== null) {
 
@@ -110,13 +126,8 @@ class OutPutter implements bc.ParserEventConsumer<null, null> {
                 }
                 break
             }
-            case bc.ParserEventType.TaggedUnion: {
+            case bc.BodyEventType.TaggedUnion: {
                 this.out.push("|")
-                break
-            }
-            case bc.ParserEventType.WhiteSpace: {
-                const $ = data.type[1]
-                this.out.push($.value)
                 break
             }
             default:
@@ -226,57 +237,74 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 return p.success<null, null>(null)
             }
         )
+        function onOverheadTokenEvent($: bc.OverheadToken, range: bc.Range) {
+
+            switch ($.type[0]) {
+                case bc.OverheadTokenType.BlockComment: {
+                    const $$ = $.type[1]
+                    if (DEBUG) console.log("found block comment")
+                    actualEvents.push(["token", "blockcomment", $$.comment, getRange(test.testForLocation, range)])
+                    break
+                }
+                case bc.OverheadTokenType.LineComment: {
+                    const $$ = $.type[1]
+                    if (DEBUG) console.log("found line comment")
+                    actualEvents.push(["token", "linecomment", $$.comment, getRange(test.testForLocation, range)])
+                    break
+                }
+                case bc.OverheadTokenType.NewLine: {
+                    //const $ = data.type[1]
+                    //place your code here
+                    break
+                }
+                case bc.OverheadTokenType.WhiteSpace: {
+                    //const $ = data.type[1]
+                    //place your code here
+                    break
+                }
+                default:
+                    assertUnreachable($.type[0])
+            }
+        }
         const eventSubscriber: bc.ParserEventConsumer<null, null> = {
             onData: data => {
                 switch (data.type[0]) {
-                    case bc.ParserEventType.BlockComment: {
-                        const $ = data.type[1]
-                        if (DEBUG) console.log("found block comment")
-                        actualEvents.push(["token", "blockcomment", $.comment, getRange(test.testForLocation, data.range)])
-                        break
-                    }
-                    case bc.ParserEventType.CloseArray: {
+                    case bc.BodyEventType.CloseArray: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found close array")
                         actualEvents.push(["token", "closearray", $.closeCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case bc.ParserEventType.CloseObject: {
+                    case bc.BodyEventType.CloseObject: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found close object")
                         actualEvents.push(["token", "closeobject", $.closeCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case bc.ParserEventType.Colon: {
+                    case bc.BodyEventType.Colon: {
                         break
                     }
-                    case bc.ParserEventType.Comma: {
+                    case bc.BodyEventType.Comma: {
                         break
                     }
-                    case bc.ParserEventType.LineComment: {
-                        const $ = data.type[1]
-                        if (DEBUG) console.log("found line comment")
-                        actualEvents.push(["token", "linecomment", $.comment, getRange(test.testForLocation, data.range)])
-                        break
-                    }
-                    case bc.ParserEventType.NewLine: {
-                        //const $ = data.type[1]
-                        //place your code here
-                        break
-                    }
-                    case bc.ParserEventType.OpenArray: {
+                    case bc.BodyEventType.OpenArray: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found open array")
                         actualEvents.push(["token", "openarray", $.openCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case bc.ParserEventType.OpenObject: {
+                    case bc.BodyEventType.OpenObject: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found open object")
                         actualEvents.push(["token", "openobject", $.openCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case bc.ParserEventType.SimpleValue: {
+                    case bc.BodyEventType.Overhead: {
+                        const $ = data.type[1]
+                        onOverheadTokenEvent($, data.range)
+                        break
+                    }
+                    case bc.BodyEventType.SimpleValue: {
                         const $ = data.type[1]
                         if ($.quote === null) {
                             if (DEBUG) console.log("found unquoted token")
@@ -287,16 +315,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         }
                         break
                     }
-                    case bc.ParserEventType.TaggedUnion: {
+                    case bc.BodyEventType.TaggedUnion: {
                         //const $ = data.type[1]
 
                         if (DEBUG) console.log("found open tagged union")
                         actualEvents.push(["token", "opentaggedunion", getRange(test.testForLocation, data.range)])
-                        break
-                    }
-                    case bc.ParserEventType.WhiteSpace: {
-                        //const $ = data.type[1]
-                        //place your code here
                         break
                     }
                     default:
@@ -314,8 +337,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         let formattedText = test.text
         let offset = 0
 
-        function createFormatter(trimTrailingWhitespace: boolean) {
+        function createFormatter() {
             return bc.createFormatter(
+                "    ",
                 (range, newValue) => {
                     formattedText =
                         formattedText.substr(0, offset + range.start.position) +
@@ -344,20 +368,19 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     return p.result(null)
 
                 },
-                trimTrailingWhitespace,
             )
         }
         const out: string[] = []
         const schemaDataSubscribers: bc.ParserEventConsumer<null, null>[] = [
             new OutPutter(out),
             eventSubscriber,
-            createFormatter(false),
+            createFormatter(),
         ]
         const instanceDataSubscribers: bc.ParserEventConsumer<null, null>[] = [
             new OutPutter(out),
             eventSubscriber,
             stackedSubscriber,
-            createFormatter(true),
+            createFormatter(),
         ]
         const headerSubscribers: HeaderSubscriber[] = [
             {
@@ -413,6 +436,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 if (DEBUG) console.log("found error")
                 actualEvents.push(["parsererror", message])
             },
+            (token, range) => {
+                outputOverheadToken(out, token)
+                onOverheadTokenEvent(token, range)
+                return p.result(false)
+            },
         )
 
         const st = bc.createStreamPreTokenizer(
@@ -435,26 +463,21 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             const expectedFormattedText = test.formattedText ? test.formattedText : test.text
 
             if (!test.skipRoundTripCheck) {
-                chai.assert.equal(out.join(""), chunks.join("")
+                chai.assert.equal("roundtrip:\n" + out.join(""), "roundtrip:\n" + chunks.join("")
                     .replace(/\r\n/g, "\n")
                     .replace(/\n\r/g, "\n")
                     .replace(/\r/g, "\n")
                 )
             }
             chai.assert.equal(
-                formattedText
+                "formatted:\n" + formattedText
                     .replace(/\r\n/g, "\n")
                     .replace(/\n\r/g, "\n")
                     .replace(/\r/g, "\n"),
-                expectedFormattedText
+                "formatted:\n" + expectedFormattedText
             )
         })
     }
-}
-
-type Offset = {
-    position: number
-    offset: number
 }
 
 describe('bass-clarinet', () => {

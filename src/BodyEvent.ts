@@ -1,19 +1,16 @@
 import { Range } from "./location"
-import { CommentData, SimpleValueData, WhiteSpaceData } from "./Token"
+import { SimpleValueData, OverheadToken } from "./Token"
 
-export enum ParserEventType {
-    BlockComment,
+export enum BodyEventType {
     CloseArray,
     CloseObject,
     Colon,
     Comma,
-    LineComment,
-    NewLine,
     OpenArray,
     OpenObject,
+    Overhead,
     SimpleValue,
     TaggedUnion,
-    WhiteSpace
 }
 
 export type OpenData = {
@@ -27,24 +24,19 @@ export type CloseData = {
 export type BodyEvent = {
     range: Range
     type:
-    | [ParserEventType.BlockComment, CommentData]
-    | [ParserEventType.CloseArray, CloseData]
-    | [ParserEventType.CloseObject, CloseData]
-    | [ParserEventType.Colon, {
+    | [BodyEventType.CloseArray, CloseData]
+    | [BodyEventType.CloseObject, CloseData]
+    | [BodyEventType.Colon, {
         //
     }]
-    | [ParserEventType.Comma, {
+    | [BodyEventType.Comma, {
         //
     }]
-    | [ParserEventType.LineComment, CommentData]
-    | [ParserEventType.NewLine, {
+    | [BodyEventType.OpenArray, OpenData]
+    | [BodyEventType.OpenObject, OpenData]
+    | [BodyEventType.Overhead, OverheadToken]
+    | [BodyEventType.SimpleValue, SimpleValueData]
+    | [BodyEventType.TaggedUnion, {
         //
     }]
-    | [ParserEventType.OpenArray, OpenData]
-    | [ParserEventType.OpenObject, OpenData]
-    | [ParserEventType.SimpleValue, SimpleValueData]
-    | [ParserEventType.TaggedUnion, {
-        //
-    }]
-    | [ParserEventType.WhiteSpace, WhiteSpaceData]
 }

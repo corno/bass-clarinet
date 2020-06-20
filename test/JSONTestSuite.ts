@@ -3,6 +3,7 @@ import { describe } from "mocha"
 import assert from "assert"
 import * as path from "path"
 import * as p20 from "pareto-20"
+import * as p from "pareto"
 import * as bc from "../src"
 import { dummyParserEventConsumer } from "./dummyConsumers"
 
@@ -36,6 +37,9 @@ describe('parsing', () => {
                             () => {
                                 foundError = true
                             },
+                            () => {
+                                return p.result(false)
+                            },
                         )
                         tokenizeStrings(
                             [data],
@@ -60,6 +64,9 @@ describe('parsing', () => {
                             () => {
                                 foundError = true
                             },
+                            () => {
+                                return p.result(false)
+                            },
                         )
                         tokenizeStrings(
                             [data],
@@ -82,6 +89,9 @@ describe('parsing', () => {
                             () => dummyParserEventConsumer,
                             () => {
                                 //do nothing with error
+                            },
+                            () => {
+                                return p.result(false)
                             },
                         )
                         tokenizeStrings(
@@ -113,6 +123,9 @@ describe('transform', () => {
                     () => dummyParserEventConsumer,
                     () => {
                         //do nothing with error
+                    },
+                    () => {
+                        return p.result(false)
                     },
                 )
                 tokenizeStrings(

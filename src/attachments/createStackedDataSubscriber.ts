@@ -5,7 +5,7 @@
     max-classes-per-file: off,
 */
 import * as p from "pareto"
-import { ParserEventType, BodyEvent } from "../BodyEvent"
+import { BodyEventType, BodyEvent } from "../BodyEvent"
 import { Location, Range, createRangeFromSingleLocation } from "../location"
 import { createDummyValueHandler as createDummyOnValue } from "./dummyHandlers"
 import {
@@ -20,6 +20,7 @@ import {
 } from "./handlers"
 import { RangeError } from "../errors"
 import { ParserEventConsumer } from "../createParser"
+import { OverheadTokenType } from "../Token"
 
 const DEBUG = false
 
@@ -163,19 +164,7 @@ function processParserEvent(
 ): ProcessResult {
 
     switch (data.type[0]) {
-        case ParserEventType.BlockComment: {
-            const $ = data.type[1]
-            return ["comment", {
-                comment: {
-                    text: $.comment,
-                    type: "block",
-                    indent: null, //FIX get the right indent info
-                    outerRange: data.range,
-                    innerRange: $.innerRange,
-                },
-            }]
-        }
-        case ParserEventType.CloseArray: {
+        case BodyEventType.CloseArray: {
             const $ = data.type[1]
             return ["event", contextData => {
                 unwindLoop: while (true) {
@@ -231,7 +220,7 @@ function processParserEvent(
                 }
             }]
         }
-        case ParserEventType.CloseObject: {
+        case BodyEventType.CloseObject: {
             const $ = data.type[1]
             return ["event", contextData => {
                 unwindLoop: while (true) {
@@ -290,28 +279,13 @@ function processParserEvent(
 
             }]
         }
-        case ParserEventType.Colon: {
+        case BodyEventType.Colon: {
             return ["other"]
         }
-        case ParserEventType.Comma: {
+        case BodyEventType.Comma: {
             return ["other"]
         }
-        case ParserEventType.LineComment: {
-            const $ = data.type[1]
-            return ["comment", {
-                comment: {
-                    text: $.comment,
-                    type: "line",
-                    indent: null,
-                    outerRange: data.range,
-                    innerRange: $.innerRange,
-                },
-            }]
-        }
-        case ParserEventType.NewLine: {
-            return ["newline"]
-        }
-        case ParserEventType.OpenArray: {
+        case BodyEventType.OpenArray: {
             const $ = data.type[1]
             return ["event", contextData => {
                 const arrayHandler = state.initValueHandler()(contextData).array(data.range, $)
@@ -319,7 +293,7 @@ function processParserEvent(
                 return p.result(false)
             }]
         }
-        case ParserEventType.OpenObject: {
+        case BodyEventType.OpenObject: {
             const $ = data.type[1]
             return ["event", contextData => {
                 const vh = state.initValueHandler()(contextData)
@@ -335,7 +309,47 @@ function processParserEvent(
                 return p.result(false)
             }]
         }
-        case ParserEventType.SimpleValue: {
+        case BodyEventType.Overhead: {
+            const $ = data.type[1]
+            switch ($.type[0]) {
+                case OverheadTokenType.BlockComment: {
+                    const $$ = $.type[1]
+                    return ["comment", {
+                        comment: {
+                            text: $$.comment,
+                            type: "block",
+                            indent: null, //FIX get the right indent info
+                            outerRange: data.range,
+                            innerRange: $$.innerRange,
+                        },
+                    }]
+                }
+                case OverheadTokenType.LineComment: {
+                    const $$ = $.type[1]
+                    return ["comment", {
+                        comment: {
+                            text: $$.comment,
+                            type: "line",
+                            indent: null,
+                            outerRange: data.range,
+                            innerRange: $$.innerRange,
+                        },
+                    }]
+                }
+                case OverheadTokenType.NewLine: {
+                    return ["newline"]
+                }
+                case OverheadTokenType.WhiteSpace: {
+                    const $$ = $.type[1]
+                    return ["whitespace", {
+                        value: $$.value,
+                    }]
+                }
+                default:
+                    return assertUnreachable($.type[0])
+            }
+        }
+        case BodyEventType.SimpleValue: {
             const $ = data.type[1]
             return ["event", contextData => {
 
@@ -406,7 +420,7 @@ function processParserEvent(
                 }
             }]
         }
-        case ParserEventType.TaggedUnion: {
+        case BodyEventType.TaggedUnion: {
             if (DEBUG) { console.log("on open tagged union") }
             return ["event", contextData => {
                 state.push(["taggedunion", {
@@ -417,12 +431,6 @@ function processParserEvent(
                     }],
                 }])
                 return p.result(false)
-            }]
-        }
-        case ParserEventType.WhiteSpace: {
-            const $ = data.type[1]
-            return ["whitespace", {
-                value: $.value,
             }]
         }
         default:
@@ -493,14 +501,12 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
             switch (processedParserEvent[0]) {
                 case "comment": {
                     const $ = processedParserEvent[1]
-
+                    whiteSpaceState.lineIsDirty = true
                     if ($.comment.type === "line" && generateQueuedEvent !== null) {
-                        whiteSpaceState.lineIsDirty = true
                         const res = flush(generateQueuedEvent, $.comment, () => p.result(false))
                         generateQueuedEvent = null
                         return res
                     } else {
-                        whiteSpaceState.lineIsDirty = true
                         whiteSpaceState.comments.push($.comment)
                         return p.result(false)
                     }

@@ -20,24 +20,33 @@ export type PunctionationData = {
     char: number
 }
 
-export enum TokenType {
+export enum OverheadTokenType {
     BlockComment,
     LineComment,
     NewLine,
+    WhiteSpace
+}
+
+export enum TokenType {
+    Overhead,
     Punctuation,
     SimpleValue,
-    WhiteSpace
+}
+
+export type OverheadToken = {
+    type:
+    | [OverheadTokenType.BlockComment, CommentData]
+    | [OverheadTokenType.LineComment, CommentData]
+    | [OverheadTokenType.NewLine, {
+        //
+    }]
+    | [OverheadTokenType.WhiteSpace, WhiteSpaceData]
 }
 
 export type Token = {
     range: Range
     type:
-    | [TokenType.BlockComment, CommentData]
-    | [TokenType.LineComment, CommentData]
-    | [TokenType.NewLine, {
-        //
-    }]
+    | [TokenType.Overhead, OverheadToken]
     | [TokenType.Punctuation, PunctionationData]
     | [TokenType.SimpleValue, SimpleValueData]
-    | [TokenType.WhiteSpace, WhiteSpaceData]
 }

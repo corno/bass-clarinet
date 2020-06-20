@@ -2,6 +2,7 @@
     no-console:"off",
 */
 import * as p20 from "pareto-20"
+import * as p from "pareto"
 import { JSONTests } from "./ownJSONTestset"
 import { createAnnotator } from "../examples/annotater"
 import * as bc from "../src"
@@ -19,6 +20,9 @@ Object.keys(JSONTests).forEach(testName => {
             return annotater
         },
         err => console.error(err),
+        () => {
+            return p.result(false)
+        },
 
     )
     createAnnotator("", str => console.log(str))

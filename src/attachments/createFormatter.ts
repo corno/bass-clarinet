@@ -3,8 +3,9 @@
 */
 import * as p from "pareto"
 import { Range, Location } from "../location"
-import { ParserEventType } from "../BodyEvent"
+import { BodyEventType } from "../BodyEvent"
 import { ParserEventConsumer } from "../createParser"
+import { OverheadTokenType } from "../Token"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")
@@ -28,9 +29,11 @@ enum PrecedingTokenType {
 	option,
 	nothing,
 	other,
+	inlineBlockComment,
 }
 
 type PrecedingToken =
+	| [PrecedingTokenType.inlineBlockComment]
 	| [PrecedingTokenType.newLine, {
 		token: TokenInfo
 		precededByLineComment: boolean
@@ -43,6 +46,7 @@ type PrecedingToken =
 
 
 export function createFormatter(
+	indentation: string,
 	replace: (
 		range: Range,
 		newValue: string,
@@ -55,7 +59,6 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onEnd: () => p.IValue<null>,
-	trimTrailingWhitespace: boolean,
 ): ParserEventConsumer<null, null> {
 	let precedingWhitespace: null | TokenInfo = null
 
@@ -67,6 +70,7 @@ export function createFormatter(
 
 	function push() {
 		stack.push(currentRequiredStyle === null ? Style.inline : currentRequiredStyle)
+
 		currentRequiredStyle = null
 	}
 
@@ -87,7 +91,7 @@ export function createFormatter(
 	function createExpectedIndentation() {
 		let expectedIndentation = ""
 		for (let i = 0; i !== indentLevel; i += 1) {
-			expectedIndentation += "    "
+			expectedIndentation += indentation
 		}
 		return expectedIndentation
 	}
@@ -101,6 +105,10 @@ export function createFormatter(
 	) {
 		switch (precedingToken[0]) {
 			case PrecedingTokenType.colon: {
+				ensureSpaceBefore(location)
+				break
+			}
+			case PrecedingTokenType.inlineBlockComment: {
 				ensureSpaceBefore(location)
 				break
 			}
@@ -148,6 +156,10 @@ export function createFormatter(
 				ensureSpaceBefore(location)
 				break
 			}
+			case PrecedingTokenType.inlineBlockComment: {
+				ensureSpaceBefore(location)
+				break
+			}
 			case PrecedingTokenType.option: {
 				ensureSpaceBefore(location)
 				break
@@ -157,25 +169,23 @@ export function createFormatter(
 			}
 			case PrecedingTokenType.other: {
 				if (currentRequiredStyle === null) {
-					ensureSpaceBefore(location)
 					currentRequiredStyle = Style.inline
-				} else {
-					switch (currentRequiredStyle) {
-						case Style.block: {
-							insert(precedingWhitespace ? precedingWhitespace.range.start : location, "\n")
-							ensureIndentation(location)
-							break
-						}
-						case Style.inline: {
-							ensureSpaceBefore(location)
-							break
-						}
-						case Style.root: {
-							break
-						}
-						default:
-							assertUnreachable(currentRequiredStyle)
+				}
+				switch (currentRequiredStyle) {
+					case Style.block: {
+						insert(precedingWhitespace ? precedingWhitespace.range.start : location, "\n")
+						ensureIndentation(location)
+						break
 					}
+					case Style.inline: {
+						ensureSpaceBefore(location)
+						break
+					}
+					case Style.root: {
+						break
+					}
+					default:
+						assertUnreachable(currentRequiredStyle)
 				}
 				break
 			}
@@ -184,29 +194,27 @@ export function createFormatter(
 					ensureIndentation(location)
 				} else {
 					if (currentRequiredStyle === null) {
-						ensureSpaceBefore(location)
 						currentRequiredStyle = Style.inline
-					} else {
-						switch (currentRequiredStyle) {
-							case Style.block: {
-								ensureIndentation(location)
-								break
-							}
-							case Style.inline: {
-								if (precedingToken[1].precededByLineComment) {
-									ensureIndentation(location)
-								} else {
-									del(precedingToken[1].token.range)
-									ensureSpaceBefore(location)
-								}
-								break
-							}
-							case Style.root: {
-								break
-							}
-							default:
-								assertUnreachable(currentRequiredStyle)
+					}
+					switch (currentRequiredStyle) {
+						case Style.block: {
+							ensureIndentation(location)
+							break
 						}
+						case Style.inline: {
+							if (precedingToken[1].precededByLineComment) {
+								ensureIndentation(location)
+							} else {
+								del(precedingToken[1].token.range)
+								ensureSpaceBefore(location)
+							}
+							break
+						}
+						case Style.root: {
+							break
+						}
+						default:
+							assertUnreachable(currentRequiredStyle)
 					}
 				}
 				break
@@ -237,116 +245,146 @@ export function createFormatter(
 
 		onData: data => {
 			switch (data.type[0]) {
-				case ParserEventType.BlockComment: {
-					const $ = data.type[1]
-					comment(data.range.start)
-					const ei = createExpectedIndentation()
-					const splitted = $.comment.split("\n")
-					const properlyIndentedBlockComment = splitted.map((line, index) => {
-						if ($.indentation !== null) {
-							if (line.startsWith($.indentation)) {
-								line = line.substr($.indentation.length)
-							}
-						}
-						if (index === splitted.length - 1) {
-							//last line, always indent
-							return ei + line.trimRight()
-						}
-						//not the last line. Only indent if it has content.
-						return (ei + line).trimRight()
-					}).join("\n")
-					replace($.innerRange, properlyIndentedBlockComment)
-					precedingToken = [PrecedingTokenType.other]
-					break
-				}
-				case ParserEventType.CloseArray: {
+				case BodyEventType.CloseArray: {
 					closeToken(data.range.start)
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case ParserEventType.CloseObject: {
+				case BodyEventType.CloseObject: {
 					closeToken(data.range.start)
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case ParserEventType.Colon: {
+				case BodyEventType.Colon: {
 					punctuation()
 					precedingToken = [PrecedingTokenType.colon]
 					break
 				}
-				case ParserEventType.Comma: {
+				case BodyEventType.Comma: {
 					punctuation()
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case ParserEventType.LineComment: {
-					comment(data.range.start)
-					precededByLineComment = true
+				case BodyEventType.OpenArray: {
+					semanticToken(data.range.start)
+					push()
+					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case ParserEventType.NewLine: {
-					//const $ = data[1]
-					if (precedingWhitespace !== null) {
-						del(precedingWhitespace.range)
-					}
-					precedingWhitespace = null
-					function startBlock() {
-						if (currentRequiredStyle === null) {
-							currentRequiredStyle = Style.block
-							indentLevel += 1
-						}
-					}
-					switch (precedingToken[0]) {
-						case PrecedingTokenType.colon: {
-							del(data.range)
-							break
-						}
-						case PrecedingTokenType.newLine: {
+				case BodyEventType.OpenObject: {
+					semanticToken(data.range.start)
+					push()
+					precedingToken = [PrecedingTokenType.other]
+					break
+				}
+				case BodyEventType.Overhead: {
+					const $ = data.type[1]
+					switch ($.type[0]) {
+						case OverheadTokenType.BlockComment: {
+							const $$ = $.type[1]
+							comment(data.range.start)
+							{
+								const ei = createExpectedIndentation()
+								const splitted = $$.comment.split("\n")
+								const properlyIndentedBlockComment = splitted.map((line, index) => {
+									if ($$.indentation !== null) {
+										if (line.startsWith($$.indentation)) {
+											line = line.substr($$.indentation.length)
+										}
+									}
+									if (index === 0) {
+										//the first line, never indent
+										return line.trimRight()
+									}
+									if (index === splitted.length - 1) {
+										//last line, always indent
+										return ei + line.trimRight()
+									}
+									//not the last line. Only indent if it has content.
+									return (ei + line).trimRight()
+								}).join("\n")
+								replace($$.innerRange, properlyIndentedBlockComment)
+							}
+							precedingToken = (precedingToken[0] === PrecedingTokenType.newLine)
+								? [PrecedingTokenType.other]
+								: [PrecedingTokenType.inlineBlockComment]
 
-							del(data.range)
 							break
 						}
-						case PrecedingTokenType.nothing: {
+						case OverheadTokenType.LineComment: {
+							comment(data.range.start)
+							precededByLineComment = true
 							break
 						}
-						case PrecedingTokenType.other: {
-							startBlock()
+						case OverheadTokenType.NewLine: {
+							//const $ = data[1]
+							if (precedingWhitespace !== null) {
+								console.log("HIER?", precedingWhitespace.range)
+								del(precedingWhitespace.range)
+								precedingWhitespace = null
+							}
+							function startBlock() {
+								if (currentRequiredStyle === null) {
+									currentRequiredStyle = Style.block
+									indentLevel += 1
+								}
+							}
+							switch (precedingToken[0]) {
+								case PrecedingTokenType.colon: {
+									del(data.range)
+									break
+								}
+								case PrecedingTokenType.inlineBlockComment: {
+									del(data.range)
+									break
+								}
+								case PrecedingTokenType.newLine: {
+
+									del(data.range)
+									break
+								}
+								case PrecedingTokenType.nothing: {
+									break
+								}
+								case PrecedingTokenType.other: {
+									startBlock()
+									break
+								}
+								case PrecedingTokenType.option: {
+									startBlock()
+									break
+								}
+								case PrecedingTokenType.pipe: {
+									startBlock()
+									break
+								}
+								default:
+									assertUnreachable(precedingToken[0])
+							}
+							precedingToken = [PrecedingTokenType.newLine, {
+								token: {
+									value: "\n",
+									range: data.range,
+								},
+								precededByLineComment: precededByLineComment,
+							}]
+							precededByLineComment = false
 							break
 						}
-						case PrecedingTokenType.option: {
-							startBlock()
-							break
-						}
-						case PrecedingTokenType.pipe: {
-							startBlock()
+						case OverheadTokenType.WhiteSpace: {
+							const $$ = $.type[1]
+							precedingWhitespace = {
+								range: data.range,
+								value: $$.value,
+							}
 							break
 						}
 						default:
-							assertUnreachable(precedingToken[0])
+							assertUnreachable($.type[0])
 					}
-					precedingToken = [PrecedingTokenType.newLine, {
-						token: {
-							value: "\n",
-							range: data.range,
-						},
-						precededByLineComment: precededByLineComment,
-					}]
-					precededByLineComment = false
 					break
 				}
-				case ParserEventType.OpenArray: {
-					semanticToken(data.range.start)
-					push()
-					precedingToken = [PrecedingTokenType.other]
-					break
-				}
-				case ParserEventType.OpenObject: {
-					semanticToken(data.range.start)
-					push()
-					precedingToken = [PrecedingTokenType.other]
-					break
-				}
-				case ParserEventType.SimpleValue: {
+				case BodyEventType.SimpleValue: {
 					semanticToken(data.range.start)
 					if (precedingToken[0] === PrecedingTokenType.pipe) {
 						precedingToken = [PrecedingTokenType.option]
@@ -355,17 +393,9 @@ export function createFormatter(
 					}
 					break
 				}
-				case ParserEventType.TaggedUnion: {
+				case BodyEventType.TaggedUnion: {
 					semanticToken(data.range.start)
 					precedingToken = [PrecedingTokenType.pipe]
-					break
-				}
-				case ParserEventType.WhiteSpace: {
-					const $ = data.type[1]
-					precedingWhitespace = {
-						range: data.range,
-						value: $.value,
-					}
 					break
 				}
 				default:
@@ -375,7 +405,7 @@ export function createFormatter(
 		},
 		onEnd: () => {
 
-			if (precedingWhitespace !== null && trimTrailingWhitespace) {
+			if (precedingWhitespace !== null) {
 				del(precedingWhitespace.range)
 			}
 			return onEnd().try(() => {

@@ -4,11 +4,12 @@
     max-classes-per-file: "off",
 */
 import * as p from "pareto"
-import { ParserEventType, BodyEvent } from "../BodyEvent"
+import { BodyEventType, BodyEvent } from "../BodyEvent"
 import { ParserEventConsumer } from "../createParser"
 import { Range } from "../location"
 import * as Char from "./NumberCharacters"
 import { RangeError } from "../errors"
+import { OverheadTokenType } from "../Token"
 
 type OnError = (message: string, range: Range) => void
 
@@ -121,11 +122,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
 
     public onData(data: BodyEvent) {
         switch (data.type[0]) {
-            case ParserEventType.BlockComment: {
-                this.onError("block comments are not allowed in strict JSON", data.range)
-                break
-            }
-            case ParserEventType.CloseArray: {
+            case BodyEventType.CloseArray: {
                 const $ = data.type[1]
                 if ($.closeCharacter !== "]") {
                     this.onError("arrays should end with ']' in strict JSON", data.range)
@@ -141,7 +138,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 this.wrapupValue(data.range)
                 break
             }
-            case ParserEventType.CloseObject: {
+            case BodyEventType.CloseObject: {
                 const $ = data.type[1]
                 if ($.closeCharacter !== "}") {
                     this.onError("objects should end with '}' in strict JSON", data.range)
@@ -157,7 +154,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 this.wrapupValue(data.range)
                 break
             }
-            case ParserEventType.Colon: {
+            case BodyEventType.Colon: {
                 if (this.currentContext[0] !== "object") {
                     this.onError(`colon can only be used in objects`, data.range)
                 } else {
@@ -168,7 +165,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 }
                 break
             }
-            case ParserEventType.Comma: {
+            case BodyEventType.Comma: {
                 switch (this.currentContext[0]) {
                     case "array": {
                         const $$ = this.currentContext[1]
@@ -201,16 +198,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 }
                 break
             }
-            case ParserEventType.LineComment: {
-                this.onError("line comments are not allowed in strict JSON", data.range)
-                break
-            }
-            case ParserEventType.NewLine: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case ParserEventType.OpenArray: {
+            case BodyEventType.OpenArray: {
                 const $ = data.type[1]
                 if ($.openCharacter !== "[") {
                     this.onError("arrays should start with '[' in strict JSON", data.range)
@@ -219,7 +207,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 this.push(["array", { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
                 break
             }
-            case ParserEventType.OpenObject: {
+            case BodyEventType.OpenObject: {
                 const $ = data.type[1]
                 if ($.openCharacter !== "{") {
                     this.onError("objects should start with '{' in strict JSON", data.range)
@@ -229,7 +217,34 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
 
                 break
             }
-            case ParserEventType.SimpleValue: {
+            case BodyEventType.Overhead: {
+                const $ = data.type[1]
+                switch ($.type[0]) {
+                    case OverheadTokenType.BlockComment: {
+                        this.onError("block comments are not allowed in strict JSON", data.range)
+                        break
+                    }
+                    case OverheadTokenType.LineComment: {
+                        this.onError("line comments are not allowed in strict JSON", data.range)
+                        break
+                    }
+                    case OverheadTokenType.NewLine: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    case OverheadTokenType.WhiteSpace: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    default:
+                        assertUnreachable($.type[0])
+                }
+
+                break
+            }
+            case BodyEventType.SimpleValue: {
                 const $ = data.type[1]
                 if ($.quote !== null) {
                     //a string
@@ -324,14 +339,9 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 }
                 break
             }
-            case ParserEventType.TaggedUnion: {
+            case BodyEventType.TaggedUnion: {
                 this.onError("tagged unions are not allowed in strict JSON", data.range)
                 this.push(["taggedunion", { state: TaggedUnionState.EXPECTING_OPTION }])
-                break
-            }
-            case ParserEventType.WhiteSpace: {
-                //const $ = data.type[1]
-                //place your code here
                 break
             }
             default:

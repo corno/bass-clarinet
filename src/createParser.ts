@@ -8,10 +8,10 @@ import {
     RootState,
 } from "./parserStateTypes"
 import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "./location"
-import { BodyEvent, ParserEventType } from "./BodyEvent"
+import { BodyEvent, BodyEventType } from "./BodyEvent"
 import * as Char from "./Characters"
 import { BodyParser } from "./BodyParser"
-import { TokenType, Token, PunctionationData, SimpleValueData } from "./Token"
+import { TokenType, Token, PunctionationData, SimpleValueData, OverheadToken } from "./Token"
 import { Tokenizer } from "./Tokenizer"
 import { PreToken } from "./PreToken"
 
@@ -49,15 +49,17 @@ export class Parser<ReturnType, ErrorType> {
     private readonly onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>
     private readonly onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>
     private readonly onerror: (message: string, range: Range) => void
-
+    private readonly onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>
     constructor(
         onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
         onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
         onerror: (message: string, range: Range) => void,
+        onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
     ) {
         this.onSchemaDataStart = onSchemaDataStart
         this.onInstanceDataStart = onInstanceDataStart
         this.onerror = onerror
+        this.onHeaderOverheadToken = onHeaderOverheadToken
     }
     public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
 
@@ -123,17 +125,9 @@ export class Parser<ReturnType, ErrorType> {
         onSimpleValue: (simpleValueData: SimpleValueData) => p.IValue<boolean>,
     ): p.IValue<boolean> {
         switch (data.type[0]) {
-            case TokenType.BlockComment: {
-                console.error("dropping block comment")
-                return p.result(false)
-            }
-            case TokenType.LineComment: {
-                console.error("dropping line comment")
-                return p.result(false)
-            }
-            case TokenType.NewLine: {
-                console.error("dropping newline")
-                return p.result(false)
+            case TokenType.Overhead: {
+                const $ = data.type[1]
+                return this.onHeaderOverheadToken($, data.range)
             }
             case TokenType.Punctuation: {
                 const $ = data.type[1]
@@ -142,10 +136,6 @@ export class Parser<ReturnType, ErrorType> {
             case TokenType.SimpleValue: {
                 const $ = data.type[1]
                 return onSimpleValue($)
-            }
-            case TokenType.WhiteSpace: {
-                console.error("dropping whitespace")
-                return p.result(false)
             }
             default:
                 return assertUnreachable(data.type[0])
@@ -203,7 +193,7 @@ export class Parser<ReturnType, ErrorType> {
                         const consumer = this.onSchemaDataStart(data.range)
                         return consumer.onData({
                             range: data.range,
-                            type: [ParserEventType.SimpleValue, simpleValue],
+                            type: [BodyEventType.SimpleValue, simpleValue],
                         }).mapResult(() => {
 
                             this.rootContext.state = [RootState.EXPECTING_HASH_OR_INSTANCE_DATA, {
@@ -312,7 +302,7 @@ export class Parser<ReturnType, ErrorType> {
         const consumer = this.onInstanceDataStart(null, range.start)
         return consumer.onData({
             range: range,
-            type: [ParserEventType.SimpleValue, simpleValue],
+            type: [BodyEventType.SimpleValue, simpleValue],
         }).mapResult(() => {
             this.rootContext.state = [RootState.EXPECTING_END, {
                 result: consumer.onEnd(false, getEndLocationFromRange(range)),
@@ -334,8 +324,9 @@ class StreamParser<ReturnType, ErrorType> implements ITokenStreamConsumer<Return
         onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
         onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
         onerror: (message: string, range: Range) => void,
+        onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
     ) {
-        this.tokenizer = new Tokenizer(new Parser(onSchemaDataStart, onInstanceDataStart, onerror))
+        this.tokenizer = new Tokenizer(new Parser(onSchemaDataStart, onInstanceDataStart, onerror, onHeaderOverheadToken))
     }
     public onData(data: PreToken): p.IValue<boolean> {
         return this.tokenizer.onData(data)
@@ -349,7 +340,8 @@ export function createParser<ReturnType, ErrorType>(
     onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
     onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
     onerror: (message: string, range: Range) => void,
+    onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
 ): ITokenStreamConsumer<ReturnType, ErrorType> {
-    const p = new StreamParser(onSchemaDataStart, onInstanceDataStart, onerror)
+    const p = new StreamParser(onSchemaDataStart, onInstanceDataStart, onerror, onHeaderOverheadToken)
     return p
 }

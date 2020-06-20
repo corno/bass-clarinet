@@ -10,7 +10,7 @@ import { Chunk, PreTokenizer, TokenizerOptions, LocationState } from "./PreToken
 
 const DEBUG = false
 
-class StreamTokenizer<ReturnType, ErrorType> implements p.IStreamConsumer<string, null, ReturnType, ErrorType> {
+class StreamPreTokenizer<ReturnType, ErrorType> implements p.IStreamConsumer<string, null, ReturnType, ErrorType> {
 
     private readonly tokenizerState: PreTokenizer
     private readonly locationState: LocationState
@@ -81,5 +81,5 @@ export function createStreamPreTokenizer<ReturnType, ErrorType>(
     onerror: (message: string, range: Range) => void,
     opt?: TokenizerOptions
 ): p.IStreamConsumer<string, null, ReturnType, ErrorType> {
-    return new StreamTokenizer(tokenStreamConsumer, onerror, opt)
+    return new StreamPreTokenizer(tokenStreamConsumer, onerror, opt)
 }
