@@ -19,11 +19,11 @@ function assertUnreachable<RT>(_x: never): RT {
 
 const DEBUG = false
 
-//const selectedJSONTests = Object.keys(JSONTests)
-//const selectedExtensionTests = Object.keys(extensionTests)
+const selectedJSONTests = Object.keys(JSONTests)
+const selectedExtensionTests = Object.keys(extensionTests)
 
-const selectedJSONTests: string[] = []
-const selectedExtensionTests: string[] = ["comment"]
+// const selectedJSONTests: string[] = []
+// const selectedExtensionTests: string[] = ["comment"]
 
 type OnError = (message: string, range: bc.Range) => void
 
