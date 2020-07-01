@@ -113,7 +113,7 @@ const parser = bc.createParser(
 )
 
 const st = bc.createStreamPreTokenizer(
-    parser,
+    bc.createTokenizer(parser),
     err => { console.error("FOUND TOKENIZER ERROR", err) },
 )
 

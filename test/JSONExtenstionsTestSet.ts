@@ -507,4 +507,15 @@ a comment
             ["end", undefined],
         ],
     },
+    "empty type": {
+        text: `(
+)`,
+        testHeaders: true,
+        events: [
+            ["instance data start", false],
+            ["token", "openobject", "(", undefined],
+            ["token", "closeobject", ")", undefined],
+            ["end", undefined],
+        ],
+    },
 }

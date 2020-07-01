@@ -29,7 +29,7 @@ Object.keys(JSONTests).forEach(testName => {
     p20.createArray([test.text]).streamify().handle(
         null,
         bc.createStreamPreTokenizer(
-            parser,
+            bc.createTokenizer(parser),
             err => console.error(err),
         )
     )

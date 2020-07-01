@@ -43,7 +43,7 @@ describe('parsing', () => {
                         )
                         tokenizeStrings(
                             [data],
-                            parser,
+                            bc.createTokenizer(parser),
                             () => {
                                 foundError = true
                             },
@@ -70,7 +70,7 @@ describe('parsing', () => {
                         )
                         tokenizeStrings(
                             [data],
-                            parser,
+                            bc.createTokenizer(parser),
                             () => {
                                 foundError = true
                             },
@@ -96,7 +96,7 @@ describe('parsing', () => {
                         )
                         tokenizeStrings(
                             [data],
-                            parser,
+                            bc.createTokenizer(parser),
                             () => {
                                 //do nothing with error
                             },
@@ -130,7 +130,7 @@ describe('transform', () => {
                 )
                 tokenizeStrings(
                     [data],
-                    parser,
+                    bc.createTokenizer(parser),
                     () => {
                         //do nothing with error
                     },

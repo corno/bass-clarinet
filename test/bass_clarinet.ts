@@ -444,7 +444,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         )
 
         const st = bc.createStreamPreTokenizer(
-            parser,
+            bc.createTokenizer(parser),
             (message, _location) => {
                 if (DEBUG) console.log("found error")
 

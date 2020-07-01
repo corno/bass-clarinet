@@ -64,7 +64,7 @@ export function doIt(): void {
     p20.createArray(chunks).streamify().handle(
         null,
         bc.createStreamPreTokenizer(
-            parser,
+            bc.createTokenizer(parser),
             err => { console.error("FOUND TOKENIZER ERROR", err) },
         )
     )

@@ -14,6 +14,7 @@ import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation
 import { PreTokenDataType, PreToken } from "./PreToken"
 import { TokenType, Token, OverheadTokenType } from "./Token"
 import { RangeError } from "./errors"
+import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -241,128 +242,135 @@ export class Tokenizer<ReturnType, ErrorType> {
             }],
         })
         this.unsetCurrentToken(createRangeFromSingleLocation(location))
-return od
+        return od
     }
 
-    private onQuotedStringBegin(begin: Range, quote: string): p.IValue < boolean > {
-    if(DEBUG) console.log(`onQuotedStringBegin`)
+    private onQuotedStringBegin(begin: Range, quote: string): p.IValue<boolean> {
+        if (DEBUG) console.log(`onQuotedStringBegin`)
         this.setCurrentToken([CurrentTokenType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
         return p.result(false)
-}
-
-    private onQuotedStringEnd(end: Range, quote: string | null): p.IValue < boolean > {
-    if(DEBUG) console.log(`onQuotedStringEnd`)
-        if(this.currentToken[0] !== CurrentTokenType.QUOTED_STRING) {
-    throw new TokenizerStackPanicError(`Unexpected unquoted token end`, end)
-}
-const $tok = this.currentToken[1]
-const value = $tok.quotedStringNode
-const range = createRangeFromLocations($tok.start.start, getEndLocationFromRange(end))
-
-this.unsetCurrentToken(end)
-return this.parser.onData({
-    range: range,
-    type: [TokenType.SimpleValue, {
-        value: value,
-        //startCharacter: $tok.startCharacter,
-        terminated: quote !== null,
-        quote: $tok.startCharacter,
-    }],
-})
     }
-    private onLineCommentBegin(range: Range): p.IValue < boolean > {
-    if(DEBUG) console.log(`onLineCommentBegin`)
+
+    private onQuotedStringEnd(end: Range, quote: string | null): p.IValue<boolean> {
+        if (DEBUG) console.log(`onQuotedStringEnd`)
+        if (this.currentToken[0] !== CurrentTokenType.QUOTED_STRING) {
+            throw new TokenizerStackPanicError(`Unexpected unquoted token end`, end)
+        }
+        const $tok = this.currentToken[1]
+        const value = $tok.quotedStringNode
+        const range = createRangeFromLocations($tok.start.start, getEndLocationFromRange(end))
+
+        this.unsetCurrentToken(end)
+        return this.parser.onData({
+            range: range,
+            type: [TokenType.SimpleValue, {
+                value: value,
+                //startCharacter: $tok.startCharacter,
+                terminated: quote !== null,
+                quote: $tok.startCharacter,
+            }],
+        })
+    }
+    private onLineCommentBegin(range: Range): p.IValue<boolean> {
+        if (DEBUG) console.log(`onLineCommentBegin`)
 
         this.setCurrentToken(
-        [CurrentTokenType.LINE_COMMENT, {
-            commentNode: "",
-            start: range,
-            indentation: this.getIndentation(),
-        }],
-        range
-    )
+            [CurrentTokenType.LINE_COMMENT, {
+                commentNode: "",
+                start: range,
+                indentation: this.getIndentation(),
+            }],
+            range
+        )
 
         this.indentationState = [IndentationState.lineIsDitry]
         return p.result(false)
-}
-    private onLineCommentEnd(location: Location): p.IValue < boolean > {
-    if(DEBUG) console.log(`onLineCommentEnd`)
-
-        if(this.currentToken[0] !== CurrentTokenType.LINE_COMMENT) {
-    throw new TokenizerStackPanicError(`Unexpected line comment end`, createRangeFromSingleLocation(location))
-}
-
-const $ = this.currentToken[1]
-const range = createRangeFromLocations($.start.start, location)
-const endOfStart = getEndLocationFromRange($.start)
-const od = this.parser.onData({
-    range: range,
-    type: [TokenType.Overhead, {
-        type: [OverheadTokenType.LineComment, {
-            comment: $.commentNode,
-            innerRange: createRangeFromLocations(
-                {
-                    position: endOfStart.position,
-                    line: endOfStart.line,
-                    column: endOfStart.column,
-                },
-                location,
-            ),
-            indentation: $.indentation,
-        }],
-    }],
-})
-this.unsetCurrentToken(createRangeFromSingleLocation(location))
-return od
     }
-    private onSnippet(chunk: string, begin: number, end: number): p.IValue < boolean > {
-    if(DEBUG) console.log(`onSnippet`)
+    private onLineCommentEnd(location: Location): p.IValue<boolean> {
+        if (DEBUG) console.log(`onLineCommentEnd`)
 
-        switch(this.currentToken[0]) {
+        if (this.currentToken[0] !== CurrentTokenType.LINE_COMMENT) {
+            throw new TokenizerStackPanicError(`Unexpected line comment end`, createRangeFromSingleLocation(location))
+        }
+
+        const $ = this.currentToken[1]
+        const range = createRangeFromLocations($.start.start, location)
+        const endOfStart = getEndLocationFromRange($.start)
+        const od = this.parser.onData({
+            range: range,
+            type: [TokenType.Overhead, {
+                type: [OverheadTokenType.LineComment, {
+                    comment: $.commentNode,
+                    innerRange: createRangeFromLocations(
+                        {
+                            position: endOfStart.position,
+                            line: endOfStart.line,
+                            column: endOfStart.column,
+                        },
+                        location,
+                    ),
+                    indentation: $.indentation,
+                }],
+            }],
+        })
+        this.unsetCurrentToken(createRangeFromSingleLocation(location))
+        return od
+    }
+    private onSnippet(chunk: string, begin: number, end: number): p.IValue<boolean> {
+        if (DEBUG) console.log(`onSnippet`)
+
+        switch (this.currentToken[0]) {
             case CurrentTokenType.LINE_COMMENT: {
-        const $ = this.currentToken[1]
-        $.commentNode += chunk.substring(begin, end)
-        break
-    }
+                const $ = this.currentToken[1]
+                $.commentNode += chunk.substring(begin, end)
+                break
+            }
             case CurrentTokenType.BLOCK_COMMENT: {
-        const $ = this.currentToken[1]
-        $.commentNode += chunk.substring(begin, end)
-        break
-    }
+                const $ = this.currentToken[1]
+                $.commentNode += chunk.substring(begin, end)
+                break
+            }
             case CurrentTokenType.NONE: {
-        throw new Error(`unexpected snippet`)
-    }
+                throw new Error(`unexpected snippet`)
+            }
             case CurrentTokenType.QUOTED_STRING: {
-        const $ = this.currentToken[1]
-        $.quotedStringNode += chunk.substring(begin, end)
-        break
-    }
+                const $ = this.currentToken[1]
+                $.quotedStringNode += chunk.substring(begin, end)
+                break
+            }
             case CurrentTokenType.UNQUOTED_TOKEN: {
-        const $ = this.currentToken[1]
-        $.unquotedTokenNode += chunk.substring(begin, end)
-        break
-    }
+                const $ = this.currentToken[1]
+                $.unquotedTokenNode += chunk.substring(begin, end)
+                break
+            }
             case CurrentTokenType.WHITESPACE: {
-        const $ = this.currentToken[1]
-        $.whitespaceNode += chunk.substring(begin, end)
-        break
-    }
+                const $ = this.currentToken[1]
+                $.whitespaceNode += chunk.substring(begin, end)
+                break
+            }
             default:
-    assertUnreachable(this.currentToken[0])
-}
-return p.result(false)
+                assertUnreachable(this.currentToken[0])
+        }
+        return p.result(false)
     }
-    private onNewLine(range: Range): p.IValue < boolean > {
-    if(DEBUG) console.log(`onNewLine`)
+    private onNewLine(range: Range): p.IValue<boolean> {
+        if (DEBUG) console.log(`onNewLine`)
 
         this.indentationState = [IndentationState.lineIsVirgin]
 
         return this.parser.onData({
-        range: range,
-        type: [TokenType.Overhead, {
-            type: [OverheadTokenType.NewLine, {
+            range: range,
+            type: [TokenType.Overhead, {
+                type: [OverheadTokenType.NewLine, {
+                }],
             }],
-        }],
-    })
+        })
+    }
 }
+
+export function createTokenizer<ReturnType, ErrorType>(
+    parser: TokenConsumer<ReturnType, ErrorType>,
+): ITokenStreamConsumer<ReturnType, ErrorType> {
+    const p = new Tokenizer(parser)
+    return p
 }

@@ -3,7 +3,6 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
 import {
     RootState,
 } from "./parserStateTypes"
@@ -12,8 +11,6 @@ import { BodyEvent, BodyEventType } from "./BodyEvent"
 import * as Char from "./Characters"
 import { BodyParser } from "./BodyParser"
 import { TokenType, Token, PunctionationData, SimpleValueData, OverheadToken } from "./Token"
-import { Tokenizer } from "./Tokenizer"
-import { PreToken } from "./PreToken"
 
 const DEBUG = false
 
@@ -317,31 +314,12 @@ export class Parser<ReturnType, ErrorType> {
     }
 }
 
-class StreamParser<ReturnType, ErrorType> implements ITokenStreamConsumer<ReturnType, ErrorType> {
-    private readonly tokenizer: Tokenizer<ReturnType, ErrorType>
-    constructor(
-
-        onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
-        onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
-        onerror: (message: string, range: Range) => void,
-        onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
-    ) {
-        this.tokenizer = new Tokenizer(new Parser(onSchemaDataStart, onInstanceDataStart, onerror, onHeaderOverheadToken))
-    }
-    public onData(data: PreToken): p.IValue<boolean> {
-        return this.tokenizer.onData(data)
-    }
-    public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
-        return this.tokenizer.onEnd(aborted, location)
-    }
-}
 
 export function createParser<ReturnType, ErrorType>(
     onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
     onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
     onerror: (message: string, range: Range) => void,
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
-): ITokenStreamConsumer<ReturnType, ErrorType> {
-    const p = new StreamParser(onSchemaDataStart, onInstanceDataStart, onerror, onHeaderOverheadToken)
-    return p
+): Parser<ReturnType, ErrorType> {
+    return new Parser(onSchemaDataStart, onInstanceDataStart, onerror, onHeaderOverheadToken)
 }

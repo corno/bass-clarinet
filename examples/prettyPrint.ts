@@ -112,7 +112,7 @@ createPrettyPrinter("\r\n", str => process.stdout.write(str))
 p20.createArray([dataAsString]).streamify().handle(
     null,
     bc.createStreamPreTokenizer(
-        prsr,
+        bc.createTokenizer(prsr),
         err => { console.error("FOUND TOKENIZER ERROR", err) },
     )
 )
