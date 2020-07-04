@@ -58,7 +58,7 @@ function raiseError(onError: (error: RangeError) => void, message: string, range
 
 type WhiteSpaceState = {
     comments: Comment[]
-    indentation: string
+    indentation: string | null
     lineIsDirty: boolean
 }
 
@@ -451,7 +451,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
 ): ParserEventConsumer<ReturnType, ErrorType> {
     const whiteSpaceState: WhiteSpaceState = {
         comments: [],
-        indentation: "",
+        indentation: null,
         lineIsDirty: false,
     }
 
@@ -476,7 +476,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                         lineCommentAfter: lineCommentAfter,
                     }
                     whiteSpaceState.comments = []
-                    whiteSpaceState.indentation = ""
+                    whiteSpaceState.indentation = null
                     whiteSpaceState.lineIsDirty = false
                     return contextData
                 }
@@ -541,7 +541,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                     return flushPossibleQueuedEvent(() => {
 
                         //const $ = odr[1]
-                        whiteSpaceState.indentation = ""
+                        whiteSpaceState.indentation = null
                         whiteSpaceState.lineIsDirty = false
                         return p.result(false)
 
@@ -559,7 +559,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                     lineCommentAfter: null,
                 }
                 whiteSpaceState.comments = []
-                whiteSpaceState.indentation = ""
+                whiteSpaceState.indentation = null
                 whiteSpaceState.lineIsDirty = false
                 return contextData
             }

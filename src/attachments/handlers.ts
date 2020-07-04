@@ -8,7 +8,7 @@ import { SimpleValueData } from "../Token"
 
 export type ContextData = {
     commentsBefore: Comment[]
-    indentation: string
+    indentation: string | null
     lineCommentAfter: null | Comment
 }
 
