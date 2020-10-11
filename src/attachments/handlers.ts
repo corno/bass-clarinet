@@ -19,7 +19,7 @@ export enum AfterValueContext {
 }
 
 export type ObjectHandler = {
-    property: (range: Range, key: string, contextData: ContextData) => RequiredValueHandler
+    property: (range: Range, key: string, contextData: ContextData) => p.IValue<RequiredValueHandler>
     end: (range: Range, data: CloseData, contextData: ContextData) => void
 }
 

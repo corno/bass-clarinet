@@ -71,16 +71,18 @@ export class BodyParser<ReturnType, ErrorType> {
         }
     }
     public forceEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
-        if (this.currentContext !== null) {
-            this.reportUnexpectedStackContext(this.currentContext, location)
-        }
-        this.currentContext = null
-        while (true) {
-            const popped = this.stack.pop()
-            if (popped === undefined) {
-                break
-            } else {
-                this.reportUnexpectedStackContext(popped, location)
+        if (!aborted) {
+            if (this.currentContext !== null) {
+                this.reportUnexpectedStackContext(this.currentContext, location)
+            }
+            this.currentContext = null
+            while (true) {
+                const popped = this.stack.pop()
+                if (popped === undefined) {
+                    break
+                } else {
+                    this.reportUnexpectedStackContext(popped, location)
+                }
             }
         }
         return this.eventsConsumer.onEnd(aborted, location)

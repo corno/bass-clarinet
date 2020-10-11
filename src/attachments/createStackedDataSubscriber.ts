@@ -372,14 +372,15 @@ function processParserEvent(
                             if (state.currentContext[0] !== "object") {
                                 raiseError(onError, "unexpected key", data.range)
                                 return p.result(false)
-
                             } else {
-                                $$.propertyHandler = $$.objectHandler.property(
+                                return $$.objectHandler.property(
                                     data.range,
                                     $.value,
                                     contextData
-                                )
-                                return p.result(false)
+                                ).mapResult(propHandler => {
+                                    $$.propertyHandler = propHandler
+                                    return p.result(false)
+                                })
                             }
                         } else {
                             const $$$ = $$.propertyHandler

@@ -41,7 +41,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
                 return {
                     property: (_keyRange, key) => {
                         writer(`${indentation}\t"${key}": `)
-                        return createRequiredValuesPrettyPrinter(`${indentation}\t`, writer)
+                        return p.result(createRequiredValuesPrettyPrinter(`${indentation}\t`, writer))
                     },
                     end: endRange => {
                         writer(`${indentation}${bc.printRange(endRange)}`)

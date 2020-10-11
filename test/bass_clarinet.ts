@@ -200,7 +200,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     object: () => {
                         return {
                             property: () => {
-                                return createTestRequiredValueHandler()
+                                return p.result(createTestRequiredValueHandler())
                             },
                             end: () => {
                                 //

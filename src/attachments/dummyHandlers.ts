@@ -42,8 +42,8 @@ export function createDummyArrayHandler(): ArrayHandler {
 
 export function createDummyObjectHandler(): ObjectHandler {
     return {
-        property: (): RequiredValueHandler => {
-            return createDummyRequiredValueHandler()
+        property: () => {
+            return p.result(createDummyRequiredValueHandler())
         },
         end: (): void => {
             //do nothing
