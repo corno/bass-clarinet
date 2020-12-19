@@ -319,7 +319,6 @@ export function createFormatter(
 						case OverheadTokenType.NewLine: {
 							//const $ = data[1]
 							if (precedingWhitespace !== null) {
-								console.log("HIER?", precedingWhitespace.range)
 								del(precedingWhitespace.range)
 								precedingWhitespace = null
 							}
