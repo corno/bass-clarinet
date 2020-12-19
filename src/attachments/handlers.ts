@@ -12,12 +12,6 @@ export type ContextData = {
     lineCommentAfter: null | Comment
 }
 
-export enum AfterValueContext {
-    OBJECT,
-    ARRAY,
-    END,
-}
-
 export type ObjectHandler = {
     property: (range: Range, key: string, contextData: ContextData) => p.IValue<RequiredValueHandler>
     end: (range: Range, data: CloseData, contextData: ContextData) => void

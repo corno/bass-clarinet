@@ -64,86 +64,8 @@ Clear reasons to use `bass-clarinet` over  the built-in `JSON.parse`:
 
 ``` TypeScript
 //a simple pretty printer
-import * as bc from "bass-clarinet"
-import * as fs  from "fs"
-
-const [, , path] = process.argv
-
-if (path === undefined) {
-    console.error("missing path")
-    process.exit(1)
-}
-
-const data = fs.readFileSync(path, {encoding: "utf-8"})
-
-export function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ValueHandler {
-    return {
-        array: beginMetaData => {
-            writer(beginMetaData.openCharacter)
-            return {
-                element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
-                end: endMetaData => {
-                    writer(`${indentation}${endMetaData.range}`)
-                },
-            }
-
-        },
-        object: metaData => {
-            writer(metaData.openCharacter)
-            return {
-                property: (key, _keyRange) => {
-                    writer(`${indentation}\t"${key}": `)
-                    return createValuesPrettyPrinter(`${indentation}\t`, writer)
-                },
-                end: endMetaData => {
-                    writer(`${indentation}${endMetaData.range}`)
-                },
-            }
-        },
-        simpleValue: (value, metaData) => {
-            if (metaData.quote !== null) {
-                writer(`${JSON.stringify(value)}`)
-            } else {
-                writer(`${value}`)
-            }
-        },
-        taggedUnion: (option, _metaData) => {
-            writer(`| "${option}" `)
-            return createValuesPrettyPrinter(`${indentation}`, writer)
-        },
-    }
-}
-
-export function attachPrettyPrinter(parser: bc.Parser, indentation: string, writer: (str: string) => void) {
-    const datasubscriber = bc.createStackedDataSubscriber(
-        createValuesPrettyPrinter(indentation, writer),
-        error => {
-            console.error("FOUND STACKED DATA ERROR", error.message)
-        },
-        _comments => {
-            //onEnd
-        }
-    )
-    parser.ondata.subscribe(datasubscriber)
-    parser.onschemadata.subscribe(datasubscriber)
-}
-
-
-const prsr = bc.createParser(
-    err => { console.error("FOUND PARSER ERROR", err) },
-)
-
-attachPrettyPrinter(prsr, "\r\n", str => process.stdout.write(str))
-
-bc.tokenizeString(
-    prsr,
-    err => { console.error("FOUND TOKENIZER ERROR", err) },
-    data
-)
-
-```
-## low level
-``` TypeScript
+import * as p from "pareto"
+import * as p20 from "pareto-20"
 import * as bc from "bass-clarinet"
 import * as fs from "fs"
 
@@ -154,60 +76,237 @@ if (path === undefined) {
     process.exit(1)
 }
 
-const data = fs.readFileSync(path, { encoding: "utf-8" })
+const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
+function createRequiredValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
+    return {
+        onValue: createValuesPrettyPrinter(indentation, writer),
+        onMissing: () => {
+            //write out an empty string to fix this missing data?
+        },
+    }
+}
 
-const parser = bc.createParser(
+function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.OnValue {
+    return () => {
+        return {
+            array: (beginRange, beginMetaData) => {
+                writer(beginMetaData.openCharacter)
+                return {
+                    element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
+                    end: _endRange => {
+                        writer(`${indentation}${bc.printRange(beginRange)}`)
+                    },
+                }
+
+            },
+            object: (_beginRange, data) => {
+                writer(data.openCharacter)
+                return {
+                    property: (_keyRange, key) => {
+                        writer(`${indentation}\t"${key}": `)
+                        return p.result(createRequiredValuesPrettyPrinter(`${indentation}\t`, writer))
+                    },
+                    end: endRange => {
+                        writer(`${indentation}${bc.printRange(endRange)}`)
+                    },
+                }
+            },
+            simpleValue: (_range, data) => {
+                if (data.quote !== null) {
+                    writer(`${JSON.stringify(data.value)}`)
+                } else {
+                    writer(`${data.value}`)
+                }
+                return p.result(false)
+            },
+            taggedUnion: () => {
+                return {
+                    option: (_range, option) => {
+                        writer(`| "${option}" `)
+                        return createRequiredValuesPrettyPrinter(`${indentation}`, writer)
+                    },
+                    missingOption: () => {
+                        //
+                    },
+                }
+            },
+        }
+    }
+}
+
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ParserEventConsumer<null, null> {
+    const datasubscriber = bc.createStackedDataSubscriber<null, null>(
+        {
+            onValue: createValuesPrettyPrinter(indentation, writer),
+            onMissing: () => {
+                //
+            },
+        },
+        error => {
+            console.error("FOUND STACKED DATA ERROR", error.message)
+        },
+        _comments => {
+            //onEnd
+            return p.success(null)
+        }
+    )
+    return datasubscriber
+}
+
+const pp = createPrettyPrinter("\r\n", str => process.stdout.write(str))
+
+const prsr = bc.createParser(
+    () => {
+        return pp
+    },
+    () => {
+        return pp
+    },
     err => { console.error("FOUND PARSER ERROR", err) },
+    () => {
+        return p.result(false)
+    },
+
 )
-parser.ondata.subscribe({
-    onComma: () => {
-        //place your code here
-    },
-    onColon: () => {
-        //place your code here
-    },
-    onLineComment: (_comment, _range) => {
-        //place your code here
-    },
-    onBlockComment: (_comment, _range) => {
-        //
-    },
-    onString: (_value, _metaData) => {
-        //place your code here
-        //in strict JSON, the value is a string, a number, null, true or false
-    },
-    onOpenTaggedUnion: _range => {
-        //place your code here
-    },
-    onOpenArray: _metaData => {
-        //place your code here
-    },
-    onCloseArray: _metaData => {
-        //place your code here
-    },
-    onOpenObject: _metaData => {
-        //place your code here
-    },
-    onCloseObject: _metaData => {
-        //place your code here
+
+createPrettyPrinter("\r\n", str => process.stdout.write(str))
+
+
+p20.createArray([dataAsString]).streamify().handle(
+    null,
+    bc.createStreamPreTokenizer(
+        bc.createTokenizer(prsr),
+        err => { console.error("FOUND TOKENIZER ERROR", err) },
+    )
+)
+
+```
+## low level
+``` TypeScript
+import * as bc from "bass-clarinet"
+import * as p from "pareto"
+import * as p20 from "pareto-20"
+import * as fs from "fs"
+
+function assertUnreachable<RT>(_x: never): RT {
+    throw new Error("unreachable")
+}
+
+const [, , path] = process.argv
+
+if (path === undefined) {
+    console.error("missing path")
+    process.exit(1)
+}
+
+const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
+
+export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
+    onData: data => {
+        switch (data.type[0]) {
+            case bc.BodyEventType.CloseArray: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case bc.BodyEventType.CloseObject: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case bc.BodyEventType.Colon: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case bc.BodyEventType.Comma: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case bc.BodyEventType.OpenArray: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case bc.BodyEventType.OpenObject: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            case bc.BodyEventType.Overhead: {
+                const $ = data.type[1]
+                switch ($.type[0]) {
+                    case bc.OverheadTokenType.BlockComment: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    case bc.OverheadTokenType.LineComment: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    case bc.OverheadTokenType.NewLine: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    case bc.OverheadTokenType.WhiteSpace: {
+                        //const $ = data.type[1]
+                        //place your code here
+                        break
+                    }
+                    default:
+                        assertUnreachable($.type[0])
+                }
+                break
+            }
+            case bc.BodyEventType.SimpleValue: {
+                //const $ = data.type[1]
+                //place your code here
+                //in strict JSON, the value is a string, a number, null, true or false
+                break
+            }
+            case bc.BodyEventType.TaggedUnion: {
+                //const $ = data.type[1]
+                //place your code here
+                break
+            }
+            default:
+                assertUnreachable(data.type[0])
+        }
+        return p.result(false)
     },
     onEnd: () => {
         //place your code here
+        return p.success(null)
     },
-    onNewLine: () => {
-        //
+}
+const parser = bc.createParser(
+    () => {
+        return parserEventConsumer
     },
-    onWhitespace: () => {
-        //
+    () => {
+        return parserEventConsumer
     },
-})
-
-bc.tokenizeString(
-    parser,
-    err => { console.error("FOUND TOKENIZER ERROR", err) },
-    data,
+    err => { console.error("FOUND PARSER ERROR", err) },
+    () => {
+        return p.result(false)
+    }
 )
+
+const st = bc.createStreamPreTokenizer(
+    bc.createTokenizer(parser),
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
+)
+
+p20.createArray([dataAsString]).streamify().handle(
+    null,
+    st
+)
+```
 
 ## arguments
 

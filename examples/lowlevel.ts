@@ -2,7 +2,6 @@ import * as bc from "../src"
 import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as fs from "fs"
-import { ParserEventConsumer } from "../src"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -17,7 +16,7 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: ParserEventConsumer<null, null> = {
+export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
     onData: data => {
         switch (data.type[0]) {
             case bc.BodyEventType.CloseArray: {
