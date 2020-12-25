@@ -209,9 +209,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
                     },
                     simpleValue: () => {
-                        if (contextData.lineCommentAfter !== null) {
-                            console.log("YEP")
-                        }
                         return p.result(false)
                     },
                     taggedUnion: () => {
