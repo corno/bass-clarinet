@@ -45,10 +45,10 @@
   "devDependencies": {
     "@types/chai": "^4.2.14",
     "@types/mocha": "^8.2.0",
-    "@types/node": "^14.14.14",
-    "@typescript-eslint/eslint-plugin": "^4.10.0",
-    "@typescript-eslint/eslint-plugin-tslint": "^4.10.0",
-    "@typescript-eslint/parser": "^4.10.0",
+    "@types/node": "^14.14.16",
+    "@typescript-eslint/eslint-plugin": "^4.11.0",
+    "@typescript-eslint/eslint-plugin-tslint": "^4.11.0",
+    "@typescript-eslint/parser": "^4.11.0",
     "chai": "^4.2.0",
     "eslint": "^7.16.0",
     "mocha": "^8.2.1",
@@ -80,6 +80,6 @@
   },
   "license": "BSD-2-Clause",
   "dependencies": {
-    "pareto": "^0.46.0"
+    "pareto": "^0.47.0"
   }
 }
