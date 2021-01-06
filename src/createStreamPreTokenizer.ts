@@ -76,6 +76,12 @@ class StreamPreTokenizer<ReturnType, ErrorType> implements p.IStreamConsumer<str
     }
 }
 
+/**
+ *
+ * @param tokenStreamConsumer
+ * @param onerror
+ * @param opt
+ */
 export function createStreamPreTokenizer<ReturnType, ErrorType>(
     tokenStreamConsumer: ITokenStreamConsumer<ReturnType, ErrorType>,
     onerror: (message: string, range: Range) => void,

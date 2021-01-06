@@ -1,8 +1,6 @@
 import * as p from "pareto"
-import * as p20 from "pareto-20"
-import * as bc from "../src"
 import * as fs from "fs"
-
+import * as bc from "../src"
 
 const [, , path] = process.argv
 
@@ -81,8 +79,9 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
         error => {
             console.error("FOUND STACKED DATA ERROR", error.message)
         },
-        _comments => {
+        () => {
             //onEnd
+            //no need to return an value, we're only here for the side effects, so return 'null'
             return p.success(null)
         }
     )
@@ -91,27 +90,24 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
 
 const pp = createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
-const prsr = bc.createParser(
+bc.parseString(
+    dataAsString,
     () => {
         return pp
     },
     () => {
         return pp
     },
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
     err => { console.error("FOUND PARSER ERROR", err) },
     () => {
         return p.result(false)
     },
-
-)
-
-createPrettyPrinter("\r\n", str => process.stdout.write(str))
-
-
-p20.createArray([dataAsString]).streamify().handle(
-    null,
-    bc.createStreamPreTokenizer(
-        bc.createTokenizer(prsr),
-        err => { console.error("FOUND TOKENIZER ERROR", err) },
-    )
+).handle(
+    () => {
+        //we're only here for the side effects, so no need to handle the error
+    },
+    () => {
+        //we're only here for the side effects, so no need to handle the result (which is 'null' anyway)
+    }
 )

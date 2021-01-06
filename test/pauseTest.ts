@@ -6,7 +6,7 @@ import * as p from "pareto"
 import * as bc from "../src";
 import { dummyParserEventConsumer } from "./dummyConsumers";
 
-const parser = bc.createParser(
+const parserStack = bc.createParserStack(
     () => {
         return dummyParserEventConsumer
     },
@@ -30,6 +30,7 @@ const parser = bc.createParser(
             },
         }
     },
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
     err => { console.error("FOUND PARSER ERROR", err) },
     () => {
         return p.result(false)
@@ -63,10 +64,7 @@ const chunks = [
 export function doIt(): void {
     p20.createArray(chunks).streamify().handle(
         null,
-        bc.createStreamPreTokenizer(
-            bc.createTokenizer(parser),
-            err => { console.error("FOUND TOKENIZER ERROR", err) },
-        )
+        parserStack
     )
 }
 

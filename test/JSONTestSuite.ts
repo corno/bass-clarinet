@@ -3,20 +3,20 @@ import { describe } from "mocha"
 import assert from "assert"
 import * as path from "path"
 import * as p20 from "pareto-20"
-import * as p from "pareto"
-import * as bc from "../src"
 import { dummyParserEventConsumer } from "./dummyConsumers"
+import { createParserStack } from "../src"
 
 function tokenizeStrings(
     strings: string[],
-    consumer: bc.ITokenStreamConsumer<null, null>,
     onError: () => void,
 ) {
     p20.createArray(strings).streamify().handle(
         null,
-        bc.createStreamPreTokenizer(
-            consumer,
-            onError
+        createParserStack(
+            () => dummyParserEventConsumer,
+            () => dummyParserEventConsumer,
+            onError,
+            onError,
         )
     )
 }
@@ -31,19 +31,8 @@ describe('parsing', () => {
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = bc.createParser(
-                            () => dummyParserEventConsumer,
-                            () => dummyParserEventConsumer,
-                            () => {
-                                foundError = true
-                            },
-                            () => {
-                                return p.result(false)
-                            },
-                        )
                         tokenizeStrings(
                             [data],
-                            bc.createTokenizer(parser),
                             () => {
                                 foundError = true
                             },
@@ -58,19 +47,8 @@ describe('parsing', () => {
                     try {
                         let foundError = false
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = bc.createParser(
-                            () => dummyParserEventConsumer,
-                            () => dummyParserEventConsumer,
-                            () => {
-                                foundError = true
-                            },
-                            () => {
-                                return p.result(false)
-                            },
-                        )
                         tokenizeStrings(
                             [data],
-                            bc.createTokenizer(parser),
                             () => {
                                 foundError = true
                             },
@@ -84,21 +62,10 @@ describe('parsing', () => {
                 case "i":
                     try {
                         const data = fs.readFileSync(path.join(parsingDir, file), { encoding: "utf-8" })
-                        const parser = bc.createParser(
-                            () => dummyParserEventConsumer,
-                            () => dummyParserEventConsumer,
-                            () => {
-                                //do nothing with error
-                            },
-                            () => {
-                                return p.result(false)
-                            },
-                        )
                         tokenizeStrings(
                             [data],
-                            bc.createTokenizer(parser),
                             () => {
-                                //do nothing with error
+                                //do nothing with the error
                             },
                         )
                     } catch (e) {
@@ -118,21 +85,10 @@ describe('transform', () => {
         it(file, () => {
             try {
                 const data = fs.readFileSync(path.join(transformDir, file), { encoding: "utf-8" })
-                const parser = bc.createParser(
-                    () => dummyParserEventConsumer,
-                    () => dummyParserEventConsumer,
-                    () => {
-                        //do nothing with error
-                    },
-                    () => {
-                        return p.result(false)
-                    },
-                )
                 tokenizeStrings(
                     [data],
-                    bc.createTokenizer(parser),
                     () => {
-                        //do nothing with error
+                        //do nothing with the error
                     },
                 )
             } catch (e) {

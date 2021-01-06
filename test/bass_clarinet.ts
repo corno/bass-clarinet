@@ -180,12 +180,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 onValue: createTestValueHandler(),
                 onMissing: () => {
                     actualEvents.push(["stacked error", "missing value"])
-
                 },
             }
         }
         function createTestValueHandler(): bc.OnValue {
-            return contextData => {
+            return _contextData => {
                 return {
                     array: () => {
                         return {
@@ -416,7 +415,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 actualEvents.push(["validationerror", v])
             }))
         }
-        const parser = bc.createParser(
+        const parserStack = bc.createParserStack(
             range => {
                 headerSubscribers.forEach(s => {
                     s.onSchemaDataStart(range)
@@ -429,6 +428,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 })
                 return createStreamSplitter(instanceDataSubscribers)
             },
+            (message, _location) => {
+                if (DEBUG) console.log("found error")
+
+                actualEvents.push(["tokenizererror", message])
+            },
             (message, _range) => {
                 if (DEBUG) console.log("found error")
                 actualEvents.push(["parsererror", message])
@@ -440,17 +444,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
         )
 
-        const st = bc.createStreamPreTokenizer(
-            bc.createTokenizer(parser),
-            (message, _location) => {
-                if (DEBUG) console.log("found error")
-
-                actualEvents.push(["tokenizererror", message])
-            },
-        )
         return p20.createArray(chunks).streamify().toUnsafeValue(
             null,
-            st
+            parserStack,
         ).convertToNativePromise(() => "Error found").then(() => {
             //
 

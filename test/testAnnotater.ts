@@ -12,13 +12,14 @@ const annotater = createAnnotator("", str => console.log(str))
 Object.keys(JSONTests).forEach(testName => {
     console.log(">", testName)
     const test = JSONTests[testName]
-    const parser = bc.createParser(
+    const parserStack = bc.createParserStack(
         () => {
             return annotater
         },
         () => {
             return annotater
         },
+        err => console.error(err),
         err => console.error(err),
         () => {
             return p.result(false)
@@ -28,9 +29,6 @@ Object.keys(JSONTests).forEach(testName => {
     createAnnotator("", str => console.log(str))
     p20.createArray([test.text]).streamify().handle(
         null,
-        bc.createStreamPreTokenizer(
-            bc.createTokenizer(parser),
-            err => console.error(err),
-        )
+        parserStack,
     )
 })

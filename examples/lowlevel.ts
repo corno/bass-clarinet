@@ -1,7 +1,7 @@
-import * as bc from "../src"
 import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as fs from "fs"
+import * as bc from "../src"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -98,25 +98,21 @@ export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
         return p.success(null)
     },
 }
-const parser = bc.createParser(
+const parserStack = bc.createParserStack(
     () => {
         return parserEventConsumer
     },
     () => {
         return parserEventConsumer
     },
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
     err => { console.error("FOUND PARSER ERROR", err) },
     () => {
         return p.result(false)
     }
 )
 
-const st = bc.createStreamPreTokenizer(
-    bc.createTokenizer(parser),
-    err => { console.error("FOUND TOKENIZER ERROR", err) },
-)
-
 p20.createArray([dataAsString]).streamify().handle(
     null,
-    st
+    parserStack
 )

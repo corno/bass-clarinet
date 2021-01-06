@@ -65,9 +65,8 @@ Clear reasons to use `bass-clarinet` over  the built-in `JSON.parse`:
 ``` TypeScript
 //a simple pretty printer
 import * as p from "pareto"
-import * as p20 from "pareto-20"
-import * as bc from "bass-clarinet"
 import * as fs from "fs"
+import * as bc from "bass-clarinet"
 
 const [, , path] = process.argv
 
@@ -146,8 +145,9 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
         error => {
             console.error("FOUND STACKED DATA ERROR", error.message)
         },
-        _comments => {
+        () => {
             //onEnd
+            //no need to return an value, we're only here for the side effects, so return 'null'
             return p.success(null)
         }
     )
@@ -156,38 +156,35 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
 
 const pp = createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
-const prsr = bc.createParser(
+bc.parseString(
+    dataAsString,
     () => {
         return pp
     },
     () => {
         return pp
     },
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
     err => { console.error("FOUND PARSER ERROR", err) },
     () => {
         return p.result(false)
     },
-
-)
-
-createPrettyPrinter("\r\n", str => process.stdout.write(str))
-
-
-p20.createArray([dataAsString]).streamify().handle(
-    null,
-    bc.createStreamPreTokenizer(
-        bc.createTokenizer(prsr),
-        err => { console.error("FOUND TOKENIZER ERROR", err) },
-    )
+).handle(
+    () => {
+        //we're only here for the side effects, so no need to handle the error
+    },
+    () => {
+        //we're only here for the side effects, so no need to handle the result (which is 'null' anyway)
+    }
 )
 
 ```
 ## low level
 ``` TypeScript
-import * as bc from "bass-clarinet"
 import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as fs from "fs"
+import * as bc from "bass-clarinet"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -284,28 +281,25 @@ export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
         return p.success(null)
     },
 }
-const parser = bc.createParser(
+const parserStack = bc.createParserStack(
     () => {
         return parserEventConsumer
     },
     () => {
         return parserEventConsumer
     },
+    err => { console.error("FOUND TOKENIZER ERROR", err) },
     err => { console.error("FOUND PARSER ERROR", err) },
     () => {
         return p.result(false)
     }
 )
 
-const st = bc.createStreamPreTokenizer(
-    bc.createTokenizer(parser),
-    err => { console.error("FOUND TOKENIZER ERROR", err) },
-)
-
 p20.createArray([dataAsString]).streamify().handle(
     null,
-    st
+    parserStack
 )
+
 ```
 
 ## arguments
@@ -345,7 +339,19 @@ the parser supports the following additional (to JSON) features
 
 `onerror` (passed as argument to the constructor) - indication that something bad happened. The parser will continue as good as it can
 
-the data subscriber can be seen in the example code above:
+the data subscriber can be seen in the example code above
+
+# architecture
+
+The stack consists of the following chain:
+Stream -(string chunks)-> PreTokenizer -(PreToken's)-> Tokenizer -(Token's)-> Parser -(BodyEvent)-> ParserEventConsumer -(Resulting Type)-> ...
+
+
+PreTokens are low level token parts. For example `BlockCommentBegin`
+
+Tokens are higher level. For example `BlockComment`
+
+an example of a BodyEvent is `OpenArray`
 
 # roadmap
 
