@@ -26,7 +26,7 @@ export function parseString<ReturnType, ErrorType>(
     },
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean> = () => p.result(false),
 ): p.IUnsafeValue<ReturnType, ErrorType> {
-    return p20.createArray([data]).streamify().toUnsafeValue(
+    return p20.createArray([data]).streamify().consume(
         null,
         createParserStack(
             onSchemaDataStart,
