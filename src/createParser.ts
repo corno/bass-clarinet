@@ -18,6 +18,12 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
+/**
+ * a ParserEventConsumer is a IStreamConsumer.
+ * the chunks are the individual BodyEvent's.
+ * at the end, the location of the last character is sent ('Location').
+ * The ReturnType and ErrorType are determined by the specific implementation.
+ */
 export type ParserEventConsumer<ReturnType, ErrorType> = p.IStreamConsumer<BodyEvent, Location, ReturnType, ErrorType>
 
 export type RootContext<ReturnType, ErrorType> = {
@@ -314,7 +320,17 @@ export class Parser<ReturnType, ErrorType> {
     }
 }
 
-
+/**
+ * A parser is used to build a certain type,
+ * for this reason it has 2 type parameters:
+ * -ReturnType: The type if parsing went succesful
+ * -ErrorType: The type if the parsing produced an unexpected error
+ * @param onSchemaDataStart a document can contain schema data. If this is the case, this callback will be called.
+ * it enables the consuming code to prepare for the instance data. It cannot produce a result itself, hence the type parameters are null and null
+ * @param onInstanceDataStart when the instance data starts, this callback is called and a ParserEventConsumer should be returned. This consumer will also produce the final resulting type
+ * @param onerror a handler for when a parsing error occurs
+ * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
+ */
 export function createParser<ReturnType, ErrorType>(
     onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
     onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,

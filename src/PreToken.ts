@@ -79,6 +79,9 @@ export function printPreTokenData(tokenData: PreToken): string {
     }
 }
 
+/**
+ * A PreToken is a low level token
+ */
 export type PreToken = {
     type:
     | [PreTokenDataType.BlockCommentBegin, {
