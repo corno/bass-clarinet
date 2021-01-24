@@ -133,14 +133,25 @@ class Snippet {
     }
 }
 
+export type PreTokenizerError = {
+    type:
+    | ["unterminated block comment"]
+    | ["found dangling slash at the end of the document"]
+    | ["unterminated string"]
+    | ["found dangling slash"]
+    | ["expected special character after escape slash", {
+        found: string
+    }]
+}
+
 export class PreTokenizer {
     public currentTokenType: CurrentToken
-    private readonly onError: (message: string, range: Range) => void
+    private readonly onError: (error: PreTokenizerError, range: Range) => void
     private readonly locationState: LocationState
 
     constructor(
         locationState: LocationState,
-        onError: (message: string, range: Range) => void,
+        onError: (error: PreTokenizerError, range: Range) => void,
     ) {
         //start at the position just before the first character
         //because we are going to call currentChar = next() once at the beginning
@@ -222,7 +233,7 @@ export class PreTokenizer {
         const ct = this.currentTokenType
         switch (ct[0]) {
             case TokenType.BLOCK_COMMENT: {
-                this.onError("unterminated block comment", createRangeFromSingleLocation(this.locationState.getCurrentLocation()))
+                this.onError({ type: ["unterminated block comment" ]}, createRangeFromSingleLocation(this.locationState.getCurrentLocation()))
                 return {
                     type: [PreTokenDataType.BlockCommentEnd, {
                         range: createRangeFromSingleLocation(this.locationState.getCurrentLocation()),
@@ -240,7 +251,7 @@ export class PreTokenizer {
                 const $ = ct[1]
                 if ($.foundCharacter !== null) {
                     if ($.foundCharacter.type === FoundCharacterType.SOLIDUS) {
-                        this.onError("found dangling slash at the end of the document", this.locationState.getCurrentCharacterRange())
+                        this.onError({ type: ["found dangling slash at the end of the document" ]}, this.locationState.getCurrentCharacterRange())
                         return null
                     }
                     return {
@@ -255,7 +266,7 @@ export class PreTokenizer {
                     return null
                 }
             case TokenType.QUOTED_STRING: {
-                this.onError("unterminated string", createRangeFromLocations(this.locationState.getCurrentLocation(), this.locationState.getCurrentLocation()))
+                this.onError({ type: ["unterminated string" ]}, createRangeFromLocations(this.locationState.getCurrentLocation(), this.locationState.getCurrentLocation()))
                 return {
                     type: [PreTokenDataType.QuotedStringEnd, {
                         range: createRangeFromLocations(
@@ -416,7 +427,7 @@ export class PreTokenizer {
                                         )]
 
                                     } else {
-                                        this.onError("found dangling slash", this.locationState.getCurrentCharacterRange())
+                                        this.onError({ type: ["found dangling slash"] }, this.locationState.getCurrentCharacterRange())
                                         $.foundCharacter = null
                                         return [false, null]
                                     }
@@ -584,7 +595,11 @@ export class PreTokenizer {
                                 //no special character
 
                                 this.onError(
-                                    `expected special character after escape slash, but found ${String.fromCharCode(nextChar)}`,
+                                    {
+                                        type: [`expected special character after escape slash`, {
+                                            found: String.fromCharCode(nextChar),
+                                        }],
+                                    },
                                     this.locationState.getCurrentCharacterRange()
                                 )
                                 return [true, null]

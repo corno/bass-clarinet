@@ -428,14 +428,29 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 })
                 return createStreamSplitter(instanceDataSubscribers)
             },
-            (message, _location) => {
+            (error, _location) => {
                 if (DEBUG) console.log("found error")
 
-                actualEvents.push(["tokenizererror", message])
+                actualEvents.push(["tokenizererror", error.type[0]])
             },
-            (message, _range) => {
+            (error, _range) => {
                 if (DEBUG) console.log("found error")
-                actualEvents.push(["parsererror", message])
+                switch (error.type[0]) {
+                    case "BodyParser": {
+                        const $ = error.type[1]
+                        actualEvents.push(["parsererror", $.message[0]])
+
+                        break
+                    }
+                    case "other": {
+                        const $ = error.type[1]
+                        actualEvents.push(["parsererror", $.type[0]])
+
+                        break
+                    }
+                    default:
+                        assertUnreachable(error.type[0])
+                }
             },
             (token, range) => {
                 outputOverheadToken(out, token)

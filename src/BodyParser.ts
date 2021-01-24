@@ -33,13 +33,31 @@ type StackContext = {
     | [StackContextType2.TAGGED_UNION, TaggedUnionContext]
 }
 
+export type BodyParserErrorType =
+    | ["unexpected end of document, still in array"]
+    | ["unexpected end of document, still in object"]
+    | ["unexpected end of document, still in tagged union"]
+    | ["unexpected !"]
+    | ["unexpected '#'"]
+    | ["not in an object"]
+    | ["not in an array"]
+    | ["missing property value"]
+    | ["expected option"]
+    | ["unknown punctuation", {
+        found: string
+    }]
+
+export type BodyParserError = {
+    message: BodyParserErrorType
+}
+
 export class BodyParser<ReturnType, ErrorType> {
     private readonly stack = new Array<StackContext>()
     private currentContext: StackContext | null = null
-    private readonly onerror: (message: string, range: Range) => void
+    private readonly onerror: (error: BodyParserError, range: Range) => void
     private readonly eventsConsumer: ParserEventConsumer<ReturnType, ErrorType>
     constructor(
-        onerror: (message: string, range: Range) => void,
+        onerror: (error: BodyParserError, range: Range) => void,
         eventsConsumer: ParserEventConsumer<ReturnType, ErrorType>
     ) {
         this.onerror = onerror
@@ -50,19 +68,19 @@ export class BodyParser<ReturnType, ErrorType> {
         switch (stackContext.type[0]) {
             case StackContextType2.ARRAY: {
                 //const $ = stackContext.type[1]
-                this.onerror("unexpected end of document, still in array", range)
+                this.onerror({ message: ["unexpected end of document, still in array"] }, range)
 
                 break
             }
             case StackContextType2.OBJECT: {
                 //const $ = stackContext.type[1]
-                this.onerror("unexpected end of document, still in object", range)
+                this.onerror({ message: ["unexpected end of document, still in object"] }, range)
 
                 break
             }
             case StackContextType2.TAGGED_UNION: {
                 //const $ = stackContext.type[1]
-                this.onerror("unexpected end of document, still in tagged union", range)
+                this.onerror({ message: ["unexpected end of document, still in tagged union"] }, range)
 
                 break
             }
@@ -198,10 +216,10 @@ export class BodyParser<ReturnType, ErrorType> {
         const curChar = data.char
         switch (curChar) {
             case Char.Punctuation.exclamationMark:
-                this.raiseError("unexpected !", range)
+                this.raiseError(["unexpected !"], range)
                 return p.result(false)
             case Char.Punctuation.hash:
-                this.raiseError("unexpected '#'", range)
+                this.raiseError(["unexpected '#'"], range)
                 return p.result(false)
             case Char.Punctuation.closeAngleBracket:
                 return this.onArrayClose(curChar, range, onStackEmpty)
@@ -237,7 +255,12 @@ export class BodyParser<ReturnType, ErrorType> {
                 return this.onTaggedUnion(range)
 
             default:
-                this.raiseError(`unknown punctuation: ${String.fromCharCode(curChar)}`, range)
+                this.raiseError(
+                    ['unknown punctuation', {
+                        found:  String.fromCharCode(curChar),
+                    }],
+                    range
+                )
                 return p.result(false)
         }
     }
@@ -280,11 +303,11 @@ export class BodyParser<ReturnType, ErrorType> {
             }],
         }).mapResult(() => {
             if (this.currentContext === null || this.currentContext.type[0] !== StackContextType2.OBJECT) {
-                this.raiseError("not in an object", range)
+                this.raiseError(["not in an object"], range)
                 return p.result(false)
             } else {
                 if (this.currentContext.type[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
-                    this.raiseError("missing property value", range)
+                    this.raiseError(["missing property value"], range)
                 }
                 return this.popContext(range, onEndOfStack)
             }
@@ -311,7 +334,7 @@ export class BodyParser<ReturnType, ErrorType> {
             }],
         }).mapResult(() => {
             if (this.currentContext === null || this.currentContext.type[0] !== StackContextType2.ARRAY) {
-                this.raiseError("not in an array", range)
+                this.raiseError(["not in an array"], range)
                 return p.result(false)
             } else {
                 return this.popContext(range, onEndOfStack)
@@ -343,7 +366,7 @@ export class BodyParser<ReturnType, ErrorType> {
                 const $$ = this.currentContext.type[1]
                 switch ($$.state) {
                     case TaggedUnionState.EXPECTING_OPTION:
-                        this.raiseError("expected option", range)
+                        this.raiseError(["expected option"], range)
                         return p.result(false)
                     case TaggedUnionState.EXPECTING_VALUE: {
                         return p.result(false)
@@ -357,8 +380,13 @@ export class BodyParser<ReturnType, ErrorType> {
         }
 
     }
-    private raiseError(message: string, range: Range) {
+    private raiseError(message: BodyParserErrorType, range: Range) {
         //if (DEBUG) { console.log("error raised:", message, printRange(range)) }
-        this.onerror(message, range)
+        this.onerror(
+            {
+                message: message,
+            },
+            range
+        )
     }
 }

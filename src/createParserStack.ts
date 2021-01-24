@@ -2,6 +2,7 @@ import * as p from "pareto"
 import {
     ParserEventConsumer,
     createParser,
+    ParserError,
 } from "./createParser"
 import {
     OverheadToken,
@@ -16,6 +17,7 @@ import {
 import {
     createTokenizer,
 } from "./createTokenizer"
+import { PreTokenizerError } from "./PreTokenizer"
 
 /**
  * the top level function for this package.
@@ -28,10 +30,10 @@ import {
 export function createParserStack<ReturnType, ErrorType>(
     onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
     onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
-    onTokenizerError: (message: string, range: Range) => void = () => {
+    onTokenizerError: (error: PreTokenizerError, range: Range) => void = () => {
         //
     },
-    onParserError: (message: string, range: Range) => void = () => {
+    onParserError: (error: ParserError, range: Range) => void = () => {
         //
     },
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean> = () => p.result(false),

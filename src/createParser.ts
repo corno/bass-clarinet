@@ -9,7 +9,7 @@ import {
 import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "./location"
 import { BodyEvent, BodyEventType } from "./BodyEvent"
 import * as Char from "./Characters"
-import { BodyParser } from "./BodyParser"
+import { BodyParser, BodyParserError } from "./BodyParser"
 import { TokenType, Token, PunctionationData, SimpleValueData, OverheadToken } from "./Token"
 
 const DEBUG = false
@@ -46,17 +46,33 @@ export type RootContext<ReturnType, ErrorType> = {
     }]
 }
 
+type OtherParserErrorType =
+    | ["expected the schema start (!) or root value"]
+    | ["expected the schema"]
+    | ["expected rootvalue"]
+    | ["expected '#' or rootvalue"]
+    | ["unexpected data after end", {
+        data: string
+    }]
+
+export type ParserError = {
+    type:
+    | ["BodyParser", BodyParserError]
+    | ["other", {
+        type: OtherParserErrorType
+    }]
+}
 
 export class Parser<ReturnType, ErrorType> {
     private readonly rootContext: RootContext<ReturnType, ErrorType> = { state: [RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE] }
     private readonly onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>
     private readonly onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>
-    private readonly onerror: (message: string, range: Range) => void
+    private readonly onerror: (error: ParserError, range: Range) => void
     private readonly onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>
     constructor(
         onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
         onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
-        onerror: (message: string, range: Range) => void,
+        onerror: (error: ParserError, range: Range) => void,
         onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
     ) {
         this.onSchemaDataStart = onSchemaDataStart
@@ -72,14 +88,14 @@ export class Parser<ReturnType, ErrorType> {
             case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: {
                 //const $ = this.rootContext.state[1]
 
-                this.raiseError("expected the schema start (!) or root value", range)
+                this.raiseError(["expected the schema start (!) or root value"], range)
 
                 return this.onInstanceDataStart(null, location).onEnd(aborted, location)
             }
             case RootState.EXPECTING_SCHEMA: {
                 //const $ = this.rootContext.state[1]
 
-                this.raiseError("expected the schema", range)
+                this.raiseError(["expected the schema"], range)
                 return this.onInstanceDataStart(null, location).onEnd(aborted, location)
             }
             case RootState.PROCESSING_SCHEMA: {
@@ -99,13 +115,13 @@ export class Parser<ReturnType, ErrorType> {
             }
             case RootState.EXPECTING_HASH_OR_INSTANCE_DATA: {
                 //const $ = this.rootContext.state[1]
-                this.raiseError("expected '#' or rootvalue", range)
+                this.raiseError(["expected '#' or rootvalue"], range)
 
                 return this.onInstanceDataStart(null, location).onEnd(aborted, location)
             }
             case RootState.EXPECTING_INSTANCE_DATA_AFTER_HASH: {
                 //const $ = this.rootContext.state[1]
-                this.raiseError("expected rootvalue", range)
+                this.raiseError(["expected rootvalue"], range)
                 return this.onInstanceDataStart(null, location).onEnd(aborted, location)
             }
             case RootState.PROCESSING_INSTANCE_DATA: {
@@ -173,7 +189,14 @@ export class Parser<ReturnType, ErrorType> {
                     data,
                     _punctuation => {
                         const bp = new BodyParser(
-                            this.onerror,
+                            (error, errorRange) => {
+                                this.onerror(
+                                    {
+                                        type: ["BodyParser", error],
+                                    },
+                                    errorRange
+                                )
+                            },
                             this.onSchemaDataStart(data.range),
                         )
                         this.rootContext.state = [RootState.PROCESSING_SCHEMA, {
@@ -272,11 +295,15 @@ export class Parser<ReturnType, ErrorType> {
                 return this.handlePreEvent(
                     data,
                     punctuation => {
-                        this.raiseError(`unexpected data after end: '${String.fromCharCode(punctuation.char)}'`, data.range)
+                        this.raiseError([`unexpected data after end`, {
+                            data: String.fromCharCode(punctuation.char),
+                        }], data.range)
                         return p.result(false)
                     },
                     simpleValue => {
-                        this.raiseError(`unexpected data after end: '${simpleValue.value}'`, data.range)
+                        this.raiseError([`unexpected data after end`, {
+                            data: simpleValue.value,
+                        }], data.range)
                         return p.result(false)
                     }
                 )
@@ -287,7 +314,14 @@ export class Parser<ReturnType, ErrorType> {
     }
     private processComplexValueInstanceData(data: Token, compact: null | Range, range: Range) {
         const bp = new BodyParser(
-            this.onerror,
+            (error, errorRange) => {
+                this.onerror(
+                    {
+                        type: ["BodyParser", error],
+                    },
+                    errorRange
+                )
+            },
             this.onInstanceDataStart(null, range.start),
         )
         this.rootContext.state = [RootState.PROCESSING_INSTANCE_DATA, {
@@ -314,9 +348,15 @@ export class Parser<ReturnType, ErrorType> {
         })
 
     }
-    private raiseError(message: string, range: Range) {
-        if (DEBUG) { console.log("error raised:", message, printRange(range)) }
-        this.onerror(message, range)
+    private raiseError(type: OtherParserErrorType, range: Range) {
+        if (DEBUG) { console.log("error raised:", type[0], printRange(range)) }
+        this.onerror(
+            {
+                type: ["other", {
+                    type: type,
+                }],
+            },
+            range)
     }
 }
 
@@ -334,7 +374,7 @@ export class Parser<ReturnType, ErrorType> {
 export function createParser<ReturnType, ErrorType>(
     onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
     onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
-    onerror: (message: string, range: Range) => void,
+    onerror: (error: ParserError, range: Range) => void,
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
 ): Parser<ReturnType, ErrorType> {
     return new Parser(onSchemaDataStart, onInstanceDataStart, onerror, onHeaderOverheadToken)
