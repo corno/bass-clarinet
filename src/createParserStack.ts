@@ -19,6 +19,12 @@ import {
 } from "./createTokenizer"
 import { PreTokenizerError } from "./PreTokenizer"
 
+export type ParsingError = {
+    source:
+    | ["parser", ParserError]
+    | ["tokenizer", PreTokenizerError]
+}
+
 /**
  * the top level function for this package.
  * @param onSchemaDataStart a callback that should provide a handler for the (optional) schema part of the document
@@ -30,10 +36,7 @@ import { PreTokenizerError } from "./PreTokenizer"
 export function createParserStack<ReturnType, ErrorType>(
     onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
     onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
-    onTokenizerError: (error: PreTokenizerError, range: Range) => void = () => {
-        //
-    },
-    onParserError: (error: ParserError, range: Range) => void = () => {
+    onError: (error: ParsingError, range: Range) => void = () => {
         //
     },
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean> = () => p.result(false),
@@ -42,9 +45,23 @@ export function createParserStack<ReturnType, ErrorType>(
         createTokenizer(createParser(
             onSchemaDataStart,
             onInstanceDataStart,
-            onParserError,
+            (error, range) => {
+                onError(
+                    {
+                        source: ["parser", error],
+                    },
+                    range,
+                )
+            },
             onHeaderOverheadToken,
         )),
-        onTokenizerError,
+        (error, range) => {
+            onError(
+                {
+                    source: ["tokenizer", error],
+                },
+                range,
+            )
+        },
     )
 }

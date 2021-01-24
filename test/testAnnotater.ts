@@ -20,7 +20,6 @@ Object.keys(JSONTests).forEach(testName => {
             return annotater
         },
         err => console.error(err),
-        err => console.error(err),
         () => {
             return p.result(false)
         },

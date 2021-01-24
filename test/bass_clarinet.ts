@@ -431,26 +431,37 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             (error, _location) => {
                 if (DEBUG) console.log("found error")
 
-                actualEvents.push(["tokenizererror", error.type[0]])
-            },
-            (error, _range) => {
-                if (DEBUG) console.log("found error")
-                switch (error.type[0]) {
-                    case "BodyParser": {
-                        const $ = error.type[1]
-                        actualEvents.push(["parsererror", $.message[0]])
+                switch (error.source[0]) {
+                    case "parser": {
+                        const $ = error.source[1]
 
+                        switch ($.type[0]) {
+                            case "BodyParser": {
+                                const $$ = $.type[1]
+                                actualEvents.push(["parsererror", $$.message[0]])
+
+                                break
+                            }
+                            case "other": {
+                                const $$ = $.type[1]
+                                actualEvents.push(["parsererror", $$.type[0]])
+
+                                break
+                            }
+                            default:
+                                assertUnreachable($.type[0])
+                        }
                         break
                     }
-                    case "other": {
-                        const $ = error.type[1]
-                        actualEvents.push(["parsererror", $.type[0]])
-
+                    case "tokenizer": {
+                        const $ = error.source[1]
+                        actualEvents.push(["tokenizererror", $.type[0]])
                         break
                     }
                     default:
-                        assertUnreachable(error.type[0])
+                        assertUnreachable(error.source[0])
                 }
+
             },
             (token, range) => {
                 outputOverheadToken(out, token)

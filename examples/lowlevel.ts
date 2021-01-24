@@ -105,8 +105,7 @@ const parserStack = bc.createParserStack(
     () => {
         return parserEventConsumer
     },
-    err => { console.error("FOUND TOKENIZER ERROR", err) },
-    err => { console.error("FOUND PARSER ERROR", err) },
+    err => { console.error("FOUND ERROR", err) },
     () => {
         return p.result(false)
     }

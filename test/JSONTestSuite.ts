@@ -16,7 +16,6 @@ function tokenizeStrings(
             () => dummyParserEventConsumer,
             () => dummyParserEventConsumer,
             onError,
-            onError,
         )
     )
 }
