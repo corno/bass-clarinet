@@ -227,7 +227,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         const stackedSubscriber = bc.createStackedDataSubscriber(
             createTestRequiredValueHandler(),
             error => {
-                actualEvents.push(["stacked error", error.rangeLessMessage])
+                actualEvents.push(["stacked error", error[0]])
             },
             () => {
                 return p.success<null, null>(null)

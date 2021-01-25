@@ -1,7 +1,7 @@
 /* eslint
     max-classes-per-file: "off",
 */
-import { Range, printRange, Location, printLocation } from "./location";
+import { Range, printRange } from "./location";
 
 /**
  * a RangeError has a range of characters to which it applies
@@ -17,22 +17,5 @@ export class RangeError extends Error {
         super(`${message} @ ${printRange(range)}`)
         this.rangeLessMessage = message
         this.range = range
-    }
-}
-
-/**
- * a LocationError applies to a specific location (character) in the document
- */
-export class LocationError extends Error {
-    public readonly location: Location
-    /**
-     * as a LocationError extends a regular Error, it will have a message. In this message there will be location information
-     * If you need a message without the location information, use this property
-     */
-    public readonly locationLessMessage: string
-    constructor(message: string, location: Location) {
-        super(`${message} @ ${printLocation(location)}`)
-        this.location = location
-        this.locationLessMessage = message
     }
 }

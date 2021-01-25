@@ -52,8 +52,21 @@ type ContextType =
         state: TaggedUnionState
     }]
 
-function raiseError(onError: (error: RangeError) => void, message: string, range: Range) {
-    onError(new RangeError(message, range))
+export type StackedDataError =
+    | ["missing property data"]
+    | ["missing object close"]
+    | ["missing array close"]
+    | ["missing tagged union value"]
+    | ["missing tagged union option and value"]
+    | ["unexpected end of document, still in array"]
+    | ["unexpected end of document, still in object"]
+    | ["unexpected end of document, still in tagged union"]
+    | ["unexpected end of array"]
+    | ["unexpected end of object"]
+    | ["unexpected key"]
+
+function raiseError(onError: (error: StackedDataError, range: Range) => void, error: StackedDataError, range: Range) {
+    onError(error, range)
 }
 
 type WhiteSpaceState = {
@@ -160,7 +173,7 @@ type ProcessResult =
 function processParserEvent(
     data: BodyEvent,
     state: State,
-    onError: (error: RangeError) => void,
+    onError: (error: StackedDataError, range: Range) => void,
 ): ProcessResult {
 
     switch (data.type[0]) {
@@ -175,11 +188,11 @@ function processParserEvent(
                         case "object": {
                             const $$2 = state.currentContext[1]
                             if ($$2.propertyHandler !== null) {
-                                raiseError(onError, "missing property data", data.range)
+                                raiseError(onError, ["missing property data"], data.range)
                                 $$2.propertyHandler.onMissing()
                                 $$2.propertyHandler = null
                             }
-                            raiseError(onError, "missing object close", data.range)
+                            raiseError(onError, ["missing object close"], data.range)
                             state.pop(data.range)
                             state.wrapupValue(data.range)
                             break
@@ -192,9 +205,9 @@ function processParserEvent(
                             //const $ = state.currentContext[1]
                             if (state.currentContext[1].state[0] === "expecting value") {
                                 state.currentContext[1].state[1].onMissing()
-                                raiseError(onError, "missing tagged union value", data.range)
+                                raiseError(onError, ["missing tagged union value"], data.range)
                             } else {
-                                raiseError(onError, "missing tagged union option and value", data.range)
+                                raiseError(onError, ["missing tagged union option and value"], data.range)
                             }
                             state.pop(data.range)
                             state.wrapupValue(data.range)
@@ -205,7 +218,7 @@ function processParserEvent(
                     }
                 }
                 if (state.currentContext[0] !== "array") {
-                    raiseError(onError, "unexpected end of array", data.range)
+                    raiseError(onError, ["unexpected end of array"], data.range)
                     return p.result(false)
                 } else {
                     const $$ = state.currentContext[1]
@@ -227,7 +240,7 @@ function processParserEvent(
                     switch (state.currentContext[0]) {
                         case "array": {
                             //const $ = state.currentContext[1]
-                            raiseError(onError, "missing array close", data.range)
+                            raiseError(onError, ["missing array close"], data.range)
                             state.pop(data.range)
                             state.wrapupValue(data.range)
                             break
@@ -244,9 +257,9 @@ function processParserEvent(
                             //const $ = state.currentContext[1]
                             if (state.currentContext[1].state[0] === "expecting value") {
                                 state.currentContext[1].state[1].onMissing()
-                                raiseError(onError, "missing tagged union value", data.range)
+                                raiseError(onError, ["missing tagged union value"], data.range)
                             } else {
-                                raiseError(onError, "missing tagged union option and value", data.range)
+                                raiseError(onError, ["missing tagged union option and value"], data.range)
                             }
                             state.pop(data.range)
                             state.wrapupValue(data.range)
@@ -257,7 +270,7 @@ function processParserEvent(
                     }
                 }
                 if (state.currentContext[0] !== "object") {
-                    raiseError(onError, "unexpected end of object", data.range)
+                    raiseError(onError, ["unexpected end of object"], data.range)
                     return p.result(false)
                 } else {
                     const $$ = state.currentContext[1]
@@ -370,7 +383,7 @@ function processParserEvent(
                         const $$ = state.currentContext[1]
                         if ($$.propertyHandler === null) {
                             if (state.currentContext[0] !== "object") {
-                                raiseError(onError, "unexpected key", data.range)
+                                raiseError(onError, ["unexpected key"], data.range)
                                 return p.result(false)
                             } else {
                                 return $$.objectHandler.property(
@@ -447,7 +460,7 @@ function processParserEvent(
  */
 export function createStackedDataSubscriber<ReturnType, ErrorType>(
     valueHandler: RequiredValueHandler,
-    onError: (error: RangeError) => void,
+    onError: (error: StackedDataError, range: Range) => void,
     onEnd: (contextData: ContextData) => p.IUnsafeValue<ReturnType, ErrorType>
 ): ParserEventConsumer<ReturnType, ErrorType> {
     const whiteSpaceState: WhiteSpaceState = {
@@ -579,7 +592,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                 break unwindLoop
                             }
                             case "array": {
-                                raiseError(onError, "unexpected end of document, still in array", range)
+                                raiseError(onError, ["unexpected end of document, still in array"], range)
                                 state.pop(range)
                                 state.wrapupValue(range)
                                 break
@@ -590,7 +603,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                     $.propertyHandler.onMissing()
                                     $.propertyHandler = null
                                 }
-                                raiseError(onError, "unexpected end of document, still in object", range)
+                                raiseError(onError, ["unexpected end of document, still in object"], range)
                                 state.pop(range)
                                 state.wrapupValue(range)
                                 break
@@ -613,7 +626,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                     default:
                                         assertUnreachable($.state[0])
                                 }
-                                raiseError(onError, "unexpected end of document, still in tagged union", range)
+                                raiseError(onError, ["unexpected end of document, still in tagged union"], range)
                                 state.pop(range)
                                 state.wrapupValue(range)
 

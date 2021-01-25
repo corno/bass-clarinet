@@ -77,7 +77,7 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
             },
         },
         error => {
-            console.error("FOUND STACKED DATA ERROR", error.message)
+            console.error("FOUND STACKED DATA ERROR", error)
         },
         () => {
             //onEnd

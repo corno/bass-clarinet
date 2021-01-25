@@ -62,8 +62,8 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
 export function createAnnotator(indentation: string, writer: (str: string) => void): ParserEventConsumer<null, null> {
     const ds = bc.createStackedDataSubscriber<null, null>(
         createRequiredValuesAnnotater(indentation, writer),
-        error => {
-            throw new bc.RangeError(error.message, error.range)
+        (error, range) => {
+            throw new bc.RangeError(error[0], range)
         },
         () => {
             //do nothing
