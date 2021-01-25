@@ -12,6 +12,7 @@ import { JSONTests } from "./ownJSONTestset"
 import { extensionTests } from "./JSONExtenstionsTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
 import { createStreamSplitter } from "../src/createStreamSplitter"
+import { printParsingError, printStackedDataError } from "../src"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -227,7 +228,8 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         const stackedSubscriber = bc.createStackedDataSubscriber(
             createTestRequiredValueHandler(),
             error => {
-                actualEvents.push(["stacked error", error[0]])
+
+                actualEvents.push(["stacked error", printStackedDataError(error)])
             },
             () => {
                 return p.success<null, null>(null)
@@ -430,37 +432,8 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
             (error, _location) => {
                 if (DEBUG) console.log("found error")
+                actualEvents.push(["parsingerror", printParsingError(error)])
 
-                switch (error.source[0]) {
-                    case "parser": {
-                        const $ = error.source[1]
-
-                        switch ($.type[0]) {
-                            case "BodyParser": {
-                                const $$ = $.type[1]
-                                actualEvents.push(["parsererror", $$.message[0]])
-
-                                break
-                            }
-                            case "other": {
-                                const $$ = $.type[1]
-                                actualEvents.push(["parsererror", $$.type[0]])
-
-                                break
-                            }
-                            default:
-                                assertUnreachable($.type[0])
-                        }
-                        break
-                    }
-                    case "tokenizer": {
-                        const $ = error.source[1]
-                        actualEvents.push(["tokenizererror", $.type[0]])
-                        break
-                    }
-                    default:
-                        assertUnreachable(error.source[0])
-                }
 
             },
             (token, range) => {

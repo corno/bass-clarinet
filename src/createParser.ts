@@ -9,7 +9,7 @@ import {
 import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "./location"
 import { BodyEvent, BodyEventType } from "./BodyEvent"
 import * as Char from "./Characters"
-import { BodyParser, BodyParserError } from "./BodyParser"
+import { BodyParser, BodyParserError, printBodyParserError } from "./BodyParser"
 import { TokenType, Token, PunctionationData, SimpleValueData, OverheadToken } from "./Token"
 
 const DEBUG = false
@@ -46,7 +46,7 @@ export type RootContext<ReturnType, ErrorType> = {
     }]
 }
 
-type OtherParserErrorType =
+type StructureErrorType =
     | ["expected the schema start (!) or root value"]
     | ["expected the schema"]
     | ["expected rootvalue"]
@@ -57,10 +57,43 @@ type OtherParserErrorType =
 
 export type ParserError = {
     type:
-    | ["BodyParser", BodyParserError]
-    | ["other", {
-        type: OtherParserErrorType
+    | ["body", BodyParserError]
+    | ["structure", {
+        type: StructureErrorType
     }]
+}
+
+export function printParserError(error: ParserError): string {
+    switch (error.type[0]) {
+        case "body": {
+            const $$ = error.type[1]
+            return printBodyParserError($$)
+        }
+        case "structure": {
+            const $$ = error.type[1]
+            switch ($$.type[0]) {
+                case "expected '#' or rootvalue": {
+                    return `expected '#' or rootvalue`
+                }
+                case "expected rootvalue": {
+                    return `expected rootvalue`
+                }
+                case "expected the schema": {
+                    return `expected the schema`
+                }
+                case "expected the schema start (!) or root value": {
+                    return `expected the schema start (!) or root value`
+                }
+                case "unexpected data after end": {
+                    return `unexpected data after end`
+                }
+                default:
+                    return assertUnreachable($$.type[0])
+            }
+        }
+        default:
+            return assertUnreachable(error.type[0])
+    }
 }
 
 export class Parser<ReturnType, ErrorType> {
@@ -88,14 +121,14 @@ export class Parser<ReturnType, ErrorType> {
             case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: {
                 //const $ = this.rootContext.state[1]
 
-                this.raiseError(["expected the schema start (!) or root value"], range)
+                this.raiseStructureError(["expected the schema start (!) or root value"], range)
 
                 return this.onInstanceDataStart(null, location).onEnd(aborted, location)
             }
             case RootState.EXPECTING_SCHEMA: {
                 //const $ = this.rootContext.state[1]
 
-                this.raiseError(["expected the schema"], range)
+                this.raiseStructureError(["expected the schema"], range)
                 return this.onInstanceDataStart(null, location).onEnd(aborted, location)
             }
             case RootState.PROCESSING_SCHEMA: {
@@ -115,13 +148,13 @@ export class Parser<ReturnType, ErrorType> {
             }
             case RootState.EXPECTING_HASH_OR_INSTANCE_DATA: {
                 //const $ = this.rootContext.state[1]
-                this.raiseError(["expected '#' or rootvalue"], range)
+                this.raiseStructureError(["expected '#' or rootvalue"], range)
 
                 return this.onInstanceDataStart(null, location).onEnd(aborted, location)
             }
             case RootState.EXPECTING_INSTANCE_DATA_AFTER_HASH: {
                 //const $ = this.rootContext.state[1]
-                this.raiseError(["expected rootvalue"], range)
+                this.raiseStructureError(["expected rootvalue"], range)
                 return this.onInstanceDataStart(null, location).onEnd(aborted, location)
             }
             case RootState.PROCESSING_INSTANCE_DATA: {
@@ -192,7 +225,7 @@ export class Parser<ReturnType, ErrorType> {
                             (error, errorRange) => {
                                 this.onerror(
                                     {
-                                        type: ["BodyParser", error],
+                                        type: ["body", error],
                                     },
                                     errorRange
                                 )
@@ -295,13 +328,13 @@ export class Parser<ReturnType, ErrorType> {
                 return this.handlePreEvent(
                     data,
                     punctuation => {
-                        this.raiseError([`unexpected data after end`, {
+                        this.raiseStructureError([`unexpected data after end`, {
                             data: String.fromCharCode(punctuation.char),
                         }], data.range)
                         return p.result(false)
                     },
                     simpleValue => {
-                        this.raiseError([`unexpected data after end`, {
+                        this.raiseStructureError([`unexpected data after end`, {
                             data: simpleValue.value,
                         }], data.range)
                         return p.result(false)
@@ -317,7 +350,7 @@ export class Parser<ReturnType, ErrorType> {
             (error, errorRange) => {
                 this.onerror(
                     {
-                        type: ["BodyParser", error],
+                        type: ["body", error],
                     },
                     errorRange
                 )
@@ -348,11 +381,11 @@ export class Parser<ReturnType, ErrorType> {
         })
 
     }
-    private raiseError(type: OtherParserErrorType, range: Range) {
+    private raiseStructureError(type: StructureErrorType, range: Range) {
         if (DEBUG) { console.log("error raised:", type[0], printRange(range)) }
         this.onerror(
             {
-                type: ["other", {
+                type: ["structure", {
                     type: type,
                 }],
             },

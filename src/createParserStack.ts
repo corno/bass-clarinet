@@ -3,6 +3,7 @@ import {
     ParserEventConsumer,
     createParser,
     ParserError,
+    printParserError,
 } from "./createParser"
 import {
     OverheadToken,
@@ -17,12 +18,32 @@ import {
 import {
     createTokenizer,
 } from "./createTokenizer"
-import { PreTokenizerError } from "./PreTokenizer"
+import { printPreTokenizerError, PreTokenizerError } from "./PreTokenizer"
+
+function assertUnreachable<RT>(_x: never): RT {
+    throw new Error("unreachable")
+}
 
 export type ParsingError = {
     source:
     | ["parser", ParserError]
     | ["tokenizer", PreTokenizerError]
+}
+
+export function printParsingError(error: ParsingError): string {
+
+    switch (error.source[0]) {
+        case "parser": {
+            const $ = error.source[1]
+            return printParserError($)
+        }
+        case "tokenizer": {
+            const $ = error.source[1]
+            return printPreTokenizerError($)
+        }
+        default:
+            return assertUnreachable(error.source[0])
+    }
 }
 
 /**

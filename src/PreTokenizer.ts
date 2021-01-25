@@ -144,6 +144,30 @@ export type PreTokenizerError = {
     }]
 }
 
+export function printPreTokenizerError($: PreTokenizerError): string {
+
+    switch ($.type[0]) {
+        case "expected special character after escape slash": {
+            const $$ = $.type[1]
+            return `expected special character after escape slash, but found ${$$.found}`
+        }
+        case "found dangling slash": {
+            return `found dangling slash`
+        }
+        case "found dangling slash at the end of the document": {
+            return `found dangling slash at the end of the document`
+        }
+        case "unterminated block comment": {
+            return `unterminated block comment`
+        }
+        case "unterminated string": {
+            return `unterminated string`
+        }
+        default:
+            return assertUnreachable($.type[0])
+    }
+}
+
 export class PreTokenizer {
     public currentTokenType: CurrentToken
     private readonly onError: (error: PreTokenizerError, range: Range) => void

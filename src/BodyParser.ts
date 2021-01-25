@@ -34,10 +34,13 @@ type StackContext = {
 }
 
 export type BodyParserErrorType =
-    | ["unexpected end of document, still in array"]
-    | ["unexpected end of document, still in object"]
-    | ["unexpected end of document, still in tagged union"]
-    | ["unexpected !"]
+    | ["unexpected end of document", {
+        "still in":
+        | ["array"]
+        | ["object"]
+        | ["tagged union"]
+    }]
+    | ["unexpected '!'"]
     | ["unexpected '#'"]
     | ["not in an object"]
     | ["not in an array"]
@@ -48,7 +51,41 @@ export type BodyParserErrorType =
     }]
 
 export type BodyParserError = {
-    message: BodyParserErrorType
+    type: BodyParserErrorType
+}
+
+export function printBodyParserError(error: BodyParserError): string {
+
+    switch (error.type[0]) {
+        case "expected option": {
+            return `expected option`
+        }
+        case "missing property value": {
+            return `missing property value`
+        }
+        case "not in an array": {
+            return `not in an array`
+        }
+        case "not in an object": {
+            return `not in an object`
+        }
+        case "unexpected '!'": {
+            return `unexpected '!'`
+        }
+        case "unexpected '#'": {
+            return `unexpected '#'`
+        }
+        case "unexpected end of document": {
+            const $ = error.type[1]
+            return `unexpected end of document, still in ${$["still in"][0]}`
+        }
+        case "unknown punctuation": {
+            const $ = error.type[1]
+            return `unknown punctuation: ${$.found}`
+        }
+        default:
+            return assertUnreachable(error.type[0])
+    }
 }
 
 export class BodyParser<ReturnType, ErrorType> {
@@ -68,19 +105,19 @@ export class BodyParser<ReturnType, ErrorType> {
         switch (stackContext.type[0]) {
             case StackContextType2.ARRAY: {
                 //const $ = stackContext.type[1]
-                this.onerror({ message: ["unexpected end of document, still in array"] }, range)
+                this.onerror({ type: ["unexpected end of document", { "still in": ["array"] }] }, range)
 
                 break
             }
             case StackContextType2.OBJECT: {
                 //const $ = stackContext.type[1]
-                this.onerror({ message: ["unexpected end of document, still in object"] }, range)
+                this.onerror({ type: ["unexpected end of document", { "still in": ["object"] }] }, range)
 
                 break
             }
             case StackContextType2.TAGGED_UNION: {
                 //const $ = stackContext.type[1]
-                this.onerror({ message: ["unexpected end of document, still in tagged union"] }, range)
+                this.onerror({ type: ["unexpected end of document", { "still in": ["tagged union"] }] }, range)
 
                 break
             }
@@ -216,7 +253,7 @@ export class BodyParser<ReturnType, ErrorType> {
         const curChar = data.char
         switch (curChar) {
             case Char.Punctuation.exclamationMark:
-                this.raiseError(["unexpected !"], range)
+                this.raiseError(["unexpected '!'"], range)
                 return p.result(false)
             case Char.Punctuation.hash:
                 this.raiseError(["unexpected '#'"], range)
@@ -257,7 +294,7 @@ export class BodyParser<ReturnType, ErrorType> {
             default:
                 this.raiseError(
                     ['unknown punctuation', {
-                        found:  String.fromCharCode(curChar),
+                        found: String.fromCharCode(curChar),
                     }],
                     range
                 )
@@ -384,7 +421,7 @@ export class BodyParser<ReturnType, ErrorType> {
         //if (DEBUG) { console.log("error raised:", message, printRange(range)) }
         this.onerror(
             {
-                message: message,
+                type: message,
             },
             range
         )

@@ -53,17 +53,55 @@ type ContextType =
     }]
 
 export type StackedDataError =
+    | ["unexpected end of document", {
+        "still in":
+        | ["array"]
+        | ["object"]
+        | ["tagged union"]
+    }]
     | ["missing property data"]
     | ["missing object close"]
     | ["missing array close"]
     | ["missing tagged union value"]
     | ["missing tagged union option and value"]
-    | ["unexpected end of document, still in array"]
-    | ["unexpected end of document, still in object"]
-    | ["unexpected end of document, still in tagged union"]
     | ["unexpected end of array"]
     | ["unexpected end of object"]
     | ["unexpected key"]
+
+export function printStackedDataError(error: StackedDataError): string {
+    switch (error[0]) {
+        case "missing array close": {
+            return error[0]
+        }
+        case "missing object close": {
+            return error[0]
+        }
+        case "missing property data": {
+            return error[0]
+        }
+        case "missing tagged union option and value": {
+            return error[0]
+        }
+        case "missing tagged union value": {
+            return error[0]
+        }
+        case "unexpected end of array": {
+            return error[0]
+        }
+        case "unexpected end of document": {
+            const $ = error[1]
+            return `unexpected end of document, still in ${$["still in"][0]}`
+        }
+        case "unexpected end of object": {
+            return error[0]
+        }
+        case "unexpected key": {
+            return error[0]
+        }
+        default:
+            return assertUnreachable(error[0])
+    }
+}
 
 function raiseError(onError: (error: StackedDataError, range: Range) => void, error: StackedDataError, range: Range) {
     onError(error, range)
@@ -592,7 +630,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                 break unwindLoop
                             }
                             case "array": {
-                                raiseError(onError, ["unexpected end of document, still in array"], range)
+                                raiseError(onError, ["unexpected end of document", { "still in": ["array"]}], range)
                                 state.pop(range)
                                 state.wrapupValue(range)
                                 break
@@ -603,7 +641,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                     $.propertyHandler.onMissing()
                                     $.propertyHandler = null
                                 }
-                                raiseError(onError, ["unexpected end of document, still in object"], range)
+                                raiseError(onError, ["unexpected end of document", { "still in": ["object"]}], range)
                                 state.pop(range)
                                 state.wrapupValue(range)
                                 break
@@ -626,7 +664,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                     default:
                                         assertUnreachable($.state[0])
                                 }
-                                raiseError(onError, ["unexpected end of document, still in tagged union"], range)
+                                raiseError(onError, ["unexpected end of document", { "still in": ["tagged union"]}], range)
                                 state.pop(range)
                                 state.wrapupValue(range)
 
