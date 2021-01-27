@@ -16,22 +16,22 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-function createRequiredValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
+function createRequiredValuePrettyPrinter(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
     return {
-        onValue: createValuesPrettyPrinter(indentation, writer),
+        onValue: createValuePrettyPrinter(indentation, writer),
         onMissing: () => {
             //write out an empty string to fix this missing data?
         },
     }
 }
 
-function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.OnValue {
+function createValuePrettyPrinter(indentation: string, writer: (str: string) => void): bc.OnValue {
     return () => {
         return {
             array: (_beginRange, beginMetaData) => {
                 writer(beginMetaData.openCharacter)
                 return {
-                    element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
+                    element: () => createValuePrettyPrinter(`${indentation}\t`, writer),
                     end: (_endRange, endData) => {
                         writer(`${indentation}${endData.closeCharacter}`)
                     },
@@ -43,7 +43,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
                 return {
                     property: (_keyRange, key) => {
                         writer(`${indentation}\t"${key}": `)
-                        return p.result(createRequiredValuesPrettyPrinter(`${indentation}\t`, writer))
+                        return p.result(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
                     },
                     end: (_endRange, endData) => {
                         writer(`${indentation}${endData.closeCharacter}`)
@@ -62,7 +62,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
                 return {
                     option: (_range, option) => {
                         writer(`| "${option}" `)
-                        return createRequiredValuesPrettyPrinter(`${indentation}`, writer)
+                        return createRequiredValuePrettyPrinter(`${indentation}`, writer)
                     },
                     missingOption: () => {
                         //
@@ -76,7 +76,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
 export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ParserEventConsumer<null, null> {
     const datasubscriber = bc.createStackedDataSubscriber<null, null>(
         {
-            onValue: createValuesPrettyPrinter(indentation, writer),
+            onValue: createValuePrettyPrinter(indentation, writer),
             onMissing: () => {
                 console.error("FOUND MISSING DATA")
 
