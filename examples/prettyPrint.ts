@@ -1,8 +1,13 @@
 import * as p from "pareto"
 import * as fs from "fs"
 import * as bc from "../src"
+import { printParsingError } from "../src"
 
 const [, , path] = process.argv
+
+function assertUnreachable<RT>(_x: never): RT {
+    throw new Error("unreachable")
+}
 
 if (path === undefined) {
     console.error("missing path")
@@ -23,12 +28,12 @@ function createRequiredValuesPrettyPrinter(indentation: string, writer: (str: st
 function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.OnValue {
     return () => {
         return {
-            array: (beginRange, beginMetaData) => {
+            array: (_beginRange, beginMetaData) => {
                 writer(beginMetaData.openCharacter)
                 return {
                     element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
-                    end: _endRange => {
-                        writer(`${indentation}${bc.printRange(beginRange)}`)
+                    end: (_endRange, endData) => {
+                        writer(`${indentation}${endData.closeCharacter}`)
                     },
                 }
 
@@ -40,8 +45,8 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
                         writer(`${indentation}\t"${key}": `)
                         return p.result(createRequiredValuesPrettyPrinter(`${indentation}\t`, writer))
                     },
-                    end: endRange => {
-                        writer(`${indentation}${bc.printRange(endRange)}`)
+                    end: (_endRange, endData) => {
+                        writer(`${indentation}${endData.closeCharacter}`)
                     },
                 }
             },
@@ -73,7 +78,8 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
         {
             onValue: createValuesPrettyPrinter(indentation, writer),
             onMissing: () => {
-                //
+                console.error("FOUND MISSING DATA")
+
             },
         },
         error => {
@@ -88,25 +94,58 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
     return datasubscriber
 }
 
-const pp = createPrettyPrinter("\r\n", str => process.stdout.write(str))
+function write(str: string) {
+    process.stdout.write(str)
+}
 
 bc.parseString(
     dataAsString,
-    () => {
-        return pp
+    _range => {
+        write("! ")
+        return createPrettyPrinter("\r\n", write)
     },
-    () => {
-        return pp
+    compactRange => {
+        if (compactRange !== null) {
+            write("# ")
+        }
+        return createPrettyPrinter("\r\n", write)
     },
-    err => { console.error("FOUND ERROR", err) },
-    () => {
+    err => { console.error("FOUND ERROR", printParsingError(err)) },
+    overheadToken => {
+        switch (overheadToken.type[0]) {
+            case bc.OverheadTokenType.BlockComment: {
+                //const $ = data.type[1]
+
+                break
+            }
+            case bc.OverheadTokenType.LineComment: {
+                //const $ = data.type[1]
+
+                break
+            }
+            case bc.OverheadTokenType.NewLine: {
+                //const $ = data.type[1]
+
+                break
+            }
+            case bc.OverheadTokenType.WhiteSpace: {
+                //const $ = data.type[1]
+
+                break
+            }
+            default:
+                assertUnreachable(overheadToken.type[0])
+        }
+        write("\r\n")
         return p.result(false)
     },
 ).handle(
     () => {
+        write("\r\n")
         //we're only here for the side effects, so no need to handle the error
     },
     () => {
+        write("\r\n")
         //we're only here for the side effects, so no need to handle the result (which is 'null' anyway)
     }
 )
