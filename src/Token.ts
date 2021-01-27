@@ -3,7 +3,7 @@ import { Range } from "./location"
 export type SimpleValueData = {
     value: string
     quote: string | null
-    terminated: boolean | null
+    terminated: boolean | null //terminated is 'null' when the value is not quoted
 }
 
 export type WhiteSpaceData = {
