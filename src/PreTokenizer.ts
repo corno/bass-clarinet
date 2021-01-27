@@ -620,7 +620,7 @@ export class PreTokenizer {
 
                                 this.onError(
                                     {
-                                        type: [`expected special character after escape slash`, {
+                                        type: ["expected special character after escape slash", {
                                             found: String.fromCharCode(nextChar),
                                         }],
                                     },
