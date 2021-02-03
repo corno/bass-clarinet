@@ -24,7 +24,7 @@ function assertUnreachable<RT>(_x: never): RT {
  * at the end, the location of the last character is sent ('Location').
  * The ReturnType and ErrorType are determined by the specific implementation.
  */
-export type ParserEventConsumer<ReturnType, ErrorType> = p.IStreamConsumer<BodyEvent, Location, ReturnType, ErrorType>
+export type ParserEventConsumer<ReturnType, ErrorType> = p.IUnsafeStreamConsumer<BodyEvent, Location, ReturnType, ErrorType>
 
 export type RootContext<ReturnType, ErrorType> = {
     state:

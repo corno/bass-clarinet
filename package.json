@@ -81,8 +81,8 @@
   },
   "license": "BSD-2-Clause",
   "dependencies": {
-    "fountain-pen": "^3.5.0",
-    "pareto": "^0.48.0"
+    "fountain-pen": "^3.5.2",
+    "pareto": "^0.50.0"
   },
   "bin": {
     "astn-normalize": "./bin/normalizeFile.mjs",
