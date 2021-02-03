@@ -443,7 +443,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             },
         )
 
-        return p20.createArray(chunks).streamify().consume(
+        return p20.createArray(chunks).streamify().tryToConsume(
             null,
             parserStack,
         ).convertToNativePromise(() => "Error found").then(() => {

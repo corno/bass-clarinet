@@ -2,8 +2,8 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 
 export function createStreamSplitter<DataType, EndDataType>(
-    subStreamConsumers: p.IStreamConsumer<DataType, EndDataType, null, null>[]
-): p.IStreamConsumer<DataType, EndDataType, null, null> {
+    subStreamConsumers: p.IUnsafeStreamConsumer<DataType, EndDataType, null, null>[]
+): p.IUnsafeStreamConsumer<DataType, EndDataType, null, null> {
     return {
         onData: (data: DataType): p.IValue<boolean> => {
             let abortRequested = false

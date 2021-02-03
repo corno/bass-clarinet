@@ -11,16 +11,16 @@ const after = fs.readFileSync("./test/data/normalize/after.astn", { encoding: "u
 describe('normalize', () => {
     it("normalize", () => {
 
-        return normalize.normalize(before, true).try(
+        return normalize.normalize(before, true).mapResult(
             stream => {
                 const out: string[] = []
-                return stream.consume<string, null>(null, {
+                return stream.consume<string>(null, {
                     onData: chunk => {
                         out.push(chunk)
                         return p.value(false)
                     },
                     onEnd: () => {
-                        return p.success(out.join(``))
+                        return p.value(out.join(``))
                     },
                 })
             }

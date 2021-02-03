@@ -61,7 +61,7 @@ export function createParserStack<ReturnType, ErrorType>(
         //
     },
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean> = () => p.result(false),
-): p.IStreamConsumer<string, null, ReturnType, ErrorType> {
+): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
     return createStreamPreTokenizer(
         createTokenizer(createParser(
             onSchemaDataStart,
