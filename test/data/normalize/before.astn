@@ -1,0 +1,63 @@
+! "mrshl/schemaschema@0.1" (
+    'component types': {
+        'root': (
+	
+	
+        'node': (
+                'properties':{
+                    'foo':(
+                        'type': | 'state group' (
+                            'default state':"bla" //a comment after a simple value
+                            'states': {
+                                "bla":()
+                            }
+                        )
+                    )
+		    /*
+		    a comment before
+		    */
+                    'skylanders': ( /*
+		    	a comment after open object
+		    	*/
+                        'type': | 'collection' (
+                            'node': /*a comment after a colon*/ (
+                                'properties' /*a comment before a colon*/ : {
+                                    'name': ( )
+                                    'aanval':(
+                                        'type': /*a block comment before the tagged union pipe */ | 'state group' (
+                                            'default state': "laser ogen"
+                                            'states': {
+                                                'laser ogen':()
+                                                'vinger pistool': ()
+                                            }
+                                        )
+                                    )
+                                    'element':(
+                                        'type': | 'state group' /*a block comment after an option*/ (
+                                            'states': {
+                                                'techniek':()
+                                                'water':()
+                                                'planten':()
+                                                'ondood':()
+                                                'aarde':()
+                                                'bergen':()
+                                                'lucht':()
+                                                'magie':()
+                                                'vuur':()
+                                            }
+                                            'default state': "techniek" /*a block comment after the last property*/
+                                        )
+                                    )
+                                }
+                            )
+                            'type': | 'dictionary' (
+                            )
+                        )
+                    )
+                }
+            )
+        )
+    }
+)
+
+/* THIS IS AN END COMMENT */

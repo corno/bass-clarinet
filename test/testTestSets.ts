@@ -8,9 +8,9 @@ import * as p20 from "pareto-20"
 import * as bc from "../src"
 import { describe } from "mocha"
 import * as chai from "chai"
-import { JSONTests } from "./ownJSONTestset"
-import { extensionTests } from "./JSONExtenstionsTestSet"
-import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./testDefinition"
+import { ownJSONTests } from "./data/ownJSONTestset"
+import { extensionTests } from "./data/JSONExtenstionsTestSet"
+import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
 import { createStreamSplitter } from "../src/createStreamSplitter"
 import { printParsingError, printStackedDataError } from "../src"
 
@@ -20,7 +20,7 @@ function assertUnreachable<RT>(_x: never): RT {
 
 const DEBUG = false
 
-const selectedJSONTests = Object.keys(JSONTests)
+const selectedOwnJSONTests = Object.keys(ownJSONTests)
 const selectedExtensionTests = Object.keys(extensionTests)
 
 // const selectedJSONTests: string[] = []
@@ -474,8 +474,8 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
 describe('bass-clarinet', () => {
     describe('#strictJSON', () => {
-        selectedJSONTests.forEach(key => {
-            const test = JSONTests[key]
+        selectedOwnJSONTests.forEach(key => {
+            const test = ownJSONTests[key]
             it('[' + key + '] should be able to parse -> one chunk', createTestFunction([test.text], test, true));
             it('[' + key + '] should be able to parse -> every character is a chunck', createTestFunction(test.text.split(''), test, true));
         })
@@ -489,8 +489,8 @@ describe('bass-clarinet', () => {
     });
 
     describe('#pre-chunked', () => {
-        selectedJSONTests.forEach(key => {
-            const test = JSONTests[key]
+        selectedOwnJSONTests.forEach(key => {
+            const test = ownJSONTests[key]
             if (!test.chunks) return;
             it('[' + key + '] should be able to parse pre-chunked', createTestFunction(test.chunks, test, true));
         })

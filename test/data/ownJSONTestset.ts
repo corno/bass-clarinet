@@ -1,10 +1,10 @@
 /* eslint
     max-len: "off"
 */
-import { TestDefinitions } from "./testDefinition";
+import { TestDefinitions } from "../TestDefinition";
 
 
-export const JSONTests: TestDefinitions = {
+export const ownJSONTests: TestDefinitions = {
     "empty": {
         text: '',
         events: [

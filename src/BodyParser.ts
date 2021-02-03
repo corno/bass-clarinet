@@ -149,10 +149,10 @@ export class BodyParser<ReturnType, ErrorType> {
         }
         this.currentContext = context
     }
-    public popContext(range: Range, onEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+    public popContext(range: Range, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
         const popped = this.stack.pop()
         if (popped === undefined) {
-            return onEmpty(this.eventsConsumer.onEnd(false, getEndLocationFromRange(range)))
+            return onStackEmpty(this.eventsConsumer.onEnd(false, getEndLocationFromRange(range)))
         } else {
             //if (DEBUG) console.log(`popped context ${popped.getDescription()}<${this.getCurrentContext().getDescription()}`)
             this.currentContext = popped
@@ -163,34 +163,42 @@ export class BodyParser<ReturnType, ErrorType> {
                 case StackContextType2.OBJECT:
                     return p.result(false)
                 case StackContextType2.TAGGED_UNION:
-                    return this.popContext(range, onEmpty)
+                    return this.popContext(range, onStackEmpty)
                 default:
                     return assertUnreachable(popped.type[0])
             }
         }
     }
-    public onData(data: Token, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
-        switch (data.type[0]) {
+    /**
+     *
+     * @param token
+     * @param onStackEmpty when this token causes the stack to be empty, this callback is called.
+     */
+    public onData(
+        token: Token,
+        onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>
+    ): p.IValue<boolean> {
+        switch (token.type[0]) {
             case TokenType.Overhead: {
-                const $ = data.type[1]
+                const $ = token.type[1]
 
                 return this.sendEvent({
-                    range: data.range,
+                    range: token.range,
                     type: [BodyEventType.Overhead, $],
                 })
             }
             case TokenType.Punctuation: {
-                const $ = data.type[1]
+                const $ = token.type[1]
 
-                return this.onPunctuation(data.range, $, onStackEmpty)
+                return this.onPunctuation(token.range, $, onStackEmpty)
             }
             case TokenType.SimpleValue: {
-                const $ = data.type[1]
+                const $ = token.type[1]
 
-                return this.onSimpleValue(data.range, $, onStackEmpty)
+                return this.onSimpleValue(token.range, $, onStackEmpty)
             }
             default:
-                return assertUnreachable(data.type[0])
+                return assertUnreachable(token.type[0])
         }
     }
     private onSimpleValue(range: Range, data: SimpleValueData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {

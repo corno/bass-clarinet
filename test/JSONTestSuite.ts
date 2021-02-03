@@ -3,7 +3,7 @@ import { describe } from "mocha"
 import assert from "assert"
 import * as path from "path"
 import * as p20 from "pareto-20"
-import { dummyParserEventConsumer } from "./dummyConsumers"
+import { dummyParserEventConsumer } from "./dummyParserEventConsumer"
 import { createParserStack } from "../src"
 
 function tokenizeStrings(
@@ -20,7 +20,7 @@ function tokenizeStrings(
     )
 }
 
-const parsingDir = path.join(__dirname, "/../../JSONTestSuite/test_parsing")
+const parsingDir = path.join(__dirname, "/../../test/data/JSONTestSuite/test_parsing")
 describe('parsing', () => {
     fs.readdirSync(parsingDir).forEach(file => {
         it(file, () => {
@@ -78,7 +78,7 @@ describe('parsing', () => {
     })
 })
 
-const transformDir = path.join(__dirname, "/../../JSONTestSuite/test_transform")
+const transformDir = path.join(__dirname, "/../../test/data/JSONTestSuite/test_transform")
 describe('transform', () => {
     fs.readdirSync(transformDir).forEach(file => {
         it(file, () => {

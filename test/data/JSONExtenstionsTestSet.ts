@@ -1,7 +1,7 @@
 /* eslint
     camelcase:"off",
 */
-import { TestDefinitions } from "./testDefinition";
+import { TestDefinitions } from "../TestDefinition";
 
 
 export const extensionTests: TestDefinitions = {

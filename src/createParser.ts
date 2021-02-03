@@ -85,7 +85,8 @@ export function printParserError(error: ParserError): string {
                     return `expected the schema start (!) or root value`
                 }
                 case "unexpected data after end": {
-                    return `unexpected data after end`
+                    const $$$ = $$.type[1]
+                    return `unexpected data after end: ${$$$.data}`
                 }
                 default:
                     return assertUnreachable($$.type[0])
@@ -101,17 +102,20 @@ export class Parser<ReturnType, ErrorType> {
     private readonly onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>
     private readonly onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>
     private readonly onerror: (error: ParserError, range: Range) => void
-    private readonly onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>
+    /*
+    a structure overhead token is a newline/whitspace/comment outside the content parts: (schema data, instance data)
+    */
+    private readonly onStructureOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>
     constructor(
         onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
         onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
         onerror: (error: ParserError, range: Range) => void,
-        onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
+        onStructureOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
     ) {
         this.onSchemaDataStart = onSchemaDataStart
         this.onInstanceDataStart = onInstanceDataStart
         this.onerror = onerror
-        this.onHeaderOverheadToken = onHeaderOverheadToken
+        this.onStructureOverheadToken = onStructureOverheadToken
     }
     public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
 
@@ -171,32 +175,32 @@ export class Parser<ReturnType, ErrorType> {
                 return assertUnreachable(this.rootContext.state[0])
         }
     }
-    private handlePreEvent(
-        data: Token,
+    private handleToken(
+        token: Token,
         onPunctuation: (data: PunctionationData) => p.IValue<boolean>,
         onSimpleValue: (simpleValueData: SimpleValueData) => p.IValue<boolean>,
     ): p.IValue<boolean> {
-        switch (data.type[0]) {
+        switch (token.type[0]) {
             case TokenType.Overhead: {
-                const $ = data.type[1]
-                return this.onHeaderOverheadToken($, data.range)
+                const $ = token.type[1]
+                return this.onStructureOverheadToken($, token.range)
             }
             case TokenType.Punctuation: {
-                const $ = data.type[1]
+                const $ = token.type[1]
                 return onPunctuation($)
             }
             case TokenType.SimpleValue: {
-                const $ = data.type[1]
+                const $ = token.type[1]
                 return onSimpleValue($)
             }
             default:
-                return assertUnreachable(data.type[0])
+                return assertUnreachable(token.type[0])
         }
     }
     public onData(data: Token): p.IValue<boolean> {
         switch (this.rootContext.state[0]) {
             case RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: {
-                return this.handlePreEvent(
+                return this.handleToken(
                     data,
                     punctuation => {
                         switch (punctuation.char) {
@@ -218,7 +222,7 @@ export class Parser<ReturnType, ErrorType> {
                 )
             }
             case RootState.EXPECTING_SCHEMA: {
-                return this.handlePreEvent(
+                return this.handleToken(
                     data,
                     _punctuation => {
                         const bp = new BodyParser(
@@ -287,7 +291,7 @@ export class Parser<ReturnType, ErrorType> {
 
             }
             case RootState.EXPECTING_HASH_OR_INSTANCE_DATA: {
-                return this.handlePreEvent(
+                return this.handleToken(
                     data,
                     punctuation => {
                         if (punctuation.char === Char.Punctuation.hash) {
@@ -306,7 +310,7 @@ export class Parser<ReturnType, ErrorType> {
             }
             case RootState.EXPECTING_INSTANCE_DATA_AFTER_HASH: {
                 const $ = this.rootContext.state[1]
-                return this.handlePreEvent(
+                return this.handleToken(
                     data,
                     _punctuation => {
                         return this.processComplexValueInstanceData(data, $.hashRange, data.range)
@@ -325,7 +329,7 @@ export class Parser<ReturnType, ErrorType> {
                 })
             }
             case RootState.EXPECTING_END: {
-                return this.handlePreEvent(
+                return this.handleToken(
                     data,
                     punctuation => {
                         this.raiseStructureError([`unexpected data after end`, {

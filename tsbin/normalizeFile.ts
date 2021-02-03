@@ -1,5 +1,5 @@
 import * as fs from "fs"
-import { normalize } from "../src/attachments/normalize"
+import { normalize } from "../src/normalize"
 import * as p from "pareto"
 import { Writable } from "stream"
 
@@ -31,7 +31,7 @@ normalize(
             null,
             {
                 onData: line => {
-                    ws.write(line + "\r\n")
+                    ws.write(line)
                     return p.value(false)
                 },
                 onEnd: () => {

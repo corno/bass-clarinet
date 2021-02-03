@@ -4,7 +4,7 @@
 import * as p20 from "pareto-20"
 import * as p from "pareto"
 import * as bc from "../src";
-import { dummyParserEventConsumer } from "./dummyConsumers";
+import { dummyParserEventConsumer } from "./dummyParserEventConsumer";
 
 const parserStack = bc.createParserStack(
     () => {

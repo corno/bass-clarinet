@@ -2,13 +2,19 @@
     "max-classes-per-file": "off",
 */
 import * as p from "pareto"
-import * as bc from ".."
-import { printParsingError } from ".."
+import * as bc from "."
+import { printParsingError } from "."
+import * as handlers from "./handlers"
 import {
-    Value,
-    serializeDocument,
+    SerializableValue,
     IInDictionary,
     IInArray,
+    SerializableCommentData,
+    SerializableProperty,
+    SerializableComment,
+} from "./Serializable"
+import {
+    serializeDocument,
 } from "./serialize"
 
 
@@ -16,7 +22,7 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-type HandleValue = (value: Value) => void
+type HandleValue = (value: SerializableValue) => void
 
 class InDictionary<T> implements IInDictionary<T> {
     private readonly properties: { [key: string]: T }
@@ -52,7 +58,10 @@ class InArray<T> implements IInArray<T> {
     }
 }
 
-function createRequiredValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.RequiredValueHandler {
+function createRequiredValueNormalizer(
+    handleValue: HandleValue,
+    sortKeys: boolean
+): bc.RequiredValueHandler {
     return {
         onValue: createValueNormalizer(handleValue, sortKeys),
         onMissing: () => {
@@ -61,11 +70,26 @@ function createRequiredValueNormalizer(handleValue: HandleValue, sortKeys: boole
     }
 }
 
+function transformContextData(source: handlers.ContextData) {
+    const commentData: SerializableCommentData = {
+        before: {
+            comments: new InArray(source.before.comments.map(cb => {
+                return {
+                    text: cb.text,
+                    type: ["inline"],
+                }
+            })),
+        },
+        lineCommentAfter: source.lineCommentAfter === null ? null : source.lineCommentAfter.text,
+    }
+    return commentData
+}
+
 function createValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.OnValue {
-    return () => {
+    return valueContextData => {
         return {
             array: (_beginRange, openData) => {
-                const elements: Value[] = []
+                const elements: SerializableValue[] = []
                 return {
                     element: () => createValueNormalizer(
                         elementValue => {
@@ -73,50 +97,69 @@ function createValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.
                         },
                         sortKeys,
                     ),
-                    end: (_endRange, _closeData) => {
-                        handleValue(["array", {
-                            elements: elements,
-                            openCharacter: openData.openCharacter,
-                        }])
+                    end: (_endRange, _closeData, contextData) => {
+                        handleValue({
+                            commentData: transformContextData(valueContextData),
+                            type: ["array", {
+                                commentData: transformContextData(contextData),
+                                elements: new InArray(elements),
+                                openCharacter: openData.openCharacter,
+                            }],
+                        })
                     },
                 }
 
             },
             object: (_beginRange, openData) => {
-                const properties: { [key: string]: Value } = {}
+                const properties: { [key: string]: SerializableProperty } = {}
+
                 return {
-                    property: (_keyRange, key) => {
+                    property: (_keyRange, key, contextData) => {
                         return p.result(createRequiredValueNormalizer(
                             propertyValue => {
-                                properties[key] = propertyValue
+                                properties[key] = {
+                                    commentData: transformContextData(contextData),
+                                    value: propertyValue,
+                                }
                             },
                             sortKeys,
                         ))
                     },
-                    end: (_endRange, _closeData) => {
-                        handleValue(["object", {
-                            properties: new InDictionary(properties, sortKeys),
-                            openCharacter: openData.openCharacter,
-                        }])
+                    end: (_endRange, _closeData, contextData) => {
+                        handleValue({
+                            commentData: transformContextData(valueContextData),
+                            type: ["object", {
+                                commentData: transformContextData(contextData),
+                                properties: new InDictionary(properties, sortKeys),
+                                openCharacter: openData.openCharacter,
+                            }],
+                        })
                     },
                 }
             },
             simpleValue: (_range, data) => {
-                handleValue(["simple value", {
-                    quote: data.quote,
-                    value: data.value,
-                }])
+                handleValue({
+                    commentData: transformContextData(valueContextData),
+                    type: ["simple value", {
+                        quote: data.quote,
+                        value: data.value,
+                    }],
+                })
                 return p.result(false)
             },
             taggedUnion: () => {
                 return {
-                    option: (_range, option) => {
+                    option: (_range, option, contextData) => {
                         return createRequiredValueNormalizer(
                             tuData => {
-                                handleValue(["tagged union", {
-                                    option: option,
-                                    data: tuData,
-                                }])
+                                handleValue({
+                                    commentData: transformContextData(valueContextData),
+                                    type: ["tagged union", {
+                                        option: option,
+                                        commentData: transformContextData(contextData),
+                                        data: tuData,
+                                    }],
+                                })
                             },
                             sortKeys,
                         )
@@ -130,7 +173,11 @@ function createValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.
     }
 }
 
-export function createNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.ParserEventConsumer<null, null> {
+function createNormalizer(
+    handleValue: HandleValue,
+    sortKeys: boolean,
+): bc.ParserEventConsumer<null, null> {
+
     const datasubscriber = bc.createStackedDataSubscriber<null, null>(
         {
             onValue: createValueNormalizer(handleValue, sortKeys),
@@ -143,6 +190,7 @@ export function createNormalizer(handleValue: HandleValue, sortKeys: boolean): b
             console.error("FOUND STACKED DATA ERROR", error)
         },
         () => {
+
             //onEnd
             //no need to return an value, we're only here for the side effects, so return 'null'
             return p.success(null)
@@ -161,9 +209,10 @@ export function normalize(
     sortKeys: boolean,
 ): p.IUnsafeValue<p.IStream<string, null>, null> {
 
-    let schemaValue: null | Value = null
+    let schemaValue: null | SerializableValue = null
     let compact = false
-    let root: null | Value = null
+    let root: null | SerializableValue = null
+    const overheadComments: SerializableComment[] = []
 
     return bc.parseString(
         dataAsString,
@@ -172,7 +221,7 @@ export function normalize(
                 sv => {
                     schemaValue = sv
                 },
-                sortKeys
+                sortKeys,
             )
         },
         compactRange => {
@@ -183,15 +232,17 @@ export function normalize(
                 iv => {
                     root = iv
                 },
-                sortKeys
+                sortKeys,
             )
         },
         err => { console.error("error: ", printParsingError(err)) },
         overheadToken => {
             switch (overheadToken.type[0]) {
                 case bc.OverheadTokenType.BlockComment: {
-                    //const $ = data.type[1]
-
+                    const $ = overheadToken.type[1]
+                    overheadComments.push({
+                        text: $.comment,
+                    })
                     break
                 }
                 case bc.OverheadTokenType.LineComment: {
@@ -219,14 +270,17 @@ export function normalize(
             if (root === null) {
                 throw new Error("unexpected missing instance value")
             }
+
             return p.result(serializeDocument(
                 {
                     schema: schemaValue,
                     compact: compact,
                     root: root,
+                    documentComments: new InArray(overheadComments),
                 },
                 `    `,
                 true,
+                `\r\n`,
             ))
             //we're only here for the side effects, so no need to handle the result (which is 'null' anyway)
         }

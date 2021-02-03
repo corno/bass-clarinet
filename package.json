@@ -46,11 +46,11 @@
     "@types/chai": "^4.2.14",
     "@types/mocha": "^8.2.0",
     "@types/node": "^14.14.22",
-    "@typescript-eslint/eslint-plugin": "^4.14.1",
-    "@typescript-eslint/eslint-plugin-tslint": "^4.14.1",
-    "@typescript-eslint/parser": "^4.14.1",
+    "@typescript-eslint/eslint-plugin": "^4.14.2",
+    "@typescript-eslint/eslint-plugin-tslint": "^4.14.2",
+    "@typescript-eslint/parser": "^4.14.2",
     "chai": "^4.2.0",
-    "eslint": "^7.18.0",
+    "eslint": "^7.19.0",
     "mocha": "^8.2.1",
     "should": "13.2.x",
     "tslint": "^6.1.3",
@@ -63,8 +63,9 @@
     "validatePublishReadiness": "git diff --exit-code && ncu -u --packageFile package.json && npm install && npm run buildLintAndTest",
     "pubMin": "npm run validatePublishReadiness && npm version minor && git push && npm publish",
     "pubPatch": "npm run validatePublishReadiness && npm version patch && git push && npm publish",
-    "test": "tsc && node ./node_modules/mocha/bin/mocha dist/test/bass_clarinet.js && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
-    "testOwnSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/bass_clarinet.js",
+    "test": "tsc && node ./node_modules/mocha/bin/mocha dist/test/testTestSets.js && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js && node ./node_modules/mocha/bin/mocha dist/test/testNormalize.js",
+    "testOwnSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/testTestSets.js",
+    "testNormalize": "tsc && node ./node_modules/mocha/bin/mocha dist/test/testNormalize.js",
     "testJSONTestSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
     "update2latest": "ncu -u --packageFile package.json && nsi",
     "update2latestAndPublishMinor": "npm run validatePublishReadiness && npm run update2latest && npm run test && git commit -am \"u2l\" && npm run pubMin",
@@ -80,10 +81,11 @@
   },
   "license": "BSD-2-Clause",
   "dependencies": {
-    "fountain-pen": "^3.3.2",
+    "fountain-pen": "^3.5.0",
     "pareto": "^0.48.0"
   },
   "bin": {
-    "astn-normalize": "./bin/normalize.mjs"
+    "astn-normalize": "./bin/normalizeFile.mjs",
+    "astn-prettyprint": "./bin/prettyPrint.mjs"
   }
 }

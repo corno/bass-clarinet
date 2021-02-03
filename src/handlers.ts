@@ -1,14 +1,18 @@
 import * as p from "pareto"
-import { Range } from "../location"
+import { Range } from "./location"
 import {
     OpenData,
     CloseData,
-} from "../BodyEvent"
-import { SimpleValueData } from "../Token"
+} from "./BodyEvent"
+import { SimpleValueData } from "./Token"
+
+export type BeforeContextData = {
+    comments: Comment[]
+    indentation: string | null
+}
 
 export type ContextData = {
-    commentsBefore: Comment[]
-    indentation: string | null
+    before: BeforeContextData
     lineCommentAfter: null | Comment
 }
 
