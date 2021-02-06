@@ -162,7 +162,7 @@ export class Tokenizer<ReturnType, ErrorType> {
                 getEndLocationFromRange(end),
             ),
             type: [TokenType.Overhead, {
-                type: [OverheadTokenType.BlockComment, {
+                type: [OverheadTokenType.Comment, {
                     comment: $.commentNode,
                     innerRange: createRangeFromLocations(
                         {
@@ -177,6 +177,7 @@ export class Tokenizer<ReturnType, ErrorType> {
                         },
                     ),
                     indentation: $.indentation,
+                    type: "block",
                 }],
             }],
         })
@@ -299,7 +300,7 @@ export class Tokenizer<ReturnType, ErrorType> {
         const od = this.parser.onData({
             range: range,
             type: [TokenType.Overhead, {
-                type: [OverheadTokenType.LineComment, {
+                type: [OverheadTokenType.Comment, {
                     comment: $.commentNode,
                     innerRange: createRangeFromLocations(
                         {
@@ -310,6 +311,7 @@ export class Tokenizer<ReturnType, ErrorType> {
                         location,
                     ),
                     indentation: $.indentation,
+                    type: "line",
                 }],
             }],
         })

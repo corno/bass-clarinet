@@ -417,25 +417,13 @@ function processParserEvent(
         case BodyEventType.Overhead: {
             const $ = data.type[1]
             switch ($.type[0]) {
-                case OverheadTokenType.BlockComment: {
+                case OverheadTokenType.Comment: {
                     const $$ = $.type[1]
                     return ["comment", {
                         comment: {
                             text: $$.comment,
-                            type: "block",
+                            type: $$.type,
                             indent: null, //FIX get the right indent info
-                            outerRange: data.range,
-                            innerRange: $$.innerRange,
-                        },
-                    }]
-                }
-                case OverheadTokenType.LineComment: {
-                    const $$ = $.type[1]
-                    return ["comment", {
-                        comment: {
-                            text: $$.comment,
-                            type: "line",
-                            indent: null,
                             outerRange: data.range,
                             innerRange: $$.innerRange,
                         },

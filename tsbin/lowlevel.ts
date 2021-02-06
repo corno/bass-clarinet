@@ -52,12 +52,7 @@ export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
             case bc.BodyEventType.Overhead: {
                 const $ = data.type[1]
                 switch ($.type[0]) {
-                    case bc.OverheadTokenType.BlockComment: {
-                        //const $ = data.type[1]
-                        //place your code here
-                        break
-                    }
-                    case bc.OverheadTokenType.LineComment: {
+                    case bc.OverheadTokenType.Comment: {
                         //const $ = data.type[1]
                         //place your code here
                         break

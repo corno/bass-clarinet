@@ -15,6 +15,7 @@ export type CommentData = {
     comment: string
     innerRange: Range //without the open and close tokens:
     indentation: null | string
+    type: "block" | "line"
 }
 
 export type PunctionationData = {
@@ -22,8 +23,7 @@ export type PunctionationData = {
 }
 
 export enum OverheadTokenType {
-    BlockComment,
-    LineComment,
+    Comment,
     NewLine,
     WhiteSpace
 }
@@ -36,8 +36,7 @@ export enum TokenType {
 
 export type OverheadToken = {
     type:
-    | [OverheadTokenType.BlockComment, CommentData]
-    | [OverheadTokenType.LineComment, CommentData]
+    | [OverheadTokenType.Comment, CommentData]
     | [OverheadTokenType.NewLine, {
         //
     }]

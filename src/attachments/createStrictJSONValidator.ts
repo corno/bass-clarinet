@@ -220,12 +220,9 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
             case BodyEventType.Overhead: {
                 const $ = data.type[1]
                 switch ($.type[0]) {
-                    case OverheadTokenType.BlockComment: {
-                        this.onError("block comments are not allowed in strict JSON", data.range)
-                        break
-                    }
-                    case OverheadTokenType.LineComment: {
-                        this.onError("line comments are not allowed in strict JSON", data.range)
+                    case OverheadTokenType.Comment: {
+                        const $$ = $.type[1]
+                        this.onError(`${$$.type} comments are not allowed in strict JSON`, data.range)
                         break
                     }
                     case OverheadTokenType.NewLine: {

@@ -116,12 +116,7 @@ bc.parseString(
     err => { console.error("FOUND ERROR", printParsingError(err)) },
     overheadToken => {
         switch (overheadToken.type[0]) {
-            case bc.OverheadTokenType.BlockComment: {
-                //const $ = data.type[1]
-
-                break
-            }
-            case bc.OverheadTokenType.LineComment: {
+            case bc.OverheadTokenType.Comment: {
                 //const $ = data.type[1]
 
                 break

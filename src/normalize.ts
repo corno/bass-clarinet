@@ -10,7 +10,6 @@ import {
     IInArray,
     SerializableCommentData,
     SerializableProperty,
-    SerializableComment,
 } from "./Serializable"
 import {
     serializeDocument,
@@ -269,7 +268,6 @@ export function normalize(
     let schemaValue: null | SerializableValue = null
     let compact = false
     let root: null | SerializableValue = null
-    const overheadComments: SerializableComment[] = []
 
     const documentComments: bc.Comment[] = []
 
@@ -297,18 +295,17 @@ export function normalize(
             )
         },
         err => { console.error("error: ", printParsingError(err)) },
-        overheadToken => {
+        (overheadToken, range) => {
             switch (overheadToken.type[0]) {
-                case bc.OverheadTokenType.BlockComment: {
+                case bc.OverheadTokenType.Comment: {
                     const $ = overheadToken.type[1]
-                    overheadComments.push({
+                    documentComments.push({
                         text: $.comment,
+                        type: $.type,
+                        indent: null, //FIX get the right indent info
+                        outerRange: range,
+                        innerRange: $.innerRange,
                     })
-                    break
-                }
-                case bc.OverheadTokenType.LineComment: {
-                    //const $ = data.type[1]
-
                     break
                 }
                 case bc.OverheadTokenType.NewLine: {
@@ -337,7 +334,11 @@ export function normalize(
                     schema: schemaValue,
                     compact: compact,
                     root: root,
-                    documentComments: new InArray(overheadComments),
+                    documentComments: new InArray(documentComments.map(cb => {
+                        return {
+                            text: cb.text,
+                        }
+                    })),
                 },
                 `    `,
                 true,

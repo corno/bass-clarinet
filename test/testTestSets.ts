@@ -49,14 +49,22 @@ class StrictJSONHeaderValidator implements HeaderSubscriber {
 
 function outputOverheadToken(out: string[], $: bc.OverheadToken) {
     switch ($.type[0]) {
-        case bc.OverheadTokenType.BlockComment: {
+        case bc.OverheadTokenType.Comment: {
             const $$ = $.type[1]
-            out.push(`/*${$$.comment}*/`)
-            break
-        }
-        case bc.OverheadTokenType.LineComment: {
-            const $$ = $.type[1]
-            out.push(`//${$$.comment}`)
+            switch ($$.type) {
+                case "block": {
+                    out.push(`/*${$$.comment}*/`)
+
+                    break
+                }
+                case "line": {
+                    out.push(`//${$$.comment}`)
+
+                    break
+                }
+                default:
+                    assertUnreachable($$.type[0])
+            }
             break
         }
         case bc.OverheadTokenType.NewLine: {
@@ -241,16 +249,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         function onOverheadTokenEvent($: bc.OverheadToken, range: bc.Range) {
 
             switch ($.type[0]) {
-                case bc.OverheadTokenType.BlockComment: {
+                case bc.OverheadTokenType.Comment: {
                     const $$ = $.type[1]
                     if (DEBUG) console.log("found block comment")
-                    actualEvents.push(["token", "blockcomment", $$.comment, getRange(test.testForLocation, range)])
-                    break
-                }
-                case bc.OverheadTokenType.LineComment: {
-                    const $$ = $.type[1]
-                    if (DEBUG) console.log("found line comment")
-                    actualEvents.push(["token", "linecomment", $$.comment, getRange(test.testForLocation, range)])
+                    actualEvents.push(["token", $$.type === "block" ? "blockcomment" : "linecomment", $$.comment, getRange(test.testForLocation, range)])
                     break
                 }
                 case bc.OverheadTokenType.NewLine: {

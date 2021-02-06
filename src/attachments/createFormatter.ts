@@ -280,40 +280,48 @@ export function createFormatter(
 				case BodyEventType.Overhead: {
 					const $ = data.type[1]
 					switch ($.type[0]) {
-						case OverheadTokenType.BlockComment: {
+						case OverheadTokenType.Comment: {
 							const $$ = $.type[1]
-							comment(data.range.start)
-							{
-								const ei = createExpectedIndentation()
-								const splitted = $$.comment.split("\n")
-								const properlyIndentedBlockComment = splitted.map((line, index) => {
-									if ($$.indentation !== null) {
-										if (line.startsWith($$.indentation)) {
-											line = line.substr($$.indentation.length)
-										}
-									}
-									if (index === 0) {
-										//the first line, never indent
-										return line.trimRight()
-									}
-									if (index === splitted.length - 1) {
-										//last line, always indent
-										return ei + line.trimRight()
-									}
-									//not the last line. Only indent if it has content.
-									return (ei + line).trimRight()
-								}).join("\n")
-								replace($$.innerRange, properlyIndentedBlockComment)
-							}
-							precedingToken = (precedingToken[0] === PrecedingTokenType.newLine)
-								? [PrecedingTokenType.other]
-								: [PrecedingTokenType.inlineBlockComment]
+							switch ($$.type) {
+								case "block": {
 
-							break
-						}
-						case OverheadTokenType.LineComment: {
-							comment(data.range.start)
-							precededByLineComment = true
+									comment(data.range.start)
+									{
+										const ei = createExpectedIndentation()
+										const splitted = $$.comment.split("\n")
+										const properlyIndentedBlockComment = splitted.map((line, index) => {
+											if ($$.indentation !== null) {
+												if (line.startsWith($$.indentation)) {
+													line = line.substr($$.indentation.length)
+												}
+											}
+											if (index === 0) {
+												//the first line, never indent
+												return line.trimRight()
+											}
+											if (index === splitted.length - 1) {
+												//last line, always indent
+												return ei + line.trimRight()
+											}
+											//not the last line. Only indent if it has content.
+											return (ei + line).trimRight()
+										}).join("\n")
+										replace($$.innerRange, properlyIndentedBlockComment)
+									}
+									precedingToken = (precedingToken[0] === PrecedingTokenType.newLine)
+										? [PrecedingTokenType.other]
+										: [PrecedingTokenType.inlineBlockComment]
+									break
+								}
+								case "line": {
+									comment(data.range.start)
+									precededByLineComment = true
+									break
+								}
+								default:
+									assertUnreachable($$.type[0])
+							}
+
 							break
 						}
 						case OverheadTokenType.NewLine: {
