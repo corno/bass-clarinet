@@ -31,31 +31,31 @@ function writeValue(value: SerializableValue): fp.InlineSegment {
                     return [
                         writeCommentsBefore($.commentData.before),
                         $.elements.isEmpty()
-                            ? $.openCharacter === "<" ? `< >` : `[ ]`
+                            ? `${$.openCharacter} ${$.closeCharacter}`
                             :
                             [
-                                $.openCharacter === "<" ? `<` : `[`,
+                                $.openCharacter,
                                 () => {
                                     return $.elements.map(element => {
                                         return fp.line(writeValue(element))
                                     })
                                 },
-                                $.openCharacter === "<" ? `>` : `]`,
+                                $.closeCharacter,
                             ],
                         writeCommentAfter($.commentData.lineCommentAfter),
                     ]
                 }
                 case "object": {
                     const $ = value.type[1]
-                    const quote = $.openCharacter === "(" ? `'` : `"`
                     return [
                         writeCommentsBefore($.commentData.before),
                         $.properties.isEmpty()
-                            ? $.openCharacter === "(" ? `( )` : `{ }`
+                            ? `${$.openCharacter} ${$.closeCharacter}`
                             : [
-                                $.openCharacter === "(" ? `(` : `{`,
+                                $.openCharacter,
                                 () => {
                                     return $.properties.map((property, propertyName) => {
+                                        const quote = property.quote === null ? "" : property.quote
                                         return [
                                             writeCommentsBefore(property.commentData.before),
                                             fp.line([
@@ -66,7 +66,7 @@ function writeValue(value: SerializableValue): fp.InlineSegment {
                                         ]
                                     })
                                 },
-                                $.openCharacter === "(" ? `)` : `}`,
+                                $.closeCharacter,
                             ],
                         writeCommentAfter($.commentData.lineCommentAfter),
                     ]
@@ -80,10 +80,11 @@ function writeValue(value: SerializableValue): fp.InlineSegment {
                 }
                 case "tagged union": {
                     const $ = value.type[1]
+                    const quote = $.quote === null ? "" : $.quote
 
                     return [
                         writeCommentsBefore($.commentData.before),
-                        `| '${$.option}' `,
+                        `| ${quote}${$.option}${quote} `,
                         writeValue($.data),
                         writeCommentAfter($.commentData.lineCommentAfter),
                     ]

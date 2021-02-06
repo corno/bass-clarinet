@@ -11,7 +11,7 @@ import {
     WhitespaceContext,
 } from "./parserStateTypes"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
-import { PreTokenDataType, PreToken } from "./PreToken"
+import { PreTokenDataType, PreToken, Quote } from "./PreToken"
 import { TokenType, Token, OverheadTokenType } from "./Token"
 import { RangeError } from "./errors"
 import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
@@ -245,7 +245,7 @@ export class Tokenizer<ReturnType, ErrorType> {
         return od
     }
 
-    private onQuotedStringBegin(begin: Range, quote: string): p.IValue<boolean> {
+    private onQuotedStringBegin(begin: Range, quote: Quote): p.IValue<boolean> {
         if (DEBUG) console.log(`onQuotedStringBegin`)
         this.setCurrentToken([CurrentTokenType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
         return p.result(false)

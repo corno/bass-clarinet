@@ -1,4 +1,5 @@
 import { Location, Range } from "./location"
+import { Quote } from "./PreToken"
 
 export enum RootState {
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
@@ -32,12 +33,12 @@ export enum StackContextType2 {
 }
 
 export type ArrayContext = {
-    readonly openChar: number
+    //readonly openChar: number
 }
 
 export type ObjectContext = {
     state: ObjectState
-    readonly openChar: number
+    //readonly openChar: number
 }
 
 export type TaggedUnionContext = {
@@ -89,7 +90,7 @@ export type IndentationData =
     | [IndentationState.lineIsDitry]
 
 export type QuotedStringContext = {
-    readonly startCharacter: string
+    readonly startCharacter: Quote
     readonly start: Range
     quotedStringNode: string
 }

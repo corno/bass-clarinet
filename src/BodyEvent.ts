@@ -13,12 +13,20 @@ export enum BodyEventType {
     TaggedUnion,
 }
 
-export type OpenData = {
-    openCharacter: string
+export type ArrayOpenData = {
+    openCharacter: "[" | "<"
 }
 
-export type CloseData = {
-    closeCharacter: string
+export type ArrayCloseData = {
+    closeCharacter: "]" | ">"
+}
+
+export type ObjectOpenData = {
+    openCharacter: "(" | "{"
+}
+
+export type ObjectCloseData = {
+    closeCharacter: ")" | "}"
 }
 
 /**
@@ -27,16 +35,16 @@ export type CloseData = {
 export type BodyEvent = {
     range: Range
     type:
-    | [BodyEventType.CloseArray, CloseData]
-    | [BodyEventType.CloseObject, CloseData]
+    | [BodyEventType.CloseArray, ArrayCloseData]
+    | [BodyEventType.CloseObject, ObjectCloseData]
     | [BodyEventType.Colon, {
         //
     }]
     | [BodyEventType.Comma, {
         //
     }]
-    | [BodyEventType.OpenArray, OpenData]
-    | [BodyEventType.OpenObject, OpenData]
+    | [BodyEventType.OpenArray, ArrayOpenData]
+    | [BodyEventType.OpenObject, ObjectOpenData]
     | [BodyEventType.Overhead, OverheadToken]
     | [BodyEventType.SimpleValue, SimpleValueData]
     | [BodyEventType.TaggedUnion, {

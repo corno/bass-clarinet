@@ -29,7 +29,7 @@ describe('normalize', () => {
                 return `unexpected error`
             },
         ).then(actualAfter => {
-            fs.writeFileSync("./test/data/normalize/actualAfter.astn", actualAfter, { encoding: "utf-8"})
+            //fs.writeFileSync("./test/data/normalize/actualAfter.astn", actualAfter, { encoding: "utf-8"})
             chai.assert.equal(actualAfter, after)
         })
     })

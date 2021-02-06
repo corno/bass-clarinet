@@ -1,5 +1,7 @@
 import { Location, Range, printRange, printLocation } from "./location"
 
+export type Quote = "'" | "\""
+
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
@@ -105,7 +107,7 @@ export type PreToken = {
     }]
     | [PreTokenDataType.QuotedStringBegin, {
         range: Range
-        quote: string
+        quote: Quote
     }]
     | [PreTokenDataType.QuotedStringEnd, {
         range: Range

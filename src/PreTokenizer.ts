@@ -514,7 +514,7 @@ export class PreTokenizer {
                                         }],
                                         {
                                             type: [PreTokenDataType.QuotedStringBegin, {
-                                                quote: String.fromCharCode(nextChar),
+                                                quote: "'",
                                                 range: this.locationState.getCurrentCharacterRange(),
                                             }],
                                         }
@@ -529,7 +529,7 @@ export class PreTokenizer {
                                         }],
                                         {
                                             type: [PreTokenDataType.QuotedStringBegin, {
-                                                quote: String.fromCharCode(nextChar),
+                                                quote: "\"",
                                                 range: this.locationState.getCurrentCharacterRange(),
                                             }],
                                         }

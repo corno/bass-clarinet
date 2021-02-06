@@ -1,4 +1,5 @@
 import * as fp from "fountain-pen"
+import { Quote } from "./PreToken"
 
 export interface IInDictionary<T> {
     isEmpty(): boolean
@@ -11,6 +12,7 @@ export interface IInArray<T> extends fp.IInArray<T> {
 
 export type SerializableProperty = {
     commentData: SerializableCommentData
+    quote: null | Quote
     value: SerializableValue
 }
 
@@ -32,21 +34,24 @@ export type SerializableValue = {
     commentData: SerializableCommentData
     type:
     | ["simple value", {
-        quote: string | null
+        quote: Quote | null
         value: string
     }]
     | ["array", {
         elements: IInArray<SerializableValue>
-        openCharacter: string
+        openCharacter: "[" | "<"
+        closeCharacter: "]" | ">"
         commentData: SerializableCommentData
     }]
     | ["object", {
         properties: SerializableProperties
-        openCharacter: string
+        openCharacter: "(" | "{"
+        closeCharacter: ")" | "}"
         commentData: SerializableCommentData
     }]
     | ["tagged union", {
         option: string
+        quote: null | Quote
         commentData: SerializableCommentData
         data: SerializableValue
     }]

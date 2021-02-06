@@ -1,8 +1,10 @@
 import * as p from "pareto"
 import { Range } from "./location"
 import {
-    OpenData,
-    CloseData,
+    ArrayOpenData,
+    ArrayCloseData,
+    ObjectOpenData,
+    ObjectCloseData,
 } from "./BodyEvent"
 import { SimpleValueData } from "./Token"
 
@@ -18,12 +20,12 @@ export type ContextData = {
 
 export type ObjectHandler = {
     property: (range: Range, key: string, contextData: ContextData) => p.IValue<RequiredValueHandler>
-    end: (range: Range, data: CloseData, contextData: ContextData) => void
+    end: (range: Range, data: ObjectCloseData, contextData: ContextData) => void
 }
 
 export type ArrayHandler = {
     element: () => OnValue
-    end: (range: Range, data: CloseData, contextData: ContextData) => void
+    end: (range: Range, data: ArrayCloseData, contextData: ContextData) => void
 }
 
 export type TaggedUnionHandler = {
@@ -32,9 +34,9 @@ export type TaggedUnionHandler = {
     end: () => void
 }
 
-export type OnObject = (range: Range, data: OpenData) => ObjectHandler
+export type OnObject = (range: Range, data: ObjectOpenData) => ObjectHandler
 
-export type OnArray = (range: Range, data: OpenData) => ArrayHandler
+export type OnArray = (range: Range, data: ArrayOpenData) => ArrayHandler
 
 export type OnSimpleValue = (range: Range, data: SimpleValueData) => p.IValue<boolean>
 

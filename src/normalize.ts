@@ -4,7 +4,6 @@
 import * as p from "pareto"
 import * as bc from "."
 import { printParsingError } from "."
-import * as handlers from "./handlers"
 import {
     SerializableValue,
     IInDictionary,
@@ -60,35 +59,75 @@ class InArray<T> implements IInArray<T> {
 
 function createRequiredValueNormalizer(
     handleValue: HandleValue,
-    sortKeys: boolean
+    sortKeys: boolean,
+    comments: bc.Comment[]
 ): bc.RequiredValueHandler {
     return {
-        onValue: createValueNormalizer(handleValue, sortKeys),
+        onValue: createValueNormalizer(
+            handleValue,
+            sortKeys,
+            comments,
+        ),
         onMissing: () => {
             //write out an empty string to fix this missing data?
         },
     }
 }
 
-function transformContextData(source: handlers.ContextData) {
+function addComments(contextData: bc.ContextData, comments: bc.Comment[]) {
+    contextData.before.comments.forEach(c => {
+        comments.push(c)
+    })
+    if (contextData.lineCommentAfter !== null) {
+        comments.push(contextData.lineCommentAfter)
+    }
+}
+
+function transformCommentsToSerializableCommentData(comments: bc.Comment[]) {
     const commentData: SerializableCommentData = {
         before: {
-            comments: new InArray(source.before.comments.map(cb => {
+            comments: new InArray(comments.map(cb => {
                 return {
                     text: cb.text,
-                    type: ["inline"],
                 }
             })),
         },
-        lineCommentAfter: source.lineCommentAfter === null ? null : source.lineCommentAfter.text,
+        lineCommentAfter: null,
     }
     return commentData
 }
 
-function createValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.OnValue {
+function createEmptyCommentsData() {
+    const commentData: SerializableCommentData = {
+        before: {
+            comments: new InArray([]),
+        },
+        lineCommentAfter: null,
+    }
+    return commentData
+}
+
+/**
+ *
+ * @param handleValue
+ * @param comments optional parameter. If specified, the comments found for the value will be added
+ * to that array instead of to it's own array of comments. This is done for values of properties,
+ * for the value of a tagged union and for the root value of the document, but not for values that
+ * are elements of an array.
+ * @param sortKeys
+ */
+function createValueNormalizer(
+    handleValue: HandleValue,
+    sortKeys: boolean,
+    parentComments: bc.Comment[] | null,
+): bc.OnValue {
     return valueContextData => {
+        const valueComments: bc.Comment[] = []
+        const comments = parentComments === null ? valueComments : parentComments
+        addComments(valueContextData, comments)
         return {
             array: (_beginRange, openData) => {
+                const isArrayType = openData.openCharacter === "<"
                 const elements: SerializableValue[] = []
                 return {
                     element: () => createValueNormalizer(
@@ -96,14 +135,18 @@ function createValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.
                             elements.push(elementValue)
                         },
                         sortKeys,
+                        null,
                     ),
-                    end: (_endRange, _closeData, contextData) => {
+                    end: (_endRange, _closeData, arrayEndContextData) => {
+                        const intermediateComments: bc.Comment[] = []
+                        addComments(arrayEndContextData, intermediateComments)
                         handleValue({
-                            commentData: transformContextData(valueContextData),
+                            commentData: transformCommentsToSerializableCommentData(valueComments),
                             type: ["array", {
-                                commentData: transformContextData(contextData),
+                                commentData: createEmptyCommentsData(),
                                 elements: new InArray(elements),
-                                openCharacter: openData.openCharacter,
+                                openCharacter: isArrayType ? "<" : "[",
+                                closeCharacter: isArrayType ? ">" : "]",
                             }],
                         })
                     },
@@ -113,25 +156,32 @@ function createValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.
             object: (_beginRange, openData) => {
                 const properties: { [key: string]: SerializableProperty } = {}
 
+                const isType = openData.openCharacter === "("
                 return {
                     property: (_keyRange, key, contextData) => {
+                        const propertyComments: bc.Comment[] = []
+                        addComments(contextData, propertyComments)
                         return p.result(createRequiredValueNormalizer(
                             propertyValue => {
                                 properties[key] = {
-                                    commentData: transformContextData(contextData),
+                                    quote: isType ? "'" : "\"",
+                                    commentData: transformCommentsToSerializableCommentData(propertyComments),
                                     value: propertyValue,
                                 }
                             },
                             sortKeys,
+                            propertyComments,
                         ))
                     },
                     end: (_endRange, _closeData, contextData) => {
+                        addComments(contextData, comments)
                         handleValue({
-                            commentData: transformContextData(valueContextData),
+                            commentData: transformCommentsToSerializableCommentData(valueComments),
                             type: ["object", {
-                                commentData: transformContextData(contextData),
+                                commentData: createEmptyCommentsData(),
                                 properties: new InDictionary(properties, sortKeys),
-                                openCharacter: openData.openCharacter,
+                                openCharacter: isType ? "(" : "{",
+                                closeCharacter: isType ? ")" : "}",
                             }],
                         })
                     },
@@ -139,7 +189,7 @@ function createValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.
             },
             simpleValue: (_range, data) => {
                 handleValue({
-                    commentData: transformContextData(valueContextData),
+                    commentData: transformCommentsToSerializableCommentData(valueComments),
                     type: ["simple value", {
                         quote: data.quote,
                         value: data.value,
@@ -150,18 +200,21 @@ function createValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.
             taggedUnion: () => {
                 return {
                     option: (_range, option, contextData) => {
+                        addComments(contextData, comments)
                         return createRequiredValueNormalizer(
                             tuData => {
                                 handleValue({
-                                    commentData: transformContextData(valueContextData),
+                                    commentData: transformCommentsToSerializableCommentData(valueComments),
                                     type: ["tagged union", {
                                         option: option,
-                                        commentData: transformContextData(contextData),
+                                        quote: "'",
+                                        commentData: createEmptyCommentsData(),
                                         data: tuData,
                                     }],
                                 })
                             },
                             sortKeys,
+                            comments,
                         )
                     },
                     missingOption: () => {
@@ -179,11 +232,12 @@ function createValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.
 function createNormalizer(
     handleValue: HandleValue,
     sortKeys: boolean,
+    documentComments: bc.Comment[]
 ): bc.ParserEventConsumer<null, null> {
 
     const datasubscriber = bc.createStackedDataSubscriber<null, null>(
         {
-            onValue: createValueNormalizer(handleValue, sortKeys),
+            onValue: createValueNormalizer(handleValue, sortKeys, documentComments),
             onMissing: () => {
                 console.error("FOUND MISSING DATA")
 
@@ -217,6 +271,8 @@ export function normalize(
     let root: null | SerializableValue = null
     const overheadComments: SerializableComment[] = []
 
+    const documentComments: bc.Comment[] = []
+
     return bc.parseString(
         dataAsString,
         _range => {
@@ -225,6 +281,7 @@ export function normalize(
                     schemaValue = sv
                 },
                 sortKeys,
+                documentComments,
             )
         },
         compactRange => {
@@ -236,6 +293,7 @@ export function normalize(
                     root = iv
                 },
                 sortKeys,
+                documentComments,
             )
         },
         err => { console.error("error: ", printParsingError(err)) },

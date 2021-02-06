@@ -6,7 +6,8 @@
                 'properties': {
                     "foo": (
                         'type': | 'state group' (
-                            'default state': "bla" //a comment after a simple value
+                            /*a comment after a simple value*/
+                            'default state': "bla"
                             'states': {
                                 "bla": ( )
                             }
@@ -20,10 +21,13 @@
 		    	a comment after open object
 		    	*/
                         'type': | 'collection' (
-                            'node': /*a comment after a colon*/(
-                                'properties': /*a comment before a colon*/{
+                            /*a comment after a colon*/
+                            'node': (
+                                /*a comment before a colon*/
+                                'properties': {
                                     "aanval": (
-                                        'type': /*a block comment before the tagged union pipe */| 'state group' (
+                                        /*a block comment before the tagged union pipe */
+                                        'type': | 'state group' (
                                             'default state': "laser ogen"
                                             'states': {
                                                 "laser ogen": ( )
@@ -32,7 +36,9 @@
                                         )
                                     )
                                     "element": (
-                                        'type': | 'state group' /*a block comment after an option*//*a block comment after the last property*/(
+                                        /*a block comment after an option*/
+                                        /*a block comment after the last property*/
+                                        'type': | 'state group' (
                                             'default state': "techniek"
                                             'states': {
                                                 "aarde": ( )

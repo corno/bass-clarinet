@@ -267,9 +267,9 @@ export class BodyParser<ReturnType, ErrorType> {
                 this.raiseError(["unexpected '#'"], range)
                 return p.result(false)
             case Char.Punctuation.closeAngleBracket:
-                return this.onArrayClose(curChar, range, onStackEmpty)
+                return this.onArrayClose(">", range, onStackEmpty)
             case Char.Punctuation.closeBracket:
-                return this.onArrayClose(curChar, range, onStackEmpty)
+                return this.onArrayClose("]", range, onStackEmpty)
             case Char.Punctuation.comma:
                 //
                 return this.sendEvent({
@@ -278,13 +278,13 @@ export class BodyParser<ReturnType, ErrorType> {
                     }],
                 })
             case Char.Punctuation.openAngleBracket:
-                return this.onArrayOpen(curChar, range)
+                return this.onArrayOpen("<", range)
             case Char.Punctuation.openBracket:
-                return this.onArrayOpen(curChar, range)
+                return this.onArrayOpen("[", range)
             case Char.Punctuation.closeBrace:
-                return this.onObjectClose(curChar, range, onStackEmpty)
+                return this.onObjectClose("}", range, onStackEmpty)
             case Char.Punctuation.closeParen:
-                return this.onObjectClose(curChar, range, onStackEmpty)
+                return this.onObjectClose(")", range, onStackEmpty)
             case Char.Punctuation.colon:
                 //
                 return this.sendEvent({
@@ -293,9 +293,9 @@ export class BodyParser<ReturnType, ErrorType> {
                     }],
                 })
             case Char.Punctuation.openBrace:
-                return this.onObjectOpen(curChar, range)
+                return this.onObjectOpen("{", range)
             case Char.Punctuation.openParen:
-                return this.onObjectOpen(curChar, range)
+                return this.onObjectOpen("(", range)
             case Char.Punctuation.verticalLine:
                 return this.onTaggedUnion(range)
 
@@ -325,26 +325,27 @@ export class BodyParser<ReturnType, ErrorType> {
     private sendEvent(data: BodyEvent): p.IValue<boolean> {
         return this.eventsConsumer.onData(data)
     }
-    private onObjectOpen(curChar: number, range: Range): p.IValue<boolean> {
+    private onObjectOpen(openCharacter: "(" | "{", range: Range): p.IValue<boolean> {
         return this.onComplexValue(range).mapResult(() => {
             const obj = {
-                state: ObjectState.EXPECTING_KEY, openChar: curChar,
+                state: ObjectState.EXPECTING_KEY,
+                //openChar: curChar,
             }
             this.pushContext({ range: range, type: [StackContextType2.OBJECT, obj] })
             return this.sendEvent({
                 range: range,
                 type: [BodyEventType.OpenObject, {
-                    openCharacter: String.fromCharCode(curChar),
+                    openCharacter: openCharacter,
                 }],
             })
 
         })
     }
-    private onObjectClose(curChar: number, range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+    private onObjectClose(closeCharacter: ")" | "}", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
         return this.sendEvent({
             range: range,
             type: [BodyEventType.CloseObject, {
-                closeCharacter: String.fromCharCode(curChar),
+                closeCharacter: closeCharacter,
             }],
         }).mapResult(() => {
             if (this.currentContext === null || this.currentContext.type[0] !== StackContextType2.OBJECT) {
@@ -358,24 +359,28 @@ export class BodyParser<ReturnType, ErrorType> {
             }
         })
     }
-    private onArrayOpen(curChar: number, range: Range) {
+    private onArrayOpen(openCharacter: "[" | "<", range: Range) {
         return this.onComplexValue(range).mapResult(() => {
-            this.pushContext({ range: range, type: [StackContextType2.ARRAY, { openChar: curChar }] })
+            this.pushContext({
+                range: range, type: [StackContextType2.ARRAY, {
+                    openChar: openCharacter,
+                }],
+            })
             return this.sendEvent({
                 range: range,
                 type: [BodyEventType.OpenArray, {
-                    openCharacter: String.fromCharCode(curChar),
+                    openCharacter: openCharacter,
                 }],
             })
 
         })
     }
-    private onArrayClose(curChar: number, range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>) {
+    private onArrayClose(closeCharacter: "]" | ">", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>) {
 
         return this.sendEvent({
             range: range,
             type: [BodyEventType.CloseArray, {
-                closeCharacter: String.fromCharCode(curChar),
+                closeCharacter: closeCharacter,
             }],
         }).mapResult(() => {
             if (this.currentContext === null || this.currentContext.type[0] !== StackContextType2.ARRAY) {

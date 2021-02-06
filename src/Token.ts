@@ -1,8 +1,9 @@
 import { Range } from "./location"
+import { Quote } from "./PreToken"
 
 export type SimpleValueData = {
     value: string
-    quote: string | null
+    quote: Quote | null
     terminated: boolean | null //terminated is 'null' when the value is not quoted
 }
 
