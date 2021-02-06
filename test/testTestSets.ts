@@ -219,6 +219,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                             option: () => {
                                 return createTestRequiredValueHandler()
                             },
+                            end: () => {
+                                //
+                            },
                         }
                     },
                 }

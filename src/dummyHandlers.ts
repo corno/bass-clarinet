@@ -25,6 +25,9 @@ export function createDummyValueHandler(): OnValue {
                     missingOption: (): void => {
                         //
                     },
+                    end: () => {
+                        //
+                    },
                 }
             },
         }

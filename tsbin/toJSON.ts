@@ -1,20 +1,24 @@
 import * as p from "pareto"
 import * as fs from "fs"
 import * as bc from "../src"
-import { printParsingError } from "../src"
+import * as stream from "stream"
+import { createDummyValueHandler, printParsingError } from "../src"
+import { line } from "fountain-pen"
 
-const [, , path] = process.argv
+const [, , sourcePath, targetPath] = process.argv
 
-function assertUnreachable<RT>(_x: never): RT {
-    throw new Error("unreachable")
-}
 
-if (path === undefined) {
+const ws: stream.Writable = targetPath !== undefined
+? fs.createWriteStream(targetPath, { encoding: "utf-8" })
+: process.stdout
+
+
+if (sourcePath === undefined) {
     console.error("missing path")
     process.exit(1)
 }
 
-const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
+const dataAsString = fs.readFileSync(sourcePath, { encoding: "utf-8" })
 
 function createRequiredValuePrettyPrinter(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
     return {
@@ -28,25 +32,27 @@ function createRequiredValuePrettyPrinter(indentation: string, writer: (str: str
 function createValuePrettyPrinter(indentation: string, writer: (str: string) => void): bc.OnValue {
     return () => {
         return {
-            array: (_beginRange, beginMetaData) => {
-                writer(beginMetaData.openCharacter)
+            array: (_beginRange, _beginMetaData) => {
+                writer(`[`)
                 return {
                     element: () => createValuePrettyPrinter(`${indentation}\t`, writer),
-                    end: (_endRange, endData) => {
-                        writer(`${indentation}${endData.closeCharacter}`)
+                    end: (_endRange, _endData) => {
+                        writer(`${indentation}]`)
                     },
                 }
 
             },
-            object: (_beginRange, data) => {
-                writer(data.openCharacter)
+            object: (_beginRange, _data) => {
+                let isFirstProperty = true
+                writer(`{`)
                 return {
                     property: (_keyRange, key) => {
-                        writer(`${indentation}\t"${key}": `)
+                        writer(`${isFirstProperty? `` : `, ` }${indentation}\t"${key}": `)
+                        isFirstProperty = false
                         return p.result(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
                     },
-                    end: (_endRange, endData) => {
-                        writer(`${indentation}${endData.closeCharacter}`)
+                    end: (_endRange, _endData) => {
+                        writer(`${indentation}}`)
                     },
                 }
             },
@@ -61,14 +67,14 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
             taggedUnion: () => {
                 return {
                     option: (_range, option) => {
-                        writer(`| "${option}" `)
+                        writer(`[ "${option}", `)
                         return createRequiredValuePrettyPrinter(`${indentation}`, writer)
                     },
                     missingOption: () => {
                         //
                     },
                     end: () => {
-                        //
+                        write(`]`)
                     },
                 }
             },
@@ -97,58 +103,51 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
     return datasubscriber
 }
 
+export function createDummyEventConsumer(): bc.ParserEventConsumer<null, null> {
+    const datasubscriber = bc.createStackedDataSubscriber<null, null>(
+        {
+            onValue: createDummyValueHandler(),
+            onMissing: () => {
+                //
+            },
+        },
+        _error => {
+            //
+        },
+        () => {
+            //onEnd
+            //no need to return an value, we're only here for the side effects, so return 'null'
+            return p.success(null)
+        }
+    )
+    return datasubscriber
+}
+
 function write(str: string) {
-    process.stdout.write(str)
+    ws.write(str)
 }
 
 bc.parseString(
     dataAsString,
     _range => {
-        write("! ")
-        return createPrettyPrinter("\r\n", write)
+        return createDummyEventConsumer()
     },
-    compactRange => {
-        if (compactRange !== null) {
-            write("# ")
-        }
+    _compactRange => {
         return createPrettyPrinter("\r\n", write)
     },
     err => { console.error("FOUND ERROR", printParsingError(err)) },
-    overheadToken => {
-        switch (overheadToken.type[0]) {
-            case bc.OverheadTokenType.BlockComment: {
-                //const $ = data.type[1]
-
-                break
-            }
-            case bc.OverheadTokenType.LineComment: {
-                //const $ = data.type[1]
-
-                break
-            }
-            case bc.OverheadTokenType.NewLine: {
-                //const $ = data.type[1]
-
-                break
-            }
-            case bc.OverheadTokenType.WhiteSpace: {
-                //const $ = data.type[1]
-
-                break
-            }
-            default:
-                assertUnreachable(overheadToken.type[0])
-        }
-        write("\r\n")
+    _overheadToken => {
         return p.result(false)
     },
 ).handle(
     () => {
         write("\r\n")
         //we're only here for the side effects, so no need to handle the error
+        ws.end()
     },
     () => {
         write("\r\n")
         //we're only here for the side effects, so no need to handle the result (which is 'null' anyway)
+        ws.end()
     }
 )

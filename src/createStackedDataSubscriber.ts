@@ -33,7 +33,6 @@ class StackedDataSubscriberPanic extends RangeError {
 
 type TaggedUnionState =
     | ["expecting option", {
-        readonly handler: TaggedUnionHandler
     }]
     | ["expecting value", RequiredValueHandler]
 
@@ -50,6 +49,7 @@ type ContextType =
         readonly arrayHandler: ArrayHandler
     }]
     | ["taggedunion", {
+        readonly handler: TaggedUnionHandler
         state: TaggedUnionState
     }]
 
@@ -151,6 +151,13 @@ class SemanticState {
         if (previousContext === undefined) {
             throw new StackedDataSubscriberPanic("unexpected end of stack", range)
         } else {
+            if (previousContext[0] === "taggedunion") {
+                const taggedUnion = previousContext[1]
+                if (taggedUnion.state[0] !== "expecting value") {
+                    throw new StackedDataSubscriberPanic("unexpected tagged union state", range)
+                }
+                taggedUnion.handler.end()
+            }
             this.currentContext = previousContext
         }
     }
@@ -255,7 +262,7 @@ function processParserEvent(
                         switch (semanticState.currentContext[0]) {
                             case "array": {
                                 break unwindLoop
-                                break
+                                //break
                             }
                             case "object": {
                                 const $$2 = semanticState.currentContext[1]
@@ -272,7 +279,7 @@ function processParserEvent(
                             case "root": {
                                 //const $ = state.currentContext[1]
                                 break unwindLoop
-                                break
+                                //break
                             }
                             case "taggedunion": {
                                 //const $ = state.currentContext[1]
@@ -499,9 +506,9 @@ function processParserEvent(
                             const $$ = semanticState.currentContext[1]
                             switch ($$.state[0]) {
                                 case "expecting option": {
-                                    const $$$ = $$.state[1]
+                                    //const $$$ = $$.state[1]
                                     if (DEBUG) { console.log("on option", $.value) }
-                                    $$.state = ["expecting value", $$$.handler.option(
+                                    $$.state = ["expecting value", $$.handler.option(
                                         data.range,
                                         $.value,
                                         contextData
@@ -528,10 +535,10 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
                     semanticState.push(["taggedunion", {
+                        handler: semanticState.initValueHandler()(contextData).taggedUnion(
+                            data.range,
+                        ),
                         state: ["expecting option", {
-                            handler: semanticState.initValueHandler()(contextData).taggedUnion(
-                                data.range,
-                            ),
                         }],
                     }])
                     return p.result(false)
@@ -685,8 +692,8 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                                 const $ = semanticState.currentContext[1]
                                 switch ($.state[0]) {
                                     case "expecting option": {
-                                        const $$ = $.state[1]
-                                        $$.handler.missingOption()
+                                        //const $$ = $.state[1]
+                                        $.handler.missingOption()
                                         break
                                     }
                                     case "expecting value": {

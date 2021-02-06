@@ -86,6 +86,7 @@
   },
   "bin": {
     "astn-normalize": "./bin/normalizeFile.mjs",
-    "astn-prettyprint": "./bin/prettyPrint.mjs"
+    "astn-prettyprint": "./bin/prettyPrint.mjs",
+    "astn-to-json": "./bin/toJSON.mjs"
   }
 }

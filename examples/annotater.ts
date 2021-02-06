@@ -53,6 +53,9 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
                     missingOption: () => {
                         //
                     },
+                    end: () => {
+                        //
+                    },
                 }
             },
         }

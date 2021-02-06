@@ -29,6 +29,7 @@ export type ArrayHandler = {
 export type TaggedUnionHandler = {
     option: OnOption
     missingOption: () => void
+    end: () => void
 }
 
 export type OnObject = (range: Range, data: OpenData) => ObjectHandler

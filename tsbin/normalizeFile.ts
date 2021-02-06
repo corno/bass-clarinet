@@ -1,7 +1,7 @@
 import * as fs from "fs"
-import { normalize } from "../src/normalize"
+import * as stream from "stream"
 import * as p from "pareto"
-import { Writable } from "stream"
+import { normalize } from "../src/normalize"
 
 const [, , sourcePath, targetPath] = process.argv
 
@@ -21,13 +21,13 @@ normalize(
     () => {
         console.error(`an error occured. the error message is hopefully logged above this line`)
     },
-    stream => {
+    myStream => {
 
-        const ws: Writable = targetPath !== undefined
+        const ws: stream.Writable = targetPath !== undefined
             ? fs.createWriteStream(targetPath, { encoding: "utf-8" })
             : process.stdout
 
-        stream.handle(
+        myStream.handle(
             null,
             {
                 onData: line => {

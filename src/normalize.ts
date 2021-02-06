@@ -167,6 +167,9 @@ function createValueNormalizer(handleValue: HandleValue, sortKeys: boolean): bc.
                     missingOption: () => {
                         //
                     },
+                    end: () => {
+                        //
+                    },
                 }
             },
         }
