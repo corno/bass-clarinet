@@ -539,7 +539,7 @@ function processParserEvent(
 }
 
 /**
- * attachStackedDataSubscriber allows for capturing objects and arrays in a callback, so that the consumer does not have to match
+ * this function allows for capturing objects and arrays in a callback, so that the consumer does not have to match
  * 'onopenobject' with 'oncloseobject'
  * and
  * 'onopenarray' with 'onclosearray'

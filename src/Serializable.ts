@@ -30,9 +30,7 @@ export type SerializableCommentData = {
     lineCommentAfter: null | string
 }
 
-export type SerializableValue = {
-    commentData: SerializableCommentData
-    type:
+export type SerializableValueType =
     | ["simple value", {
         quote: Quote | null
         value: string
@@ -55,6 +53,10 @@ export type SerializableValue = {
         commentData: SerializableCommentData
         data: SerializableValue
     }]
+
+export type SerializableValue = {
+    commentData: SerializableCommentData
+    type: SerializableValueType
 }
 
 export type SerializableDocument = {
