@@ -109,14 +109,14 @@ export function serializeDocument(
             document.documentComments.map(dc => {
                 return "/*" + dc.text + "*/"
             }),
+            document.schema === null
+                ? null
+                : fp.line([
+                    `! `,
+                    writeValue(document.schema),
+                    ` `,
+                ]),
             fp.line([
-                document.schema === null
-                    ? ``
-                    : [
-                        `! `,
-                        writeValue(document.schema),
-                        ` `,
-                    ],
                 document.compact ? `# ` : ``,
                 writeValue(document.root),
             ]),
