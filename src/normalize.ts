@@ -190,7 +190,7 @@ function createValueNormalizer(
                 handleValue({
                     commentData: transformCommentsToSerializableCommentData(valueComments),
                     type: ["simple value", {
-                        quote: data.quote,
+                        quote: data.quote === null ? null : "\"",
                         value: data.value,
                     }],
                 })
