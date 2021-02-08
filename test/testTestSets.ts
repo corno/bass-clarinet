@@ -142,7 +142,7 @@ class OutPutter implements bc.ParserEventConsumer<null, null> {
             default:
                 assertUnreachable(data.type[0])
         }
-        return p.result(false)
+        return p.value(false)
     }
     //do the check
     onEnd(): p.IUnsafeValue<null, null> {
@@ -208,7 +208,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     object: () => {
                         return {
                             property: () => {
-                                return p.result(createTestRequiredValueHandler())
+                                return p.value(createTestRequiredValueHandler())
                             },
                             end: () => {
                                 //
@@ -217,7 +217,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
                     },
                     simpleValue: () => {
-                        return p.result(false)
+                        return p.value(false)
                     },
                     taggedUnion: () => {
                         return {
@@ -328,7 +328,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     default:
                         assertUnreachable(data.type[0])
                 }
-                return p.result(false)
+                return p.value(false)
             },
             onEnd: (_aborted, location): p.IUnsafeValue<null, null> => {
                 if (DEBUG) console.log("found end")
@@ -368,7 +368,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 },
                 () => {
 
-                    return p.result(null)
+                    return p.value(null)
 
                 },
             )
@@ -444,7 +444,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             (token, range) => {
                 outputOverheadToken(out, token)
                 onOverheadTokenEvent(token, range)
-                return p.result(false)
+                return p.value(false)
             },
         )
 

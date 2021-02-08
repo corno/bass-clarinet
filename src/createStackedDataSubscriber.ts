@@ -299,7 +299,7 @@ function processParserEvent(
                     }
                     if (semanticState.currentContext[0] !== "array") {
                         raiseError(onError, ["unexpected end of array"], data.range)
-                        return p.result(false)
+                        return p.value(false)
                     } else {
                         const $$ = semanticState.currentContext[1]
                         $$.arrayHandler.end(
@@ -309,7 +309,7 @@ function processParserEvent(
                         )
                         semanticState.pop(data.range)
                         semanticState.wrapupValue(data.range)
-                        return p.result(false)
+                        return p.value(false)
                     }
                 },
             }]
@@ -356,7 +356,7 @@ function processParserEvent(
                     }
                     if (semanticState.currentContext[0] !== "object") {
                         raiseError(onError, ["unexpected end of object"], data.range)
-                        return p.result(false)
+                        return p.value(false)
                     } else {
                         const $$ = semanticState.currentContext[1]
                         if ($$.propertyHandler !== null) {
@@ -372,7 +372,7 @@ function processParserEvent(
                         )
                         semanticState.pop(data.range)
                         semanticState.wrapupValue(data.range)
-                        return p.result(false)
+                        return p.value(false)
                     }
 
                 },
@@ -391,7 +391,7 @@ function processParserEvent(
                 handler: contextData => {
                     const arrayHandler = semanticState.initValueHandler()(contextData).array(data.range, $)
                     semanticState.push(["array", { arrayHandler: arrayHandler }])
-                    return p.result(false)
+                    return p.value(false)
                 },
             }]
         }
@@ -410,7 +410,7 @@ function processParserEvent(
                         objectHandler: objectHandler,
                         propertyHandler: null,
                     }])
-                    return p.result(false)
+                    return p.value(false)
                 },
             }]
         }
@@ -466,7 +466,7 @@ function processParserEvent(
                             if ($$.propertyHandler === null) {
                                 if (semanticState.currentContext[0] !== "object") {
                                     raiseError(onError, ["unexpected key"], data.range)
-                                    return p.result(false)
+                                    return p.value(false)
                                 } else {
                                     return $$.objectHandler.property(
                                         data.range,
@@ -474,7 +474,7 @@ function processParserEvent(
                                         contextData
                                     ).mapResult(propHandler => {
                                         $$.propertyHandler = propHandler
-                                        return p.result(false)
+                                        return p.value(false)
                                     })
                                 }
                             } else {
@@ -501,7 +501,7 @@ function processParserEvent(
                                         $.value,
                                         contextData
                                     )]
-                                    return p.result(false)
+                                    return p.value(false)
                                 }
                                 case "expecting value": {
                                     const $$$ = $$.state[1]
@@ -529,7 +529,7 @@ function processParserEvent(
                         state: ["expecting option", {
                         }],
                     }])
-                    return p.result(false)
+                    return p.value(false)
                 },
             }]
         }
@@ -592,12 +592,12 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                     const $ = processedParserEvent[1]
                     overheadState.setLineDirty()
                     if ($.comment.type === "line" && cachedEvent !== null) {
-                        const res = flush(cachedEvent, $.comment, () => p.result(false))
+                        const res = flush(cachedEvent, $.comment, () => p.value(false))
                         cachedEvent = null
                         return res
                     } else {
                         overheadState.onCommend($.comment)
-                        return p.result(false)
+                        return p.value(false)
                     }
                 }
                 case "event": {
@@ -606,7 +606,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                         const $ = processedParserEvent[1]
                         cachedEvent = $
                         overheadState.setLineDirty()
-                        return p.result(false)
+                        return p.value(false)
 
                     })
                 }
@@ -615,21 +615,21 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
                     //const $ = odr[1]
                     overheadState.setLineDirty()
 
-                    return p.result(false)
+                    return p.value(false)
 
                 }
                 case "whitespace": {
                     const $ = processedParserEvent[1]
                     overheadState.onWhitespace($.value)
 
-                    return p.result(false)
+                    return p.value(false)
                 }
                 case "newline": {
                     return flushPossibleQueuedEvent(() => {
 
                         //const $ = odr[1]
                         overheadState.onNewline()
-                        return p.result(false)
+                        return p.value(false)
 
                     })
                 }

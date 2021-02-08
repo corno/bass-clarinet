@@ -21,7 +21,7 @@ Object.keys(ownJSONTests).forEach(testName => {
         },
         err => console.error(err),
         () => {
-            return p.result(false)
+            return p.value(false)
         },
 
     )

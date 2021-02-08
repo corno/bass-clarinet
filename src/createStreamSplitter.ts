@@ -19,10 +19,10 @@ export function createStreamSplitter<DataType, EndDataType>(
                 }
             })
             if (promises.length === 0) {
-                return p.result(abortRequested)
+                return p.value(abortRequested)
             }
             return p20.createArray(promises).mergeSafeValues(x => x).mapResult(abortResquests => {
-                return p.result(abortRequested || abortResquests.includes(true)) //if 1 promise requested an abort
+                return p.value(abortRequested || abortResquests.includes(true)) //if 1 promise requested an abort
             })
         },
         onEnd: (aborted: boolean, endData: EndDataType): p.IUnsafeValue<null, null> => {
@@ -30,9 +30,9 @@ export function createStreamSplitter<DataType, EndDataType>(
                 subStreamConsumers
             ).mergeUnsafeValues(v => v.onEnd(aborted, endData)
             ).mapError(() => {
-                return p.result(null)
+                return p.value(null)
             }).mapResult(() => {
-                return p.result(null)
+                return p.value(null)
             })
         },
     }

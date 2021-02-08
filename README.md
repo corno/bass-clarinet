@@ -104,7 +104,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
                 return {
                     property: (_keyRange, key) => {
                         writer(`${indentation}\t"${key}": `)
-                        return p.result(createRequiredValuesPrettyPrinter(`${indentation}\t`, writer))
+                        return p.value(createRequiredValuesPrettyPrinter(`${indentation}\t`, writer))
                     },
                     end: endRange => {
                         writer(`${indentation}${bc.printRange(endRange)}`)
@@ -117,7 +117,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
                 } else {
                     writer(`${data.value}`)
                 }
-                return p.result(false)
+                return p.value(false)
             },
             taggedUnion: () => {
                 return {
@@ -166,7 +166,7 @@ bc.parseString(
     },
     err => { console.error("FOUND ERROR", err) },
     () => {
-        return p.result(false)
+        return p.value(false)
     },
 ).handle(
     () => {
@@ -273,7 +273,7 @@ export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
             default:
                 assertUnreachable(data.type[0])
         }
-        return p.result(false)
+        return p.value(false)
     },
     onEnd: () => {
         //place your code here
@@ -289,7 +289,7 @@ const parserStack = bc.createParserStack(
     },
     err => { console.error("FOUND ERROR", err) },
     () => {
-        return p.result(false)
+        return p.value(false)
     }
 )
 

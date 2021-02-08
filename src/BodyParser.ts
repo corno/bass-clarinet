@@ -159,9 +159,9 @@ export class BodyParser<ReturnType, ErrorType> {
 
             switch (popped.type[0]) {
                 case StackContextType2.ARRAY:
-                    return p.result(false)
+                    return p.value(false)
                 case StackContextType2.OBJECT:
-                    return p.result(false)
+                    return p.value(false)
                 case StackContextType2.TAGGED_UNION:
                     return this.popContext(range, onStackEmpty)
                 default:
@@ -262,10 +262,10 @@ export class BodyParser<ReturnType, ErrorType> {
         switch (curChar) {
             case Char.Punctuation.exclamationMark:
                 this.raiseError(["unexpected '!'"], range)
-                return p.result(false)
+                return p.value(false)
             case Char.Punctuation.hash:
                 this.raiseError(["unexpected '#'"], range)
-                return p.result(false)
+                return p.value(false)
             case Char.Punctuation.closeAngleBracket:
                 return this.onArrayClose(">", range, onStackEmpty)
             case Char.Punctuation.closeBracket:
@@ -306,7 +306,7 @@ export class BodyParser<ReturnType, ErrorType> {
                     }],
                     range
                 )
-                return p.result(false)
+                return p.value(false)
         }
     }
     private onTaggedUnion(range: Range) {
@@ -350,7 +350,7 @@ export class BodyParser<ReturnType, ErrorType> {
         }).mapResult(() => {
             if (this.currentContext === null || this.currentContext.type[0] !== StackContextType2.OBJECT) {
                 this.raiseError(["not in an object"], range)
-                return p.result(false)
+                return p.value(false)
             } else {
                 if (this.currentContext.type[1].state === ObjectState.EXPECTING_OBJECT_VALUE) {
                     this.raiseError(["missing property value"], range)
@@ -385,7 +385,7 @@ export class BodyParser<ReturnType, ErrorType> {
         }).mapResult(() => {
             if (this.currentContext === null || this.currentContext.type[0] !== StackContextType2.ARRAY) {
                 this.raiseError(["not in an array"], range)
-                return p.result(false)
+                return p.value(false)
             } else {
                 return this.popContext(range, onEndOfStack)
             }
@@ -394,20 +394,20 @@ export class BodyParser<ReturnType, ErrorType> {
     private onComplexValue(range: Range): p.IValue<boolean> {
         if (this.currentContext === null) {
             //the beginning of the content
-            return p.result(false)
+            return p.value(false)
         }
         switch (this.currentContext.type[0]) {
             case StackContextType2.ARRAY: {
-                return p.result(false)
+                return p.value(false)
             }
             case StackContextType2.OBJECT: {
                 const $$ = this.currentContext.type[1]
                 switch ($$.state) {
                     case ObjectState.EXPECTING_KEY:
-                        return p.result(false)
+                        return p.value(false)
                     case ObjectState.EXPECTING_OBJECT_VALUE:
                         $$.state = ObjectState.EXPECTING_KEY
-                        return p.result(false)
+                        return p.value(false)
                     default:
                         return assertUnreachable($$.state)
                 }
@@ -417,9 +417,9 @@ export class BodyParser<ReturnType, ErrorType> {
                 switch ($$.state) {
                     case TaggedUnionState.EXPECTING_OPTION:
                         this.raiseError(["expected option"], range)
-                        return p.result(false)
+                        return p.value(false)
                     case TaggedUnionState.EXPECTING_VALUE: {
-                        return p.result(false)
+                        return p.value(false)
                     }
                     default:
                         return assertUnreachable($$.state)

@@ -43,7 +43,7 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
                 return {
                     property: (_keyRange, key) => {
                         writer(`${indentation}\t"${key}": `)
-                        return p.result(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
+                        return p.value(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
                     },
                     end: (_endRange, endData) => {
                         writer(`${indentation}${endData.closeCharacter}`)
@@ -56,7 +56,7 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
                 } else {
                     writer(`${data.value}`)
                 }
-                return p.result(false)
+                return p.value(false)
             },
             taggedUnion: () => {
                 return {
@@ -135,7 +135,7 @@ bc.parseString(
                 assertUnreachable(overheadToken.type[0])
         }
         write("\r\n")
-        return p.result(false)
+        return p.value(false)
     },
 ).handle(
     () => {

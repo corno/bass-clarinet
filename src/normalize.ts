@@ -160,7 +160,7 @@ function createValueNormalizer(
                     property: (_keyRange, key, contextData) => {
                         const propertyComments: bc.Comment[] = []
                         addComments(contextData, propertyComments)
-                        return p.result(createRequiredValueNormalizer(
+                        return p.value(createRequiredValueNormalizer(
                             propertyValue => {
                                 properties[key] = {
                                     quote: isType ? "'" : "\"",
@@ -194,7 +194,7 @@ function createValueNormalizer(
                         value: data.value,
                     }],
                 })
-                return p.result(false)
+                return p.value(false)
             },
             taggedUnion: () => {
                 return {
@@ -321,7 +321,7 @@ export function normalize(
                 default:
                     assertUnreachable(overheadToken.type[0])
             }
-            return p.result(false)
+            return p.value(false)
         },
     ).mapResult(
         () => {
@@ -329,7 +329,7 @@ export function normalize(
                 throw new Error("unexpected missing instance value")
             }
 
-            return p.result(serializeDocument(
+            return p.value(serializeDocument(
                 {
                     schema: schemaValue,
                     compact: compact,

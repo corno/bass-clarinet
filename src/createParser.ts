@@ -139,10 +139,10 @@ export class Parser<ReturnType, ErrorType> {
                 const $ = this.rootContext.state[1]
                 return $.bodyParser.forceEnd(aborted, location).reworkAndCatch(
                     () => {
-                        return p.result(false)
+                        return p.value(false)
                     },
                     () => {
-                        return p.result(false)
+                        return p.value(false)
 
                     }
                 ).try(() => {
@@ -206,12 +206,12 @@ export class Parser<ReturnType, ErrorType> {
                         switch (punctuation.char) {
                             case Char.Punctuation.exclamationMark:
                                 this.rootContext.state = [RootState.EXPECTING_SCHEMA]
-                                return p.result(false)
+                                return p.value(false)
                             case Char.Punctuation.hash:
                                 this.rootContext.state = [RootState.EXPECTING_INSTANCE_DATA_AFTER_HASH, {
                                     hashRange: data.range,
                                 }]
-                                return p.result(false)
+                                return p.value(false)
                             default:
                                 return this.processComplexValueInstanceData(data, null, data.range)
                         }
@@ -244,10 +244,10 @@ export class Parser<ReturnType, ErrorType> {
                             }]
                             return result.reworkAndCatch(
                                 () => {
-                                    return p.result(false)
+                                    return p.value(false)
                                 },
                                 () => {
-                                    return p.result(false)
+                                    return p.value(false)
                                 }
                             )
                         })
@@ -263,10 +263,10 @@ export class Parser<ReturnType, ErrorType> {
                             }]
                             return consumer.onEnd(false, getEndLocationFromRange(data.range)).reworkAndCatch(
                                 () => {
-                                    return p.result(false)
+                                    return p.value(false)
                                 },
                                 () => {
-                                    return p.result(false)
+                                    return p.value(false)
                                 },
                             )
                         })
@@ -280,10 +280,10 @@ export class Parser<ReturnType, ErrorType> {
                     this.rootContext.state = [RootState.EXPECTING_HASH_OR_INSTANCE_DATA, {}]
                     return result.reworkAndCatch(
                         () => {
-                            return p.result(false)
+                            return p.value(false)
                         },
                         () => {
-                            return p.result(false)
+                            return p.value(false)
 
                         }
                     )
@@ -298,7 +298,7 @@ export class Parser<ReturnType, ErrorType> {
                             this.rootContext.state = [RootState.EXPECTING_INSTANCE_DATA_AFTER_HASH, {
                                 hashRange: data.range,
                             }]
-                            return p.result(false)
+                            return p.value(false)
                         } else {
                             return this.processComplexValueInstanceData(data, null, data.range)
                         }
@@ -325,7 +325,7 @@ export class Parser<ReturnType, ErrorType> {
 
                 return $.bodyParser.onData(data, result => {
                     this.rootContext.state = [RootState.EXPECTING_END, { result: result }]
-                    return p.result(false)
+                    return p.value(false)
                 })
             }
             case RootState.EXPECTING_END: {
@@ -335,13 +335,13 @@ export class Parser<ReturnType, ErrorType> {
                         this.raiseStructureError([`unexpected data after end`, {
                             data: String.fromCharCode(punctuation.char),
                         }], data.range)
-                        return p.result(false)
+                        return p.value(false)
                     },
                     simpleValue => {
                         this.raiseStructureError([`unexpected data after end`, {
                             data: simpleValue.value,
                         }], data.range)
-                        return p.result(false)
+                        return p.value(false)
                     }
                 )
             }
@@ -368,7 +368,7 @@ export class Parser<ReturnType, ErrorType> {
             this.rootContext.state = [RootState.EXPECTING_END, {
                 result: result,
             }]
-            return p.result(false)
+            return p.value(false)
         })
     }
     private processSimpleValueInstanceData(simpleValue: SimpleValueData, range: Range) {
@@ -381,7 +381,7 @@ export class Parser<ReturnType, ErrorType> {
             this.rootContext.state = [RootState.EXPECTING_END, {
                 result: consumer.onEnd(false, getEndLocationFromRange(range)),
             }]
-            return p.result(false)
+            return p.value(false)
         })
 
     }

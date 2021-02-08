@@ -32,7 +32,7 @@ const parserStack = bc.createParserStack(
     },
     err => { console.error("FOUND ERROR", err) },
     () => {
-        return p.result(false)
+        return p.value(false)
     },
 )
 

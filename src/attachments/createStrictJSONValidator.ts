@@ -344,7 +344,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
             default:
                 assertUnreachable(data.type[0])
         }
-        return p.result(false)
+        return p.value(false)
     }
     public onEnd() {
         return p.success<null, null>(null)

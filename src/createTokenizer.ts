@@ -119,7 +119,7 @@ export class Tokenizer<ReturnType, ErrorType> {
         }], range)
 
         this.indentationState = [IndentationState.lineIsDitry]
-        return p.result(false)
+        return p.value(false)
     }
     private setCurrentToken(contextType: CurrentToken, range: Range) {
         if (this.currentToken[0] !== CurrentTokenType.NONE) {
@@ -190,7 +190,7 @@ export class Tokenizer<ReturnType, ErrorType> {
         this.indentationState = [IndentationState.lineIsDitry]
 
         this.setCurrentToken([CurrentTokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], createRangeFromSingleLocation(location))
-        return p.result(false)
+        return p.value(false)
     }
     private onUnquotedTokenEnd(location: Location): p.IValue<boolean> {
         if (DEBUG) console.log(`onUnquotedTokenEnd`)
@@ -224,7 +224,7 @@ export class Tokenizer<ReturnType, ErrorType> {
             this.indentationState = [IndentationState.foundIndentation, $]
         }
         this.setCurrentToken([CurrentTokenType.WHITESPACE, $], createRangeFromSingleLocation(location))
-        return p.result(false)
+        return p.value(false)
     }
     private onWhitespaceEnd(location: Location): p.IValue<boolean> {
         if (DEBUG) console.log(`onWhitespaceEnd`)
@@ -249,7 +249,7 @@ export class Tokenizer<ReturnType, ErrorType> {
     private onQuotedStringBegin(begin: Range, quote: Quote): p.IValue<boolean> {
         if (DEBUG) console.log(`onQuotedStringBegin`)
         this.setCurrentToken([CurrentTokenType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
-        return p.result(false)
+        return p.value(false)
     }
 
     private onQuotedStringEnd(end: Range, quote: string | null): p.IValue<boolean> {
@@ -285,7 +285,7 @@ export class Tokenizer<ReturnType, ErrorType> {
         )
 
         this.indentationState = [IndentationState.lineIsDitry]
-        return p.result(false)
+        return p.value(false)
     }
     private onLineCommentEnd(location: Location): p.IValue<boolean> {
         if (DEBUG) console.log(`onLineCommentEnd`)
@@ -353,7 +353,7 @@ export class Tokenizer<ReturnType, ErrorType> {
             default:
                 assertUnreachable(this.currentToken[0])
         }
-        return p.result(false)
+        return p.value(false)
     }
     private onNewLine(range: Range): p.IValue<boolean> {
         if (DEBUG) console.log(`onNewLine`)

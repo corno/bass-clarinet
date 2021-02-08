@@ -21,7 +21,7 @@ export function parseString<ReturnType, ErrorType>(
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },
-    onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean> = () => p.result(false),
+    onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean> = () => p.value(false),
 ): p.IUnsafeValue<ReturnType, ErrorType> {
     return p20.createArray([data]).streamify().tryToConsume(
         null,

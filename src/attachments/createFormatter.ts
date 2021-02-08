@@ -408,7 +408,7 @@ export function createFormatter(
 				default:
 					assertUnreachable(data.type[0])
 			}
-			return p.result(false)
+			return p.value(false)
 		},
 		onEnd: () => {
 

@@ -28,7 +28,7 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
                 return {
                     property: (_keyRange, key) => {
                         writer(`${indentation}"${key}": `)
-                        return p.result(createRequiredValuesAnnotater(`${indentation}\t`, writer))
+                        return p.value(createRequiredValuesAnnotater(`${indentation}\t`, writer))
                     },
                     end: (endRange, _endMetaData) => {
                         writer(`${indentation}} // ${bc.printRange(endRange)}`)
@@ -41,7 +41,7 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
                 } else {
                     writer(`${indentation}${data.value} // ${bc.printRange(range)}`)
                 }
-                return p.result(false)
+                return p.value(false)
             },
             taggedUnion: range => {
                 writer(`| ${indentation}`)

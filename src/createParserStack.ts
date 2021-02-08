@@ -60,7 +60,7 @@ export function createParserStack<ReturnType, ErrorType>(
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },
-    onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean> = () => p.result(false),
+    onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean> = () => p.value(false),
 ): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
     return createStreamPreTokenizer(
         createTokenizer(createParser(

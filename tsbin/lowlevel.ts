@@ -86,7 +86,7 @@ export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
             default:
                 assertUnreachable(data.type[0])
         }
-        return p.result(false)
+        return p.value(false)
     },
     onEnd: () => {
         //place your code here
@@ -102,7 +102,7 @@ const parserStack = bc.createParserStack(
     },
     err => { console.error("FOUND ERROR", err) },
     () => {
-        return p.result(false)
+        return p.value(false)
     }
 )
 

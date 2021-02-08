@@ -31,12 +31,12 @@ class StreamPreTokenizer<ReturnType, ErrorType> implements p.IUnsafeStreamConsum
     private loopUntilPromiseOrEnd(currentChunk: Chunk): p.IValue<boolean> {
         if (this.aborted) {
             //ignore this data
-            return p.result(true)
+            return p.value(true)
         }
         while (true) {
             const la = currentChunk.lookahead()
             if (la === null) {
-                return p.result(false)
+                return p.value(false)
             }
 
             const tokenData = this.tokenizerState.createNextToken(currentChunk)
@@ -47,7 +47,7 @@ class StreamPreTokenizer<ReturnType, ErrorType> implements p.IUnsafeStreamConsum
 
                     if (abortRequested) {
                         this.aborted = true
-                        return p.result(true)
+                        return p.value(true)
                     } else {
                         return this.loopUntilPromiseOrEnd(currentChunk)
                     }

@@ -17,7 +17,7 @@ export function createDummyValueHandler(): OnValue {
             object: (): ObjectHandler => createDummyObjectHandler(),
             simpleValue: (): p.IValue<boolean> => {
                 //do nothing
-                return p.result(false)
+                return p.value(false)
             },
             taggedUnion: (): TaggedUnionHandler => {
                 return {
@@ -46,7 +46,7 @@ export function createDummyArrayHandler(): ArrayHandler {
 export function createDummyObjectHandler(): ObjectHandler {
     return {
         property: () => {
-            return p.result(createDummyRequiredValueHandler())
+            return p.value(createDummyRequiredValueHandler())
         },
         end: (): void => {
             //do nothing
