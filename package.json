@@ -81,7 +81,7 @@
   },
   "license": "BSD-2-Clause",
   "dependencies": {
-    "fountain-pen": "^3.5.2",
+    "fountain-pen": "^3.5.3",
     "pareto": "^0.51.0"
   },
   "bin": {
