@@ -9,7 +9,7 @@
     "Roly Fentanes (http://about.me/roly)",
     "John Lancaster (http://jlank.com)"
   ],
-  "version": "0.77.3",
+  "version": "0.77.4",
   "main": "./dist/src/index.js",
   "homepage": "https://github.com/corno/bass-clarinet",
   "repository": {
