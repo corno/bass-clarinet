@@ -9,7 +9,7 @@ import * as bc from "../src"
 import { describe } from "mocha"
 import * as chai from "chai"
 import { ownJSONTests } from "./data/ownJSONTestset"
-import { extensionTests } from "./data/JSONExtenstionsTestSet"
+import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
 import { createStreamSplitter } from "../src/createStreamSplitter"
 import { printParsingError, printStackedDataError } from "../src"
@@ -156,7 +156,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
         const actualEvents: EventDefinition[] = []
 
-        function getRange(mustCheck: boolean | undefined, range: bc.Range): TestRange | undefined {
+        function getRange(mustCheck: boolean | undefined, range: bc.Range): TestRange | null {
             if (mustCheck) {
                 const end = bc.getEndLocationFromRange(range)
                 return [
@@ -166,17 +166,17 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     end.column,
                 ]
             } else {
-                return undefined
+                return null
             }
         }
-        function getLocation(mustCheck: boolean | undefined, location: bc.Location): TestLocation | undefined {
+        function getLocation(mustCheck: boolean | undefined, location: bc.Location): TestLocation | null {
             if (mustCheck) {
                 return [
                     location.line,
                     location.column,
                 ]
             } else {
-                return undefined
+                return null
             }
         }
 
@@ -252,7 +252,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 case bc.OverheadTokenType.Comment: {
                     const $$ = $.type[1]
                     if (DEBUG) console.log("found block comment")
-                    actualEvents.push(["token", $$.type === "block" ? "blockcomment" : "linecomment", $$.comment, getRange(test.testForLocation, range)])
+                    if ($$.type === "block") {
+                        actualEvents.push(["token", "blockcomment", $$.comment, getRange(test.testForLocation, range)])
+
+                    } else {
+                        actualEvents.push(["token", "linecomment", $$.comment, getRange(test.testForLocation, range)])
+
+                    }
                     break
                 }
                 case bc.OverheadTokenType.NewLine: {
@@ -407,7 +413,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 },
                 onInstanceDataStart: compact => {
                     if (compact !== null) {
-                        actualEvents.push(["token", "compact"])
+                        actualEvents.push(["token", "compact", null])
                     }
                     actualEvents.push(["instance data start", compact !== null])
                 },
