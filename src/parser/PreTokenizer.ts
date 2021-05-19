@@ -8,7 +8,7 @@ import {
     TokenType,
     CurrentToken,
     FoundCharacterType,
-} from "./preTokenizerStateTypes"
+} from "./PreTokenizerStateTypes"
 import { Location, Range, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
 import { PreTokenDataType, PreToken } from "./PreToken"
 
