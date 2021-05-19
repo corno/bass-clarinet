@@ -137,7 +137,7 @@ export function createValueHandler(
         case "array type": {
             const $1 = valueType[1]
             const $2 = valueType[2]
-            return context.expectArrayType(
+            return context.expectShorthandType(
                 $1.map(e => {
                     return (): astn.RequiredValueHandler => createRequiredValueHandler(
                         context,

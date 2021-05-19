@@ -126,7 +126,7 @@ function createValueNormalizer(
         addComments(valueContextData, comments)
         return {
             array: (_beginRange, openData) => {
-                const isArrayType = openData.openCharacter === "<"
+                const isShorthandType = openData.openCharacter === "<"
                 const elements: SerializableValue[] = []
                 return {
                     element: () => createValueNormalizer(
@@ -144,8 +144,8 @@ function createValueNormalizer(
                             type: ["array", {
                                 commentData: createEmptyCommentsData(),
                                 elements: new InArray(elements),
-                                openCharacter: isArrayType ? "<" : "[",
-                                closeCharacter: isArrayType ? ">" : "]",
+                                openCharacter: isShorthandType ? "<" : "[",
+                                closeCharacter: isShorthandType ? ">" : "]",
                             }],
                         })
                     },

@@ -427,7 +427,7 @@ export class ExpectContext {
             }
         }
     }
-    public createArrayTypeHandler(
+    public createShorthandTypeHandler(
         expectedElements: ExpectedElements,
         onBegin?: (beginRange: astn.Range, metaData: astn.ArrayOpenData) => void,
         onEnd?: (beginRange: astn.Range, metaData: astn.ArrayCloseData, contextData: astn.ContextData) => void
@@ -864,14 +864,14 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("list", onInvalidType),
         }
     }
-    public expectArrayType(
+    public expectShorthandType(
         expectedElements: ExpectedElements,
         onBegin?: (range: astn.Range, metaData: astn.ArrayOpenData) => void,
         onEnd?: (range: astn.Range, metaData: astn.ArrayCloseData, contextData: astn.ContextData) => void,
         onInvalidType?: OnInvalidType,
     ): astn.ValueHandler {
         return {
-            array: this.createArrayTypeHandler(expectedElements, onBegin, onEnd),
+            array: this.createShorthandTypeHandler(expectedElements, onBegin, onEnd),
             object: this.createUnexpectedObjectHandler("array type", onInvalidType),
             simpleValue: this.createUnexpectedSimpleValueHandler("array type", onInvalidType),
             taggedUnion: this.createUnexpectedTaggedUnionHandler("array type", onInvalidType),
