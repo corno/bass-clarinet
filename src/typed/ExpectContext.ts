@@ -877,6 +877,29 @@ export class ExpectContext {
             taggedUnion: this.createUnexpectedTaggedUnionHandler("array type", onInvalidType),
         }
     }
+
+    public expectTypeOrShorthandType(
+        expectedProperties: ExpectedProperties = {},
+        expectedElements: ExpectedElements,
+        onTypeBegin?: (range: astn.Range, openData: astn.ObjectOpenData) => void,
+        onTypeEnd?: (hasErrors: boolean, range: astn.Range, endData: astn.ObjectCloseData, contextData: astn.ContextData) => void,
+        onUnexpectedProperty?: (key: string, range: astn.Range, contextData: astn.ContextData) => astn.RequiredValueHandler,
+        onShorthandTypeBegin?: (range: astn.Range, metaData: astn.ArrayOpenData) => void,
+        onShorthandTypeEnd?: (range: astn.Range, metaData: astn.ArrayCloseData, contextData: astn.ContextData) => void,
+        onInvalidType?: OnInvalidType,
+    ): astn.ValueHandler {
+        return {
+            array: this.createShorthandTypeHandler(expectedElements, onShorthandTypeBegin, onShorthandTypeEnd),
+            object: this.createTypeHandler(
+                expectedProperties,
+                onTypeBegin,
+                onTypeEnd,
+                onUnexpectedProperty
+            ),
+            simpleValue: this.createUnexpectedSimpleValueHandler("type", onInvalidType),
+            taggedUnion: this.createUnexpectedTaggedUnionHandler("type", onInvalidType),
+        }
+    }
     public expectTaggedUnion(
         options: Options,
         onUnexpectedOption?: (
