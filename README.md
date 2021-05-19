@@ -1,8 +1,8 @@
-# bass-clarinet
+# ASTN Toolkit
 
-![NPM Downloads](http://img.shields.io/npm/dm/bass-clarinet.svg?style=flat) ![NPM Version](http://img.shields.io/npm/v/bass-clarinet.svg?style=flat)
+![NPM Downloads](http://img.shields.io/npm/dm/astn.svg?style=flat) ![NPM Version](http://img.shields.io/npm/v/astn.svg?style=flat)
 
-`bass-clarinet` is a JSON parser.
+`ASTN Toolkit` is a toolkit for parsing and generating ASTN texts.
 
 It was forked from `clarinet` but the API has been changed significantly.
 In addition to the port to TypeScript, the following changes have been made:
@@ -27,9 +27,10 @@ In addition to the port to TypeScript, the following changes have been made:
 * stream support has been dropped for now. Can be added back upon request
 * There is an 'ExpectContext' class that helps processing documents that should conform to an expected structure.
 
-`bass-clarinet` is a sax-like streaming parser for JSON. works in the browser and node.js. just like you shouldn't use `sax` when you need `dom` you shouldn't use `bass-clarinet` when you need `JSON.parse`.
+the parser contained in this `ASTN Toolkit` is a sax-like streaming parser for ASTN (and JSON). just like you shouldn't use `sax` when you need `dom` you shouldn't use `astn` when you need `JSON.parse`.
 
-Clear reasons to use `bass-clarinet` over  the built-in `JSON.parse`:
+When to prefer this parser over the built-in `JSON.parse`:
+* you want to parse pure JSON
 * you want location info
 * you want the parser to continue after it encountered an error
 * you work with very large files
@@ -37,7 +38,7 @@ Clear reasons to use `bass-clarinet` over  the built-in `JSON.parse`:
 
 # design goals
 
-`bass-clarinet` is very much like [yajl] but written in TypeScript:
+the ASTN parser is very much like [yajl] but written in TypeScript:
 
 * written in TypeScript
 * portable
@@ -55,8 +56,8 @@ Clear reasons to use `bass-clarinet` over  the built-in `JSON.parse`:
 ## node.js
 
 1. install [npm]
-2. `npm install bass-clarinet`
-3. add this to your `.ts` file: `import * as bc from "bass-clarinet"`
+2. `npm install astn`
+3. add this to your `.ts` file: `import * as astn from "astn"`
 
 # usage
 
@@ -66,7 +67,7 @@ Clear reasons to use `bass-clarinet` over  the built-in `JSON.parse`:
 //a simple pretty printer
 import * as p from "pareto"
 import * as fs from "fs"
-import * as bc from "bass-clarinet"
+import * as astn from "astn"
 
 const [, , path] = process.argv
 
@@ -77,7 +78,7 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-function createRequiredValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
+function createRequiredValuesPrettyPrinter(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler {
     return {
         onValue: createValuesPrettyPrinter(indentation, writer),
         onMissing: () => {
@@ -86,7 +87,7 @@ function createRequiredValuesPrettyPrinter(indentation: string, writer: (str: st
     }
 }
 
-function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): bc.OnValue {
+function createValuesPrettyPrinter(indentation: string, writer: (str: string) => void): astn.OnValue {
     return () => {
         return {
             array: (beginRange, beginMetaData) => {
@@ -94,7 +95,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
                 return {
                     element: () => createValuesPrettyPrinter(`${indentation}\t`, writer),
                     end: _endRange => {
-                        writer(`${indentation}${bc.printRange(beginRange)}`)
+                        writer(`${indentation}${astn.printRange(beginRange)}`)
                     },
                 }
 
@@ -107,7 +108,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
                         return p.value(createRequiredValuesPrettyPrinter(`${indentation}\t`, writer))
                     },
                     end: endRange => {
-                        writer(`${indentation}${bc.printRange(endRange)}`)
+                        writer(`${indentation}${astn.printRange(endRange)}`)
                     },
                 }
             },
@@ -134,8 +135,8 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ParserEventConsumer<null, null> {
-    const datasubscriber = bc.createStackedDataSubscriber<null, null>(
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): astn.ParserEventConsumer<null, null> {
+    const datasubscriber = astn.createStackedDataSubscriber<null, null>(
         {
             onValue: createValuesPrettyPrinter(indentation, writer),
             onMissing: () => {
@@ -156,7 +157,7 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
 
 const pp = createPrettyPrinter("\r\n", str => process.stdout.write(str))
 
-bc.parseString(
+astn.parseString(
     dataAsString,
     () => {
         return pp
@@ -183,7 +184,7 @@ bc.parseString(
 import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as fs from "fs"
-import * as bc from "bass-clarinet"
+import * as astn from "astn"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -198,58 +199,58 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
+export const parserEventConsumer: astn.ParserEventConsumer<null, null> = {
     onData: data => {
         switch (data.type[0]) {
-            case bc.BodyEventType.CloseArray: {
+            case astn.BodyEventType.CloseArray: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.CloseObject: {
+            case astn.BodyEventType.CloseObject: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.Colon: {
+            case astn.BodyEventType.Colon: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.Comma: {
+            case astn.BodyEventType.Comma: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.OpenArray: {
+            case astn.BodyEventType.OpenArray: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.OpenObject: {
+            case astn.BodyEventType.OpenObject: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.Overhead: {
+            case astn.BodyEventType.Overhead: {
                 const $ = data.type[1]
                 switch ($.type[0]) {
-                    case bc.OverheadTokenType.BlockComment: {
+                    case astn.OverheadTokenType.BlockComment: {
                         //const $ = data.type[1]
                         //place your code here
                         break
                     }
-                    case bc.OverheadTokenType.LineComment: {
+                    case astn.OverheadTokenType.LineComment: {
                         //const $ = data.type[1]
                         //place your code here
                         break
                     }
-                    case bc.OverheadTokenType.NewLine: {
+                    case astn.OverheadTokenType.NewLine: {
                         //const $ = data.type[1]
                         //place your code here
                         break
                     }
-                    case bc.OverheadTokenType.WhiteSpace: {
+                    case astn.OverheadTokenType.WhiteSpace: {
                         //const $ = data.type[1]
                         //place your code here
                         break
@@ -259,13 +260,13 @@ export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
                 }
                 break
             }
-            case bc.BodyEventType.SimpleValue: {
+            case astn.BodyEventType.SimpleValue: {
                 //const $ = data.type[1]
                 //place your code here
                 //in strict JSON, the value is a string, a number, null, true or false
                 break
             }
-            case bc.BodyEventType.TaggedUnion: {
+            case astn.BodyEventType.TaggedUnion: {
                 //const $ = data.type[1]
                 //place your code here
                 break
@@ -280,7 +281,7 @@ export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
         return p.success(null)
     },
 }
-const parserStack = bc.createParserStack(
+const parserStack = astn.createParserStack(
     () => {
         return parserEventConsumer
     },
@@ -318,21 +319,6 @@ once. you can keep writing as much as you want.
 
 `end` - ends the stream. once ended, no more data may be written, it signals the  `onend` event.
 
-## additional features
-
-the parser supports the following additional (to JSON) features
-
-* optional commas - No comma's are required. Rationale: When manually editing documents, keeping track of the comma's is cumbersome. With this option this is no longer an issue
-* trailing commas - Allows commas before the `}` or the `]`. Rationale: for serializers it is easier to write a comma for every property/element instead of keeping a state that tracks if a property/element is the first one.
-* comments - Allows both line comments `//` and block comments `/* */`. Rationale: when using JSON-like documents for editing, it is often useful to add comments
-* apostrophes instead of quotation marks - Allows `'` in place of `"`. Rationale: In an editor this is less intrusive (although only slightly)
-* angle brackets instead of brackets - Allows `<` and `>` in place of `[` and `]`. Rationale: a semantic distinction can be made between fixed length arrays (`ArrayType`) and variable length arrays (`lists`)
-* parens instead of braces - Allows `(` and `)` in place of `{` and `}`. Rationale: a semantic distinction can be made between objctes with known properties (`Type`) and objects with dynamic keys (`dictionary`)
-* schema - The document may start with a `!` followed by a value (`object`, `string` etc), followed by an optional `#` (indicating `compact`).
-  * * The schema value can be used by a processor for schema validation. For example a string can indicate a URL of the schema.
-  * * `compact` is an indicator for a processor (code that uses `bass-clarinet`'s API) that the data is `compact`. `base-clarinet` only sends the `compact` flag but does not change any other behaviour. Rationale: If a schema is known, the keys of a  `Type` are known at design time. these types can therefor be converted to `ArrayTypes` and thus omit the keys without losing information. This trades in readability in favor of size. This option indicates that this happened in this document. The file can only be properly interpreted by a processor in combination with the schema.
-* tagged unions - This allows an extra value type that is not present in JSON but is very useful. tagged unions are also known as sum types or choices, see [taggedunion]. The notation is a pipe, followed by a string, followed by any other value. eg:  ```| "the chosen option" { "my data": "foo" }```. The same information can ofcourse also be written in strict JSON with an array with 2 elements of which the first element is a string.
-
 ## events
 
 `onerror` (passed as argument to the constructor) - indication that something bad happened. The parser will continue as good as it can
@@ -360,7 +346,7 @@ check [issues]
 everyone is welcome to contribute. patches, bug-fixes, new features
 
 1. create an [issue][issues] so the community can comment on your idea
-2. fork `bass-clarinet`
+2. fork `astn`
 3. create a new branch `git checkout -b my_branch`
 4. create tests for the changes you made
 5. make sure you pass both existing and newly inserted tests
@@ -370,14 +356,14 @@ everyone is welcome to contribute. patches, bug-fixes, new features
 
 # meta
 
-* code: `git clone git://github.com/corno/bass-clarinet.git`
-* home: <http://github.com/corno/bass-clarinet>
-* bugs: <http://github.com/corno/bass-clarinet/issues>
-* build: [![build status](https://secure.travis-ci.org/corno/bass-clarinet.png)](http://travis-ci.org/corno/bass-clarinet)
+* code: `git clone git://github.com/corno/astn.git`
+* home: <http://github.com/corno/astn>
+* bugs: <http://github.com/corno/astn/issues>
+* build: [![build status](https://secure.travis-ci.org/corno/astn.png)](http://travis-ci.org/corno/astn)
 
 
 [npm]: http://npmjs.org
-[issues]: http://github.com/corno/bass-clarinet/issues
+[issues]: http://github.com/corno/astn/issues
 [saxjs]: http://github.com/isaacs/sax-js
 [yajl]: https://github.com/lloyd/yajl
 [taggedunion]: https://en.wikipedia.org/wiki/Tagged_union

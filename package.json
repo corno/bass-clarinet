@@ -1,40 +1,25 @@
 {
-  "name": "bass-clarinet",
-  "description": "SAX based evented streaming JSON parser in Typescript (browser and node)",
+  "name": "astn",
+  "description": "tools for handling ASTN files, including a SAX-style parser",
   "author": "corno",
   "contributors": [
-    "Nuno Job <nunojobpinto@gmail.com> (http://nunojob.com/)",
-    "Jann Horn (https://github.com/thejh)",
-    "Justin Makeig <jmpublic+github@makeig.com> (http://www.audiblepop.com)",
-    "Roly Fentanes (http://about.me/roly)",
-    "John Lancaster (http://jlank.com)"
   ],
   "version": "0.77.5",
   "main": "./dist/src/index.js",
-  "homepage": "https://github.com/corno/bass-clarinet",
+  "homepage": "https://github.com/corno/astn",
   "repository": {
     "type": "git",
-    "url": "http://github.com/corno/bass-clarinet.git"
+    "url": "http://github.com/corno/astn.git"
   },
   "bugs": {
-    "url": "http://github.com/corno/bass-clarinet/issues"
+    "url": "http://github.com/corno/astn/issues"
   },
   "runkitExampleFilename": "example.js",
   "keywords": [
-    "sax",
-    "json",
-    "typescript",
-    "comments",
+    "ASTN",
+    "tools",
     "parser",
-    "stream",
-    "streaming",
-    "event",
-    "tokenizer",
-    "events",
-    "emitter",
-    "async",
-    "streamer",
-    "browser",
+    "generator",
     "tagged union",
     "tagged",
     "union",

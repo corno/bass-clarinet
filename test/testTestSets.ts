@@ -483,7 +483,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
     }
 }
 
-describe('bass-clarinet', () => {
+describe('astn', () => {
     describe('#strictJSON', () => {
         selectedOwnJSONTests.forEach(key => {
             const test = ownJSONTests[key]
