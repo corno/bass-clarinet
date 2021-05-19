@@ -47,7 +47,7 @@
     "validatePublishReadiness": "git diff --exit-code && ncu -u --packageFile package.json && npm install && npm run buildLintAndTest",
     "pubMin": "npm run validatePublishReadiness && npm version minor && git push && npm publish",
     "pubPatch": "npm run validatePublishReadiness && npm version patch && git push && npm publish",
-    "test": "tsc && node ./node_modules/mocha/bin/mocha dist/test/testTestSets.js && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js && node ./node_modules/mocha/bin/mocha dist/test/testNormalize.js",
+    "test": "tsc && node ./node_modules/mocha/bin/mocha dist/test/testTestSets.js && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js && node ./node_modules/mocha/bin/mocha dist/test/testNormalize.js && node ./node_modules/mocha/bin/mocha dist/test/typed.js",
     "testOwnSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/testTestSets.js",
     "testNormalize": "tsc && node ./node_modules/mocha/bin/mocha dist/test/testNormalize.js",
     "testJSONTestSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
