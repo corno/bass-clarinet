@@ -5,8 +5,8 @@
     max-classes-per-file: off,
 */
 import * as p from "pareto"
-import { BodyEventType, BodyEvent } from "./BodyEvent"
-import { Location, Range, createRangeFromSingleLocation } from "./location"
+import { BodyEventType, BodyEvent } from "./parser/BodyEvent"
+import { Location, Range, createRangeFromSingleLocation } from "./parser/location"
 import { createDummyValueHandler as createDummyOnValue } from "./dummyHandlers"
 import {
     RequiredValueHandler,
@@ -20,8 +20,8 @@ import {
     BeforeContextData,
 } from "./handlers"
 import { RangeError } from "./errors"
-import { ParserEventConsumer } from "./createParser"
-import { OverheadTokenType } from "./Token"
+import { ParserEventConsumer } from "./parser/createParser"
+import { OverheadTokenType } from "./parser/Token"
 
 const DEBUG = false
 

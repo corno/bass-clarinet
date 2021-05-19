@@ -3,10 +3,10 @@
 */
 import * as p20 from "pareto-20"
 import * as p from "pareto"
-import * as bc from "../src";
+import * as astn from "../src";
 import { dummyParserEventConsumer } from "./dummyParserEventConsumer";
 
-const parserStack = bc.createParserStack(
+const parserStack = astn.createParserStack(
     () => {
         return dummyParserEventConsumer
     },
@@ -38,7 +38,7 @@ const parserStack = bc.createParserStack(
 
 //let counter = 0
 
-// function pause(pauser: bc.Pauser) {
+// function pause(pauser: astn.Pauser) {
 //     counter += 1
 //     console.log("pausing", counter)
 //     pauser.pause()

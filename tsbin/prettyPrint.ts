@@ -1,6 +1,6 @@
 import * as p from "pareto"
 import * as fs from "fs"
-import * as bc from "../src"
+import * as astn from "../src"
 import { printParsingError } from "../src"
 
 const [, , path] = process.argv
@@ -16,7 +16,7 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-function createRequiredValuePrettyPrinter(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
+function createRequiredValuePrettyPrinter(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler {
     return {
         onValue: createValuePrettyPrinter(indentation, writer),
         onMissing: () => {
@@ -25,7 +25,7 @@ function createRequiredValuePrettyPrinter(indentation: string, writer: (str: str
     }
 }
 
-function createValuePrettyPrinter(indentation: string, writer: (str: string) => void): bc.OnValue {
+function createValuePrettyPrinter(indentation: string, writer: (str: string) => void): astn.OnValue {
     return () => {
         return {
             array: (_beginRange, beginMetaData) => {
@@ -76,8 +76,8 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ParserEventConsumer<null, null> {
-    const datasubscriber = bc.createStackedDataSubscriber<null, null>(
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): astn.ParserEventConsumer<null, null> {
+    const datasubscriber = astn.createStackedDataSubscriber<null, null>(
         {
             onValue: createValuePrettyPrinter(indentation, writer),
             onMissing: () => {
@@ -101,7 +101,7 @@ function write(str: string) {
     process.stdout.write(str)
 }
 
-bc.parseString(
+astn.parseString(
     dataAsString,
     _range => {
         write("! ")
@@ -116,17 +116,17 @@ bc.parseString(
     err => { console.error("FOUND ERROR", printParsingError(err)) },
     overheadToken => {
         switch (overheadToken.type[0]) {
-            case bc.OverheadTokenType.Comment: {
+            case astn.OverheadTokenType.Comment: {
                 //const $ = data.type[1]
 
                 break
             }
-            case bc.OverheadTokenType.NewLine: {
+            case astn.OverheadTokenType.NewLine: {
                 //const $ = data.type[1]
 
                 break
             }
-            case bc.OverheadTokenType.WhiteSpace: {
+            case astn.OverheadTokenType.WhiteSpace: {
                 //const $ = data.type[1]
 
                 break

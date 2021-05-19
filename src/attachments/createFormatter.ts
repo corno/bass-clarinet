@@ -2,10 +2,10 @@
 	complexity: off
 */
 import * as p from "pareto"
-import { Range, Location } from "../location"
-import { BodyEventType } from "../BodyEvent"
-import { ParserEventConsumer } from "../createParser"
-import { OverheadTokenType } from "../Token"
+import { Range, Location } from "../parser/location"
+import { BodyEventType } from "../parser/BodyEvent"
+import { ParserEventConsumer } from "../parser/createParser"
+import { OverheadTokenType } from "../parser/Token"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")

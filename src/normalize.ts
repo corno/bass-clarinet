@@ -2,7 +2,7 @@
     "max-classes-per-file": "off",
 */
 import * as p from "pareto"
-import * as bc from "."
+import * as astn from "."
 import { printParsingError } from "."
 import {
     SerializableValue,
@@ -59,8 +59,8 @@ class InArray<T> implements IInArray<T> {
 function createRequiredValueNormalizer(
     handleValue: HandleValue,
     sortKeys: boolean,
-    comments: bc.Comment[]
-): bc.RequiredValueHandler {
+    comments: astn.Comment[]
+): astn.RequiredValueHandler {
     return {
         onValue: createValueNormalizer(
             handleValue,
@@ -73,7 +73,7 @@ function createRequiredValueNormalizer(
     }
 }
 
-function addComments(contextData: bc.ContextData, comments: bc.Comment[]) {
+function addComments(contextData: astn.ContextData, comments: astn.Comment[]) {
     contextData.before.comments.forEach(c => {
         comments.push(c)
     })
@@ -82,7 +82,7 @@ function addComments(contextData: bc.ContextData, comments: bc.Comment[]) {
     }
 }
 
-function transformCommentsToSerializableCommentData(comments: bc.Comment[]) {
+function transformCommentsToSerializableCommentData(comments: astn.Comment[]) {
     const commentData: SerializableCommentData = {
         before: {
             comments: new InArray(comments.map(cb => {
@@ -118,10 +118,10 @@ function createEmptyCommentsData() {
 function createValueNormalizer(
     handleValue: HandleValue,
     sortKeys: boolean,
-    parentComments: bc.Comment[] | null,
-): bc.OnValue {
+    parentComments: astn.Comment[] | null,
+): astn.OnValue {
     return valueContextData => {
-        const valueComments: bc.Comment[] = []
+        const valueComments: astn.Comment[] = []
         const comments = parentComments === null ? valueComments : parentComments
         addComments(valueContextData, comments)
         return {
@@ -137,7 +137,7 @@ function createValueNormalizer(
                         null,
                     ),
                     end: (_endRange, _closeData, arrayEndContextData) => {
-                        const intermediateComments: bc.Comment[] = []
+                        const intermediateComments: astn.Comment[] = []
                         addComments(arrayEndContextData, intermediateComments)
                         handleValue({
                             commentData: transformCommentsToSerializableCommentData(valueComments),
@@ -158,7 +158,7 @@ function createValueNormalizer(
                 const isType = openData.openCharacter === "("
                 return {
                     property: (_keyRange, key, contextData) => {
-                        const propertyComments: bc.Comment[] = []
+                        const propertyComments: astn.Comment[] = []
                         addComments(contextData, propertyComments)
                         return p.value(createRequiredValueNormalizer(
                             propertyValue => {
@@ -231,10 +231,10 @@ function createValueNormalizer(
 function createNormalizer(
     handleValue: HandleValue,
     sortKeys: boolean,
-    documentComments: bc.Comment[]
-): bc.ParserEventConsumer<null, null> {
+    documentComments: astn.Comment[]
+): astn.ParserEventConsumer<null, null> {
 
-    const datasubscriber = bc.createStackedDataSubscriber<null, null>(
+    const datasubscriber = astn.createStackedDataSubscriber<null, null>(
         {
             onValue: createValueNormalizer(handleValue, sortKeys, documentComments),
             onMissing: () => {
@@ -269,9 +269,9 @@ export function normalize(
     let compact = false
     let root: null | SerializableValue = null
 
-    const documentComments: bc.Comment[] = []
+    const documentComments: astn.Comment[] = []
 
-    return bc.parseString(
+    return astn.parseString(
         dataAsString,
         _range => {
             return createNormalizer(
@@ -297,7 +297,7 @@ export function normalize(
         err => { console.error("error: ", printParsingError(err)) },
         (overheadToken, range) => {
             switch (overheadToken.type[0]) {
-                case bc.OverheadTokenType.Comment: {
+                case astn.OverheadTokenType.Comment: {
                     const $ = overheadToken.type[1]
                     documentComments.push({
                         text: $.comment,
@@ -308,12 +308,12 @@ export function normalize(
                     })
                     break
                 }
-                case bc.OverheadTokenType.NewLine: {
+                case astn.OverheadTokenType.NewLine: {
                     //const $ = data.type[1]
 
                     break
                 }
-                case bc.OverheadTokenType.WhiteSpace: {
+                case astn.OverheadTokenType.WhiteSpace: {
                     //const $ = data.type[1]
 
                     break

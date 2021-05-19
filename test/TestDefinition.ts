@@ -1,4 +1,4 @@
-import * as bc from "../src"
+import * as astn from "../src"
 
 export type TestRange = [number?, number?, number?, number?]
 export type TestLocation = [number?, number?]
@@ -28,7 +28,7 @@ export type TestDefinition = {
     readonly testHeaders?: boolean
     readonly testForLocation?: boolean
     readonly chunks?: string[]
-    readonly tokenizerOptions?: bc.TokenizerOptions
+    readonly tokenizerOptions?: astn.TokenizerOptions
     readonly events?: EventDefinition[]
     readonly formattedText?: string
 }

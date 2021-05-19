@@ -13,7 +13,7 @@ import {
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
 import { PreTokenDataType, PreToken, Quote } from "./PreToken"
 import { TokenType, Token, OverheadTokenType } from "./Token"
-import { RangeError } from "./errors"
+import { RangeError } from "../errors"
 import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
 
 function assertUnreachable<RT>(_x: never): RT {

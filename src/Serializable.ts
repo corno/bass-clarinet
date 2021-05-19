@@ -1,5 +1,5 @@
 import * as fp from "fountain-pen"
-import { Quote } from "./PreToken"
+import { Quote } from "./parser/PreToken"
 
 export interface IInDictionary<T> {
     isEmpty(): boolean

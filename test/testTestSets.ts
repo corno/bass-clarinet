@@ -5,7 +5,7 @@
 */
 import * as p from "pareto"
 import * as p20 from "pareto-20"
-import * as bc from "../src"
+import * as astn from "../src"
 import { describe } from "mocha"
 import * as chai from "chai"
 import { ownJSONTests } from "./data/ownJSONTestset"
@@ -26,11 +26,11 @@ const selectedExtensionTests = Object.keys(extensionTests)
 // const selectedJSONTests: string[] = []
 // const selectedExtensionTests: string[] = ["comment"]
 
-type OnError = (message: string, range: bc.Range) => void
+type OnError = (message: string, range: astn.Range) => void
 
 interface HeaderSubscriber {
-    onSchemaDataStart(range: bc.Range): void
-    onInstanceDataStart(compact: null | bc.Range, location: bc.Location): void
+    onSchemaDataStart(range: astn.Range): void
+    onInstanceDataStart(compact: null | astn.Range, location: astn.Location): void
 }
 
 class StrictJSONHeaderValidator implements HeaderSubscriber {
@@ -39,17 +39,17 @@ class StrictJSONHeaderValidator implements HeaderSubscriber {
     constructor(onError: OnError) {
         this.onError = onError
     }
-    onSchemaDataStart(range: bc.Range) {
+    onSchemaDataStart(range: astn.Range) {
         this.onError(`headers are not allowed in strict JSON`, range)
     }
     onInstanceDataStart() {
-        return bc.createStrictJSONValidator(this.onError)
+        return astn.createStrictJSONValidator(this.onError)
     }
 }
 
-function outputOverheadToken(out: string[], $: bc.OverheadToken) {
+function outputOverheadToken(out: string[], $: astn.OverheadToken) {
     switch ($.type[0]) {
-        case bc.OverheadTokenType.Comment: {
+        case astn.OverheadTokenType.Comment: {
             const $$ = $.type[1]
             switch ($$.type) {
                 case "block": {
@@ -67,11 +67,11 @@ function outputOverheadToken(out: string[], $: bc.OverheadToken) {
             }
             break
         }
-        case bc.OverheadTokenType.NewLine: {
+        case astn.OverheadTokenType.NewLine: {
             out.push("\n")
             break
         }
-        case bc.OverheadTokenType.WhiteSpace: {
+        case astn.OverheadTokenType.WhiteSpace: {
             const $$ = $.type[1]
             out.push($$.value)
             break
@@ -81,47 +81,47 @@ function outputOverheadToken(out: string[], $: bc.OverheadToken) {
     }
 }
 
-class OutPutter implements bc.ParserEventConsumer<null, null> {
+class OutPutter implements astn.ParserEventConsumer<null, null> {
     readonly out: string[]
     constructor(out: string[]) {
         this.out = out
     }
-    onData(data: bc.BodyEvent) {
+    onData(data: astn.BodyEvent) {
         switch (data.type[0]) {
-            case bc.BodyEventType.CloseArray: {
+            case astn.BodyEventType.CloseArray: {
                 const $ = data.type[1]
                 this.out.push($.closeCharacter)
                 break
             }
-            case bc.BodyEventType.CloseObject: {
+            case astn.BodyEventType.CloseObject: {
                 const $ = data.type[1]
                 this.out.push($.closeCharacter)
                 break
             }
-            case bc.BodyEventType.Colon: {
+            case astn.BodyEventType.Colon: {
                 this.out.push(":")
                 break
             }
-            case bc.BodyEventType.Comma: {
+            case astn.BodyEventType.Comma: {
                 this.out.push(",")
                 break
             }
-            case bc.BodyEventType.OpenArray: {
+            case astn.BodyEventType.OpenArray: {
                 const $ = data.type[1]
                 this.out.push($.openCharacter)
                 break
             }
-            case bc.BodyEventType.OpenObject: {
+            case astn.BodyEventType.OpenObject: {
                 const $ = data.type[1]
                 this.out.push($.openCharacter)
                 break
             }
-            case bc.BodyEventType.Overhead: {
+            case astn.BodyEventType.Overhead: {
                 const $ = data.type[1]
                 outputOverheadToken(this.out, $)
                 break
             }
-            case bc.BodyEventType.SimpleValue: {
+            case astn.BodyEventType.SimpleValue: {
                 const $ = data.type[1]
                 if ($.quote !== null) {
 
@@ -135,7 +135,7 @@ class OutPutter implements bc.ParserEventConsumer<null, null> {
                 }
                 break
             }
-            case bc.BodyEventType.TaggedUnion: {
+            case astn.BodyEventType.TaggedUnion: {
                 this.out.push("|")
                 break
             }
@@ -156,9 +156,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
         const actualEvents: EventDefinition[] = []
 
-        function getRange(mustCheck: boolean | undefined, range: bc.Range): TestRange | null {
+        function getRange(mustCheck: boolean | undefined, range: astn.Range): TestRange | null {
             if (mustCheck) {
-                const end = bc.getEndLocationFromRange(range)
+                const end = astn.getEndLocationFromRange(range)
                 return [
                     range.start.line,
                     range.start.column,
@@ -169,7 +169,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 return null
             }
         }
-        function getLocation(mustCheck: boolean | undefined, location: bc.Location): TestLocation | null {
+        function getLocation(mustCheck: boolean | undefined, location: astn.Location): TestLocation | null {
             if (mustCheck) {
                 return [
                     location.line,
@@ -184,7 +184,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         RECREATE THE ORIGINAL STRING
         */
 
-        function createTestRequiredValueHandler(): bc.RequiredValueHandler {
+        function createTestRequiredValueHandler(): astn.RequiredValueHandler {
             return {
                 onValue: createTestValueHandler(),
                 onMissing: () => {
@@ -192,7 +192,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 },
             }
         }
-        function createTestValueHandler(): bc.OnValue {
+        function createTestValueHandler(): astn.OnValue {
             return _contextData => {
                 return {
                     array: () => {
@@ -236,7 +236,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             }
         }
 
-        const stackedSubscriber = bc.createStackedDataSubscriber(
+        const stackedSubscriber = astn.createStackedDataSubscriber(
             createTestRequiredValueHandler(),
             error => {
 
@@ -246,10 +246,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 return p.success<null, null>(null)
             }
         )
-        function onOverheadTokenEvent($: bc.OverheadToken, range: bc.Range) {
+        function onOverheadTokenEvent($: astn.OverheadToken, range: astn.Range) {
 
             switch ($.type[0]) {
-                case bc.OverheadTokenType.Comment: {
+                case astn.OverheadTokenType.Comment: {
                     const $$ = $.type[1]
                     if (DEBUG) console.log("found block comment")
                     if ($$.type === "block") {
@@ -261,12 +261,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     }
                     break
                 }
-                case bc.OverheadTokenType.NewLine: {
+                case astn.OverheadTokenType.NewLine: {
                     //const $ = data.type[1]
                     //place your code here
                     break
                 }
-                case bc.OverheadTokenType.WhiteSpace: {
+                case astn.OverheadTokenType.WhiteSpace: {
                     //const $ = data.type[1]
                     //place your code here
                     break
@@ -275,45 +275,45 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     assertUnreachable($.type[0])
             }
         }
-        const eventSubscriber: bc.ParserEventConsumer<null, null> = {
+        const eventSubscriber: astn.ParserEventConsumer<null, null> = {
             onData: data => {
                 switch (data.type[0]) {
-                    case bc.BodyEventType.CloseArray: {
+                    case astn.BodyEventType.CloseArray: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found close array")
                         actualEvents.push(["token", "closearray", $.closeCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case bc.BodyEventType.CloseObject: {
+                    case astn.BodyEventType.CloseObject: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found close object")
                         actualEvents.push(["token", "closeobject", $.closeCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case bc.BodyEventType.Colon: {
+                    case astn.BodyEventType.Colon: {
                         break
                     }
-                    case bc.BodyEventType.Comma: {
+                    case astn.BodyEventType.Comma: {
                         break
                     }
-                    case bc.BodyEventType.OpenArray: {
+                    case astn.BodyEventType.OpenArray: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found open array")
                         actualEvents.push(["token", "openarray", $.openCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case bc.BodyEventType.OpenObject: {
+                    case astn.BodyEventType.OpenObject: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found open object")
                         actualEvents.push(["token", "openobject", $.openCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case bc.BodyEventType.Overhead: {
+                    case astn.BodyEventType.Overhead: {
                         const $ = data.type[1]
                         onOverheadTokenEvent($, data.range)
                         break
                     }
-                    case bc.BodyEventType.SimpleValue: {
+                    case astn.BodyEventType.SimpleValue: {
                         const $ = data.type[1]
                         if ($.quote === null) {
                             if (DEBUG) console.log("found unquoted token")
@@ -324,7 +324,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         }
                         break
                     }
-                    case bc.BodyEventType.TaggedUnion: {
+                    case astn.BodyEventType.TaggedUnion: {
                         //const $ = data.type[1]
 
                         if (DEBUG) console.log("found open tagged union")
@@ -347,13 +347,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         let offset = 0
 
         function createFormatter() {
-            return bc.createFormatter(
+            return astn.createFormatter(
                 "    ",
                 (range, newValue) => {
                     formattedText =
                         formattedText.substr(0, offset + range.start.position) +
                         newValue +
-                        formattedText.substr(offset + bc.getEndLocationFromRange(range).position)
+                        formattedText.substr(offset + astn.getEndLocationFromRange(range).position)
                     offset +=
                         + newValue.length
                         - range.length
@@ -380,12 +380,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             )
         }
         const out: string[] = []
-        const schemaDataSubscribers: bc.ParserEventConsumer<null, null>[] = [
+        const schemaDataSubscribers: astn.ParserEventConsumer<null, null>[] = [
             new OutPutter(out),
             eventSubscriber,
             createFormatter(),
         ]
-        const instanceDataSubscribers: bc.ParserEventConsumer<null, null>[] = [
+        const instanceDataSubscribers: astn.ParserEventConsumer<null, null>[] = [
             new OutPutter(out),
             eventSubscriber,
             stackedSubscriber,
@@ -423,12 +423,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             headerSubscribers.push(new StrictJSONHeaderValidator((v, _range) => {
                 actualEvents.push(["validationerror", v])
             }))
-            instanceDataSubscribers.push(bc.createStrictJSONValidator((v, _range) => {
+            instanceDataSubscribers.push(astn.createStrictJSONValidator((v, _range) => {
                 if (DEBUG) console.log("found JSON validation error", v)
                 actualEvents.push(["validationerror", v])
             }))
         }
-        const parserStack = bc.createParserStack(
+        const parserStack = astn.createParserStack(
             range => {
                 headerSubscribers.forEach(s => {
                     s.onSchemaDataStart(range)

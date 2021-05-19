@@ -1,6 +1,6 @@
 import * as p from "pareto"
 import * as fs from "fs"
-import * as bc from "../src"
+import * as astn from "../src"
 import * as stream from "stream"
 import { createDummyValueHandler, printParsingError } from "../src"
 import { line } from "fountain-pen"
@@ -20,7 +20,7 @@ if (sourcePath === undefined) {
 
 const dataAsString = fs.readFileSync(sourcePath, { encoding: "utf-8" })
 
-function createRequiredValuePrettyPrinter(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
+function createRequiredValuePrettyPrinter(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler {
     return {
         onValue: createValuePrettyPrinter(indentation, writer),
         onMissing: () => {
@@ -29,7 +29,7 @@ function createRequiredValuePrettyPrinter(indentation: string, writer: (str: str
     }
 }
 
-function createValuePrettyPrinter(indentation: string, writer: (str: string) => void): bc.OnValue {
+function createValuePrettyPrinter(indentation: string, writer: (str: string) => void): astn.OnValue {
     return () => {
         return {
             array: (_beginRange, _beginMetaData) => {
@@ -82,8 +82,8 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): bc.ParserEventConsumer<null, null> {
-    const datasubscriber = bc.createStackedDataSubscriber<null, null>(
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): astn.ParserEventConsumer<null, null> {
+    const datasubscriber = astn.createStackedDataSubscriber<null, null>(
         {
             onValue: createValuePrettyPrinter(indentation, writer),
             onMissing: () => {
@@ -103,8 +103,8 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
     return datasubscriber
 }
 
-export function createDummyEventConsumer(): bc.ParserEventConsumer<null, null> {
-    const datasubscriber = bc.createStackedDataSubscriber<null, null>(
+export function createDummyEventConsumer(): astn.ParserEventConsumer<null, null> {
+    const datasubscriber = astn.createStackedDataSubscriber<null, null>(
         {
             onValue: createDummyValueHandler(),
             onMissing: () => {
@@ -127,7 +127,7 @@ function write(str: string) {
     ws.write(str)
 }
 
-bc.parseString(
+astn.parseString(
     dataAsString,
     _range => {
         return createDummyEventConsumer()

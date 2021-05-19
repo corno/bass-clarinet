@@ -2,8 +2,7 @@
   "name": "astn",
   "description": "tools for handling ASTN files, including a SAX-style parser",
   "author": "corno",
-  "contributors": [
-  ],
+  "contributors": [],
   "version": "0.77.5",
   "main": "./dist/src/index.js",
   "homepage": "https://github.com/corno/astn",

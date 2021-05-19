@@ -1,7 +1,7 @@
 /* eslint
     max-classes-per-file: "off",
 */
-import { Range, printRange } from "./location";
+import { Range, printRange } from "./parser/location";
 
 /**
  * a RangeError has a range of characters to which it applies

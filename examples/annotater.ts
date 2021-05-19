@@ -1,8 +1,8 @@
 import * as p from "pareto"
-import * as bc from "../src"
+import * as astn from "../src"
 import { ParserEventConsumer } from "../src"
 
-function createRequiredValuesAnnotater(indentation: string, writer: (str: string) => void): bc.RequiredValueHandler {
+function createRequiredValuesAnnotater(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler {
     return {
         onValue: createValuesAnnotater(indentation, writer),
         onMissing: () => {
@@ -11,35 +11,35 @@ function createRequiredValuesAnnotater(indentation: string, writer: (str: string
     }
 }
 
-function createValuesAnnotater(indentation: string, writer: (str: string) => void): bc.OnValue {
+function createValuesAnnotater(indentation: string, writer: (str: string) => void): astn.OnValue {
     return () => {
         return {
             array: range => {
-                writer(`${indentation}[ // ${bc.printRange(range)}`)
+                writer(`${indentation}[ // ${astn.printRange(range)}`)
                 return {
                     element: () => createValuesAnnotater(`${indentation}\t`, writer),
                     end: endRange => {
-                        writer(`${indentation}] // ${bc.printRange(endRange)}`)
+                        writer(`${indentation}] // ${astn.printRange(endRange)}`)
                     },
                 }
             },
             object: beginRange => {
-                writer(`${indentation}{ // ${bc.printRange(beginRange)}`)
+                writer(`${indentation}{ // ${astn.printRange(beginRange)}`)
                 return {
                     property: (_keyRange, key) => {
                         writer(`${indentation}"${key}": `)
                         return p.value(createRequiredValuesAnnotater(`${indentation}\t`, writer))
                     },
                     end: (endRange, _endMetaData) => {
-                        writer(`${indentation}} // ${bc.printRange(endRange)}`)
+                        writer(`${indentation}} // ${astn.printRange(endRange)}`)
                     },
                 }
             },
             simpleValue: (range, data) => {
                 if (data.quote !== null) {
-                    writer(`${indentation}${JSON.stringify(data.value)} // ${bc.printRange(range)}`)
+                    writer(`${indentation}${JSON.stringify(data.value)} // ${astn.printRange(range)}`)
                 } else {
-                    writer(`${indentation}${data.value} // ${bc.printRange(range)}`)
+                    writer(`${indentation}${data.value} // ${astn.printRange(range)}`)
                 }
                 return p.value(false)
             },
@@ -47,7 +47,7 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
                 writer(`| ${indentation}`)
                 return {
                     option: (_range, option, _optionData) => {
-                        writer(`"${JSON.stringify(option)}" // ${bc.printRange(range)} ${bc.printRange(range)}`)
+                        writer(`"${JSON.stringify(option)}" // ${astn.printRange(range)} ${astn.printRange(range)}`)
                         return createRequiredValuesAnnotater(`${indentation}\t`, writer)
                     },
                     missingOption: () => {
@@ -63,10 +63,10 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
 }
 
 export function createAnnotator(indentation: string, writer: (str: string) => void): ParserEventConsumer<null, null> {
-    const ds = bc.createStackedDataSubscriber<null, null>(
+    const ds = astn.createStackedDataSubscriber<null, null>(
         createRequiredValuesAnnotater(indentation, writer),
         (error, range) => {
-            throw new bc.RangeError(error[0], range)
+            throw new astn.RangeError(error[0], range)
         },
         () => {
             //do nothing

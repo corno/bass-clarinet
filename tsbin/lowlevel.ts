@@ -1,7 +1,7 @@
 import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as fs from "fs"
-import * as bc from "../src"
+import * as astn from "../src"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -16,53 +16,53 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
+export const parserEventConsumer: astn.ParserEventConsumer<null, null> = {
     onData: data => {
         switch (data.type[0]) {
-            case bc.BodyEventType.CloseArray: {
+            case astn.BodyEventType.CloseArray: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.CloseObject: {
+            case astn.BodyEventType.CloseObject: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.Colon: {
+            case astn.BodyEventType.Colon: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.Comma: {
+            case astn.BodyEventType.Comma: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.OpenArray: {
+            case astn.BodyEventType.OpenArray: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.OpenObject: {
+            case astn.BodyEventType.OpenObject: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case bc.BodyEventType.Overhead: {
+            case astn.BodyEventType.Overhead: {
                 const $ = data.type[1]
                 switch ($.type[0]) {
-                    case bc.OverheadTokenType.Comment: {
+                    case astn.OverheadTokenType.Comment: {
                         //const $ = data.type[1]
                         //place your code here
                         break
                     }
-                    case bc.OverheadTokenType.NewLine: {
+                    case astn.OverheadTokenType.NewLine: {
                         //const $ = data.type[1]
                         //place your code here
                         break
                     }
-                    case bc.OverheadTokenType.WhiteSpace: {
+                    case astn.OverheadTokenType.WhiteSpace: {
                         //const $ = data.type[1]
                         //place your code here
                         break
@@ -72,13 +72,13 @@ export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
                 }
                 break
             }
-            case bc.BodyEventType.SimpleValue: {
+            case astn.BodyEventType.SimpleValue: {
                 //const $ = data.type[1]
                 //place your code here
                 //in strict JSON, the value is a string, a number, null, true or false
                 break
             }
-            case bc.BodyEventType.TaggedUnion: {
+            case astn.BodyEventType.TaggedUnion: {
                 //const $ = data.type[1]
                 //place your code here
                 break
@@ -93,7 +93,7 @@ export const parserEventConsumer: bc.ParserEventConsumer<null, null> = {
         return p.success(null)
     },
 }
-const parserStack = bc.createParserStack(
+const parserStack = astn.createParserStack(
     () => {
         return parserEventConsumer
     },

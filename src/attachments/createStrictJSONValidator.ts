@@ -4,12 +4,12 @@
     max-classes-per-file: "off",
 */
 import * as p from "pareto"
-import { BodyEventType, BodyEvent } from "../BodyEvent"
-import { ParserEventConsumer } from "../createParser"
-import { Range } from "../location"
+import { BodyEventType, BodyEvent } from "../parser/BodyEvent"
+import { ParserEventConsumer } from "../parser/createParser"
+import { Range } from "../parser/location"
 import * as Char from "./NumberCharacters"
 import { RangeError } from "../errors"
-import { OverheadTokenType } from "../Token"
+import { OverheadTokenType } from "../parser/Token"
 
 type OnError = (message: string, range: Range) => void
 
