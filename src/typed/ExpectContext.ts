@@ -245,7 +245,7 @@ export enum OnDuplicateEntry {
     overwrite
 }
 
-type OnInvalidType = (range: astn.Range) => void
+type OnInvalidType = null | ((range: astn.Range) => void)
 
 export class ExpectContext {
     private readonly errorHandler: ExpectErrorHandler
@@ -629,7 +629,7 @@ export class ExpectContext {
             if (onNull !== undefined && data.value === "null" && data.quote === null) {
                 onNull(range, data)
             } else {
-                if (onInvalidType !== undefined) {
+                if (onInvalidType !== undefined && onInvalidType !== null) {
                     onInvalidType(range)
                 } else {
                     this.raiseError(["invalid value type", {
@@ -647,7 +647,7 @@ export class ExpectContext {
         onInvalidType?: OnInvalidType,
     ): astn.OnSimpleValue {
         return (range: astn.Range, _data: astn.SimpleValueData): p.IValue<boolean> => {
-            if (onInvalidType !== undefined) {
+            if (onInvalidType !== undefined && onInvalidType !== null) {
                 onInvalidType(range)
             } else {
                 this.raiseError(["invalid value type", { found: "simple value", expected: expected }], range)
@@ -662,7 +662,7 @@ export class ExpectContext {
         return (): astn.TaggedUnionHandler => {
             return {
                 option: (range: astn.Range, _option: string): astn.RequiredValueHandler => {
-                    if (onInvalidType !== undefined) {
+                    if (onInvalidType !== undefined && onInvalidType !== null) {
                         onInvalidType(range)
                     } else {
                         this.raiseError(["invalid value type", { found: "tagged union", expected: expected }], range)
@@ -693,7 +693,7 @@ export class ExpectContext {
                     })
                 },
                 end: (endRange: astn.Range, _cd: astn.ObjectCloseData): void => {
-                    if (onInvalidType !== undefined) {
+                    if (onInvalidType !== undefined && onInvalidType !== null) {
                         onInvalidType(endRange)
                     } else {
                         this.raiseError(
@@ -715,7 +715,7 @@ export class ExpectContext {
                     return this.createDummyValueHandler()
                 },
                 end: (endRange: astn.Range, _cd: astn.ArrayCloseData): void => {
-                    if (onInvalidType !== undefined) {
+                    if (onInvalidType !== undefined && onInvalidType !== null) {
                         onInvalidType(endRange)
                     } else {
                         this.raiseError(["invalid value type", { found: "array", expected: expected }], astn.createRangeFromLocations(beginRange.start, astn.getEndLocationFromRange(endRange)))
