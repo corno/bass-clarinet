@@ -19,3 +19,5 @@ export * from "./parser/Token"
 
 export * from "./Serializable"
 export * from "./serialize"
+
+export * from "./typed"
