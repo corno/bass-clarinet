@@ -41,7 +41,8 @@ export type ExpectError =
         name: string
     }]
     | ["unexpected property", {
-        name: string
+        "found key": string
+        "valid keys": string[]
     }]
     | ["not a valid number", {
         value: string
@@ -50,6 +51,7 @@ export type ExpectError =
         expected: number
     }]
     | ["elements missing", {
+        names: string[]
     }]
     | ["unknown option", {
         "found": string
@@ -146,7 +148,7 @@ export function printExpectError(issue: ExpectError): string {
         }
         case "unexpected property": {
             const $ = issue[1]
-            return `unexpected property: '${$.name}'`
+            return `unexpected property: '${$["found key"]}'. Choose from ${$["valid keys"].join(", ")}`
         }
         case "duplicate entry": {
             const $ = issue[1]
@@ -195,8 +197,8 @@ export function printExpectError(issue: ExpectError): string {
             return `found more than the expected ${$.expected} element(s)`
         }
         case "elements missing": {
-            //const $ = issue[1]
-            return `elements missing`
+            const $ = issue[1]
+            return `${$.names.length} missing elements: ${$.names.join(", ")}`
         }
         case "unknown option": {
             const $ = issue[1]
@@ -209,7 +211,12 @@ export function printExpectError(issue: ExpectError): string {
 
 export type ExpectErrorHandler = (issue: ExpectError, range: astn.Range) => void
 
-export type ExpectedElements = (() => astn.RequiredValueHandler)[]
+export type ExpectedElement = {
+    name: string
+    getHandler: (() => astn.RequiredValueHandler)
+}
+
+export type ExpectedElements = ExpectedElement[]
 
 export type ExpectedProperty = {
     onExists: (range: astn.Range, contextData: astn.ContextData) => astn.RequiredValueHandler
@@ -368,7 +375,10 @@ export class ExpectContext {
                         const expected = expectedProperties[key]
                         if (expected === undefined) {
                             hasErrors = true
-                            this.raiseError(["unexpected property", { name: key }], range)
+                            this.raiseError(["unexpected property", {
+                                "found key": key,
+                                "valid keys": Object.keys(expectedProperties).sort(),
+                            }], range)
                             if (onUnexpectedProperty !== undefined) {
                                 return onUnexpectedProperty(key, range, propertyContextData)
                             } else {
@@ -461,7 +471,7 @@ export class ExpectContext {
                         this.raiseError(["too many elements", { expected: expectedElements.length }], beginRange)//FIX print range properly
                         return this.createDummyValueHandler()
                     }
-                    return ee().onValue
+                    return ee.getHandler().onValue
                 },
                 end: (endRange: astn.Range, endMetaData: astn.ArrayCloseData, endContextData: astn.ContextData): void => {
                     if (endMetaData.closeCharacter !== ">") {
@@ -469,11 +479,15 @@ export class ExpectContext {
                     }
                     const missing = expectedElements.length - index
                     if (missing > 0) {
-                        this.raiseError(["elements missing", {}], endRange)
+                        this.raiseError(['elements missing', {
+                            names: expectedElements.map(ee => {
+                                return ee.name
+                            }),
+                        }], endRange)
                     }
                     for (let i = index; i !== expectedElements.length; i += 1) {
                         const ee = expectedElements[i]
-                        ee().onMissing()
+                        ee.getHandler().onMissing()
                     }
                     if (onEnd) {
                         onEnd(endRange, endMetaData, endContextData)

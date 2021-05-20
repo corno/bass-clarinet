@@ -11,16 +11,19 @@ type PropertyHandler = (range: astn.Range, contextData: astn.ContextData) => Val
 type OnInvalidType = (range: astn.Range) => void
 
 export type ValueType =
-    | [
-        "array type",
-        ValueType[],
-        {
-            onBegin?: (range: astn.Range, metaData: astn.ArrayOpenData) => void
-            onEnd?: (range: astn.Range, metaData: astn.ArrayCloseData) => void
-            onMissing?: () => void
-            onInvalidType?: () => void
-        }?
-    ]
+    // | [
+    //     "shorthand type",
+    //     {
+    //         valueType: ValueType
+    //         name: string
+    //     }[],
+    //     {
+    //         onBegin?: (range: astn.Range, metaData: astn.ArrayOpenData) => void
+    //         onEnd?: (range: astn.Range, metaData: astn.ArrayCloseData) => void
+    //         onMissing?: () => void
+    //         onInvalidType?: () => void
+    //     }?
+    // ]
     | [
         "boolean",
         (value: boolean, range: astn.Range, metaData: astn.SimpleValueData) => p.IValue<boolean>,
@@ -134,21 +137,24 @@ export function createValueHandler(
     valueType: ValueType,
 ): astn.ValueHandler {
     switch (valueType[0]) {
-        case "array type": {
-            const $1 = valueType[1]
-            const $2 = valueType[2]
-            return context.expectShorthandType(
-                $1.map(e => {
-                    return (): astn.RequiredValueHandler => createRequiredValueHandler(
-                        context,
-                        e,
-                    )
-                }),
-                $2?.onBegin,
-                $2?.onEnd,
-                $2?.onInvalidType
-            )
-        }
+        // case "shorthand type": {
+        //     const $1 = valueType[1]
+        //     const $2 = valueType[2]
+        //     return context.expectShorthandType(
+        //         $1.map(e => {
+        //             return {
+        //                 getHandler: (): astn.RequiredValueHandler => createRequiredValueHandler(
+        //                     context,
+        //                     e.valueType,
+        //                 ),
+        //                 name: e.name,
+        //             }
+        //         }),
+        //         $2?.onBegin,
+        //         $2?.onEnd,
+        //         $2?.onInvalidType
+        //     )
+        // }
         case "boolean": {
             const $1 = valueType[1]
             const $2 = valueType[2]
