@@ -17,7 +17,6 @@ In addition to the port to TypeScript, the following changes have been made:
   * angle brackets instead of brackets
   * apostrophes instead of quotation marks
   * comments
-  * compact
   * missing commas
   * parens instead of braces
   * schema
