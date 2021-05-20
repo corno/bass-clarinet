@@ -981,7 +981,7 @@ export const ownJSONTests: TestDefinitions = {
             ["validationerror", "headers are not allowed in strict JSON"],
             ["token", "quotedstring", "foo", null],
             ["end", null],
-            ["instance data start", false],
+            ["instance data start"],
             ["token", "openobject", "{", null],
             ["token", "closeobject", "}", null],
             ["end", null],
@@ -991,7 +991,7 @@ export const ownJSONTests: TestDefinitions = {
         text: '{',
         testHeaders: true,
         events: [
-            ["instance data start", false],
+            ["instance data start"],
             ["token", "openobject", "{", null],
             ["parsingerror", "unexpected end of document, still in object"],
             ["end", null],
@@ -1003,7 +1003,7 @@ export const ownJSONTests: TestDefinitions = {
         formattedText: '[ "", "" ]',
         testHeaders: true,
         events: [
-            ["instance data start", false],
+            ["instance data start"],
             ["token", "openarray", "[", null],
             ["token", "quotedstring", "", null],
             ["token", "quotedstring", "", null],
@@ -1016,7 +1016,7 @@ export const ownJSONTests: TestDefinitions = {
         formattedText: '[\n    "",\n    ""\n]',
         testHeaders: true,
         events: [
-            ["instance data start", false],
+            ["instance data start"],
             ["token", "openarray", "[", null],
             ["token", "quotedstring", "", null],
             ["token", "quotedstring", "", null],
@@ -1029,7 +1029,7 @@ export const ownJSONTests: TestDefinitions = {
         formattedText: '"foo" ',
         testHeaders: true,
         events: [
-            ["instance data start", false],
+            ["instance data start"],
             ["token", "quotedstring", "foo", null],
             ["end", null],
         ],

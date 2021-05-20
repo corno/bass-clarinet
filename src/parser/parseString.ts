@@ -17,7 +17,7 @@ import {
 export function parseString<ReturnType, ErrorType>(
     data: string,
     onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
-    onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
+    onInstanceDataStart: (location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },

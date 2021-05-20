@@ -27,7 +27,6 @@ export const QuotedString = {
 
 export const Punctuation = {
     exclamationMark: 0x21,   // !
-    hash: 0x23,              // #
     verticalLine: 0x7C,      // |
     comma: 0x2C,             // ,
     colon: 0x3A,             // :

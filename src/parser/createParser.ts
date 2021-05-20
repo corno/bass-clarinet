@@ -33,10 +33,7 @@ export type RootContext<ReturnType, ErrorType> = {
     | [RootState.PROCESSING_SCHEMA, {
         bodyParser: BodyParser<null, null>
     }]
-    | [RootState.EXPECTING_HASH_OR_INSTANCE_DATA, {
-    }]
-    | [RootState.EXPECTING_INSTANCE_DATA_AFTER_HASH, {
-        hashRange: Range
+    | [RootState.EXPECTING_INSTANCE_DATA, {
     }]
     | [RootState.PROCESSING_INSTANCE_DATA, {
         bodyParser: BodyParser<ReturnType, ErrorType>
@@ -50,7 +47,6 @@ type StructureErrorType =
     | ["expected the schema start (!) or root value"]
     | ["expected the schema"]
     | ["expected rootvalue"]
-    | ["expected '#' or rootvalue"]
     | ["unexpected data after end", {
         data: string
     }]
@@ -72,9 +68,6 @@ export function printParserError(error: ParserError): string {
         case "structure": {
             const $$ = error.type[1]
             switch ($$.type[0]) {
-                case "expected '#' or rootvalue": {
-                    return `expected '#' or rootvalue`
-                }
                 case "expected rootvalue": {
                     return `expected rootvalue`
                 }
@@ -100,7 +93,7 @@ export function printParserError(error: ParserError): string {
 export class Parser<ReturnType, ErrorType> {
     private readonly rootContext: RootContext<ReturnType, ErrorType> = { state: [RootState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE] }
     private readonly onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>
-    private readonly onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>
+    private readonly onInstanceDataStart: (location: Location) => ParserEventConsumer<ReturnType, ErrorType>
     private readonly onerror: (error: ParserError, range: Range) => void
     /*
     a structure overhead token is a newline/whitspace/comment outside the content parts: (schema data, instance data)
@@ -108,7 +101,7 @@ export class Parser<ReturnType, ErrorType> {
     private readonly onStructureOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>
     constructor(
         onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
-        onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
+        onInstanceDataStart: (location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
         onerror: (error: ParserError, range: Range) => void,
         onStructureOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
     ) {
@@ -127,13 +120,13 @@ export class Parser<ReturnType, ErrorType> {
 
                 this.raiseStructureError(["expected the schema start (!) or root value"], range)
 
-                return this.onInstanceDataStart(null, location).onEnd(aborted, location)
+                return this.onInstanceDataStart(location).onEnd(aborted, location)
             }
             case RootState.EXPECTING_SCHEMA: {
                 //const $ = this.rootContext.state[1]
 
                 this.raiseStructureError(["expected the schema"], range)
-                return this.onInstanceDataStart(null, location).onEnd(aborted, location)
+                return this.onInstanceDataStart(location).onEnd(aborted, location)
             }
             case RootState.PROCESSING_SCHEMA: {
                 const $ = this.rootContext.state[1]
@@ -147,19 +140,14 @@ export class Parser<ReturnType, ErrorType> {
                     }
                 ).try(() => {
                     //this.raiseError("incomplete schema", range)
-                    return this.onInstanceDataStart(null, location).onEnd(aborted, location)
+                    return this.onInstanceDataStart(location).onEnd(aborted, location)
                 })
             }
-            case RootState.EXPECTING_HASH_OR_INSTANCE_DATA: {
-                //const $ = this.rootContext.state[1]
-                this.raiseStructureError(["expected '#' or rootvalue"], range)
-
-                return this.onInstanceDataStart(null, location).onEnd(aborted, location)
-            }
-            case RootState.EXPECTING_INSTANCE_DATA_AFTER_HASH: {
+            case RootState.EXPECTING_INSTANCE_DATA: {
                 //const $ = this.rootContext.state[1]
                 this.raiseStructureError(["expected rootvalue"], range)
-                return this.onInstanceDataStart(null, location).onEnd(aborted, location)
+
+                return this.onInstanceDataStart(location).onEnd(aborted, location)
             }
             case RootState.PROCESSING_INSTANCE_DATA: {
                 const $ = this.rootContext.state[1]
@@ -207,13 +195,8 @@ export class Parser<ReturnType, ErrorType> {
                             case Char.Punctuation.exclamationMark:
                                 this.rootContext.state = [RootState.EXPECTING_SCHEMA]
                                 return p.value(false)
-                            case Char.Punctuation.hash:
-                                this.rootContext.state = [RootState.EXPECTING_INSTANCE_DATA_AFTER_HASH, {
-                                    hashRange: data.range,
-                                }]
-                                return p.value(false)
                             default:
-                                return this.processComplexValueInstanceData(data, null, data.range)
+                                return this.processComplexValueInstanceData(data, data.range)
                         }
                     },
                     simpleValue => {
@@ -240,7 +223,7 @@ export class Parser<ReturnType, ErrorType> {
                             bodyParser: bp,
                         }]
                         return bp.onData(data, result => {
-                            this.rootContext.state = [RootState.EXPECTING_HASH_OR_INSTANCE_DATA, {
+                            this.rootContext.state = [RootState.EXPECTING_INSTANCE_DATA, {
                             }]
                             return result.reworkAndCatch(
                                 () => {
@@ -259,7 +242,7 @@ export class Parser<ReturnType, ErrorType> {
                             type: [BodyEventType.SimpleValue, simpleValue],
                         }).mapResult(() => {
 
-                            this.rootContext.state = [RootState.EXPECTING_HASH_OR_INSTANCE_DATA, {
+                            this.rootContext.state = [RootState.EXPECTING_INSTANCE_DATA, {
                             }]
                             return consumer.onEnd(false, getEndLocationFromRange(data.range)).reworkAndCatch(
                                 () => {
@@ -277,7 +260,7 @@ export class Parser<ReturnType, ErrorType> {
                 const $ = this.rootContext.state[1]
 
                 return $.bodyParser.onData(data, result => {
-                    this.rootContext.state = [RootState.EXPECTING_HASH_OR_INSTANCE_DATA, {}]
+                    this.rootContext.state = [RootState.EXPECTING_INSTANCE_DATA, {}]
                     return result.reworkAndCatch(
                         () => {
                             return p.value(false)
@@ -290,30 +273,11 @@ export class Parser<ReturnType, ErrorType> {
                 })
 
             }
-            case RootState.EXPECTING_HASH_OR_INSTANCE_DATA: {
-                return this.handleToken(
-                    data,
-                    punctuation => {
-                        if (punctuation.char === Char.Punctuation.hash) {
-                            this.rootContext.state = [RootState.EXPECTING_INSTANCE_DATA_AFTER_HASH, {
-                                hashRange: data.range,
-                            }]
-                            return p.value(false)
-                        } else {
-                            return this.processComplexValueInstanceData(data, null, data.range)
-                        }
-                    },
-                    simpleValue => {
-                        return this.processSimpleValueInstanceData(simpleValue, data.range)
-                    }
-                )
-            }
-            case RootState.EXPECTING_INSTANCE_DATA_AFTER_HASH: {
-                const $ = this.rootContext.state[1]
+            case RootState.EXPECTING_INSTANCE_DATA: {
                 return this.handleToken(
                     data,
                     _punctuation => {
-                        return this.processComplexValueInstanceData(data, $.hashRange, data.range)
+                        return this.processComplexValueInstanceData(data, data.range)
                     },
                     simpleValue => {
                         return this.processSimpleValueInstanceData(simpleValue, data.range)
@@ -349,7 +313,7 @@ export class Parser<ReturnType, ErrorType> {
                 return assertUnreachable(this.rootContext.state[0])
         }
     }
-    private processComplexValueInstanceData(data: Token, compact: null | Range, range: Range) {
+    private processComplexValueInstanceData(data: Token, range: Range) {
         const bp = new BodyParser(
             (error, errorRange) => {
                 this.onerror(
@@ -359,7 +323,7 @@ export class Parser<ReturnType, ErrorType> {
                     errorRange
                 )
             },
-            this.onInstanceDataStart(null, range.start),
+            this.onInstanceDataStart(range.start),
         )
         this.rootContext.state = [RootState.PROCESSING_INSTANCE_DATA, {
             bodyParser: bp,
@@ -373,7 +337,7 @@ export class Parser<ReturnType, ErrorType> {
     }
     private processSimpleValueInstanceData(simpleValue: SimpleValueData, range: Range) {
 
-        const consumer = this.onInstanceDataStart(null, range.start)
+        const consumer = this.onInstanceDataStart(range.start)
         return consumer.onData({
             range: range,
             type: [BodyEventType.SimpleValue, simpleValue],
@@ -410,7 +374,7 @@ export class Parser<ReturnType, ErrorType> {
  */
 export function createParser<ReturnType, ErrorType>(
     onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
-    onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
+    onInstanceDataStart: (location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
     onerror: (error: ParserError, range: Range) => void,
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
 ): Parser<ReturnType, ErrorType> {

@@ -107,10 +107,7 @@ astn.parseString(
         write("! ")
         return createPrettyPrinter("\r\n", write)
     },
-    compactRange => {
-        if (compactRange !== null) {
-            write("# ")
-        }
+    () => {
         return createPrettyPrinter("\r\n", write)
     },
     err => { console.error("FOUND ERROR", printParsingError(err)) },

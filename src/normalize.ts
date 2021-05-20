@@ -266,7 +266,6 @@ export function normalize(
 ): p.IUnsafeValue<p.IStream<string, null>, null> {
 
     let schemaValue: null | SerializableValue = null
-    let compact = false
     let root: null | SerializableValue = null
 
     const documentComments: astn.Comment[] = []
@@ -282,10 +281,7 @@ export function normalize(
                 documentComments,
             )
         },
-        compactRange => {
-            if (compactRange !== null) {
-                compact = true
-            }
+        () => {
             return createNormalizer(
                 iv => {
                     root = iv
@@ -332,7 +328,6 @@ export function normalize(
             return p.value(serializeDocument(
                 {
                     schema: schemaValue,
-                    compact: compact,
                     root: root,
                     documentComments: new InArray(documentComments.map(cb => {
                         return {

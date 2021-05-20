@@ -19,7 +19,7 @@ export type ContextData = {
 }
 
 export type ObjectHandler = {
-    property: (range: Range, key: string, contextData: ContextData) => p.IValue<RequiredValueHandler>
+    property: (keyRange: Range, key: string, contextData: ContextData) => p.IValue<RequiredValueHandler>
     end: (range: Range, data: ObjectCloseData, contextData: ContextData) => void
 }
 

@@ -41,7 +41,6 @@ export type BodyParserErrorType =
         | ["tagged union"]
     }]
     | ["unexpected '!'"]
-    | ["unexpected '#'"]
     | ["not in an object"]
     | ["not in an array"]
     | ["missing property value"]
@@ -71,9 +70,6 @@ export function printBodyParserError(error: BodyParserError): string {
         }
         case "unexpected '!'": {
             return `unexpected '!'`
-        }
-        case "unexpected '#'": {
-            return `unexpected '#'`
         }
         case "unexpected end of document": {
             const $ = error.type[1]
@@ -262,9 +258,6 @@ export class BodyParser<ReturnType, ErrorType> {
         switch (curChar) {
             case Char.Punctuation.exclamationMark:
                 this.raiseError(["unexpected '!'"], range)
-                return p.value(false)
-            case Char.Punctuation.hash:
-                this.raiseError(["unexpected '#'"], range)
                 return p.value(false)
             case Char.Punctuation.closeAngleBracket:
                 return this.onArrayClose(">", range, onStackEmpty)

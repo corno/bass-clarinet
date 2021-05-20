@@ -56,7 +56,7 @@ export function printParsingError(error: ParsingError): string {
  */
 export function createParserStack<ReturnType, ErrorType>(
     onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
-    onInstanceDataStart: (compact: null | Range, location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
+    onInstanceDataStart: (location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },

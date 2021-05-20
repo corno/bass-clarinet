@@ -3,7 +3,6 @@ import * as fs from "fs"
 import * as astn from "../src"
 import * as stream from "stream"
 import { createDummyValueHandler, printParsingError } from "../src"
-import { line } from "fountain-pen"
 
 const [, , sourcePath, targetPath] = process.argv
 
@@ -132,7 +131,7 @@ astn.parseString(
     _range => {
         return createDummyEventConsumer()
     },
-    _compactRange => {
+    () => {
         return createPrettyPrinter("\r\n", write)
     },
     err => { console.error("FOUND ERROR", printParsingError(err)) },

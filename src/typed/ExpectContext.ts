@@ -304,17 +304,17 @@ export class ExpectContext {
             }
             const foundEntries: string[] = []
             return {
-                property: (range: astn.Range, key: string, propertyContextData: astn.ContextData): p.IValue<astn.RequiredValueHandler> => {
+                property: (keyRange: astn.Range, key: string, propertyContextData: astn.ContextData): p.IValue<astn.RequiredValueHandler> => {
                     const process = (): astn.RequiredValueHandler => {
                         if (foundEntries.includes(key)) {
                             switch (this.duplicateEntrySeverity) {
                                 case Severity.error:
-                                    this.raiseError(["duplicate entry", { key: key }], range)
+                                    this.raiseError(["duplicate entry", { key: key }], keyRange)
                                     break
                                 case Severity.nothing:
                                     break
                                 case Severity.warning:
-                                    this.raiseWarning(["duplicate entry", { key: key }], range)
+                                    this.raiseWarning(["duplicate entry", { key: key }], keyRange)
                                     break
                                 default:
                                     assertUnreachable(this.duplicateEntrySeverity)
@@ -323,12 +323,12 @@ export class ExpectContext {
                                 case OnDuplicateEntry.ignore:
                                     return this.createDummyRequiredValueHandler()
                                 case OnDuplicateEntry.overwrite:
-                                    return onEntry(key, range, propertyContextData)
+                                    return onEntry(key, keyRange, propertyContextData)
                                 default:
                                     return assertUnreachable(this.onDuplicateEntry)
                             }
                         } else {
-                            return onEntry(key, range, propertyContextData)
+                            return onEntry(key, keyRange, propertyContextData)
                         }
 
                     }
@@ -881,9 +881,9 @@ export class ExpectContext {
         )
     }
     public expectDictionary(
+        onBegin: (range: astn.Range, metaData: astn.ObjectOpenData) => void,
         onProperty: (key: string, range: astn.Range, contextData: astn.ContextData) => astn.RequiredValueHandler,
-        onBegin?: (range: astn.Range, metaData: astn.ObjectOpenData) => void,
-        onEnd?: (range: astn.Range, metaData: astn.ObjectCloseData, contextData: astn.ContextData) => void,
+        onEnd: (range: astn.Range, metaData: astn.ObjectCloseData, contextData: astn.ContextData) => void,
         onInvalidType?: OnInvalidType,
         onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
     ): astn.ValueHandler {
@@ -925,9 +925,9 @@ export class ExpectContext {
         }
     }
     public expectList(
+        onBegin: (range: astn.Range, metaData: astn.ArrayOpenData) => void,
         onElement: () => astn.OnValue,
-        onBegin?: (range: astn.Range, metaData: astn.ArrayOpenData) => void,
-        onEnd?: (range: astn.Range, metaData: astn.ArrayCloseData, contextData: astn.ContextData) => void,
+        onEnd: (range: astn.Range, metaData: astn.ArrayCloseData, contextData: astn.ContextData) => void,
         onInvalidType?: OnInvalidType,
         onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
     ): astn.ValueHandler {

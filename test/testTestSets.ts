@@ -30,7 +30,7 @@ type OnError = (message: string, range: astn.Range) => void
 
 interface HeaderSubscriber {
     onSchemaDataStart(range: astn.Range): void
-    onInstanceDataStart(compact: null | astn.Range, location: astn.Location): void
+    onInstanceDataStart(location: astn.Location): void
 }
 
 class StrictJSONHeaderValidator implements HeaderSubscriber {
@@ -397,10 +397,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     out.push("!")
                     return []
                 },
-                onInstanceDataStart: compact => {
-                    if (compact) {
-                        out.push("# ")
-                    }
+                onInstanceDataStart: () => {
                     return []
                 },
             },
@@ -411,11 +408,8 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 onSchemaDataStart: _range => {
                     actualEvents.push(["token", "schema data start"])
                 },
-                onInstanceDataStart: compact => {
-                    if (compact !== null) {
-                        actualEvents.push(["token", "compact", null])
-                    }
-                    actualEvents.push(["instance data start", compact !== null])
+                onInstanceDataStart: () => {
+                    actualEvents.push(["instance data start"])
                 },
             })
         }
@@ -435,9 +429,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 })
                 return createStreamSplitter(schemaDataSubscribers)
             },
-            (compact, location) => {
+            location => {
                 headerSubscribers.forEach(s => {
-                    s.onInstanceDataStart(compact, location)
+                    s.onInstanceDataStart(location)
                 })
                 return createStreamSplitter(instanceDataSubscribers)
             },

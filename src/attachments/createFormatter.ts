@@ -44,7 +44,10 @@ type PrecedingToken =
 	| [PrecedingTokenType.nothing]
 	| [PrecedingTokenType.other]
 
-
+/**
+ * this function creates a ParserEventConsumer that can be attached to a parser
+ * It will call the replace, del and insert callbacks for each place in the text where a reformatting is needed
+ */
 export function createFormatter(
 	indentation: string,
 	replace: (
@@ -70,7 +73,6 @@ export function createFormatter(
 
 	function push() {
 		stack.push(currentRequiredStyle === null ? Style.inline : currentRequiredStyle)
-
 		currentRequiredStyle = null
 	}
 

@@ -61,7 +61,6 @@ export type SerializableValue = {
 
 export type SerializableDocument = {
     schema: null | SerializableValue
-    compact: boolean
     root: SerializableValue
     documentComments: IInArray<SerializableComment>
 }

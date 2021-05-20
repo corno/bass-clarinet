@@ -116,6 +116,9 @@ describe('bass-clarinet-typed', () => {
             `{ "a": (), "a": () }`,
             expect => expect.expectValue(
                 () => expect.expectDictionary(
+                    () => {
+                        //
+                    },
                     (_key, _range) => {
                         return {
                             onValue: () => {
@@ -226,6 +229,14 @@ describe('bass-clarinet-typed', () => {
                     ["number", () => {
                         return p.value(false)
                     }],
+                    {
+                        onBegin: () => {
+                            //
+                        },
+                        onEnd: () => {
+                            //
+                        },
+                    },
                 ]
             ),
             [

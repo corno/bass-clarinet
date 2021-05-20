@@ -117,7 +117,6 @@ export function serializeDocument(
                     ` `,
                 ]),
             fp.line([
-                document.compact ? `# ` : ``,
                 writeValue(document.root),
             ]),
         ],

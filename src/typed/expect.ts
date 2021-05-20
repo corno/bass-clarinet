@@ -33,20 +33,20 @@ export type ValueType =
         "dicionary",
         (key: string, range: astn.Range, contextData: astn.ContextData) => ValueType,
         {
-            onBegin?: (range: astn.Range, metaData: astn.ObjectOpenData) => void
-            onEnd?: (range: astn.Range, metaData: astn.ObjectCloseData) => void
+            onBegin: (range: astn.Range, metaData: astn.ObjectOpenData) => void
+            onEnd: (range: astn.Range, metaData: astn.ObjectCloseData) => void
             onMissing?: () => void
             onInvalidType?: () => void
-        }?
+        }
     ]
     | ["list",
         ValueType,
         {
-            onBegin?: (range: astn.Range, metaData: astn.ArrayOpenData) => void
-            onEnd?: (range: astn.Range, metaData: astn.ArrayCloseData) => void
+            onBegin: (range: astn.Range, metaData: astn.ArrayOpenData) => void
+            onEnd: (range: astn.Range, metaData: astn.ArrayCloseData) => void
             onMissing?: () => void
             onInvalidType?: () => void
-        }?
+        }
     ]
     | [
         "null",
@@ -161,27 +161,27 @@ export function createValueHandler(
             const $1 = valueType[1]
             const $2 = valueType[2]
             return context.expectDictionary(
+                $2.onBegin,
                 (key, metaData, contextData) => {
                     return createRequiredValueHandler(
                         context,
                         $1(key, metaData, contextData),
                     )
                 },
-                $2?.onBegin,
-                $2?.onEnd,
-                $2?.onInvalidType,
+                $2.onEnd,
+                $2.onInvalidType,
             )
         }
         case "list": {
             const $1 = valueType[1]
             const $2 = valueType[2]
             return context.expectList(
+                $2.onBegin,
                 () => {
                     return () => createValueHandler(context, $1)
                 },
-                $2?.onBegin,
-                $2?.onEnd,
-                $2?.onInvalidType,
+                $2.onEnd,
+                $2.onInvalidType,
             )
         }
         case "null": {

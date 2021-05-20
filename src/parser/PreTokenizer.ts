@@ -549,7 +549,6 @@ export class PreTokenizer {
                                             nextChar === Char.Punctuation.closeBrace ||
                                             nextChar === Char.Punctuation.colon ||
                                             nextChar === Char.Punctuation.exclamationMark ||
-                                            nextChar === Char.Punctuation.hash ||
                                             nextChar === Char.Punctuation.verticalLine
                                         ) {
                                             return true
@@ -700,7 +699,6 @@ export class PreTokenizer {
                             || char === Char.Punctuation.openAngleBracket
                             || char === Char.Punctuation.openBracket
                             || char === Char.Punctuation.verticalLine
-                            || char === Char.Punctuation.hash
 
                             || char === Char.Comment.solidus
 
