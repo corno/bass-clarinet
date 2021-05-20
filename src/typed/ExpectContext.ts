@@ -148,7 +148,7 @@ export function printExpectError(issue: ExpectError): string {
         }
         case "unexpected property": {
             const $ = issue[1]
-            return `unexpected property: '${$["found key"]}'. Choose from ${$["valid keys"].join(", ")}`
+            return `unexpected property: '${$["found key"]}'. Choose from ${$["valid keys"].map($ => `'${$}'`).join(", ")}`
         }
         case "duplicate entry": {
             const $ = issue[1]
@@ -198,7 +198,7 @@ export function printExpectError(issue: ExpectError): string {
         }
         case "elements missing": {
             const $ = issue[1]
-            return `${$.names.length} missing elements: ${$.names.join(", ")}`
+            return `${$.names.length} missing elements: ${$.names.map($ => `'${$}'`).join(", ")}`
         }
         case "unknown option": {
             const $ = issue[1]
