@@ -485,10 +485,10 @@ export class ExpectContext {
                                 return ee.name
                             }),
                         }], endRange)
-                    }
-                    for (let i = index; i !== expectedElements.length; i += 1) {
-                        const ee = expectedElements[i]
-                        ee.getHandler().onMissing()
+                        for (let i = index; i !== expectedElements.length; i += 1) {
+                            const ee = expectedElements[i]
+                            ee.getHandler().onMissing()
+                        }
                     }
                     if (onEnd) {
                         onEnd(endRange, endMetaData, endContextData)
