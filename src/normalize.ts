@@ -256,7 +256,7 @@ function createNormalizer(
 }
 
 /**
- *
+ * this function rewrites the ASTN text to the canonicalized form
  * @param dataAsString
  * @param sortKeys this is a convenience parameter. if sorting is not required, normalizing can also be done in a streaming approach which requires less memory
  */
