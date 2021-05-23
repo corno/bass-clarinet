@@ -47,8 +47,7 @@ export type ExpectError =
     | ["not a valid number", {
         value: string
     }]
-    | ["too many elements", {
-        expected: number
+    | ["superfluous element", {
     }]
     | ["elements missing", {
         names: string[]
@@ -192,9 +191,9 @@ export function printExpectError(issue: ExpectError): string {
             const $ = issue[1]
             return `'${$.value} is not a valid number`
         }
-        case "too many elements": {
-            const $ = issue[1]
-            return `found more than the expected ${$.expected} element(s)`
+        case "superfluous element": {
+            //const $ = issue[1]
+            return `superfluous element`
         }
         case "elements missing": {
             const $ = issue[1]
@@ -464,11 +463,11 @@ export class ExpectContext {
             }
             let index = 0
             return {
-                element: (): astn.OnValue => {
+                element: (range): astn.OnValue => {
                     const ee = expectedElements[index]
                     index++
                     if (ee === undefined) {
-                        this.raiseError(["too many elements", { expected: expectedElements.length }], beginRange)//FIX print range properly
+                        this.raiseError(["superfluous element", { }], range)//FIX print range properly
                         return this.createDummyValueHandler()
                     } else {
                         return ee.getHandler().onValue

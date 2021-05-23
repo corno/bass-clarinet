@@ -24,7 +24,7 @@ export type ObjectHandler = {
 }
 
 export type ArrayHandler = {
-    element: () => OnValue
+    element: (range: Range) => OnValue
     end: (range: Range, data: ArrayCloseData, contextData: ContextData) => void
 }
 

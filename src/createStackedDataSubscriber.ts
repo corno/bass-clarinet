@@ -191,10 +191,10 @@ class SemanticState {
                 return assertUnreachable(this.currentContext[0])
         }
     }
-    public initValueHandler(): OnValue {
+    public initValueHandler(range: Range): OnValue {
         switch (this.currentContext[0]) {
             case "array": {
-                return this.currentContext[1].arrayHandler.element()
+                return this.currentContext[1].arrayHandler.element(range)
             }
             case "object": {
                 if (this.currentContext[1].propertyHandler === null) {
@@ -389,7 +389,7 @@ function processParserEvent(
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
-                    const arrayHandler = semanticState.initValueHandler()(contextData).array(data.range, $)
+                    const arrayHandler = semanticState.initValueHandler(data.range)(contextData).array(data.range, $)
                     semanticState.push(["array", { arrayHandler: arrayHandler }])
                     return p.value(false)
                 },
@@ -400,7 +400,7 @@ function processParserEvent(
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
-                    const vh = semanticState.initValueHandler()(contextData)
+                    const vh = semanticState.initValueHandler(data.range)(contextData)
 
                     const objectHandler = vh.object(
                         data.range,
@@ -459,7 +459,7 @@ function processParserEvent(
                     switch (semanticState.currentContext[0]) {
                         case "array": {
                             const $ = semanticState.currentContext[1]
-                            return onSimpleValue($.arrayHandler.element()(contextData))
+                            return onSimpleValue($.arrayHandler.element(data.range)(contextData))
                         }
                         case "object": {
                             const $$ = semanticState.currentContext[1]
@@ -523,7 +523,7 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
                     semanticState.push(["taggedunion", {
-                        handler: semanticState.initValueHandler()(contextData).taggedUnion(
+                        handler: semanticState.initValueHandler(data.range)(contextData).taggedUnion(
                             data.range,
                         ),
                         state: ["expecting option", {
