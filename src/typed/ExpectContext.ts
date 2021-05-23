@@ -198,7 +198,7 @@ export function printExpectError(issue: ExpectError): string {
         }
         case "elements missing": {
             const $ = issue[1]
-            return `${$.names.length} missing elements: ${$.names.map($ => `'${$}'`).join(", ")}`
+            return `${$.names.length} missing element(s): ${$.names.map($ => `'${$}'`).join(", ")}`
         }
         case "unknown option": {
             const $ = issue[1]
@@ -470,8 +470,9 @@ export class ExpectContext {
                     if (ee === undefined) {
                         this.raiseError(["too many elements", { expected: expectedElements.length }], beginRange)//FIX print range properly
                         return this.createDummyValueHandler()
-                    }
+                    } else {
                     return ee.getHandler().onValue
+                    }
                 },
                 end: (endRange: astn.Range, endMetaData: astn.ArrayCloseData, endContextData: astn.ContextData): void => {
                     if (endMetaData.closeCharacter !== ">") {
