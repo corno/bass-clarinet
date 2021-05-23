@@ -471,7 +471,7 @@ export class ExpectContext {
                         this.raiseError(["too many elements", { expected: expectedElements.length }], beginRange)//FIX print range properly
                         return this.createDummyValueHandler()
                     } else {
-                    return ee.getHandler().onValue
+                        return ee.getHandler().onValue
                     }
                 },
                 end: (endRange: astn.Range, endMetaData: astn.ArrayCloseData, endContextData: astn.ContextData): void => {
@@ -784,11 +784,10 @@ export class ExpectContext {
     public expectBoolean(
         callback: (value: boolean, range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType,
-        onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
     ): astn.ValueHandler {
         const expectValue: ExpectErrorValue = {
             "type": "boolean",
-            "null allowed": onNull !== undefined,
+            "null allowed": false,
         }
         return this.expectSimpleValueImp(
             expectValue,
@@ -900,17 +899,16 @@ export class ExpectContext {
         onProperty: (key: string, range: astn.Range, contextData: astn.ContextData) => astn.RequiredValueHandler,
         onEnd: (range: astn.Range, metaData: astn.ObjectCloseData, contextData: astn.ContextData) => void,
         onInvalidType?: OnInvalidType,
-        onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
     ): astn.ValueHandler {
 
         const expectValue: ExpectErrorValue = {
             "type": "dictionary",
-            "null allowed": onNull !== undefined,
+            "null allowed": false,
         }
         return {
             array: this.createUnexpectedArrayHandler(expectValue, onInvalidType),
             object: this.createDictionaryHandler(onProperty, onBegin, onEnd),
-            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType, onNull),
+            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType),
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
         }
     }
@@ -944,17 +942,16 @@ export class ExpectContext {
         onElement: () => astn.OnValue,
         onEnd: (range: astn.Range, metaData: astn.ArrayCloseData, contextData: astn.ContextData) => void,
         onInvalidType?: OnInvalidType,
-        onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
     ): astn.ValueHandler {
 
         const expectValue: ExpectErrorValue = {
             "type": "list",
-            "null allowed": onNull !== undefined,
+            "null allowed": false,
         }
         return {
             array: this.createListHandler(onElement, onBegin, onEnd),
             object: this.createUnexpectedObjectHandler(expectValue, onInvalidType),
-            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType, onNull),
+            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType),
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
         }
     }
