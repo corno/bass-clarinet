@@ -20,7 +20,7 @@ import {
     BeforeContextData,
 } from "./handlers"
 import { RangeError } from "./errors"
-import { ParserEventConsumer } from "./parser/createParser"
+import { ParserEventConsumer } from "./parser/createTextParser"
 import { OverheadTokenType } from "./parser/Token"
 
 const DEBUG = false

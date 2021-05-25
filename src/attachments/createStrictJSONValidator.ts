@@ -5,7 +5,7 @@
 */
 import * as p from "pareto"
 import { TreeEventType, TreeEvent } from "../parser/TreeEvent"
-import { ParserEventConsumer } from "../parser/createParser"
+import { ParserEventConsumer } from "../parser/createTextParser"
 import { Range } from "../parser/location"
 import * as Char from "./NumberCharacters"
 import { RangeError } from "../errors"

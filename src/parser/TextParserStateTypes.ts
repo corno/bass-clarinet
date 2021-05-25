@@ -1,12 +1,12 @@
 import { Location, Range } from "./location"
 import { Quote } from "./PreToken"
 
-export enum RootState {
+export enum TextState {
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
     EXPECTING_SCHEMA,
     PROCESSING_SCHEMA,
-    EXPECTING_INSTANCE_DATA,
-    PROCESSING_INSTANCE_DATA,
+    EXPECTING_BODY,
+    PROCESSING_BODY,
     EXPECTING_END, // no more input expected}
 }
 

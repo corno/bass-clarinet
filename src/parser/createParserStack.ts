@@ -2,9 +2,9 @@ import * as p from "pareto"
 import {
     ParserEventConsumer,
     createParser,
-    ParserError,
-    printParserError,
-} from "./createParser"
+    TextParserError,
+    printTextParserError,
+} from "./createTextParser"
 import {
     OverheadToken,
 } from "./Token"
@@ -26,7 +26,7 @@ function assertUnreachable<RT>(_x: never): RT {
 
 export type ParsingError = {
     source:
-    | ["parser", ParserError]
+    | ["parser", TextParserError]
     | ["tokenizer", PreTokenizerError]
 }
 
@@ -35,7 +35,7 @@ export function printParsingError(error: ParsingError): string {
     switch (error.source[0]) {
         case "parser": {
             const $ = error.source[1]
-            return printParserError($)
+            return printTextParserError($)
         }
         case "tokenizer": {
             const $ = error.source[1]

@@ -9,7 +9,7 @@ import {
     IndentationState,
     IndentationData,
     WhitespaceContext,
-} from "./parserStateTypes"
+} from "./TextParserStateTypes"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
 import { PreTokenDataType, PreToken, Quote } from "./PreToken"
 import { TokenType, Token, OverheadTokenType } from "./Token"

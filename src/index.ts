@@ -7,7 +7,7 @@ export * from "./handlers"
 export * from "./normalize"
 
 export * from "./parser/TreeEvent"
-export * from "./parser/createParser"
+export * from "./parser/createTextParser"
 export * from "./parser/createParserStack"
 export * from "./parser/createTokenizer"
 export * from "./parser/ITokenStreamConsumer"

@@ -2,7 +2,7 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 import {
     ParserEventConsumer,
-} from "./createParser"
+} from "./createTextParser"
 import {
     OverheadToken,
 } from "./Token"

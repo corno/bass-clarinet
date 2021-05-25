@@ -12,12 +12,12 @@ import {
     ObjectContext,
     TaggedUnionContext,
 
-} from "./parserStateTypes"
+} from "./TextParserStateTypes"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "./location"
 import { TreeEvent, TreeEventType } from "./TreeEvent"
 import { Token, TokenType, SimpleValueData, PunctionationData } from "./Token"
 import * as Char from "./Characters"
-import { ParserEventConsumer } from "./createParser"
+import { ParserEventConsumer } from "./createTextParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
