@@ -1,6 +1,5 @@
 export * from "./attachments"
 export * from "./stackedParser/createStackedParser"
-export * from "./parser/createStreamPreTokenizer"
 export * from "./stackedParser/dummyHandlers"
 export * from "./errors"
 export * from "./handlers"
