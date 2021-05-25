@@ -29,9 +29,6 @@ export type ObjectCloseData = {
     closeCharacter: ")" | "}"
 }
 
-/**
- * A Document has a Header and a Body. The body can produce the following events
- */
 export type TreeEvent = {
     range: Range
     type:
