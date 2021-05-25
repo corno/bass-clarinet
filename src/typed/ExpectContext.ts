@@ -708,7 +708,7 @@ export class ExpectContext {
             return {
                 onData: propertyData => {
                     return p.value({
-                        onValue: this.createDummyOnProperty(propertyData.keyRange, propertyData.key, propertyData.contextData),
+                        onExists: this.createDummyOnProperty(propertyData.keyRange, propertyData.key, propertyData.contextData),
                         onMissing: (): void => {
                             //
                         },
