@@ -5,7 +5,7 @@
     max-classes-per-file: off,
 */
 import * as p from "pareto"
-import { BodyEventType, BodyEvent } from "./parser/BodyEvent"
+import { TreeEventType, TreeEvent } from "./parser/TreeEvent"
 import { Location, Range, createRangeFromSingleLocation } from "./parser/location"
 import { createDummyValueHandler as createDummyOnValue } from "./dummyHandlers"
 import {
@@ -246,14 +246,14 @@ type ProcessResult =
 
 
 function processParserEvent(
-    data: BodyEvent,
+    data: TreeEvent,
     semanticState: SemanticState,
     overheadState: OverheadState,
     onError: (error: StackedDataError, range: Range) => void,
 ): ProcessResult {
 
     switch (data.type[0]) {
-        case BodyEventType.CloseArray: {
+        case TreeEventType.CloseArray: {
             const $ = data.type[1]
             return ["event", {
                 beforeContextData: overheadState.flush(),
@@ -314,7 +314,7 @@ function processParserEvent(
                 },
             }]
         }
-        case BodyEventType.CloseObject: {
+        case TreeEventType.CloseObject: {
             const $ = data.type[1]
             return ["event", {
                 beforeContextData: overheadState.flush(),
@@ -378,13 +378,13 @@ function processParserEvent(
                 },
             }]
         }
-        case BodyEventType.Colon: {
+        case TreeEventType.Colon: {
             return ["other"]
         }
-        case BodyEventType.Comma: {
+        case TreeEventType.Comma: {
             return ["other"]
         }
-        case BodyEventType.OpenArray: {
+        case TreeEventType.OpenArray: {
             const $ = data.type[1]
             return ["event", {
                 beforeContextData: overheadState.flush(),
@@ -395,7 +395,7 @@ function processParserEvent(
                 },
             }]
         }
-        case BodyEventType.OpenObject: {
+        case TreeEventType.OpenObject: {
             const $ = data.type[1]
             return ["event", {
                 beforeContextData: overheadState.flush(),
@@ -414,7 +414,7 @@ function processParserEvent(
                 },
             }]
         }
-        case BodyEventType.Overhead: {
+        case TreeEventType.Overhead: {
             const $ = data.type[1]
             switch ($.type[0]) {
                 case OverheadTokenType.Comment: {
@@ -442,7 +442,7 @@ function processParserEvent(
                     return assertUnreachable($.type[0])
             }
         }
-        case BodyEventType.SimpleValue: {
+        case TreeEventType.SimpleValue: {
             const $ = data.type[1]
             return ["event", {
                 beforeContextData: overheadState.flush(),
@@ -517,7 +517,7 @@ function processParserEvent(
                 },
             }]
         }
-        case BodyEventType.TaggedUnion: {
+        case TreeEventType.TaggedUnion: {
             if (DEBUG) { console.log("on open tagged union") }
             return ["event", {
                 beforeContextData: overheadState.flush(),
@@ -556,7 +556,7 @@ export function createStackedDataSubscriber<ReturnType, ErrorType>(
 
 
     return {
-        onData: (data: BodyEvent): p.IValue<boolean> => {
+        onData: (data: TreeEvent): p.IValue<boolean> => {
             function flush(
                 gqe: EventData,
                 lineCommentAfter: Comment | null,

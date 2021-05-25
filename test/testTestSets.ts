@@ -86,42 +86,42 @@ class OutPutter implements astn.ParserEventConsumer<null, null> {
     constructor(out: string[]) {
         this.out = out
     }
-    onData(data: astn.BodyEvent) {
+    onData(data: astn.TreeEvent) {
         switch (data.type[0]) {
-            case astn.BodyEventType.CloseArray: {
+            case astn.TreeEventType.CloseArray: {
                 const $ = data.type[1]
                 this.out.push($.closeCharacter)
                 break
             }
-            case astn.BodyEventType.CloseObject: {
+            case astn.TreeEventType.CloseObject: {
                 const $ = data.type[1]
                 this.out.push($.closeCharacter)
                 break
             }
-            case astn.BodyEventType.Colon: {
+            case astn.TreeEventType.Colon: {
                 this.out.push(":")
                 break
             }
-            case astn.BodyEventType.Comma: {
+            case astn.TreeEventType.Comma: {
                 this.out.push(",")
                 break
             }
-            case astn.BodyEventType.OpenArray: {
+            case astn.TreeEventType.OpenArray: {
                 const $ = data.type[1]
                 this.out.push($.openCharacter)
                 break
             }
-            case astn.BodyEventType.OpenObject: {
+            case astn.TreeEventType.OpenObject: {
                 const $ = data.type[1]
                 this.out.push($.openCharacter)
                 break
             }
-            case astn.BodyEventType.Overhead: {
+            case astn.TreeEventType.Overhead: {
                 const $ = data.type[1]
                 outputOverheadToken(this.out, $)
                 break
             }
-            case astn.BodyEventType.SimpleValue: {
+            case astn.TreeEventType.SimpleValue: {
                 const $ = data.type[1]
                 if ($.quote !== null) {
 
@@ -135,7 +135,7 @@ class OutPutter implements astn.ParserEventConsumer<null, null> {
                 }
                 break
             }
-            case astn.BodyEventType.TaggedUnion: {
+            case astn.TreeEventType.TaggedUnion: {
                 this.out.push("|")
                 break
             }
@@ -278,42 +278,42 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         const eventSubscriber: astn.ParserEventConsumer<null, null> = {
             onData: data => {
                 switch (data.type[0]) {
-                    case astn.BodyEventType.CloseArray: {
+                    case astn.TreeEventType.CloseArray: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found close array")
                         actualEvents.push(["token", "closearray", $.closeCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case astn.BodyEventType.CloseObject: {
+                    case astn.TreeEventType.CloseObject: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found close object")
                         actualEvents.push(["token", "closeobject", $.closeCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case astn.BodyEventType.Colon: {
+                    case astn.TreeEventType.Colon: {
                         break
                     }
-                    case astn.BodyEventType.Comma: {
+                    case astn.TreeEventType.Comma: {
                         break
                     }
-                    case astn.BodyEventType.OpenArray: {
+                    case astn.TreeEventType.OpenArray: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found open array")
                         actualEvents.push(["token", "openarray", $.openCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case astn.BodyEventType.OpenObject: {
+                    case astn.TreeEventType.OpenObject: {
                         const $ = data.type[1]
                         if (DEBUG) console.log("found open object")
                         actualEvents.push(["token", "openobject", $.openCharacter, getRange(test.testForLocation, data.range)])
                         break
                     }
-                    case astn.BodyEventType.Overhead: {
+                    case astn.TreeEventType.Overhead: {
                         const $ = data.type[1]
                         onOverheadTokenEvent($, data.range)
                         break
                     }
-                    case astn.BodyEventType.SimpleValue: {
+                    case astn.TreeEventType.SimpleValue: {
                         const $ = data.type[1]
                         if ($.quote === null) {
                             if (DEBUG) console.log("found unquoted token")
@@ -324,7 +324,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         }
                         break
                     }
-                    case astn.BodyEventType.TaggedUnion: {
+                    case astn.TreeEventType.TaggedUnion: {
                         //const $ = data.type[1]
 
                         if (DEBUG) console.log("found open tagged union")

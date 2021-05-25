@@ -201,37 +201,37 @@ const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 export const parserEventConsumer: astn.ParserEventConsumer<null, null> = {
     onData: data => {
         switch (data.type[0]) {
-            case astn.BodyEventType.CloseArray: {
+            case astn.TreeEventType.CloseArray: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case astn.BodyEventType.CloseObject: {
+            case astn.TreeEventType.CloseObject: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case astn.BodyEventType.Colon: {
+            case astn.TreeEventType.Colon: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case astn.BodyEventType.Comma: {
+            case astn.TreeEventType.Comma: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case astn.BodyEventType.OpenArray: {
+            case astn.TreeEventType.OpenArray: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case astn.BodyEventType.OpenObject: {
+            case astn.TreeEventType.OpenObject: {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case astn.BodyEventType.Overhead: {
+            case astn.TreeEventType.Overhead: {
                 const $ = data.type[1]
                 switch ($.type[0]) {
                     case astn.OverheadTokenType.BlockComment: {
@@ -259,13 +259,13 @@ export const parserEventConsumer: astn.ParserEventConsumer<null, null> = {
                 }
                 break
             }
-            case astn.BodyEventType.SimpleValue: {
+            case astn.TreeEventType.SimpleValue: {
                 //const $ = data.type[1]
                 //place your code here
                 //in strict JSON, the value is a string, a number, null, true or false
                 break
             }
-            case astn.BodyEventType.TaggedUnion: {
+            case astn.TreeEventType.TaggedUnion: {
                 //const $ = data.type[1]
                 //place your code here
                 break
@@ -327,14 +327,14 @@ the data subscriber can be seen in the example code above
 # architecture
 
 The stack consists of the following chain:
-Stream -(string chunks)-> PreTokenizer -(PreToken's)-> Tokenizer -(Token's)-> Parser -(BodyEvent)-> ParserEventConsumer -(Resulting Type)-> ...
+Stream -(string chunks)-> PreTokenizer -(PreToken's)-> Tokenizer -(Token's)-> Parser -(TreeEvent)-> ParserEventConsumer -(Resulting Type)-> ...
 
 
 PreTokens are low level token parts. For example `BlockCommentBegin`
 
 Tokens are higher level. For example `BlockComment`
 
-an example of a BodyEvent is `OpenArray`
+an example of a TreeEvent is `OpenArray`
 
 # roadmap
 

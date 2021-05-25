@@ -4,7 +4,7 @@
     max-classes-per-file: "off",
 */
 import * as p from "pareto"
-import { BodyEventType, BodyEvent } from "../parser/BodyEvent"
+import { TreeEventType, TreeEvent } from "../parser/TreeEvent"
 import { ParserEventConsumer } from "../parser/createParser"
 import { Range } from "../parser/location"
 import * as Char from "./NumberCharacters"
@@ -120,9 +120,9 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
         this.onError = onError
     }
 
-    public onData(data: BodyEvent) {
+    public onData(data: TreeEvent) {
         switch (data.type[0]) {
-            case BodyEventType.CloseArray: {
+            case TreeEventType.CloseArray: {
                 const $ = data.type[1]
                 if ($.closeCharacter !== "]") {
                     this.onError("arrays should end with ']' in strict JSON", data.range)
@@ -138,7 +138,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 this.wrapupValue(data.range)
                 break
             }
-            case BodyEventType.CloseObject: {
+            case TreeEventType.CloseObject: {
                 const $ = data.type[1]
                 if ($.closeCharacter !== "}") {
                     this.onError("objects should end with '}' in strict JSON", data.range)
@@ -154,7 +154,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 this.wrapupValue(data.range)
                 break
             }
-            case BodyEventType.Colon: {
+            case TreeEventType.Colon: {
                 if (this.currentContext[0] !== "object") {
                     this.onError(`colon can only be used in objects`, data.range)
                 } else {
@@ -165,7 +165,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 }
                 break
             }
-            case BodyEventType.Comma: {
+            case TreeEventType.Comma: {
                 switch (this.currentContext[0]) {
                     case "array": {
                         const $$ = this.currentContext[1]
@@ -198,7 +198,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 }
                 break
             }
-            case BodyEventType.OpenArray: {
+            case TreeEventType.OpenArray: {
                 const $ = data.type[1]
                 if ($.openCharacter !== "[") {
                     this.onError("arrays should start with '[' in strict JSON", data.range)
@@ -207,7 +207,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 this.push(["array", { state: ArrayState.EXPECTING_VALUE_OR_ARRAY_END }])
                 break
             }
-            case BodyEventType.OpenObject: {
+            case TreeEventType.OpenObject: {
                 const $ = data.type[1]
                 if ($.openCharacter !== "{") {
                     this.onError("objects should start with '{' in strict JSON", data.range)
@@ -217,7 +217,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
 
                 break
             }
-            case BodyEventType.Overhead: {
+            case TreeEventType.Overhead: {
                 const $ = data.type[1]
                 switch ($.type[0]) {
                     case OverheadTokenType.Comment: {
@@ -241,7 +241,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
 
                 break
             }
-            case BodyEventType.SimpleValue: {
+            case TreeEventType.SimpleValue: {
                 const $ = data.type[1]
                 if ($.quote !== null) {
                     //a string
@@ -336,7 +336,7 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
                 }
                 break
             }
-            case BodyEventType.TaggedUnion: {
+            case TreeEventType.TaggedUnion: {
                 this.onError("tagged unions are not allowed in strict JSON", data.range)
                 this.push(["taggedunion", { state: TaggedUnionState.EXPECTING_OPTION }])
                 break

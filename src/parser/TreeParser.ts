@@ -14,7 +14,7 @@ import {
 
 } from "./parserStateTypes"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "./location"
-import { BodyEvent, BodyEventType } from "./BodyEvent"
+import { TreeEvent, TreeEventType } from "./TreeEvent"
 import { Token, TokenType, SimpleValueData, PunctionationData } from "./Token"
 import * as Char from "./Characters"
 import { ParserEventConsumer } from "./createParser"
@@ -33,7 +33,7 @@ type StackContext = {
     | [StackContextType2.TAGGED_UNION, TaggedUnionContext]
 }
 
-export type BodyParserErrorType =
+export type TreeParserErrorType =
     | ["unexpected end of document", {
         "still in":
         | ["array"]
@@ -49,11 +49,11 @@ export type BodyParserErrorType =
         found: string
     }]
 
-export type BodyParserError = {
-    type: BodyParserErrorType
+export type TreeParserError = {
+    type: TreeParserErrorType
 }
 
-export function printBodyParserError(error: BodyParserError): string {
+export function printTreeParserError(error: TreeParserError): string {
 
     switch (error.type[0]) {
         case "expected option": {
@@ -84,13 +84,13 @@ export function printBodyParserError(error: BodyParserError): string {
     }
 }
 
-export class BodyParser<ReturnType, ErrorType> {
+export class TreeParser<ReturnType, ErrorType> {
     private readonly stack = new Array<StackContext>()
     private currentContext: StackContext | null = null
-    private readonly onerror: (error: BodyParserError, range: Range) => void
+    private readonly onerror: (error: TreeParserError, range: Range) => void
     private readonly eventsConsumer: ParserEventConsumer<ReturnType, ErrorType>
     constructor(
-        onerror: (error: BodyParserError, range: Range) => void,
+        onerror: (error: TreeParserError, range: Range) => void,
         eventsConsumer: ParserEventConsumer<ReturnType, ErrorType>
     ) {
         this.onerror = onerror
@@ -180,7 +180,7 @@ export class BodyParser<ReturnType, ErrorType> {
 
                 return this.sendEvent({
                     range: token.range,
-                    type: [BodyEventType.Overhead, $],
+                    type: [TreeEventType.Overhead, $],
                 })
             }
             case TokenType.Punctuation: {
@@ -202,7 +202,7 @@ export class BodyParser<ReturnType, ErrorType> {
         const y = (data2: SimpleValueData) => {
             return this.sendEvent({
                 range: range,
-                type: [BodyEventType.SimpleValue, data2],
+                type: [TreeEventType.SimpleValue, data2],
             })
         }
 
@@ -267,7 +267,7 @@ export class BodyParser<ReturnType, ErrorType> {
                 //
                 return this.sendEvent({
                     range: range,
-                    type: [BodyEventType.Comma, {
+                    type: [TreeEventType.Comma, {
                     }],
                 })
             case Char.Punctuation.openAngleBracket:
@@ -282,7 +282,7 @@ export class BodyParser<ReturnType, ErrorType> {
                 //
                 return this.sendEvent({
                     range: range,
-                    type: [BodyEventType.Colon, {
+                    type: [TreeEventType.Colon, {
                     }],
                 })
             case Char.Punctuation.openBrace:
@@ -309,13 +309,13 @@ export class BodyParser<ReturnType, ErrorType> {
             this.pushContext({ range: range, type: [StackContextType2.TAGGED_UNION, taggedUnion] })
             return this.sendEvent({
                 range: range,
-                type: [BodyEventType.TaggedUnion, {
+                type: [TreeEventType.TaggedUnion, {
                 }],
             })
 
         })
     }
-    private sendEvent(data: BodyEvent): p.IValue<boolean> {
+    private sendEvent(data: TreeEvent): p.IValue<boolean> {
         return this.eventsConsumer.onData(data)
     }
     private onObjectOpen(openCharacter: "(" | "{", range: Range): p.IValue<boolean> {
@@ -327,7 +327,7 @@ export class BodyParser<ReturnType, ErrorType> {
             this.pushContext({ range: range, type: [StackContextType2.OBJECT, obj] })
             return this.sendEvent({
                 range: range,
-                type: [BodyEventType.OpenObject, {
+                type: [TreeEventType.OpenObject, {
                     openCharacter: openCharacter,
                 }],
             })
@@ -337,7 +337,7 @@ export class BodyParser<ReturnType, ErrorType> {
     private onObjectClose(closeCharacter: ")" | "}", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
         return this.sendEvent({
             range: range,
-            type: [BodyEventType.CloseObject, {
+            type: [TreeEventType.CloseObject, {
                 closeCharacter: closeCharacter,
             }],
         }).mapResult(() => {
@@ -361,7 +361,7 @@ export class BodyParser<ReturnType, ErrorType> {
             })
             return this.sendEvent({
                 range: range,
-                type: [BodyEventType.OpenArray, {
+                type: [TreeEventType.OpenArray, {
                     openCharacter: openCharacter,
                 }],
             })
@@ -372,7 +372,7 @@ export class BodyParser<ReturnType, ErrorType> {
 
         return this.sendEvent({
             range: range,
-            type: [BodyEventType.CloseArray, {
+            type: [TreeEventType.CloseArray, {
                 closeCharacter: closeCharacter,
             }],
         }).mapResult(() => {
@@ -423,7 +423,7 @@ export class BodyParser<ReturnType, ErrorType> {
         }
 
     }
-    private raiseError(message: BodyParserErrorType, range: Range) {
+    private raiseError(message: TreeParserErrorType, range: Range) {
         //if (DEBUG) { console.log("error raised:", message, printRange(range)) }
         this.onerror(
             {

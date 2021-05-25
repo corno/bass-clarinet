@@ -3,7 +3,7 @@
 */
 import * as p from "pareto"
 import { Range, Location } from "../parser/location"
-import { BodyEventType } from "../parser/BodyEvent"
+import { TreeEventType } from "../parser/TreeEvent"
 import { ParserEventConsumer } from "../parser/createParser"
 import { OverheadTokenType } from "../parser/Token"
 
@@ -247,39 +247,39 @@ export function createFormatter(
 
 		onData: data => {
 			switch (data.type[0]) {
-				case BodyEventType.CloseArray: {
+				case TreeEventType.CloseArray: {
 					closeToken(data.range.start)
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case BodyEventType.CloseObject: {
+				case TreeEventType.CloseObject: {
 					closeToken(data.range.start)
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case BodyEventType.Colon: {
+				case TreeEventType.Colon: {
 					punctuation()
 					precedingToken = [PrecedingTokenType.colon]
 					break
 				}
-				case BodyEventType.Comma: {
+				case TreeEventType.Comma: {
 					punctuation()
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case BodyEventType.OpenArray: {
+				case TreeEventType.OpenArray: {
 					semanticToken(data.range.start)
 					push()
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case BodyEventType.OpenObject: {
+				case TreeEventType.OpenObject: {
 					semanticToken(data.range.start)
 					push()
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case BodyEventType.Overhead: {
+				case TreeEventType.Overhead: {
 					const $ = data.type[1]
 					switch ($.type[0]) {
 						case OverheadTokenType.Comment: {
@@ -393,7 +393,7 @@ export function createFormatter(
 					}
 					break
 				}
-				case BodyEventType.SimpleValue: {
+				case TreeEventType.SimpleValue: {
 					semanticToken(data.range.start)
 					if (precedingToken[0] === PrecedingTokenType.pipe) {
 						precedingToken = [PrecedingTokenType.option]
@@ -402,7 +402,7 @@ export function createFormatter(
 					}
 					break
 				}
-				case BodyEventType.TaggedUnion: {
+				case TreeEventType.TaggedUnion: {
 					semanticToken(data.range.start)
 					precedingToken = [PrecedingTokenType.pipe]
 					break

@@ -2,7 +2,6 @@ import * as p from "pareto"
 import * as fs from "fs"
 import * as astn from "../src"
 import * as stream from "stream"
-import { createDummyValueHandler, printParsingError } from "../src"
 
 const [, , sourcePath, targetPath] = process.argv
 
@@ -105,7 +104,7 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
 export function createDummyEventConsumer(): astn.ParserEventConsumer<null, null> {
     const datasubscriber = astn.createStackedDataSubscriber<null, null>(
         {
-            onValue: createDummyValueHandler(),
+            onValue: astn.createDummyValueHandler(),
             onMissing: () => {
                 //
             },
@@ -134,7 +133,7 @@ astn.parseString(
     () => {
         return createPrettyPrinter("\r\n", write)
     },
-    err => { console.error("FOUND ERROR", printParsingError(err)) },
+    err => { console.error("FOUND ERROR", astn.printParsingError(err)) },
     _overheadToken => {
         return p.value(false)
     },

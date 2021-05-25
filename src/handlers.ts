@@ -5,7 +5,7 @@ import {
     ArrayCloseData,
     ObjectOpenData,
     ObjectCloseData,
-} from "./parser/BodyEvent"
+} from "./parser/TreeEvent"
 import { SimpleValueData } from "./parser/Token"
 
 export type BeforeContextData = {

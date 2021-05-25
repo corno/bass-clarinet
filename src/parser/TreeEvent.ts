@@ -1,7 +1,7 @@
 import { Range } from "./location"
 import { SimpleValueData, OverheadToken } from "./Token"
 
-export enum BodyEventType {
+export enum TreeEventType {
     CloseArray,
     CloseObject,
     Colon,
@@ -32,22 +32,22 @@ export type ObjectCloseData = {
 /**
  * A Document has a Header and a Body. The body can produce the following events
  */
-export type BodyEvent = {
+export type TreeEvent = {
     range: Range
     type:
-    | [BodyEventType.CloseArray, ArrayCloseData]
-    | [BodyEventType.CloseObject, ObjectCloseData]
-    | [BodyEventType.Colon, {
+    | [TreeEventType.CloseArray, ArrayCloseData]
+    | [TreeEventType.CloseObject, ObjectCloseData]
+    | [TreeEventType.Colon, {
         //
     }]
-    | [BodyEventType.Comma, {
+    | [TreeEventType.Comma, {
         //
     }]
-    | [BodyEventType.OpenArray, ArrayOpenData]
-    | [BodyEventType.OpenObject, ObjectOpenData]
-    | [BodyEventType.Overhead, OverheadToken]
-    | [BodyEventType.SimpleValue, SimpleValueData]
-    | [BodyEventType.TaggedUnion, {
+    | [TreeEventType.OpenArray, ArrayOpenData]
+    | [TreeEventType.OpenObject, ObjectOpenData]
+    | [TreeEventType.Overhead, OverheadToken]
+    | [TreeEventType.SimpleValue, SimpleValueData]
+    | [TreeEventType.TaggedUnion, {
         //
     }]
 }

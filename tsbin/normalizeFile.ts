@@ -1,7 +1,7 @@
 import * as fs from "fs"
 import * as stream from "stream"
 import * as p from "pareto"
-import { normalize } from "../src/normalize"
+import { normalize } from "../src"
 
 const [, , sourcePath, targetPath] = process.argv
 
