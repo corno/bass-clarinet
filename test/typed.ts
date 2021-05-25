@@ -115,17 +115,13 @@ describe('bass-clarinet-typed', () => {
             'duplicate entry',
             `{ "a": (), "a": () }`,
             expect => expect.expectValue(
-                () => expect.expectDictionary(
+                expect.expectDictionary(
                     () => {
                         //
                     },
                     () => {
                         return {
-                            onExists: () => {
-                                return expect.expectType(
-                                    {},
-                                )
-                            },
+                            onExists: expect.expectType({}),
                             onMissing: () => {
                                 //
                             },
@@ -248,16 +244,16 @@ describe('bass-clarinet-typed', () => {
             'tagged union',
             `( "a": | "foo" () )`,
             expect => expect.expectValue(
-                () => expect.expectType(
+                expect.expectType(
                     {
                         a: {
                             onExists: () => {
                                 return {
-                                    onExists: () => expect.expectTaggedUnion(
+                                    onExists: expect.expectTaggedUnion(
                                         {
                                             foo: () => {
                                                 return {
-                                                    onExists: () => expect.expectType(
+                                                    onExists: expect.expectType(
                                                         {
                                                             //
                                                         },
@@ -291,16 +287,16 @@ describe('bass-clarinet-typed', () => {
             'invalid tagged union',
             `( "a": | "foo" )`,
             (expect, addError) => expect.expectValue(
-                () => expect.expectType(
+                expect.expectType(
                     {
                         a: {
                             onExists: (): bct.RequiredValueHandler<ParserAnnotationData> => {
                                 return {
-                                    onExists: () => expect.expectTaggedUnion(
+                                    onExists: expect.expectTaggedUnion(
                                         {
                                             foo: () => {
                                                 return {
-                                                    onExists: () => expect.expectType(),
+                                                    onExists: expect.expectType(),
                                                     onMissing: () => {
                                                         addError(["missing", "TBD", 0, 0, 0, 0])
                                                     },

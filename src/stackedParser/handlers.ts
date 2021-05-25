@@ -20,7 +20,7 @@ export type ArrayEndData<Annotation> = {
 }
 
 export type ArrayHandler<Annotation> = {
-    onData: () => OnValue<Annotation>
+    onData: () => ValueHandler<Annotation>
     onEnd: (arrayEndData: ArrayEndData<Annotation>) => p.IValue<null>
 }
 
@@ -70,11 +70,9 @@ export type OnOption<Annotation> = (data: OptionData<Annotation>) => RequiredVal
 export type OnMissing = () => void
 
 export interface RequiredValueHandler<Annotation> {
-    onExists: OnValue<Annotation>
+    onExists: ValueHandler<Annotation>
     onMissing: OnMissing
 }
-
-export type OnValue<Annotation> = () => ValueHandler<Annotation>
 
 export interface ValueHandler<Annotation> {
     object: OnObject<Annotation>

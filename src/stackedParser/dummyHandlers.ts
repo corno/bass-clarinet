@@ -1,5 +1,5 @@
 import * as p from "pareto"
-import { ArrayHandler, ObjectHandler, OnValue, RequiredValueHandler, TaggedUnionHandler } from "./handlers"
+import { ArrayHandler, ObjectHandler, RequiredValueHandler, TaggedUnionHandler, ValueHandler } from "./handlers"
 
 export function createDummyRequiredValueHandler<Annotation>(): RequiredValueHandler<Annotation> {
     return {
@@ -10,33 +10,31 @@ export function createDummyRequiredValueHandler<Annotation>(): RequiredValueHand
     }
 }
 
-export function createDummyValueHandler<Annotation>(): OnValue<Annotation> {
-    return () => {
-        return {
-            array: (): ArrayHandler<Annotation> => createDummyArrayHandler(),
-            object: (): ObjectHandler<Annotation> => createDummyObjectHandler(),
-            simpleValue: (): p.IValue<boolean> => {
-                //do nothing
-                return p.value(false)
-            },
-            taggedUnion: (): TaggedUnionHandler<Annotation> => {
-                return {
-                    option: (): RequiredValueHandler<Annotation> => createDummyRequiredValueHandler(),
-                    missingOption: (): void => {
-                        //
-                    },
-                    end: () => {
-                        //
-                    },
-                }
-            },
-        }
+export function createDummyValueHandler<Annotation>(): ValueHandler<Annotation> {
+    return {
+        array: (): ArrayHandler<Annotation> => createDummyArrayHandler(),
+        object: (): ObjectHandler<Annotation> => createDummyObjectHandler(),
+        simpleValue: (): p.IValue<boolean> => {
+            //do nothing
+            return p.value(false)
+        },
+        taggedUnion: (): TaggedUnionHandler<Annotation> => {
+            return {
+                option: (): RequiredValueHandler<Annotation> => createDummyRequiredValueHandler(),
+                missingOption: (): void => {
+                    //
+                },
+                end: () => {
+                    //
+                },
+            }
+        },
     }
 }
 
 export function createDummyArrayHandler<Annotation>(): ArrayHandler<Annotation> {
     return {
-        onData: (): OnValue<Annotation> => createDummyValueHandler(),
+        onData: (): ValueHandler<Annotation> => createDummyValueHandler(),
         onEnd: () => {
             //do nothing
             return p.value(null)

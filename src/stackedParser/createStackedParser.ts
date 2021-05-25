@@ -17,7 +17,6 @@ import {
 import { createDummyValueHandler } from "./dummyHandlers"
 import {
     RequiredValueHandler,
-    OnValue,
     ObjectHandler,
     ArrayHandler,
     TaggedUnionHandler,
@@ -221,7 +220,7 @@ class SemanticState {
                 return assertUnreachable(this.currentContext[0])
         }
     }
-    public initValueHandler(): OnValue<ParserAnnotationData> {
+    public initValueHandler(): ValueHandler<ParserAnnotationData> {
         switch (this.currentContext[0]) {
             case "array": {
                 return this.currentContext[1].arrayHandler.onData()
@@ -420,7 +419,7 @@ function processParserEvent(
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
-                    const arrayHandler = semanticState.initValueHandler()().array({
+                    const arrayHandler = semanticState.initValueHandler().array({
                         type: data.tokenString === "<" ? ["shorthand type"] : ["list"],
                         annotation: {
                             tokenString: data.tokenString,
@@ -437,7 +436,7 @@ function processParserEvent(
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
-                    const vh = semanticState.initValueHandler()()
+                    const vh = semanticState.initValueHandler()
 
                     const objectHandler = vh.object({
                         type: data.tokenString === "(" ? ["verbose type"] : ["dictionary"],
@@ -503,7 +502,7 @@ function processParserEvent(
                     switch (semanticState.currentContext[0]) {
                         case "array": {
                             const $ = semanticState.currentContext[1]
-                            return onSimpleValue($.arrayHandler.onData()(), contextData)
+                            return onSimpleValue($.arrayHandler.onData(), contextData)
                         }
                         case "object": {
                             const $$ = semanticState.currentContext[1]
@@ -526,7 +525,7 @@ function processParserEvent(
                                 }
                             } else {
                                 const $$$ = $$.propertyHandler
-                                return onSimpleValue($$$.onExists(), contextData)
+                                return onSimpleValue($$$.onExists, contextData)
                             }
                         }
                         case "root": {
@@ -535,7 +534,7 @@ function processParserEvent(
                             const vh = $.rootValueHandler !== null
                                 ? $.rootValueHandler.onExists
                                 : createDummyValueHandler()
-                            return onSimpleValue(vh(), contextData)
+                            return onSimpleValue(vh, contextData)
                         }
                         case "taggedunion": {
                             const $$ = semanticState.currentContext[1]
@@ -555,7 +554,7 @@ function processParserEvent(
                                 }
                                 case "expecting value": {
                                     const $$$ = $$.state[1]
-                                    return onSimpleValue($$$.onExists(), contextData)
+                                    return onSimpleValue($$$.onExists, contextData)
                                 }
                                 default:
                                     return assertUnreachable($$.state[0])
@@ -573,7 +572,7 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
                     semanticState.push(["taggedunion", {
-                        handler: semanticState.initValueHandler()().taggedUnion({
+                        handler: semanticState.initValueHandler().taggedUnion({
                             annotation: {
                                 tokenString: data.tokenString,
                                 range: data.range,

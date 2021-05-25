@@ -25,57 +25,55 @@ function createRequiredValuePrettyPrinter<Annotation>(indentation: string, write
     }
 }
 
-function createValuePrettyPrinter<Annotation>(indentation: string, writer: (str: string) => void): astn.OnValue<Annotation> {
-    return () => {
-        return {
-            array: arrayData => {
+function createValuePrettyPrinter<Annotation>(indentation: string, writer: (str: string) => void): astn.ValueHandler<Annotation> {
+    return {
+        array: arrayData => {
 
-                writer(arrayData.type[0] === "shorthand type" ? "<" : "[")
-                return {
-                    onData: () => createValuePrettyPrinter(`${indentation}\t`, writer),
-                    onEnd: () => {
-                        writer(`${indentation}${arrayData.type[0] === "shorthand type" ? ">" : "]"}`)
-                        return p.value(null)
-                    },
-                }
+            writer(arrayData.type[0] === "shorthand type" ? "<" : "[")
+            return {
+                onData: () => createValuePrettyPrinter(`${indentation}\t`, writer),
+                onEnd: () => {
+                    writer(`${indentation}${arrayData.type[0] === "shorthand type" ? ">" : "]"}`)
+                    return p.value(null)
+                },
+            }
 
-            },
-            object: objectData => {
-                writer(objectData.type[0] === "verbose type" ? "(" : "{")
-                return {
-                    onData: propertyData => {
-                        writer(`${indentation}\t"${propertyData.key}": `)
-                        return p.value(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
-                    },
-                    onEnd: () => {
-                        writer(`${indentation}${objectData.type[0] === "verbose type" ? ")" : "}"}`)
-                        return p.value(null)
-                    },
-                }
-            },
-            simpleValue: svData => {
-                if (svData.data.quote !== null) {
-                    writer(`${JSON.stringify(svData.data.value)}`)
-                } else {
-                    writer(`${svData.data.value}`)
-                }
-                return p.value(false)
-            },
-            taggedUnion: () => {
-                return {
-                    option: optionData => {
-                        writer(`| "${optionData.option}" `)
-                        return createRequiredValuePrettyPrinter(`${indentation}`, writer)
-                    },
-                    missingOption: () => {
-                        //
-                    },
-                    end: () => {
-                        //
-                    },
-                }
-            },
-        }
+        },
+        object: objectData => {
+            writer(objectData.type[0] === "verbose type" ? "(" : "{")
+            return {
+                onData: propertyData => {
+                    writer(`${indentation}\t"${propertyData.key}": `)
+                    return p.value(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
+                },
+                onEnd: () => {
+                    writer(`${indentation}${objectData.type[0] === "verbose type" ? ")" : "}"}`)
+                    return p.value(null)
+                },
+            }
+        },
+        simpleValue: svData => {
+            if (svData.data.quote !== null) {
+                writer(`${JSON.stringify(svData.data.value)}`)
+            } else {
+                writer(`${svData.data.value}`)
+            }
+            return p.value(false)
+        },
+        taggedUnion: () => {
+            return {
+                option: optionData => {
+                    writer(`| "${optionData.option}" `)
+                    return createRequiredValuePrettyPrinter(`${indentation}`, writer)
+                },
+                missingOption: () => {
+                    //
+                },
+                end: () => {
+                    //
+                },
+            }
+        },
     }
 }
 

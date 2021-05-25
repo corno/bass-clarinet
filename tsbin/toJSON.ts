@@ -7,8 +7,8 @@ const [, , sourcePath, targetPath] = process.argv
 
 
 const ws: stream.Writable = targetPath !== undefined
-? fs.createWriteStream(targetPath, { encoding: "utf-8" })
-: process.stdout
+    ? fs.createWriteStream(targetPath, { encoding: "utf-8" })
+    : process.stdout
 
 
 if (sourcePath === undefined) {
@@ -27,58 +27,56 @@ function createRequiredValuePrettyPrinter<Annotation>(indentation: string, write
     }
 }
 
-function createValuePrettyPrinter<Annotation>(indentation: string, writer: (str: string) => void): astn.OnValue<Annotation> {
-    return () => {
-        return {
-            array: _arrayData => {
-                writer(`[`)
-                return {
-                    onData: () => createValuePrettyPrinter(`${indentation}\t`, writer),
-                    onEnd: () => {
-                        writer(`${indentation}]`)
-                        return p.value(null)
-                    },
-                }
+function createValuePrettyPrinter<Annotation>(indentation: string, writer: (str: string) => void): astn.ValueHandler<Annotation> {
+    return {
+        array: _arrayData => {
+            writer(`[`)
+            return {
+                onData: () => createValuePrettyPrinter(`${indentation}\t`, writer),
+                onEnd: () => {
+                    writer(`${indentation}]`)
+                    return p.value(null)
+                },
+            }
 
-            },
-            object: _objectData => {
-                let isFirstProperty = true
-                writer(`{`)
-                return {
-                    onData: propertyData => {
-                        writer(`${isFirstProperty? `` : `, ` }${indentation}\t"${propertyData.key}": `)
-                        isFirstProperty = false
-                        return p.value(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
-                    },
-                    onEnd: () => {
-                        writer(`${indentation}}`)
-                        return p.value(null)
-                    },
-                }
-            },
-            simpleValue: svData => {
-                if (svData.data.quote !== null) {
-                    writer(`${JSON.stringify(svData.data.value)}`)
-                } else {
-                    writer(`${svData.data.value}`)
-                }
-                return p.value(false)
-            },
-            taggedUnion: () => {
-                return {
-                    option: optionData => {
-                        writer(`[ "${optionData.option}", `)
-                        return createRequiredValuePrettyPrinter(`${indentation}`, writer)
-                    },
-                    missingOption: () => {
-                        //
-                    },
-                    end: () => {
-                        write(`]`)
-                    },
-                }
-            },
-        }
+        },
+        object: _objectData => {
+            let isFirstProperty = true
+            writer(`{`)
+            return {
+                onData: propertyData => {
+                    writer(`${isFirstProperty ? `` : `, `}${indentation}\t"${propertyData.key}": `)
+                    isFirstProperty = false
+                    return p.value(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
+                },
+                onEnd: () => {
+                    writer(`${indentation}}`)
+                    return p.value(null)
+                },
+            }
+        },
+        simpleValue: svData => {
+            if (svData.data.quote !== null) {
+                writer(`${JSON.stringify(svData.data.value)}`)
+            } else {
+                writer(`${svData.data.value}`)
+            }
+            return p.value(false)
+        },
+        taggedUnion: () => {
+            return {
+                option: optionData => {
+                    writer(`[ "${optionData.option}", `)
+                    return createRequiredValuePrettyPrinter(`${indentation}`, writer)
+                },
+                missingOption: () => {
+                    //
+                },
+                end: () => {
+                    write(`]`)
+                },
+            }
+        },
     }
 }
 

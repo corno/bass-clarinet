@@ -121,7 +121,7 @@ export function createRequiredValueHandler(
     valueType: ValueType,
 ): astn.RequiredValueHandler<ParserAnnotationData> {
     return context.expectValue(
-        () => createValueHandler(
+        createValueHandler(
             context,
             valueType,
         ),
@@ -181,7 +181,7 @@ export function createValueHandler(
             return context.expectList(
                 $2.onBegin,
                 () => {
-                    return () => createValueHandler(context, $1)
+                    return createValueHandler(context, $1)
                 },
                 $2.onEnd,
                 $2.onInvalidType,

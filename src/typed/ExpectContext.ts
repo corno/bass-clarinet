@@ -257,8 +257,8 @@ export class ExpectContext {
     private readonly warningHandler: ExpectErrorHandler
     //private readonly createDummyArrayHandler: (range: bc.Range, data: bc.ArrayOpenData, contextData: bc.ContextData) => bc.ArrayHandler
     //private readonly createDummyObjectHandler: (range: bc.Range, data: bc.ArrayOpenData, contextData: bc.ContextData) => bc.ObjectHandler
-    private readonly createDummyOnProperty: (range: astn.Range, key: string, contextData: astn.ParserAnnotationData) => astn.OnValue<ParserAnnotationData>
-    private readonly createDummyValueHandler: () => astn.OnValue<ParserAnnotationData>
+    private readonly createDummyOnProperty: (range: astn.Range, key: string, contextData: astn.ParserAnnotationData) => astn.ValueHandler<ParserAnnotationData>
+    private readonly createDummyValueHandler: () => astn.ValueHandler<ParserAnnotationData>
     private readonly createDummyRequiredValueHandler: () => astn.RequiredValueHandler<ParserAnnotationData>
     private readonly duplicateEntrySeverity: Severity
     private readonly onDuplicateEntry: OnDuplicateEntry
@@ -267,8 +267,8 @@ export class ExpectContext {
         warningHandler: ExpectErrorHandler,
         //createDummyArrayHandler: (range: bc.Range, data: bc.ArrayOpenData, contextData: bc.ContextData) => bc.ArrayHandler,
         //createDummyObjectHandler: (range: bc.Range, data: bc.ArrayOpenData, contextData: bc.ContextData) => bc.ObjectHandler,
-        createDummyPropertyHandler: (range: astn.Range, key: string, contextData: astn.ParserAnnotationData) => astn.OnValue<ParserAnnotationData>,
-        createDummyValueHandler: () => astn.OnValue<ParserAnnotationData>,
+        createDummyPropertyHandler: (range: astn.Range, key: string, contextData: astn.ParserAnnotationData) => astn.ValueHandler<ParserAnnotationData>,
+        createDummyValueHandler: () => astn.ValueHandler<ParserAnnotationData>,
         duplcateEntrySeverity: Severity,
         onDuplicateEntry: OnDuplicateEntry,
     ) {
@@ -468,25 +468,23 @@ export class ExpectContext {
                     index++
                     if (ee === undefined) {
                         const dvh = this.createDummyValueHandler()
-                        return () => {
-                            return {
-                                object: data => {
-                                    this.raiseError(["superfluous element", {}], data.annotation.range)
-                                    return dvh().object(data)
-                                },
-                                array: data => {
-                                    this.raiseError(["superfluous element", {}], data.annotation.range)
-                                    return dvh().array(data)
-                                },
-                                simpleValue: data => {
-                                    this.raiseError(["superfluous element", {}], data.annotation.range)
-                                    return dvh().simpleValue(data)
-                                },
-                                taggedUnion: data => {
-                                    this.raiseError(["superfluous element", {}], data.annotation.range)
-                                    return dvh().taggedUnion(data)
-                                },
-                            }
+                        return {
+                            object: data => {
+                                this.raiseError(["superfluous element", {}], data.annotation.range)
+                                return dvh.object(data)
+                            },
+                            array: data => {
+                                this.raiseError(["superfluous element", {}], data.annotation.range)
+                                return dvh.array(data)
+                            },
+                            simpleValue: data => {
+                                this.raiseError(["superfluous element", {}], data.annotation.range)
+                                return dvh.simpleValue(data)
+                            },
+                            taggedUnion: data => {
+                                this.raiseError(["superfluous element", {}], data.annotation.range)
+                                return dvh.taggedUnion(data)
+                            },
                         }
                         return this.createDummyValueHandler()
                     } else {
@@ -519,7 +517,7 @@ export class ExpectContext {
         }
     }
     public createListHandler(
-        onElement: () => astn.OnValue<ParserAnnotationData>,
+        onElement: () => astn.ValueHandler<ParserAnnotationData>,
         onBegin?: (beginData: ArrayBeginData<ParserAnnotationData>) => void,
         onEnd?: (endData: ArrayEndData<ParserAnnotationData>) => void,
     ): astn.OnArray<ParserAnnotationData> {
@@ -531,7 +529,7 @@ export class ExpectContext {
                 this.raiseWarning(["expected token", { token: "open bracket", found: arrayData.annotation.tokenString }], arrayData.annotation.range)
             }
             return {
-                onData: (): astn.OnValue<ParserAnnotationData> => onElement(),
+                onData: (): astn.ValueHandler<ParserAnnotationData> => onElement(),
                 onEnd: endData => {
                     if (endData.annotation.tokenString !== "]") {
                         this.raiseWarning(["expected token", { token: "close bracket", found: endData.annotation.tokenString }], endData.annotation.range)
@@ -746,7 +744,7 @@ export class ExpectContext {
     ): astn.OnArray<ParserAnnotationData> {
         return arrayData => {
             return {
-                onData: (): astn.OnValue<ParserAnnotationData> => {
+                onData: (): astn.ValueHandler<ParserAnnotationData> => {
                     return this.createDummyValueHandler()
                 },
                 onEnd: endData => {
@@ -878,7 +876,7 @@ export class ExpectContext {
         )
     }
     public expectValue(
-        onValue: astn.OnValue<ParserAnnotationData>,
+        onValue: astn.ValueHandler<ParserAnnotationData>,
         onMissing?: () => void,
     ): astn.RequiredValueHandler<ParserAnnotationData> {
         return {
@@ -962,7 +960,7 @@ export class ExpectContext {
     }
     public expectList(
         onBegin: (data: ArrayBeginData<ParserAnnotationData>) => void,
-        onElement: () => astn.OnValue<ParserAnnotationData>,
+        onElement: () => astn.ValueHandler<ParserAnnotationData>,
         onEnd: (endData: ArrayEndData<ParserAnnotationData>) => void,
         onInvalidType?: OnInvalidType,
     ): astn.ValueHandler<ParserAnnotationData> {

@@ -119,122 +119,120 @@ function createValueNormalizer<Annotation>(
     handleValue: HandleValue,
     sortKeys: boolean,
     parentComments: astn.Comment[] | null,
-): astn.OnValue<Annotation> {
-    return () => {
-        const valueComments: astn.Comment[] = []
-        const comments = parentComments === null ? valueComments : parentComments
-        return {
-            array: arrayData => {
-                const isShorthandType = arrayData.type[0] === "shorthand type"
-                const elements: SerializableValue[] = []
-                //addComments(arrayData.annotation.contextData, comments)
+): astn.ValueHandler<Annotation> {
+    const valueComments: astn.Comment[] = []
+    const comments = parentComments === null ? valueComments : parentComments
+    return {
+        array: arrayData => {
+            const isShorthandType = arrayData.type[0] === "shorthand type"
+            const elements: SerializableValue[] = []
+            //addComments(arrayData.annotation.contextData, comments)
 
-                return {
-                    onData: () => createValueNormalizer(
-                        elementValue => {
-                            elements.push(elementValue)
+            return {
+                onData: () => createValueNormalizer(
+                    elementValue => {
+                        elements.push(elementValue)
+                    },
+                    sortKeys,
+                    null,
+                ),
+                onEnd: _endData => {
+                    const intermediateComments: astn.Comment[] = []
+                    //addComments(endData.annotation.contextData, intermediateComments)
+                    handleValue({
+                        commentData: transformCommentsToSerializableCommentData(intermediateComments),
+                        type: ["array", {
+                            commentData: createEmptyCommentsData(),
+                            elements: new InArray(elements),
+                            openCharacter: isShorthandType ? "<" : "[",
+                            closeCharacter: isShorthandType ? ">" : "]",
+                        }],
+                    })
+                    return p.value(null)
+
+                },
+            }
+
+        },
+        object: objectData => {
+            const properties: { [key: string]: SerializableProperty } = {}
+
+            const isType = objectData.type[0] === "verbose type"
+            //addComments(objectData.annotation.contextData, comments)
+
+            return {
+                onData: propertyData => {
+                    const propertyComments: astn.Comment[] = []
+                    //addComments(propertyData.annotation.contextData, propertyComments)
+                    return p.value(createRequiredValueNormalizer(
+                        propertyValue => {
+                            properties[propertyData.key] = {
+                                quote: isType ? "'" : "\"",
+                                commentData: transformCommentsToSerializableCommentData(propertyComments),
+                                value: propertyValue,
+                            }
                         },
                         sortKeys,
-                        null,
-                    ),
-                    onEnd: _endData => {
-                        const intermediateComments: astn.Comment[] = []
-                        //addComments(endData.annotation.contextData, intermediateComments)
-                        handleValue({
-                            commentData: transformCommentsToSerializableCommentData(intermediateComments),
-                            type: ["array", {
-                                commentData: createEmptyCommentsData(),
-                                elements: new InArray(elements),
-                                openCharacter: isShorthandType ? "<" : "[",
-                                closeCharacter: isShorthandType ? ">" : "]",
-                            }],
-                        })
-                        return p.value(null)
+                        propertyComments,
+                    ))
+                },
+                onEnd: _endData => {
+                    //addComments(endData.annotation.contextData, comments)
+                    handleValue({
+                        commentData: transformCommentsToSerializableCommentData(valueComments),
+                        type: ["object", {
+                            commentData: createEmptyCommentsData(),
+                            properties: new InDictionary(properties, sortKeys),
+                            openCharacter: isType ? "(" : "{",
+                            closeCharacter: isType ? ")" : "}",
+                        }],
+                    })
+                    return p.value(null)
+                },
+            }
+        },
+        simpleValue: svData => {
+            //addComments(svData.annotation.contextData, comments)
 
-                    },
-                }
+            handleValue({
+                commentData: transformCommentsToSerializableCommentData(valueComments),
+                type: ["simple value", {
+                    quote: svData.data.quote === null ? null : "\"",
+                    value: svData.data.value,
+                }],
+            })
+            return p.value(false)
+        },
+        taggedUnion: _tuData => {
+            //addComments(tuData.annotation.contextData, comments)
 
-            },
-            object: objectData => {
-                const properties: { [key: string]: SerializableProperty } = {}
-
-                const isType = objectData.type[0] === "verbose type"
-                //addComments(objectData.annotation.contextData, comments)
-
-                return {
-                    onData: propertyData => {
-                        const propertyComments: astn.Comment[] = []
-                        //addComments(propertyData.annotation.contextData, propertyComments)
-                        return p.value(createRequiredValueNormalizer(
-                            propertyValue => {
-                                properties[propertyData.key] = {
-                                    quote: isType ? "'" : "\"",
-                                    commentData: transformCommentsToSerializableCommentData(propertyComments),
-                                    value: propertyValue,
-                                }
-                            },
-                            sortKeys,
-                            propertyComments,
-                        ))
-                    },
-                    onEnd: _endData => {
-                        //addComments(endData.annotation.contextData, comments)
-                        handleValue({
-                            commentData: transformCommentsToSerializableCommentData(valueComments),
-                            type: ["object", {
-                                commentData: createEmptyCommentsData(),
-                                properties: new InDictionary(properties, sortKeys),
-                                openCharacter: isType ? "(" : "{",
-                                closeCharacter: isType ? ")" : "}",
-                            }],
-                        })
-                        return p.value(null)
-                    },
-                }
-            },
-            simpleValue: svData => {
-                //addComments(svData.annotation.contextData, comments)
-
-                handleValue({
-                    commentData: transformCommentsToSerializableCommentData(valueComments),
-                    type: ["simple value", {
-                        quote: svData.data.quote === null ? null : "\"",
-                        value: svData.data.value,
-                    }],
-                })
-                return p.value(false)
-            },
-            taggedUnion: _tuData => {
-                //addComments(tuData.annotation.contextData, comments)
-
-                return {
-                    option: optionData => {
-                        //addComments(optionData.annotation.contextData, comments)
-                        return createRequiredValueNormalizer(
-                            tuData2 => {
-                                handleValue({
-                                    commentData: transformCommentsToSerializableCommentData(valueComments),
-                                    type: ["tagged union", {
-                                        option: optionData.option,
-                                        quote: "'",
-                                        commentData: createEmptyCommentsData(),
-                                        data: tuData2,
-                                    }],
-                                })
-                            },
-                            sortKeys,
-                            comments,
-                        )
-                    },
-                    missingOption: () => {
-                        //
-                    },
-                    end: () => {
-                        //
-                    },
-                }
-            },
-        }
+            return {
+                option: optionData => {
+                    //addComments(optionData.annotation.contextData, comments)
+                    return createRequiredValueNormalizer(
+                        tuData2 => {
+                            handleValue({
+                                commentData: transformCommentsToSerializableCommentData(valueComments),
+                                type: ["tagged union", {
+                                    option: optionData.option,
+                                    quote: "'",
+                                    commentData: createEmptyCommentsData(),
+                                    data: tuData2,
+                                }],
+                            })
+                        },
+                        sortKeys,
+                        comments,
+                    )
+                },
+                missingOption: () => {
+                    //
+                },
+                end: () => {
+                    //
+                },
+            }
+        },
     }
 }
 

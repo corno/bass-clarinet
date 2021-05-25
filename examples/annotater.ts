@@ -11,56 +11,54 @@ function createRequiredValuesAnnotater(indentation: string, writer: (str: string
     }
 }
 
-function createValuesAnnotater(indentation: string, writer: (str: string) => void): astn.OnValue<ParserAnnotationData> {
-    return () => {
-        return {
-            array: arrayData => {
-                writer(`${indentation}[ // ${astn.printRange(arrayData.annotation.range)}`)
-                return {
-                    onData: () => createValuesAnnotater(`${indentation}\t`, writer),
-                    onEnd: endData => {
-                        writer(`${indentation}] // ${astn.printRange(endData.annotation.range)}`)
-                        return p.value(null)
-                    },
-                }
-            },
-            object: objectData => {
-                writer(`${indentation}{ // ${astn.printRange(objectData.annotation.range)}`)
-                return {
-                    onData: propertyData => {
-                        writer(`${indentation}"${propertyData.key}": `)
-                        return p.value(createRequiredValuesAnnotater(`${indentation}\t`, writer))
-                    },
-                    onEnd: endData => {
-                        writer(`${indentation}} // ${astn.printRange(endData.annotation.range)}`)
-                        return p.value(null)
-                    },
-                }
-            },
-            simpleValue: svData => {
-                if (svData.data.quote !== null) {
-                    writer(`${indentation}${JSON.stringify(svData.data.value)} // ${astn.printRange(svData.annotation.range)}`)
-                } else {
-                    writer(`${indentation}${svData.data.value} // ${astn.printRange(svData.annotation.range)}`)
-                }
-                return p.value(false)
-            },
-            taggedUnion: tuData => {
-                writer(`| ${indentation}`)
-                return {
-                    option: optionData => {
-                        writer(`"${JSON.stringify(optionData.option)}" // ${astn.printRange(tuData.annotation.range)} ${astn.printRange(tuData.annotation.range)}`)
-                        return createRequiredValuesAnnotater(`${indentation}\t`, writer)
-                    },
-                    missingOption: () => {
-                        //
-                    },
-                    end: () => {
-                        //
-                    },
-                }
-            },
-        }
+function createValuesAnnotater(indentation: string, writer: (str: string) => void): astn.ValueHandler<ParserAnnotationData> {
+    return {
+        array: arrayData => {
+            writer(`${indentation}[ // ${astn.printRange(arrayData.annotation.range)}`)
+            return {
+                onData: () => createValuesAnnotater(`${indentation}\t`, writer),
+                onEnd: endData => {
+                    writer(`${indentation}] // ${astn.printRange(endData.annotation.range)}`)
+                    return p.value(null)
+                },
+            }
+        },
+        object: objectData => {
+            writer(`${indentation}{ // ${astn.printRange(objectData.annotation.range)}`)
+            return {
+                onData: propertyData => {
+                    writer(`${indentation}"${propertyData.key}": `)
+                    return p.value(createRequiredValuesAnnotater(`${indentation}\t`, writer))
+                },
+                onEnd: endData => {
+                    writer(`${indentation}} // ${astn.printRange(endData.annotation.range)}`)
+                    return p.value(null)
+                },
+            }
+        },
+        simpleValue: svData => {
+            if (svData.data.quote !== null) {
+                writer(`${indentation}${JSON.stringify(svData.data.value)} // ${astn.printRange(svData.annotation.range)}`)
+            } else {
+                writer(`${indentation}${svData.data.value} // ${astn.printRange(svData.annotation.range)}`)
+            }
+            return p.value(false)
+        },
+        taggedUnion: tuData => {
+            writer(`| ${indentation}`)
+            return {
+                option: optionData => {
+                    writer(`"${JSON.stringify(optionData.option)}" // ${astn.printRange(tuData.annotation.range)} ${astn.printRange(tuData.annotation.range)}`)
+                    return createRequiredValuesAnnotater(`${indentation}\t`, writer)
+                },
+                missingOption: () => {
+                    //
+                },
+                end: () => {
+                    //
+                },
+            }
+        },
     }
 }
 

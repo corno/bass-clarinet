@@ -188,49 +188,47 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 },
             }
         }
-        function createTestValueHandler(): astn.OnValue<ParserAnnotationData> {
-            return () => {
-                return {
-                    array: () => {
-                        return {
-                            onData: () => {
-                                return createTestValueHandler()
-                            },
-                            onEnd: () => {
-                                //
-                                return p.value(null)
-                            },
-                        }
-                    },
-                    object: () => {
-                        return {
-                            onData: () => {
-                                return p.value(createTestRequiredValueHandler())
-                            },
-                            onEnd: () => {
-                                //
-                                return p.value(null)
-                            },
-                        }
+        function createTestValueHandler(): astn.ValueHandler<ParserAnnotationData> {
+            return {
+                array: () => {
+                    return {
+                        onData: () => {
+                            return createTestValueHandler()
+                        },
+                        onEnd: () => {
+                            //
+                            return p.value(null)
+                        },
+                    }
+                },
+                object: () => {
+                    return {
+                        onData: () => {
+                            return p.value(createTestRequiredValueHandler())
+                        },
+                        onEnd: () => {
+                            //
+                            return p.value(null)
+                        },
+                    }
 
-                    },
-                    simpleValue: () => {
-                        return p.value(false)
-                    },
-                    taggedUnion: () => {
-                        return {
-                            missingOption: () => {
-                                //
-                            },
-                            option: () => {
-                                return createTestRequiredValueHandler()
-                            },
-                            end: () => {
-                                //
-                            },
-                        }
-                    },
-                }
+                },
+                simpleValue: () => {
+                    return p.value(false)
+                },
+                taggedUnion: () => {
+                    return {
+                        missingOption: () => {
+                            //
+                        },
+                        option: () => {
+                            return createTestRequiredValueHandler()
+                        },
+                        end: () => {
+                            //
+                        },
+                    }
+                },
             }
         }
 
