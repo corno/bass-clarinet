@@ -222,10 +222,8 @@ export type ExpectedElements = ExpectedElement[]
 export type ExpectedProperty = {
     onExists: (range: astn.Range, contextData: astn.ParserAnnotationData) => astn.RequiredValueHandler<ParserAnnotationData>
     onNotExists: null | ((
-        openRangeOfContainingType: astn.Range,
-        openDataOfContainingType: astn.ObjectOpenData,
-        closeRangeOfContainingType: astn.Range,
-        closeDataOfContainingType: astn.ObjectCloseData
+        beginData: ObjectBeginData<ParserAnnotationData>,
+        endData: ObjectEndData<ParserAnnotationData>,
     ) => void
     ) //if onNotExists is null and the property does not exist, an error will be raised
 }
@@ -299,15 +297,15 @@ export class ExpectContext {
     }
     public createDictionaryHandler(
         onEntry: (propertyData: PropertyData<ParserAnnotationData>) => astn.RequiredValueHandler<ParserAnnotationData>,
-        onBegin?: (range: astn.Range, metaData: astn.ObjectOpenData) => void,
+        onBegin?: (data: ObjectBeginData<ParserAnnotationData>) => void,
         onEnd?: (endData: ObjectEndData<ParserAnnotationData>) => void,
     ): astn.OnObject<ParserAnnotationData> {
         return objectData => {
             if (onBegin) {
-                onBegin(objectData.annotation.range, objectData.data)
+                onBegin(objectData)
             }
-            if (objectData.data.openCharacter !== "{") {
-                this.raiseWarning(["expected token", { token: "open curly", found: objectData.data.openCharacter }], objectData.annotation.range)
+            if (objectData.annotation.tokenString !== "{") {
+                this.raiseWarning(["expected token", { token: "open curly", found: objectData.annotation.tokenString }], objectData.annotation.range)
             }
             const foundEntries: string[] = []
             return {
@@ -344,8 +342,8 @@ export class ExpectContext {
                     return p.value(vh)
                 },
                 onEnd: endData => {
-                    if (endData.data.closeCharacter !== "}") {
-                        this.raiseWarning(["expected token", { token: "close curly", found: endData.data.closeCharacter }], endData.annotation.range)
+                    if (endData.annotation.tokenString !== "}") {
+                        this.raiseWarning(["expected token", { token: "close curly", found: endData.annotation.tokenString }], endData.annotation.range)
                     }
                     if (onEnd) {
                         onEnd(endData)
@@ -358,15 +356,15 @@ export class ExpectContext {
     public createTypeHandler(
         expectedProperties: ExpectedProperties,
         onBegin?: (objectData: ObjectBeginData<ParserAnnotationData>) => void,
-        onEnd?: (hasErrors: boolean, endRange: astn.Range, endData: astn.ObjectCloseData, contextData: astn.ParserAnnotationData) => void,
+        onEnd?: (hasErrors: boolean, endData: ObjectEndData<ParserAnnotationData>) => void,
         onUnexpectedProperty?: (key: string, range: astn.Range, contextData: astn.ParserAnnotationData) => astn.RequiredValueHandler<ParserAnnotationData>,
     ): astn.OnObject<ParserAnnotationData> {
         return objectData => {
             if (onBegin) {
                 onBegin(objectData)
             }
-            if (objectData.data.openCharacter !== "(") {
-                this.raiseWarning(["expected token", { token: "open paren", found: objectData.data.openCharacter }], objectData.annotation.range)
+            if (objectData.annotation.tokenString !== "(") {
+                this.raiseWarning(["expected token", { token: "open paren", found: objectData.annotation.tokenString }], objectData.annotation.range)
             }
             const foundProperies: string[] = []
             let hasErrors = false
@@ -425,8 +423,8 @@ export class ExpectContext {
                     return p.value(vh)
                 },
                 onEnd: endData => {
-                    if (endData.data.closeCharacter !== ")") {
-                        this.raiseWarning(["expected token", { token: "close paren", found: endData.data.closeCharacter }], endData.annotation.range)
+                    if (endData.annotation.tokenString !== ")") {
+                        this.raiseWarning(["expected token", { token: "close paren", found: endData.annotation.tokenString }], endData.annotation.range)
                     }
                     Object.keys(expectedProperties).forEach(epName => {
                         if (!foundProperies.includes(epName)) {
@@ -436,16 +434,14 @@ export class ExpectContext {
                                 hasErrors = true
                             } else {
                                 ep.onNotExists(
-                                    objectData.annotation.range,
-                                    objectData.data,
-                                    endData.annotation.range,
-                                    endData.data
+                                    objectData,
+                                    endData,
                                 )
                             }
                         }
                     })
                     if (onEnd) {
-                        onEnd(hasErrors, endData.annotation.range, endData.data, endData.annotation)
+                        onEnd(hasErrors, endData)
                     }
                     return p.value(null)
 
@@ -462,24 +458,44 @@ export class ExpectContext {
             if (onBegin) {
                 onBegin(arrayData)
             }
-            if (arrayData.data.openCharacter !== "<") {
-                this.raiseWarning(["expected token", { token: "open angle bracket", found: arrayData.data.openCharacter }], arrayData.annotation.range)
+            if (arrayData.annotation.tokenString !== "<") {
+                this.raiseWarning(["expected token", { token: "open angle bracket", found: arrayData.annotation.tokenString }], arrayData.annotation.range)
             }
             let index = 0
             return {
-                onData: (range): astn.OnValue<ParserAnnotationData> => {
+                onData: () => {
                     const ee = expectedElements[index]
                     index++
                     if (ee === undefined) {
-                        this.raiseError(["superfluous element", {}], range)//FIX print range properly
+                        const dvh = this.createDummyValueHandler()
+                        return () => {
+                            return {
+                                object: data => {
+                                    this.raiseError(["superfluous element", {}], data.annotation.range)
+                                    return dvh().object(data)
+                                },
+                                array: data => {
+                                    this.raiseError(["superfluous element", {}], data.annotation.range)
+                                    return dvh().array(data)
+                                },
+                                simpleValue: data => {
+                                    this.raiseError(["superfluous element", {}], data.annotation.range)
+                                    return dvh().simpleValue(data)
+                                },
+                                taggedUnion: data => {
+                                    this.raiseError(["superfluous element", {}], data.annotation.range)
+                                    return dvh().taggedUnion(data)
+                                },
+                            }
+                        }
                         return this.createDummyValueHandler()
                     } else {
                         return ee.getHandler().onExists
                     }
                 },
                 onEnd: endData => {
-                    if (endData.data.closeCharacter !== ">") {
-                        this.raiseWarning(["expected token", { token: "close angle bracket", found: endData.data.closeCharacter }], endData.annotation.range)
+                    if (endData.annotation.tokenString !== ">") {
+                        this.raiseWarning(["expected token", { token: "close angle bracket", found: endData.annotation.tokenString }], endData.annotation.range)
                     }
                     const missing = expectedElements.length - index
                     if (missing > 0) {
@@ -511,14 +527,14 @@ export class ExpectContext {
             if (onBegin) {
                 onBegin(arrayData)
             }
-            if (arrayData.data.openCharacter !== "[") {
-                this.raiseWarning(["expected token", { token: "open bracket", found: arrayData.data.openCharacter }], arrayData.annotation.range)
+            if (arrayData.annotation.tokenString !== "[") {
+                this.raiseWarning(["expected token", { token: "open bracket", found: arrayData.annotation.tokenString }], arrayData.annotation.range)
             }
             return {
                 onData: (): astn.OnValue<ParserAnnotationData> => onElement(),
                 onEnd: endData => {
-                    if (endData.data.closeCharacter !== "]") {
-                        this.raiseWarning(["expected token", { token: "close bracket", found: endData.data.closeCharacter }], endData.annotation.range)
+                    if (endData.annotation.tokenString !== "]") {
+                        this.raiseWarning(["expected token", { token: "close bracket", found: endData.annotation.tokenString }], endData.annotation.range)
                     }
                     if (onEnd) {
                         onEnd(endData)
@@ -902,7 +918,7 @@ export class ExpectContext {
         )
     }
     public expectDictionary(
-        onBegin: (range: astn.Range, metaData: astn.ObjectOpenData) => void,
+        onBegin: (data: ObjectBeginData<ParserAnnotationData>) => void,
         onProperty: (propertyData: PropertyData<ParserAnnotationData>) => astn.RequiredValueHandler<ParserAnnotationData>,
         onEnd: (endData: ObjectEndData<ParserAnnotationData>) => void,
         onInvalidType?: OnInvalidType,
@@ -922,7 +938,7 @@ export class ExpectContext {
     public expectType(
         expectedProperties: ExpectedProperties = {},
         onBegin?: (data: ObjectBeginData<ParserAnnotationData>) => void,
-        onEnd?: (hasErrors: boolean, range: astn.Range, endData: astn.ObjectCloseData, contextData: astn.ParserAnnotationData) => void,
+        onEnd?: (hasErrors: boolean, data: ObjectEndData<ParserAnnotationData>) => void,
         onUnexpectedProperty?: (key: string, range: astn.Range, contextData: astn.ParserAnnotationData) => astn.RequiredValueHandler<ParserAnnotationData>,
         onInvalidType?: OnInvalidType,
         onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
@@ -986,7 +1002,7 @@ export class ExpectContext {
         expectedProperties: ExpectedProperties = {},
         expectedElements: ExpectedElements,
         onTypeBegin?: (data: ObjectBeginData<ParserAnnotationData>) => void,
-        onTypeEnd?: (hasErrors: boolean, range: astn.Range, endData: astn.ObjectCloseData, contextData: astn.ParserAnnotationData) => void,
+        onTypeEnd?: (hasErrors: boolean, data: ObjectEndData<ParserAnnotationData>) => void,
         onUnexpectedProperty?: (key: string, range: astn.Range, contextData: astn.ParserAnnotationData) => astn.RequiredValueHandler<ParserAnnotationData>,
         onShorthandTypeBegin?: (data: ArrayBeginData<ParserAnnotationData>) => void,
         onShorthandTypeEnd?: (endData: ArrayEndData<ParserAnnotationData>) => void,

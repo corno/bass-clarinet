@@ -29,25 +29,26 @@ function createValuePrettyPrinter<Annotation>(indentation: string, writer: (str:
     return () => {
         return {
             array: arrayData => {
-                writer(arrayData.data.openCharacter)
+
+                writer(arrayData.type[0] === "shorthand type" ? "<" : "[")
                 return {
                     onData: () => createValuePrettyPrinter(`${indentation}\t`, writer),
-                    onEnd: endData => {
-                        writer(`${indentation}${endData.data.closeCharacter}`)
+                    onEnd: () => {
+                        writer(`${indentation}${arrayData.type[0] === "shorthand type" ? ">" : "]"}`)
                         return p.value(null)
                     },
                 }
 
             },
             object: objectData => {
-                writer(objectData.data.openCharacter)
+                writer(objectData.type[0] === "verbose type" ? "(" : "{")
                 return {
                     onData: propertyData => {
                         writer(`${indentation}\t"${propertyData.key}": `)
                         return p.value(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
                     },
-                    onEnd: endData => {
-                        writer(`${indentation}${endData.data.closeCharacter}`)
+                    onEnd: () => {
+                        writer(`${indentation}${objectData.type[0] === "verbose type" ? ")" : "}"}`)
                         return p.value(null)
                     },
                 }

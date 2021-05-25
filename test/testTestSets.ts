@@ -89,13 +89,11 @@ class OutPutter implements astn.TextParserEventConsumer<null, null> {
     onData(data: astn.TreeEvent) {
         switch (data.type[0]) {
             case astn.TreeEventType.CloseArray: {
-                const $ = data.type[1]
-                this.out.push($.closeCharacter)
+                this.out.push(data.tokenString)
                 break
             }
             case astn.TreeEventType.CloseObject: {
-                const $ = data.type[1]
-                this.out.push($.closeCharacter)
+                this.out.push(data.tokenString)
                 break
             }
             case astn.TreeEventType.Colon: {
@@ -107,13 +105,11 @@ class OutPutter implements astn.TextParserEventConsumer<null, null> {
                 break
             }
             case astn.TreeEventType.OpenArray: {
-                const $ = data.type[1]
-                this.out.push($.openCharacter)
+                this.out.push(data.tokenString)
                 break
             }
             case astn.TreeEventType.OpenObject: {
-                const $ = data.type[1]
-                this.out.push($.openCharacter)
+                this.out.push(data.tokenString)
                 break
             }
             case astn.TreeEventType.Overhead: {
@@ -281,15 +277,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             onData: data => {
                 switch (data.type[0]) {
                     case astn.TreeEventType.CloseArray: {
-                        const $ = data.type[1]
                         if (DEBUG) console.log("found close array")
-                        actualEvents.push(["token", "closearray", $.closeCharacter, getRange(test.testForLocation, data.range)])
+                        actualEvents.push(["token", "closearray", data.tokenString, getRange(test.testForLocation, data.range)])
                         break
                     }
                     case astn.TreeEventType.CloseObject: {
-                        const $ = data.type[1]
                         if (DEBUG) console.log("found close object")
-                        actualEvents.push(["token", "closeobject", $.closeCharacter, getRange(test.testForLocation, data.range)])
+                        actualEvents.push(["token", "closeobject", data.tokenString, getRange(test.testForLocation, data.range)])
                         break
                     }
                     case astn.TreeEventType.Colon: {
@@ -299,15 +293,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         break
                     }
                     case astn.TreeEventType.OpenArray: {
-                        const $ = data.type[1]
                         if (DEBUG) console.log("found open array")
-                        actualEvents.push(["token", "openarray", $.openCharacter, getRange(test.testForLocation, data.range)])
+                        actualEvents.push(["token", "openarray", data.tokenString, getRange(test.testForLocation, data.range)])
                         break
                     }
                     case astn.TreeEventType.OpenObject: {
-                        const $ = data.type[1]
                         if (DEBUG) console.log("found open object")
-                        actualEvents.push(["token", "openobject", $.openCharacter, getRange(test.testForLocation, data.range)])
+                        actualEvents.push(["token", "openobject", data.tokenString, getRange(test.testForLocation, data.range)])
                         break
                     }
                     case astn.TreeEventType.Overhead: {

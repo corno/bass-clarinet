@@ -62,12 +62,13 @@ export class Tokenizer<ReturnType, ErrorType> {
             }
             case PreTokenDataType.NewLine: {
                 const $ = data.type[1]
-                return this.onNewLine($.range)
+                return this.onNewLine($.range, "FIXME NEWLINE TOKEN STRING")
             }
             case PreTokenDataType.Punctuation: {
                 const $ = data.type[1]
                 this.indentationState = [IndentationState.lineIsDitry]
                 return this.parser.onData({
+                    tokenString: String.fromCharCode($.char),
                     range: $.range,
                     type: [TokenType.Punctuation, {
                         char: $.char,
@@ -157,6 +158,7 @@ export class Tokenizer<ReturnType, ErrorType> {
         const $ = this.currentToken[1]
         const endOfStart = getEndLocationFromRange($.start)
         const od = this.parser.onData({
+            tokenString: "*/",
             range: createRangeFromLocations(
                 $.start.start,
                 getEndLocationFromRange(end),
@@ -205,6 +207,7 @@ export class Tokenizer<ReturnType, ErrorType> {
         const range = createRangeFromLocations($.start, location)
         this.unsetCurrentToken(createRangeFromSingleLocation(location))
         return this.parser.onData({
+            tokenString: "",
             range: range,
             type: [TokenType.SimpleValue, {
                 value: value,
@@ -235,6 +238,7 @@ export class Tokenizer<ReturnType, ErrorType> {
         const $ = this.currentToken[1]
         const range = createRangeFromLocations($.start, location)
         const od = this.parser.onData({
+            tokenString: $.whitespaceNode,
             range: range,
             type: [TokenType.Overhead, {
                 type: [OverheadTokenType.WhiteSpace, {
@@ -261,8 +265,11 @@ export class Tokenizer<ReturnType, ErrorType> {
         const value = $tok.quotedStringNode
         const range = createRangeFromLocations($tok.start.start, getEndLocationFromRange(end))
 
+        const quote2 = quote === null ? "" : quote
+
         this.unsetCurrentToken(end)
         return this.parser.onData({
+            tokenString: `${quote2}${value}${quote2}`,
             range: range,
             type: [TokenType.SimpleValue, {
                 value: value,
@@ -298,6 +305,7 @@ export class Tokenizer<ReturnType, ErrorType> {
         const range = createRangeFromLocations($.start.start, location)
         const endOfStart = getEndLocationFromRange($.start)
         const od = this.parser.onData({
+            tokenString: "",
             range: range,
             type: [TokenType.Overhead, {
                 type: [OverheadTokenType.Comment, {
@@ -355,12 +363,13 @@ export class Tokenizer<ReturnType, ErrorType> {
         }
         return p.value(false)
     }
-    private onNewLine(range: Range): p.IValue<boolean> {
+    private onNewLine(range: Range, tokenString: string): p.IValue<boolean> {
         if (DEBUG) console.log(`onNewLine`)
 
         this.indentationState = [IndentationState.lineIsVirgin]
 
         return this.parser.onData({
+            tokenString: tokenString,
             range: range,
             type: [TokenType.Overhead, {
                 type: [OverheadTokenType.NewLine, {

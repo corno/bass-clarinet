@@ -123,8 +123,7 @@ class StrictJSONValidator implements TextParserEventConsumer<null, null> {
     public onData(data: TreeEvent) {
         switch (data.type[0]) {
             case TreeEventType.CloseArray: {
-                const $ = data.type[1]
-                if ($.closeCharacter !== "]") {
+                if (data.tokenString !== "]") {
                     this.onError("arrays should end with ']' in strict JSON", data.range)
                 }
                 if (this.currentContext[0] !== "array") {
@@ -139,8 +138,7 @@ class StrictJSONValidator implements TextParserEventConsumer<null, null> {
                 break
             }
             case TreeEventType.CloseObject: {
-                const $ = data.type[1]
-                if ($.closeCharacter !== "}") {
+                if (data.tokenString !== "}") {
                     this.onError("objects should end with '}' in strict JSON", data.range)
                 }
                 if (this.currentContext[0] !== "object") {
@@ -199,8 +197,7 @@ class StrictJSONValidator implements TextParserEventConsumer<null, null> {
                 break
             }
             case TreeEventType.OpenArray: {
-                const $ = data.type[1]
-                if ($.openCharacter !== "[") {
+                if (data.tokenString !== "[") {
                     this.onError("arrays should start with '[' in strict JSON", data.range)
                 }
                 this.onValue(data.range)
@@ -208,8 +205,7 @@ class StrictJSONValidator implements TextParserEventConsumer<null, null> {
                 break
             }
             case TreeEventType.OpenObject: {
-                const $ = data.type[1]
-                if ($.openCharacter !== "{") {
+                if (data.tokenString !== "{") {
                     this.onError("objects should start with '{' in strict JSON", data.range)
                 }
                 this.onValue(data.range)

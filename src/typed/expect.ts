@@ -38,7 +38,7 @@ export type ValueType =
         "dicionary",
         (propertyData: PropertyData<ParserAnnotationData>) => ValueType,
         {
-            onBegin: (range: astn.Range, metaData: astn.ObjectOpenData) => void
+            onBegin: (data: ObjectBeginData<ParserAnnotationData>) => void
             onEnd: (objectEndData: ObjectEndData<ParserAnnotationData>) => void
             onMissing?: () => void
             onInvalidType?: () => void
@@ -101,17 +101,15 @@ export type ValueType =
             | PropertyHandler
             | [PropertyHandler, {
                 onNotExists?: (
-                    openRangeOfContainingType: astn.Range,
-                    openDataOfContainingType: astn.ObjectOpenData,
-                    closeRangeOfContainingType: astn.Range,
-                    closeDataOfContainingType: astn.ObjectCloseData
+                    beginData: ObjectBeginData<ParserAnnotationData>,
+                    endData: ObjectEndData<ParserAnnotationData>,
                 ) => void
             }?
             ]
         },
         {
             onBegin?: (data: ObjectBeginData<ParserAnnotationData>) => void
-            onEnd?: (hasErrors: boolean, endRange: astn.Range, endData: astn.ObjectCloseData, contextData: astn.ParserAnnotationData) => void
+            onEnd?: (hasErrors: boolean, data: ObjectEndData<ParserAnnotationData>) => void
             onUnexpectedProperty?: (key: string, range: astn.Range, contextData: astn.ParserAnnotationData) => astn.RequiredValueHandler<ParserAnnotationData>
             onMissing?: () => void
             onInvalidType?: OnInvalidType

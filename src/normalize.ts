@@ -125,7 +125,7 @@ function createValueNormalizer<Annotation>(
         const comments = parentComments === null ? valueComments : parentComments
         return {
             array: arrayData => {
-                const isShorthandType = arrayData.data.openCharacter === "<"
+                const isShorthandType = arrayData.type[0] === "shorthand type"
                 const elements: SerializableValue[] = []
                 //addComments(arrayData.annotation.contextData, comments)
 
@@ -158,7 +158,7 @@ function createValueNormalizer<Annotation>(
             object: objectData => {
                 const properties: { [key: string]: SerializableProperty } = {}
 
-                const isType = objectData.data.openCharacter === "("
+                const isType = objectData.type[0] === "verbose type"
                 //addComments(objectData.annotation.contextData, comments)
 
                 return {

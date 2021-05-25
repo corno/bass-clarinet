@@ -194,7 +194,7 @@ export class TextParser<ReturnType, ErrorType> {
                         }
                     },
                     simpleValue => {
-                        return this.processSimpleValueInstanceData(simpleValue, data.range)
+                        return this.processSimpleValueInstanceData(simpleValue, data.range, data.tokenString)
                     }
                 )
             }
@@ -232,6 +232,7 @@ export class TextParser<ReturnType, ErrorType> {
                     simpleValue => {
                         const consumer = this.onSchemaDataStart(data.range)
                         return consumer.onData({
+                            tokenString: data.tokenString,
                             range: data.range,
                             type: [TreeEventType.SimpleValue, simpleValue],
                         }).mapResult(() => {
@@ -274,7 +275,7 @@ export class TextParser<ReturnType, ErrorType> {
                         return this.processComplexValueInstanceData(data, data.range)
                     },
                     simpleValue => {
-                        return this.processSimpleValueInstanceData(simpleValue, data.range)
+                        return this.processSimpleValueInstanceData(simpleValue, data.range, data.tokenString)
                     }
                 )
             }
@@ -329,10 +330,11 @@ export class TextParser<ReturnType, ErrorType> {
             return p.value(false)
         })
     }
-    private processSimpleValueInstanceData(simpleValue: SimpleValueData, range: Range) {
+    private processSimpleValueInstanceData(simpleValue: SimpleValueData, range: Range, tokenString: string) {
 
         const consumer = this.onBodyStart(range.start)
         return consumer.onData({
+            tokenString: tokenString,
             range: range,
             type: [TreeEventType.SimpleValue, simpleValue],
         }).mapResult(() => {

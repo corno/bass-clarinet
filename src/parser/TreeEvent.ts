@@ -13,35 +13,16 @@ export enum TreeEventType {
     TaggedUnion,
 }
 
-export type ArrayOpenData = {
-    openCharacter: "[" | "<"
-}
-
-export type ArrayCloseData = {
-    closeCharacter: "]" | ">"
-}
-
-export type ObjectOpenData = {
-    openCharacter: "(" | "{"
-}
-
-export type ObjectCloseData = {
-    closeCharacter: ")" | "}"
-}
-
 export type TreeEvent = {
+    tokenString: string
     range: Range
     type:
-    | [TreeEventType.CloseArray, ArrayCloseData]
-    | [TreeEventType.CloseObject, ObjectCloseData]
-    | [TreeEventType.Colon, {
-        //
-    }]
-    | [TreeEventType.Comma, {
-        //
-    }]
-    | [TreeEventType.OpenArray, ArrayOpenData]
-    | [TreeEventType.OpenObject, ObjectOpenData]
+    | [TreeEventType.CloseArray]
+    | [TreeEventType.CloseObject]
+    | [TreeEventType.Colon]
+    | [TreeEventType.Comma]
+    | [TreeEventType.OpenArray]
+    | [TreeEventType.OpenObject]
     | [TreeEventType.Overhead, OverheadToken]
     | [TreeEventType.SimpleValue, SimpleValueData]
     | [TreeEventType.TaggedUnion, {

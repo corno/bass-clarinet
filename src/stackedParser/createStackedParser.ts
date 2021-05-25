@@ -20,7 +20,6 @@ import {
     OnValue,
     ObjectHandler,
     ArrayHandler,
-    Comment,
     TaggedUnionHandler,
     ValueHandler,
 } from "./handlers"
@@ -40,8 +39,19 @@ export type ContextData = {
 }
 
 export type ParserAnnotationData = {
+    tokenString: string
     contextData: ContextData
     range: Range
+}
+
+export type Comment = {
+    text: string
+    outerRange: Range
+    innerRange: Range
+    type:
+    | "block"
+    | "line"
+    indent: null | string
 }
 
 
@@ -211,10 +221,10 @@ class SemanticState {
                 return assertUnreachable(this.currentContext[0])
         }
     }
-    public initValueHandler(range: Range): OnValue<ParserAnnotationData> {
+    public initValueHandler(): OnValue<ParserAnnotationData> {
         switch (this.currentContext[0]) {
             case "array": {
-                return this.currentContext[1].arrayHandler.onData(range)
+                return this.currentContext[1].arrayHandler.onData()
             }
             case "object": {
                 if (this.currentContext[1].propertyHandler === null) {
@@ -274,7 +284,6 @@ function processParserEvent(
 
     switch (data.type[0]) {
         case TreeEventType.CloseArray: {
-            const $ = data.type[1]
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
@@ -323,8 +332,8 @@ function processParserEvent(
                     } else {
                         const $$ = semanticState.currentContext[1]
                         $$.arrayHandler.onEnd({
-                            data: $,
                             annotation: {
+                                tokenString: data.tokenString,
                                 range: data.range,
                                 contextData: contextData,
                             },
@@ -337,7 +346,6 @@ function processParserEvent(
             }]
         }
         case TreeEventType.CloseObject: {
-            const $ = data.type[1]
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
@@ -388,8 +396,8 @@ function processParserEvent(
                             $$.propertyHandler = null
                         }
                         $$.objectHandler.onEnd({
-                            data: $,
                             annotation: {
+                                tokenString: data.tokenString,
                                 range: data.range,
                                 contextData: contextData,
                             },
@@ -409,13 +417,13 @@ function processParserEvent(
             return ["other"]
         }
         case TreeEventType.OpenArray: {
-            const $ = data.type[1]
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
-                    const arrayHandler = semanticState.initValueHandler(data.range)().array({
-                        data: $,
+                    const arrayHandler = semanticState.initValueHandler()().array({
+                        type: data.tokenString === "<" ? ["shorthand type"] : ["list"],
                         annotation: {
+                            tokenString: data.tokenString,
                             range: data.range,
                             contextData: contextData,
                         },
@@ -426,15 +434,15 @@ function processParserEvent(
             }]
         }
         case TreeEventType.OpenObject: {
-            const $ = data.type[1]
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
-                    const vh = semanticState.initValueHandler(data.range)()
+                    const vh = semanticState.initValueHandler()()
 
                     const objectHandler = vh.object({
-                        data: $,
+                        type: data.tokenString === "(" ? ["verbose type"] : ["dictionary"],
                         annotation: {
+                            tokenString: data.tokenString,
                             range: data.range,
                             contextData: contextData,
                         },
@@ -466,9 +474,8 @@ function processParserEvent(
                     return ["newline"]
                 }
                 case OverheadTokenType.WhiteSpace: {
-                    const $$ = $.type[1]
                     return ["whitespace", {
-                        value: $$.value,
+                        value: data.tokenString,
                     }]
                 }
                 default:
@@ -487,6 +494,7 @@ function processParserEvent(
                         return vh.simpleValue({
                             data: $,
                             annotation: {
+                                tokenString: $.value, //this should probably the full token, including wrapping characters
                                 range: data.range,
                                 contextData: cd,
                             },
@@ -495,7 +503,7 @@ function processParserEvent(
                     switch (semanticState.currentContext[0]) {
                         case "array": {
                             const $ = semanticState.currentContext[1]
-                            return onSimpleValue($.arrayHandler.onData(data.range)(), contextData)
+                            return onSimpleValue($.arrayHandler.onData()(), contextData)
                         }
                         case "object": {
                             const $$ = semanticState.currentContext[1]
@@ -507,6 +515,7 @@ function processParserEvent(
                                     return $$.objectHandler.onData({
                                         key: $.value,
                                         annotation: {
+                                            tokenString: $.value, //this should probably the full token, including wrapping characters
                                             range: data.range,
                                             contextData: contextData,
                                         },
@@ -537,6 +546,7 @@ function processParserEvent(
                                     $$.state = ["expecting value", $$.handler.option({
                                         option: $.value,
                                         annotation: {
+                                            tokenString: $.value, //this should probably the full token, including wrapping characters
                                             range: data.range,
                                             contextData: contextData,
                                         },
@@ -563,9 +573,9 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
                     semanticState.push(["taggedunion", {
-                        handler: semanticState.initValueHandler(data.range)().taggedUnion({
-                            range: data.range,
+                        handler: semanticState.initValueHandler()().taggedUnion({
                             annotation: {
+                                tokenString: data.tokenString,
                                 range: data.range,
                                 contextData: contextData,
                             },

@@ -179,6 +179,7 @@ export class TreeParser<ReturnType, ErrorType> {
                 const $ = token.type[1]
 
                 return this.sendEvent({
+                    tokenString: token.tokenString,
                     range: token.range,
                     type: [TreeEventType.Overhead, $],
                 })
@@ -186,21 +187,22 @@ export class TreeParser<ReturnType, ErrorType> {
             case TokenType.Punctuation: {
                 const $ = token.type[1]
 
-                return this.onPunctuation(token.range, $, onStackEmpty)
+                return this.onPunctuation(token.range, token.tokenString, $, onStackEmpty)
             }
             case TokenType.SimpleValue: {
                 const $ = token.type[1]
 
-                return this.onSimpleValue(token.range, $, onStackEmpty)
+                return this.onSimpleValue(token.range, token.tokenString, $, onStackEmpty)
             }
             default:
                 return assertUnreachable(token.type[0])
         }
     }
-    private onSimpleValue(range: Range, data: SimpleValueData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+    private onSimpleValue(range: Range, tokenString: string, data: SimpleValueData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
 
         const y = (data2: SimpleValueData) => {
             return this.sendEvent({
+                tokenString: tokenString,
                 range: range,
                 type: [TreeEventType.SimpleValue, data2],
             })
@@ -253,7 +255,7 @@ export class TreeParser<ReturnType, ErrorType> {
         }
 
     }
-    public onPunctuation(range: Range, data: PunctionationData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+    public onPunctuation(range: Range, tokenString: string, data: PunctionationData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
         const curChar = data.char
         switch (curChar) {
             case Char.Punctuation.exclamationMark:
@@ -266,9 +268,9 @@ export class TreeParser<ReturnType, ErrorType> {
             case Char.Punctuation.comma:
                 //
                 return this.sendEvent({
+                    tokenString: tokenString,
                     range: range,
-                    type: [TreeEventType.Comma, {
-                    }],
+                    type: [TreeEventType.Comma],
                 })
             case Char.Punctuation.openAngleBracket:
                 return this.onArrayOpen("<", range)
@@ -281,9 +283,9 @@ export class TreeParser<ReturnType, ErrorType> {
             case Char.Punctuation.colon:
                 //
                 return this.sendEvent({
+                    tokenString: tokenString,
                     range: range,
-                    type: [TreeEventType.Colon, {
-                    }],
+                    type: [TreeEventType.Colon],
                 })
             case Char.Punctuation.openBrace:
                 return this.onObjectOpen("{", range)
@@ -308,6 +310,7 @@ export class TreeParser<ReturnType, ErrorType> {
         return this.onComplexValue(range).mapResult(() => {
             this.pushContext({ range: range, type: [StackContextType2.TAGGED_UNION, taggedUnion] })
             return this.sendEvent({
+                tokenString: "|",
                 range: range,
                 type: [TreeEventType.TaggedUnion, {
                 }],
@@ -326,20 +329,18 @@ export class TreeParser<ReturnType, ErrorType> {
             }
             this.pushContext({ range: range, type: [StackContextType2.OBJECT, obj] })
             return this.sendEvent({
+                tokenString: openCharacter,
                 range: range,
-                type: [TreeEventType.OpenObject, {
-                    openCharacter: openCharacter,
-                }],
+                type: [TreeEventType.OpenObject],
             })
 
         })
     }
     private onObjectClose(closeCharacter: ")" | "}", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
         return this.sendEvent({
+            tokenString: closeCharacter,
             range: range,
-            type: [TreeEventType.CloseObject, {
-                closeCharacter: closeCharacter,
-            }],
+            type: [TreeEventType.CloseObject],
         }).mapResult(() => {
             if (this.currentContext === null || this.currentContext.type[0] !== StackContextType2.OBJECT) {
                 this.raiseError(["not in an object"], range)
@@ -360,10 +361,9 @@ export class TreeParser<ReturnType, ErrorType> {
                 }],
             })
             return this.sendEvent({
+                tokenString: openCharacter,
                 range: range,
-                type: [TreeEventType.OpenArray, {
-                    openCharacter: openCharacter,
-                }],
+                type: [TreeEventType.OpenArray],
             })
 
         })
@@ -371,10 +371,9 @@ export class TreeParser<ReturnType, ErrorType> {
     private onArrayClose(closeCharacter: "]" | ">", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>) {
 
         return this.sendEvent({
+            tokenString: closeCharacter,
             range: range,
-            type: [TreeEventType.CloseArray, {
-                closeCharacter: closeCharacter,
-            }],
+            type: [TreeEventType.CloseArray],
         }).mapResult(() => {
             if (this.currentContext === null || this.currentContext.type[0] !== StackContextType2.ARRAY) {
                 this.raiseError(["not in an array"], range)

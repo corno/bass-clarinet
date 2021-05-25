@@ -44,6 +44,7 @@ export type OverheadToken = {
 }
 
 export type Token = {
+    tokenString: string
     range: Range
     type:
     | [TokenType.Overhead, OverheadToken]
