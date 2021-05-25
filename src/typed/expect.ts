@@ -8,7 +8,7 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-type PropertyHandler = (range: astn.Range, contextData: astn.ParserAnnotationData) => ValueType
+type PropertyHandler = (data: astn.PropertyData<ParserAnnotationData>) => ValueType
 
 type OnInvalidType = (range: astn.Range) => void
 
@@ -110,7 +110,7 @@ export type ValueType =
         {
             onBegin?: (data: ObjectBeginData<ParserAnnotationData>) => void
             onEnd?: (hasErrors: boolean, data: ObjectEndData<ParserAnnotationData>) => void
-            onUnexpectedProperty?: (key: string, range: astn.Range, contextData: astn.ParserAnnotationData) => astn.RequiredValueHandler<ParserAnnotationData>
+            onUnexpectedProperty?: (data: astn.PropertyData<ParserAnnotationData>) => astn.RequiredValueHandler<ParserAnnotationData>
             onMissing?: () => void
             onInvalidType?: OnInvalidType
         }?
@@ -232,8 +232,8 @@ export function createValueHandler(
                 const rawProp = $1[key]
                 if (rawProp instanceof Array) {
                     props[key] = {
-                        onExists: (range: astn.Range, contextData: astn.ParserAnnotationData) => {
-                            return createRequiredValueHandler(context, rawProp[0](range, contextData))
+                        onExists: data => {
+                            return createRequiredValueHandler(context, rawProp[0](data))
                         },
                         onNotExists: rawProp[1] !== undefined && rawProp[1].onNotExists !== undefined
                             ? rawProp[1].onNotExists
@@ -241,8 +241,8 @@ export function createValueHandler(
                     }
                 } else {
                     props[key] = {
-                        onExists: (range: astn.Range, contextData: astn.ParserAnnotationData) => {
-                            return createRequiredValueHandler(context, rawProp(range, contextData))
+                        onExists: data => {
+                            return createRequiredValueHandler(context, rawProp(data))
                         },
                         onNotExists: null,
                     }
