@@ -17,21 +17,23 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
             array: range => {
                 writer(`${indentation}[ // ${astn.printRange(range)}`)
                 return {
-                    element: () => createValuesAnnotater(`${indentation}\t`, writer),
-                    end: endRange => {
-                        writer(`${indentation}] // ${astn.printRange(endRange)}`)
+                    onData: () => createValuesAnnotater(`${indentation}\t`, writer),
+                    onEnd: endData => {
+                        writer(`${indentation}] // ${astn.printRange(endData.range)}`)
+                        return p.value(null)
                     },
                 }
             },
             object: beginRange => {
                 writer(`${indentation}{ // ${astn.printRange(beginRange)}`)
                 return {
-                    property: (_keyRange, key) => {
-                        writer(`${indentation}"${key}": `)
+                    onData: propertyData => {
+                        writer(`${indentation}"${propertyData.key}": `)
                         return p.value(createRequiredValuesAnnotater(`${indentation}\t`, writer))
                     },
-                    end: (endRange, _endMetaData) => {
-                        writer(`${indentation}} // ${astn.printRange(endRange)}`)
+                    onEnd: endData => {
+                        writer(`${indentation}} // ${astn.printRange(endData.range)}`)
+                        return p.value(null)
                     },
                 }
             },

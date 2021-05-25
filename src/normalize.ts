@@ -129,16 +129,16 @@ function createValueNormalizer(
                 const isShorthandType = openData.openCharacter === "<"
                 const elements: SerializableValue[] = []
                 return {
-                    element: () => createValueNormalizer(
+                    onData: () => createValueNormalizer(
                         elementValue => {
                             elements.push(elementValue)
                         },
                         sortKeys,
                         null,
                     ),
-                    end: (_endRange, _closeData, arrayEndContextData) => {
+                    onEnd: endData => {
                         const intermediateComments: astn.Comment[] = []
-                        addComments(arrayEndContextData, intermediateComments)
+                        addComments(endData.contextData, intermediateComments)
                         handleValue({
                             commentData: transformCommentsToSerializableCommentData(valueComments),
                             type: ["array", {
@@ -148,6 +148,8 @@ function createValueNormalizer(
                                 closeCharacter: isShorthandType ? ">" : "]",
                             }],
                         })
+                        return p.value(null)
+
                     },
                 }
 
@@ -157,12 +159,12 @@ function createValueNormalizer(
 
                 const isType = openData.openCharacter === "("
                 return {
-                    property: (_keyRange, key, contextData) => {
+                    onData: propertyData => {
                         const propertyComments: astn.Comment[] = []
-                        addComments(contextData, propertyComments)
+                        addComments(propertyData.contextData, propertyComments)
                         return p.value(createRequiredValueNormalizer(
                             propertyValue => {
-                                properties[key] = {
+                                properties[propertyData.key] = {
                                     quote: isType ? "'" : "\"",
                                     commentData: transformCommentsToSerializableCommentData(propertyComments),
                                     value: propertyValue,
@@ -172,8 +174,8 @@ function createValueNormalizer(
                             propertyComments,
                         ))
                     },
-                    end: (_endRange, _closeData, contextData) => {
-                        addComments(contextData, comments)
+                    onEnd: endData => {
+                        addComments(endData.contextData, comments)
                         handleValue({
                             commentData: transformCommentsToSerializableCommentData(valueComments),
                             type: ["object", {
@@ -183,6 +185,7 @@ function createValueNormalizer(
                                 closeCharacter: isType ? ")" : "}",
                             }],
                         })
+                        return p.value(null)
                     },
                 }
             },

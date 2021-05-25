@@ -31,9 +31,10 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
             array: (_beginRange, beginMetaData) => {
                 writer(beginMetaData.openCharacter)
                 return {
-                    element: () => createValuePrettyPrinter(`${indentation}\t`, writer),
-                    end: (_endRange, endData) => {
-                        writer(`${indentation}${endData.closeCharacter}`)
+                    onData: () => createValuePrettyPrinter(`${indentation}\t`, writer),
+                    onEnd: endData => {
+                        writer(`${indentation}${endData.data.closeCharacter}`)
+                        return p.value(null)
                     },
                 }
 
@@ -41,12 +42,13 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
             object: (_beginRange, data) => {
                 writer(data.openCharacter)
                 return {
-                    property: (_keyRange, key) => {
-                        writer(`${indentation}\t"${key}": `)
+                    onData: propertyData => {
+                        writer(`${indentation}\t"${propertyData.key}": `)
                         return p.value(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
                     },
-                    end: (_endRange, endData) => {
-                        writer(`${indentation}${endData.closeCharacter}`)
+                    onEnd: endData => {
+                        writer(`${indentation}${endData.data.closeCharacter}`)
+                        return p.value(null)
                     },
                 }
             },

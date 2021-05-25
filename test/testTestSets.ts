@@ -197,21 +197,23 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 return {
                     array: () => {
                         return {
-                            element: () => {
+                            onData: () => {
                                 return createTestValueHandler()
                             },
-                            end: () => {
+                            onEnd: () => {
                                 //
+                                return p.value(null)
                             },
                         }
                     },
                     object: () => {
                         return {
-                            property: () => {
+                            onData: () => {
                                 return p.value(createTestRequiredValueHandler())
                             },
-                            end: () => {
+                            onEnd: () => {
                                 //
+                                return p.value(null)
                             },
                         }
 

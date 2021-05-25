@@ -36,20 +36,21 @@ export function createDummyValueHandler(): OnValue {
 
 export function createDummyArrayHandler(): ArrayHandler {
     return {
-        element: (): OnValue => createDummyValueHandler(),
-        end: (): void => {
+        onData: (): OnValue => createDummyValueHandler(),
+        onEnd: () => {
             //do nothing
+            return p.value(null)
         },
     }
 }
 
 export function createDummyObjectHandler(): ObjectHandler {
     return {
-        property: () => {
+        onData: () => {
             return p.value(createDummyRequiredValueHandler())
         },
-        end: (): void => {
-            //do nothing
+        onEnd: () => {
+            return p.value(null)
         },
     }
 }

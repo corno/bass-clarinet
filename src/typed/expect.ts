@@ -1,5 +1,6 @@
 import * as p from "pareto"
 import * as astn from ".."
+import { ArrayEndData, ObjectEndData, PropertyData } from "../handlers"
 import { ExpectContext, ExpectedProperties } from "./ExpectContext"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -34,10 +35,10 @@ export type ValueType =
     ]
     | [
         "dicionary",
-        (key: string, range: astn.Range, contextData: astn.ContextData) => ValueType,
+        (propertyData: PropertyData) => ValueType,
         {
             onBegin: (range: astn.Range, metaData: astn.ObjectOpenData) => void
-            onEnd: (range: astn.Range, metaData: astn.ObjectCloseData) => void
+            onEnd: (objectEndData: ObjectEndData) => void
             onMissing?: () => void
             onInvalidType?: () => void
         }
@@ -46,7 +47,7 @@ export type ValueType =
         ValueType,
         {
             onBegin: (range: astn.Range, metaData: astn.ArrayOpenData) => void
-            onEnd: (range: astn.Range, metaData: astn.ArrayCloseData) => void
+            onEnd: (endData: ArrayEndData) => void
             onMissing?: () => void
             onInvalidType?: () => void
         }
@@ -168,10 +169,10 @@ export function createValueHandler(
             const $2 = valueType[2]
             return context.expectDictionary(
                 $2.onBegin,
-                (key, metaData, contextData) => {
+                propertyData => {
                     return createRequiredValueHandler(
                         context,
-                        $1(key, metaData, contextData),
+                        $1(propertyData),
                     )
                 },
                 $2.onEnd,

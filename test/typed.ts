@@ -119,7 +119,7 @@ describe('bass-clarinet-typed', () => {
                     () => {
                         //
                     },
-                    (_key, _range) => {
+                    () => {
                         return {
                             onValue: () => {
                                 return expect.expectType(

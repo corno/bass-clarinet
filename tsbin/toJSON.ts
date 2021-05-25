@@ -33,9 +33,10 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
             array: (_beginRange, _beginMetaData) => {
                 writer(`[`)
                 return {
-                    element: () => createValuePrettyPrinter(`${indentation}\t`, writer),
-                    end: (_endRange, _endData) => {
+                    onData: () => createValuePrettyPrinter(`${indentation}\t`, writer),
+                    onEnd: () => {
                         writer(`${indentation}]`)
+                        return p.value(null)
                     },
                 }
 
@@ -44,13 +45,14 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
                 let isFirstProperty = true
                 writer(`{`)
                 return {
-                    property: (_keyRange, key) => {
-                        writer(`${isFirstProperty? `` : `, ` }${indentation}\t"${key}": `)
+                    onData: propertyData => {
+                        writer(`${isFirstProperty? `` : `, ` }${indentation}\t"${propertyData.key}": `)
                         isFirstProperty = false
                         return p.value(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
                     },
-                    end: (_endRange, _endData) => {
+                    onEnd: () => {
                         writer(`${indentation}}`)
+                        return p.value(null)
                     },
                 }
             },

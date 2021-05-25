@@ -194,7 +194,7 @@ class SemanticState {
     public initValueHandler(range: Range): OnValue {
         switch (this.currentContext[0]) {
             case "array": {
-                return this.currentContext[1].arrayHandler.element(range)
+                return this.currentContext[1].arrayHandler.onData(range)
             }
             case "object": {
                 if (this.currentContext[1].propertyHandler === null) {
@@ -302,11 +302,11 @@ function processParserEvent(
                         return p.value(false)
                     } else {
                         const $$ = semanticState.currentContext[1]
-                        $$.arrayHandler.end(
-                            data.range,
-                            $,
-                            contextData
-                        )
+                        $$.arrayHandler.onEnd({
+                            range: data.range,
+                            data: $,
+                            contextData: contextData,
+                        })
                         semanticState.pop(data.range)
                         semanticState.wrapupValue(data.range)
                         return p.value(false)
@@ -365,11 +365,11 @@ function processParserEvent(
                             $$.propertyHandler.onMissing()
                             $$.propertyHandler = null
                         }
-                        $$.objectHandler.end(
-                            data.range,
-                            $,
-                            contextData
-                        )
+                        $$.objectHandler.onEnd({
+                            range: data.range,
+                            data: $,
+                            contextData: contextData,
+                        })
                         semanticState.pop(data.range)
                         semanticState.wrapupValue(data.range)
                         return p.value(false)
@@ -459,7 +459,7 @@ function processParserEvent(
                     switch (semanticState.currentContext[0]) {
                         case "array": {
                             const $ = semanticState.currentContext[1]
-                            return onSimpleValue($.arrayHandler.element(data.range)(contextData))
+                            return onSimpleValue($.arrayHandler.onData(data.range)(contextData))
                         }
                         case "object": {
                             const $$ = semanticState.currentContext[1]
@@ -468,11 +468,11 @@ function processParserEvent(
                                     raiseError(onError, ["unexpected key"], data.range)
                                     return p.value(false)
                                 } else {
-                                    return $$.objectHandler.property(
-                                        data.range,
-                                        $.value,
-                                        contextData
-                                    ).mapResult(propHandler => {
+                                    return $$.objectHandler.onData({
+                                        keyRange: data.range,
+                                        key: $.value,
+                                        contextData: contextData,
+                                    }).mapResult(propHandler => {
                                         $$.propertyHandler = propHandler
                                         return p.value(false)
                                     })

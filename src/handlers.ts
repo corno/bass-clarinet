@@ -18,14 +18,32 @@ export type ContextData = {
     lineCommentAfter: null | Comment
 }
 
+export type PropertyData = {
+    keyRange: Range
+    key: string
+    contextData: ContextData
+}
+
+export type ObjectEndData = {
+    range: Range
+    data: ObjectCloseData
+    contextData: ContextData
+}
+
 export type ObjectHandler = {
-    property: (keyRange: Range, key: string, contextData: ContextData) => p.IValue<RequiredValueHandler>
-    end: (range: Range, data: ObjectCloseData, contextData: ContextData) => void
+    onData: (propertyData: PropertyData) => p.IValue<RequiredValueHandler>
+    onEnd: (objectEndData: ObjectEndData) => p.IValue<null>
+}
+
+export type ArrayEndData = {
+    range: Range
+    data: ArrayCloseData
+    contextData: ContextData
 }
 
 export type ArrayHandler = {
-    element: (range: Range) => OnValue
-    end: (range: Range, data: ArrayCloseData, contextData: ContextData) => void
+    onData: (range: Range) => OnValue
+    onEnd: (arrayEndData: ArrayEndData) => p.IValue<null>
 }
 
 export type TaggedUnionHandler = {
