@@ -53,10 +53,24 @@ function createValuePrettyPrinter<Annotation>(indentation: string, writer: (str:
             }
         },
         simpleValue: svData => {
-            if (svData.data.quote !== null) {
-                writer(`${JSON.stringify(svData.data.value)}`)
-            } else {
-                writer(`${svData.data.value}`)
+            switch (svData.wrapper[0]) {
+                case "none": {
+                    writer(`${svData.value}`)
+
+                    break
+                }
+                case "backtick": {
+                    writer(`FIXME BACKTICK${JSON.stringify(svData.value)}`)
+
+                    break
+                }
+                case "quote": {
+                    writer(`${JSON.stringify(svData.value)}`)
+
+                    break
+                }
+                default:
+                    assertUnreachable(svData.wrapper[0])
             }
             return p.value(false)
         },

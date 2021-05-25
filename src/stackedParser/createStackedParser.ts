@@ -21,7 +21,8 @@ import {
     ArrayHandler,
     TaggedUnionHandler,
     ValueHandler,
-} from "./handlers"
+    Wrapper,
+} from "../handlers"
 import { RangeError } from "../errors"
 
 const DEBUG = false
@@ -491,7 +492,24 @@ function processParserEvent(
                         if (DEBUG) { console.log("on simple value", $.value) }
                         semanticState.wrapupValue(data.range)
                         return vh.simpleValue({
-                            data: $,
+                            wrapper: ((): Wrapper => {
+                                if ($.quote === null) {
+                                    return ["none"]
+                                }
+                                switch ($.quote) {
+                                    case "\"": {
+
+                                        return ["quote"]
+                                    }
+                                    case "'": {
+
+                                        return ["quote"]
+                                    }
+                                    default:
+                                        return assertUnreachable($.quote)
+                                }
+                            })(),
+                            value: $.value,
                             annotation: {
                                 tokenString: $.value, //this should probably the full token, including wrapping characters
                                 range: data.range,

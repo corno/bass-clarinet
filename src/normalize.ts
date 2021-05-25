@@ -197,8 +197,8 @@ function createValueNormalizer<Annotation>(
             handleValue({
                 commentData: transformCommentsToSerializableCommentData(valueComments),
                 type: ["simple value", {
-                    quote: svData.data.quote === null ? null : "\"",
-                    value: svData.data.value,
+                    quote: svData.wrapper[0] === "none" ? null : "\"",
+                    value: svData.value,
                 }],
             })
             return p.value(false)

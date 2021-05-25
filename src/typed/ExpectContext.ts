@@ -4,7 +4,7 @@
 import * as p from "pareto"
 import * as astn from ".."
 import { ParserAnnotationData } from "../stackedParser/createStackedParser"
-import { ArrayBeginData, ArrayEndData, ObjectBeginData, ObjectEndData, OptionData, PropertyData, SimpleValueData2, TaggedUnionData } from "../stackedParser/handlers"
+import { ArrayBeginData, ArrayEndData, ObjectBeginData, ObjectEndData, OptionData, PropertyData, SimpleValueData2, TaggedUnionData } from "../handlers"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -655,11 +655,11 @@ export class ExpectContext {
     public createUnexpectedSimpleValueHandler(
         expected: ExpectErrorValue,
         onInvalidType?: OnInvalidType,
-        onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
+        onNull?: (range: astn.Range, svData: SimpleValueData2<ParserAnnotationData>) => p.IValue<boolean>,
     ): astn.OnSimpleValue<ParserAnnotationData> {
         return svData => {
-            if (onNull !== undefined && svData.data.value === "null" && svData.data.quote === null) {
-                onNull(svData.annotation.range, svData.data)
+            if (onNull !== undefined && svData.value === "null" && svData.wrapper[0] === "none") {
+                onNull(svData.annotation.range, svData)
             } else {
                 if (onInvalidType !== undefined && onInvalidType !== null) {
                     onInvalidType(svData.annotation.range)
@@ -813,15 +813,15 @@ export class ExpectContext {
         return this.expectSimpleValueImp(
             expectValue,
             svData => {
-                if (svData.data.quote !== null) {
+                if (svData.wrapper[0] !== "none") {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation.range)
                     } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation.range)
+                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.value }], svData.annotation.range)
                     }
                     return p.value(false)
                 }
-                switch (svData.data.value) {
+                switch (svData.value) {
                     case "true": {
                         return callback(true, svData)
                     }
@@ -833,7 +833,7 @@ export class ExpectContext {
                         if (onInvalidType) {
                             onInvalidType(svData.annotation.range)
                         } else {
-                            this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation.range)
+                            this.raiseError(["invalid simple value", { expected: expectValue, found: svData.value }], svData.annotation.range)
                         }
                         return p.value(false)
                 }
@@ -853,21 +853,21 @@ export class ExpectContext {
         return this.expectSimpleValueImp(
             expectValue,
             svData => {
-                if (svData.data.quote !== null) {
+                if (svData.wrapper[0] !== "none") {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation.range)
                     } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation.range)
+                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.value }], svData.annotation.range)
                     }
                     return p.value(false)
                 }
-                if (svData.data.value === "null") {
+                if (svData.value === "null") {
                     return callback(svData)
                 } else {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation.range)
                     } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation.range)
+                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.value }], svData.annotation.range)
                     }
                     return p.value(false)
                 }
@@ -902,12 +902,12 @@ export class ExpectContext {
             expectValue,
             svData => {
                 //eslint-disable-next-line
-                const nr = new Number(svData.data.value).valueOf()
+                const nr = new Number(svData.value).valueOf()
                 if (isNaN(nr)) {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation.range)
                     } else {
-                        this.raiseError(["not a valid number", { value: svData.data.value }], svData.annotation.range)
+                        this.raiseError(["not a valid number", { value: svData.value }], svData.annotation.range)
                     }
                 }
                 return callback(nr, svData)
@@ -939,7 +939,7 @@ export class ExpectContext {
         onEnd?: (hasErrors: boolean, data: ObjectEndData<ParserAnnotationData>) => void,
         onUnexpectedProperty?: (key: string, range: astn.Range, contextData: astn.ParserAnnotationData) => astn.RequiredValueHandler<ParserAnnotationData>,
         onInvalidType?: OnInvalidType,
-        onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
+        onNull?: (range: astn.Range, svData: SimpleValueData2<ParserAnnotationData>) => p.IValue<boolean>,
     ): astn.ValueHandler<ParserAnnotationData> {
 
         const expectValue: ExpectErrorValue = {
@@ -981,7 +981,7 @@ export class ExpectContext {
         onBegin?: (data: ArrayBeginData<ParserAnnotationData>) => void,
         onEnd?: (endData: ArrayEndData<ParserAnnotationData>) => void,
         onInvalidType?: OnInvalidType,
-        onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
+        onNull?: (range: astn.Range, svData: SimpleValueData2<ParserAnnotationData>) => p.IValue<boolean>,
     ): astn.ValueHandler<ParserAnnotationData> {
 
         const expectValue: ExpectErrorValue = {
@@ -1005,7 +1005,7 @@ export class ExpectContext {
         onShorthandTypeBegin?: (data: ArrayBeginData<ParserAnnotationData>) => void,
         onShorthandTypeEnd?: (endData: ArrayEndData<ParserAnnotationData>) => void,
         onInvalidType?: OnInvalidType,
-        onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
+        onNull?: (range: astn.Range, svData: SimpleValueData2<ParserAnnotationData>) => p.IValue<boolean>,
     ): astn.ValueHandler<ParserAnnotationData> {
 
         const expectValue: ExpectErrorValue = {
@@ -1032,7 +1032,7 @@ export class ExpectContext {
         ) => void,
         onMissingOption?: () => void,
         onInvalidType?: OnInvalidType,
-        onNull?: (range: astn.Range, svData: astn.SimpleValueData) => p.IValue<boolean>,
+        onNull?: (range: astn.Range, svData: SimpleValueData2<ParserAnnotationData>) => p.IValue<boolean>,
     ): astn.ValueHandler<ParserAnnotationData> {
 
         const expectValue: ExpectErrorValue = {

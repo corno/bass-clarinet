@@ -1,5 +1,4 @@
 import * as p from "pareto"
-import { SimpleValueData } from "../parser/Token"
 
 export type PropertyData<Annotation> = {
     key: string
@@ -48,8 +47,14 @@ export type ArrayBeginData<Annotation> = {
 
 export type OnArray<Annotation> = (data: ArrayBeginData<Annotation>) => ArrayHandler<Annotation>
 
+export type Wrapper =
+    | ["none"]
+    | ["backtick"]
+    | ["quote"]
+
 export type SimpleValueData2<Annotation> = {
-    data: SimpleValueData
+    wrapper: Wrapper
+    value: string
     annotation: Annotation
 }
 

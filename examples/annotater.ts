@@ -37,10 +37,10 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
             }
         },
         simpleValue: svData => {
-            if (svData.data.quote !== null) {
-                writer(`${indentation}${JSON.stringify(svData.data.value)} // ${astn.printRange(svData.annotation.range)}`)
+            if (svData.wrapper[0] !== "none") {
+                writer(`${indentation}${JSON.stringify(svData.value)} // ${astn.printRange(svData.annotation.range)}`)
             } else {
-                writer(`${indentation}${svData.data.value} // ${astn.printRange(svData.annotation.range)}`)
+                writer(`${indentation}${svData.value} // ${astn.printRange(svData.annotation.range)}`)
             }
             return p.value(false)
         },

@@ -1,7 +1,7 @@
 import * as p from "pareto"
 import * as astn from ".."
 import { ParserAnnotationData } from "../stackedParser/createStackedParser"
-import { ArrayBeginData, ArrayEndData, ObjectBeginData, ObjectEndData, OptionData, PropertyData, SimpleValueData2, TaggedUnionData } from "../stackedParser/handlers"
+import { ArrayBeginData, ArrayEndData, ObjectBeginData, ObjectEndData, OptionData, PropertyData, SimpleValueData2, TaggedUnionData } from "../handlers"
 import { ExpectContext, ExpectedProperties } from "./ExpectContext"
 
 function assertUnreachable<RT>(_x: never): RT {
