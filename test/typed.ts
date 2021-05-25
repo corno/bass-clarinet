@@ -7,7 +7,7 @@ import * as p20 from "pareto-20"
 import { describe } from "mocha"
 import * as chai from "chai"
 import * as bct from "../src"
-import { getEndLocationFromRange, ExpectError, printExpectError } from "../src"
+import { getEndLocationFromRange, ExpectError, printExpectError, ParserAnnotationData } from "../src"
 
 //const selectedJSONTests: string[] = ["two keys"]
 //const selectedExtensionTests: string[] = []
@@ -36,7 +36,7 @@ describe('bass-clarinet-typed', () => {
             callback: (
                 expect: bct.ExpectContext,
                 addError: (errorLine: ErrorLine) => void
-            ) => bct.RequiredValueHandler,
+            ) => bct.RequiredValueHandler<ParserAnnotationData>,
             expectedErrors: ErrorLine[]
         ) {
 
@@ -294,7 +294,7 @@ describe('bass-clarinet-typed', () => {
                 () => expect.expectType(
                     {
                         a: {
-                            onExists: (): bct.RequiredValueHandler => {
+                            onExists: (): bct.RequiredValueHandler<ParserAnnotationData> => {
                                 return {
                                     onExists: () => expect.expectTaggedUnion(
                                         {

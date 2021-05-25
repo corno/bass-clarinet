@@ -1,13 +1,14 @@
 import * as p from "pareto"
 import * as astn from ".."
-import { ArrayEndData, ObjectEndData, PropertyData } from "../stackedParser/handlers"
+import { ParserAnnotationData } from "../stackedParser/createStackedParser"
+import { ArrayBeginData, ArrayEndData, ObjectBeginData, ObjectEndData, OptionData, PropertyData, SimpleValueData2, TaggedUnionData } from "../stackedParser/handlers"
 import { ExpectContext, ExpectedProperties } from "./ExpectContext"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-type PropertyHandler = (range: astn.Range, contextData: astn.ContextData) => ValueType
+type PropertyHandler = (range: astn.Range, contextData: astn.ParserAnnotationData) => ValueType
 
 type OnInvalidType = (range: astn.Range) => void
 
@@ -27,7 +28,7 @@ export type ValueType =
     // ]
     | [
         "boolean",
-        (value: boolean, range: astn.Range, metaData: astn.SimpleValueData) => p.IValue<boolean>,
+        (value: boolean, data: SimpleValueData2<ParserAnnotationData>) => p.IValue<boolean>,
         {
             onMissing?: () => void
             onInvalidType?: () => void
@@ -35,10 +36,10 @@ export type ValueType =
     ]
     | [
         "dicionary",
-        (propertyData: PropertyData) => ValueType,
+        (propertyData: PropertyData<ParserAnnotationData>) => ValueType,
         {
             onBegin: (range: astn.Range, metaData: astn.ObjectOpenData) => void
-            onEnd: (objectEndData: ObjectEndData) => void
+            onEnd: (objectEndData: ObjectEndData<ParserAnnotationData>) => void
             onMissing?: () => void
             onInvalidType?: () => void
         }
@@ -46,15 +47,15 @@ export type ValueType =
     | ["list",
         ValueType,
         {
-            onBegin: (range: astn.Range, metaData: astn.ArrayOpenData) => void
-            onEnd: (endData: ArrayEndData) => void
+            onBegin: (data: ArrayBeginData<ParserAnnotationData>) => void
+            onEnd: (endData: ArrayEndData<ParserAnnotationData>) => void
             onMissing?: () => void
             onInvalidType?: () => void
         }
     ]
     | [
         "null",
-        (range: astn.Range, metaData: astn.SimpleValueData) => p.IValue<boolean>,
+        (data: SimpleValueData2<ParserAnnotationData>) => p.IValue<boolean>,
         {
             onMissing?: () => void
             onInvalidType?: () => void
@@ -62,7 +63,7 @@ export type ValueType =
     ]
     | [
         "number",
-        (number: number, range: astn.Range, data: astn.SimpleValueData) => p.IValue<boolean>,
+        (number: number, data: SimpleValueData2<ParserAnnotationData>) => p.IValue<boolean>,
         {
             onMissing?: () => void
             onInvalidType?: () => void
@@ -70,7 +71,7 @@ export type ValueType =
     ]
     | [
         "simple value",
-        (range: astn.Range, metaData: astn.SimpleValueData) => p.IValue<boolean>,
+        (data: SimpleValueData2<ParserAnnotationData>) => p.IValue<boolean>,
         {
             onMissing?: () => void
             onInvalidType?: () => void
@@ -79,17 +80,14 @@ export type ValueType =
     | [
         "tagged union", {
             [key: string]: (
-                taggedUnionRange: astn.Range,
-                optionRange: astn.Range,
-                optionContextData: astn.ContextData,
-            ) => astn.RequiredValueHandler
+                taggedUnionData: TaggedUnionData<ParserAnnotationData>,
+                optionData: OptionData<ParserAnnotationData>,
+            ) => astn.RequiredValueHandler<ParserAnnotationData>
         },
         {
             onUnexpectedOption?: (
-                option: string,
-                taggedUnionRange: astn.Range,
-                optionRange: astn.Range,
-                optionContextData: astn.ContextData
+                taggedUnionData: TaggedUnionData<ParserAnnotationData>,
+                optionData: OptionData<ParserAnnotationData>,
             ) => void
             onMissingOption?: () => void
             onMissing?: () => void
@@ -112,9 +110,9 @@ export type ValueType =
             ]
         },
         {
-            onBegin?: (range: astn.Range, openData: astn.ObjectOpenData) => void
-            onEnd?: (hasErrors: boolean, endRange: astn.Range, endData: astn.ObjectCloseData, contextData: astn.ContextData) => void
-            onUnexpectedProperty?: (key: string, range: astn.Range, contextData: astn.ContextData) => astn.RequiredValueHandler
+            onBegin?: (data: ObjectBeginData<ParserAnnotationData>) => void
+            onEnd?: (hasErrors: boolean, endRange: astn.Range, endData: astn.ObjectCloseData, contextData: astn.ParserAnnotationData) => void
+            onUnexpectedProperty?: (key: string, range: astn.Range, contextData: astn.ParserAnnotationData) => astn.RequiredValueHandler<ParserAnnotationData>
             onMissing?: () => void
             onInvalidType?: OnInvalidType
         }?
@@ -123,7 +121,7 @@ export type ValueType =
 export function createRequiredValueHandler(
     context: ExpectContext,
     valueType: ValueType,
-): astn.RequiredValueHandler {
+): astn.RequiredValueHandler<ParserAnnotationData> {
     return context.expectValue(
         () => createValueHandler(
             context,
@@ -136,7 +134,7 @@ export function createRequiredValueHandler(
 export function createValueHandler(
     context: ExpectContext,
     valueType: ValueType,
-): astn.ValueHandler {
+): astn.ValueHandler<ParserAnnotationData> {
     switch (valueType[0]) {
         // case "shorthand type": {
         //     const $1 = valueType[1]
@@ -236,7 +234,7 @@ export function createValueHandler(
                 const rawProp = $1[key]
                 if (rawProp instanceof Array) {
                     props[key] = {
-                        onExists: (range: astn.Range, contextData: astn.ContextData) => {
+                        onExists: (range: astn.Range, contextData: astn.ParserAnnotationData) => {
                             return createRequiredValueHandler(context, rawProp[0](range, contextData))
                         },
                         onNotExists: rawProp[1] !== undefined && rawProp[1].onNotExists !== undefined
@@ -245,7 +243,7 @@ export function createValueHandler(
                     }
                 } else {
                     props[key] = {
-                        onExists: (range: astn.Range, contextData: astn.ContextData) => {
+                        onExists: (range: astn.Range, contextData: astn.ParserAnnotationData) => {
                             return createRequiredValueHandler(context, rawProp(range, contextData))
                         },
                         onNotExists: null,

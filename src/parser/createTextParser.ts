@@ -366,7 +366,7 @@ export class TextParser<ReturnType, ErrorType> {
  * @param onerror a handler for when a parsing error occurs
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
-export function createParser<ReturnType, ErrorType>(
+export function createTextParser<ReturnType, ErrorType>(
     onSchemaDataStart: (range: Range) => TextParserEventConsumer<null, null>,
     onInstanceDataStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>,
     onerror: (error: TextParserError, range: Range) => void,

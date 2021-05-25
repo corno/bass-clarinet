@@ -3,7 +3,7 @@ import {
     TextParserEventConsumer,
 } from "./TextParserEventConsumer"
 import {
-    createParser,
+    createTextParser,
     TextParserError,
     printTextParserError,
 } from "./createTextParser"
@@ -65,7 +65,7 @@ export function createParserStack<ReturnType, ErrorType>(
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean> = () => p.value(false),
 ): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
     return createStreamPreTokenizer(
-        createTokenizer(createParser(
+        createTokenizer(createTextParser(
             onSchemaDataStart,
             onInstanceDataStart,
             (error, range) => {

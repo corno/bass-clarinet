@@ -8,73 +8,85 @@ import {
 } from "../parser/TreeEvent"
 import { SimpleValueData } from "../parser/Token"
 
-export type BeforeContextData = {
-    comments: Comment[]
-    indentation: string | null
-}
-
-export type ContextData = {
-    before: BeforeContextData
-    lineCommentAfter: null | Comment
-}
-
-export type PropertyData = {
-    keyRange: Range
+export type PropertyData<Annotation> = {
     key: string
-    contextData: ContextData
+    annotation: Annotation
 }
 
-export type ObjectEndData = {
-    range: Range
+export type ObjectEndData<Annotation> = {
     data: ObjectCloseData
-    contextData: ContextData
+    annotation: Annotation
 }
 
-export type ObjectHandler = {
-    onData: (propertyData: PropertyData) => p.IValue<RequiredValueHandler>
-    onEnd: (objectEndData: ObjectEndData) => p.IValue<null>
+export type ObjectHandler<Annotation> = {
+    onData: (propertyData: PropertyData<Annotation>) => p.IValue<RequiredValueHandler<Annotation>>
+    onEnd: (objectEndData: ObjectEndData<Annotation>) => p.IValue<null>
 }
 
-export type ArrayEndData = {
-    range: Range
+export type ArrayEndData<Annotation> = {
     data: ArrayCloseData
-    contextData: ContextData
+    annotation: Annotation
 }
 
-export type ArrayHandler = {
-    onData: (range: Range) => OnValue
-    onEnd: (arrayEndData: ArrayEndData) => p.IValue<null>
+export type ArrayHandler<Annotation> = {
+    onData: (range: Range) => OnValue<Annotation>
+    onEnd: (arrayEndData: ArrayEndData<Annotation>) => p.IValue<null>
 }
 
-export type TaggedUnionHandler = {
-    option: OnOption
+export type TaggedUnionHandler<Annotation> = {
+    option: OnOption<Annotation>
     missingOption: () => void
     end: () => void
 }
 
-export type OnObject = (range: Range, data: ObjectOpenData) => ObjectHandler
+export type ObjectBeginData<Annotation> = {
+    data: ObjectOpenData
+    annotation: Annotation
+}
 
-export type OnArray = (range: Range, data: ArrayOpenData) => ArrayHandler
+export type OnObject<Annotation> = (data: ObjectBeginData<Annotation>) => ObjectHandler<Annotation>
 
-export type OnSimpleValue = (range: Range, data: SimpleValueData) => p.IValue<boolean>
+export type ArrayBeginData<Annotation> = {
+    data: ArrayOpenData
+    annotation: Annotation
+}
 
-export type OnTaggedUnion = (range: Range) => TaggedUnionHandler
-export type OnOption = (range: Range, option: string, optioncontextData: ContextData) => RequiredValueHandler
+export type OnArray<Annotation> = (data: ArrayBeginData<Annotation>) => ArrayHandler<Annotation>
+
+export type SimpleValueData2<Annotation> = {
+    data: SimpleValueData
+    annotation: Annotation
+}
+
+export type OnSimpleValue<Annotation> = (data: SimpleValueData2<Annotation>) => p.IValue<boolean>
+
+export type TaggedUnionData<Annotation> = {
+    range: Range
+    annotation: Annotation
+}
+
+export type OptionData<Annotation> = {
+    option: string
+    annotation: Annotation
+}
+
+export type OnTaggedUnion<Annotation> = (data: TaggedUnionData<Annotation>) => TaggedUnionHandler<Annotation>
+export type OnOption<Annotation> = (data: OptionData<Annotation>) => RequiredValueHandler<Annotation>
 
 export type OnMissing = () => void
 
-export interface RequiredValueHandler {
-    onExists: OnValue
+export interface RequiredValueHandler<Annotation> {
+    onExists: OnValue<Annotation>
     onMissing: OnMissing
 }
 
-export type OnValue = (contextData: ContextData) => ValueHandler
+export type OnValue<Annotation> = () => ValueHandler<Annotation>
 
-export interface ValueHandler {
-    object: OnObject
-    array: OnArray
-    simpleValue: OnSimpleValue
-    taggedUnion: OnTaggedUnion
+export interface ValueHandler<Annotation> {
+    object: OnObject<Annotation>
+    array: OnArray<Annotation>
+    simpleValue: OnSimpleValue<Annotation>
+    taggedUnion: OnTaggedUnion<Annotation>
 }
 
 export type Comment = {

@@ -56,11 +56,11 @@ class InArray<T> implements IInArray<T> {
     }
 }
 
-function createRequiredValueNormalizer(
+function createRequiredValueNormalizer<Annotation>(
     handleValue: HandleValue,
     sortKeys: boolean,
     comments: astn.Comment[]
-): astn.RequiredValueHandler {
+): astn.RequiredValueHandler<Annotation> {
     return {
         onExists: createValueNormalizer(
             handleValue,
@@ -73,14 +73,14 @@ function createRequiredValueNormalizer(
     }
 }
 
-function addComments(contextData: astn.ContextData, comments: astn.Comment[]) {
-    contextData.before.comments.forEach(c => {
-        comments.push(c)
-    })
-    if (contextData.lineCommentAfter !== null) {
-        comments.push(contextData.lineCommentAfter)
-    }
-}
+// function addComments(contextData: astn.ContextData, comments: astn.Comment[]) {
+//     contextData.before.comments.forEach(c => {
+//         comments.push(c)
+//     })
+//     if (contextData.lineCommentAfter !== null) {
+//         comments.push(contextData.lineCommentAfter)
+//     }
+// }
 
 function transformCommentsToSerializableCommentData(comments: astn.Comment[]) {
     const commentData: SerializableCommentData = {
@@ -115,19 +115,20 @@ function createEmptyCommentsData() {
  * are elements of an array.
  * @param sortKeys
  */
-function createValueNormalizer(
+function createValueNormalizer<Annotation>(
     handleValue: HandleValue,
     sortKeys: boolean,
     parentComments: astn.Comment[] | null,
-): astn.OnValue {
-    return valueContextData => {
+): astn.OnValue<Annotation> {
+    return () => {
         const valueComments: astn.Comment[] = []
         const comments = parentComments === null ? valueComments : parentComments
-        addComments(valueContextData, comments)
         return {
-            array: (_beginRange, openData) => {
-                const isShorthandType = openData.openCharacter === "<"
+            array: arrayData => {
+                const isShorthandType = arrayData.data.openCharacter === "<"
                 const elements: SerializableValue[] = []
+                //addComments(arrayData.annotation.contextData, comments)
+
                 return {
                     onData: () => createValueNormalizer(
                         elementValue => {
@@ -136,11 +137,11 @@ function createValueNormalizer(
                         sortKeys,
                         null,
                     ),
-                    onEnd: endData => {
+                    onEnd: _endData => {
                         const intermediateComments: astn.Comment[] = []
-                        addComments(endData.contextData, intermediateComments)
+                        //addComments(endData.annotation.contextData, intermediateComments)
                         handleValue({
-                            commentData: transformCommentsToSerializableCommentData(valueComments),
+                            commentData: transformCommentsToSerializableCommentData(intermediateComments),
                             type: ["array", {
                                 commentData: createEmptyCommentsData(),
                                 elements: new InArray(elements),
@@ -154,14 +155,16 @@ function createValueNormalizer(
                 }
 
             },
-            object: (_beginRange, openData) => {
+            object: objectData => {
                 const properties: { [key: string]: SerializableProperty } = {}
 
-                const isType = openData.openCharacter === "("
+                const isType = objectData.data.openCharacter === "("
+                //addComments(objectData.annotation.contextData, comments)
+
                 return {
                     onData: propertyData => {
                         const propertyComments: astn.Comment[] = []
-                        addComments(propertyData.contextData, propertyComments)
+                        //addComments(propertyData.annotation.contextData, propertyComments)
                         return p.value(createRequiredValueNormalizer(
                             propertyValue => {
                                 properties[propertyData.key] = {
@@ -174,8 +177,8 @@ function createValueNormalizer(
                             propertyComments,
                         ))
                     },
-                    onEnd: endData => {
-                        addComments(endData.contextData, comments)
+                    onEnd: _endData => {
+                        //addComments(endData.annotation.contextData, comments)
                         handleValue({
                             commentData: transformCommentsToSerializableCommentData(valueComments),
                             type: ["object", {
@@ -189,29 +192,33 @@ function createValueNormalizer(
                     },
                 }
             },
-            simpleValue: (_range, data) => {
+            simpleValue: svData => {
+                //addComments(svData.annotation.contextData, comments)
+
                 handleValue({
                     commentData: transformCommentsToSerializableCommentData(valueComments),
                     type: ["simple value", {
-                        quote: data.quote === null ? null : "\"",
-                        value: data.value,
+                        quote: svData.data.quote === null ? null : "\"",
+                        value: svData.data.value,
                     }],
                 })
                 return p.value(false)
             },
-            taggedUnion: () => {
+            taggedUnion: _tuData => {
+                //addComments(tuData.annotation.contextData, comments)
+
                 return {
-                    option: (_range, option, contextData) => {
-                        addComments(contextData, comments)
+                    option: optionData => {
+                        //addComments(optionData.annotation.contextData, comments)
                         return createRequiredValueNormalizer(
-                            tuData => {
+                            tuData2 => {
                                 handleValue({
                                     commentData: transformCommentsToSerializableCommentData(valueComments),
                                     type: ["tagged union", {
-                                        option: option,
+                                        option: optionData.option,
                                         quote: "'",
                                         commentData: createEmptyCommentsData(),
-                                        data: tuData,
+                                        data: tuData2,
                                     }],
                                 })
                             },

@@ -21,14 +21,29 @@ import {
     ObjectHandler,
     ArrayHandler,
     Comment,
-    ContextData,
     TaggedUnionHandler,
     ValueHandler,
-    BeforeContextData,
 } from "./handlers"
 import { RangeError } from "../errors"
 
 const DEBUG = false
+
+
+export type BeforeContextData = {
+    comments: Comment[]
+    indentation: string | null
+}
+
+export type ContextData = {
+    before: BeforeContextData
+    lineCommentAfter: null | Comment
+}
+
+export type ParserAnnotationData = {
+    contextData: ContextData
+    range: Range
+}
+
 
 class StackedDataSubscriberPanic extends RangeError {
     constructor(message: string, range: Range) {
@@ -39,22 +54,22 @@ class StackedDataSubscriberPanic extends RangeError {
 type TaggedUnionState =
     | ["expecting option", {
     }]
-    | ["expecting value", RequiredValueHandler]
+    | ["expecting value", RequiredValueHandler<ParserAnnotationData>]
 
 
 type ContextType =
     | ["root", {
-        rootValueHandler: RequiredValueHandler | null //becomes null when processed
+        rootValueHandler: RequiredValueHandler<ParserAnnotationData> | null //becomes null when processed
     }]
     | ["object", {
-        readonly objectHandler: ObjectHandler
-        propertyHandler: null | RequiredValueHandler
+        readonly objectHandler: ObjectHandler<ParserAnnotationData>
+        propertyHandler: null | RequiredValueHandler<ParserAnnotationData>
     }]
     | ["array", {
-        readonly arrayHandler: ArrayHandler
+        readonly arrayHandler: ArrayHandler<ParserAnnotationData>
     }]
     | ["taggedunion", {
-        readonly handler: TaggedUnionHandler
+        readonly handler: TaggedUnionHandler<ParserAnnotationData>
         state: TaggedUnionState
     }]
 
@@ -148,7 +163,7 @@ class OverheadState {
 class SemanticState {
     currentContext: ContextType
     private readonly stack: ContextType[] = []
-    constructor(valueHandler: RequiredValueHandler) {
+    constructor(valueHandler: RequiredValueHandler<ParserAnnotationData>) {
         this.currentContext = ["root", { rootValueHandler: valueHandler }]
     }
     public pop(range: Range) {
@@ -196,7 +211,7 @@ class SemanticState {
                 return assertUnreachable(this.currentContext[0])
         }
     }
-    public initValueHandler(range: Range): OnValue {
+    public initValueHandler(range: Range): OnValue<ParserAnnotationData> {
         switch (this.currentContext[0]) {
             case "array": {
                 return this.currentContext[1].arrayHandler.onData(range)
@@ -308,9 +323,11 @@ function processParserEvent(
                     } else {
                         const $$ = semanticState.currentContext[1]
                         $$.arrayHandler.onEnd({
-                            range: data.range,
                             data: $,
-                            contextData: contextData,
+                            annotation: {
+                                range: data.range,
+                                contextData: contextData,
+                            },
                         })
                         semanticState.pop(data.range)
                         semanticState.wrapupValue(data.range)
@@ -371,9 +388,11 @@ function processParserEvent(
                             $$.propertyHandler = null
                         }
                         $$.objectHandler.onEnd({
-                            range: data.range,
                             data: $,
-                            contextData: contextData,
+                            annotation: {
+                                range: data.range,
+                                contextData: contextData,
+                            },
                         })
                         semanticState.pop(data.range)
                         semanticState.wrapupValue(data.range)
@@ -394,7 +413,13 @@ function processParserEvent(
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
-                    const arrayHandler = semanticState.initValueHandler(data.range)(contextData).array(data.range, $)
+                    const arrayHandler = semanticState.initValueHandler(data.range)().array({
+                        data: $,
+                        annotation: {
+                            range: data.range,
+                            contextData: contextData,
+                        },
+                    })
                     semanticState.push(["array", { arrayHandler: arrayHandler }])
                     return p.value(false)
                 },
@@ -405,12 +430,15 @@ function processParserEvent(
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
-                    const vh = semanticState.initValueHandler(data.range)(contextData)
+                    const vh = semanticState.initValueHandler(data.range)()
 
-                    const objectHandler = vh.object(
-                        data.range,
-                        $
-                    )
+                    const objectHandler = vh.object({
+                        data: $,
+                        annotation: {
+                            range: data.range,
+                            contextData: contextData,
+                        },
+                    })
                     semanticState.push(["object", {
                         objectHandler: objectHandler,
                         propertyHandler: null,
@@ -453,18 +481,21 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
 
-                    function onSimpleValue(vh: ValueHandler): p.IValue<boolean> {
+                    function onSimpleValue(vh: ValueHandler<ParserAnnotationData>, cd: ContextData): p.IValue<boolean> {
                         if (DEBUG) { console.log("on simple value", $.value) }
                         semanticState.wrapupValue(data.range)
-                        return vh.simpleValue(
-                            data.range,
-                            $,
-                        )
+                        return vh.simpleValue({
+                            data: $,
+                            annotation: {
+                                range: data.range,
+                                contextData: cd,
+                            },
+                        })
                     }
                     switch (semanticState.currentContext[0]) {
                         case "array": {
                             const $ = semanticState.currentContext[1]
-                            return onSimpleValue($.arrayHandler.onData(data.range)(contextData))
+                            return onSimpleValue($.arrayHandler.onData(data.range)(), contextData)
                         }
                         case "object": {
                             const $$ = semanticState.currentContext[1]
@@ -474,9 +505,11 @@ function processParserEvent(
                                     return p.value(false)
                                 } else {
                                     return $$.objectHandler.onData({
-                                        keyRange: data.range,
                                         key: $.value,
-                                        contextData: contextData,
+                                        annotation: {
+                                            range: data.range,
+                                            contextData: contextData,
+                                        },
                                     }).mapResult(propHandler => {
                                         $$.propertyHandler = propHandler
                                         return p.value(false)
@@ -484,7 +517,7 @@ function processParserEvent(
                                 }
                             } else {
                                 const $$$ = $$.propertyHandler
-                                return onSimpleValue($$$.onExists(contextData))
+                                return onSimpleValue($$$.onExists(), contextData)
                             }
                         }
                         case "root": {
@@ -493,7 +526,7 @@ function processParserEvent(
                             const vh = $.rootValueHandler !== null
                                 ? $.rootValueHandler.onExists
                                 : createDummyValueHandler()
-                            return onSimpleValue(vh(contextData))
+                            return onSimpleValue(vh(), contextData)
                         }
                         case "taggedunion": {
                             const $$ = semanticState.currentContext[1]
@@ -501,16 +534,18 @@ function processParserEvent(
                                 case "expecting option": {
                                     //const $$$ = $$.state[1]
                                     if (DEBUG) { console.log("on option", $.value) }
-                                    $$.state = ["expecting value", $$.handler.option(
-                                        data.range,
-                                        $.value,
-                                        contextData
-                                    )]
+                                    $$.state = ["expecting value", $$.handler.option({
+                                        option: $.value,
+                                        annotation: {
+                                            range: data.range,
+                                            contextData: contextData,
+                                        },
+                                    })]
                                     return p.value(false)
                                 }
                                 case "expecting value": {
                                     const $$$ = $$.state[1]
-                                    return onSimpleValue($$$.onExists(contextData))
+                                    return onSimpleValue($$$.onExists(), contextData)
                                 }
                                 default:
                                     return assertUnreachable($$.state[0])
@@ -528,9 +563,13 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
                     semanticState.push(["taggedunion", {
-                        handler: semanticState.initValueHandler(data.range)(contextData).taggedUnion(
-                            data.range,
-                        ),
+                        handler: semanticState.initValueHandler(data.range)().taggedUnion({
+                            range: data.range,
+                            annotation: {
+                                range: data.range,
+                                contextData: contextData,
+                            },
+                        }),
                         state: ["expecting option", {
                         }],
                     }])
@@ -550,7 +589,7 @@ function processParserEvent(
  * 'onopenarray' with 'onclosearray'
  */
 export function createStackedParser<ReturnType, ErrorType>(
-    valueHandler: RequiredValueHandler,
+    valueHandler: RequiredValueHandler<ParserAnnotationData>,
     onError: (error: StackedDataError, range: Range) => void,
     onEnd: () => p.IUnsafeValue<ReturnType, ErrorType>
 ): TextParserEventConsumer<ReturnType, ErrorType> {

@@ -18,7 +18,7 @@ if (sourcePath === undefined) {
 
 const dataAsString = fs.readFileSync(sourcePath, { encoding: "utf-8" })
 
-function createRequiredValuePrettyPrinter(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler {
+function createRequiredValuePrettyPrinter<Annotation>(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler<Annotation> {
     return {
         onExists: createValuePrettyPrinter(indentation, writer),
         onMissing: () => {
@@ -27,10 +27,10 @@ function createRequiredValuePrettyPrinter(indentation: string, writer: (str: str
     }
 }
 
-function createValuePrettyPrinter(indentation: string, writer: (str: string) => void): astn.OnValue {
+function createValuePrettyPrinter<Annotation>(indentation: string, writer: (str: string) => void): astn.OnValue<Annotation> {
     return () => {
         return {
-            array: (_beginRange, _beginMetaData) => {
+            array: _arrayData => {
                 writer(`[`)
                 return {
                     onData: () => createValuePrettyPrinter(`${indentation}\t`, writer),
@@ -41,7 +41,7 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
                 }
 
             },
-            object: (_beginRange, _data) => {
+            object: _objectData => {
                 let isFirstProperty = true
                 writer(`{`)
                 return {
@@ -56,18 +56,18 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
                     },
                 }
             },
-            simpleValue: (_range, data) => {
-                if (data.quote !== null) {
-                    writer(`${JSON.stringify(data.value)}`)
+            simpleValue: svData => {
+                if (svData.data.quote !== null) {
+                    writer(`${JSON.stringify(svData.data.value)}`)
                 } else {
-                    writer(`${data.value}`)
+                    writer(`${svData.data.value}`)
                 }
                 return p.value(false)
             },
             taggedUnion: () => {
                 return {
-                    option: (_range, option) => {
-                        writer(`[ "${option}", `)
+                    option: optionData => {
+                        writer(`[ "${optionData.option}", `)
                         return createRequiredValuePrettyPrinter(`${indentation}`, writer)
                     },
                     missingOption: () => {

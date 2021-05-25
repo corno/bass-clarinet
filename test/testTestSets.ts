@@ -12,7 +12,7 @@ import { ownJSONTests } from "./data/ownJSONTestset"
 import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
 import { createStreamSplitter } from "../src/createStreamSplitter"
-import { printParsingError, printStackedDataError } from "../src"
+import { ParserAnnotationData, printParsingError, printStackedDataError } from "../src"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -184,7 +184,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         RECREATE THE ORIGINAL STRING
         */
 
-        function createTestRequiredValueHandler(): astn.RequiredValueHandler {
+        function createTestRequiredValueHandler(): astn.RequiredValueHandler<ParserAnnotationData> {
             return {
                 onExists: createTestValueHandler(),
                 onMissing: () => {
@@ -192,8 +192,8 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 },
             }
         }
-        function createTestValueHandler(): astn.OnValue {
-            return _contextData => {
+        function createTestValueHandler(): astn.OnValue<ParserAnnotationData> {
+            return () => {
                 return {
                     array: () => {
                         return {

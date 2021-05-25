@@ -7,17 +7,27 @@
                 'properties': {
                     "foo": (
                         'type': | 'state group' (
+                            /*a comment after a simple value*/
                             'default state': "bla"
                             'states': {
                                 "bla": ( )
                             }
                         )
                     )
+                    /*
+		    a comment before
+		    */
                     "skylanders": (
+                        /*
+		    	a comment after open object
+		    	*/
                         'type': | 'collection' (
+                            /*a comment after a colon*/
                             'node': (
+                                /*a comment before a colon*/
                                 'properties': {
                                     "aanval": (
+                                        /*a block comment before the tagged union pipe */
                                         'type': | 'state group' (
                                             'default state': "laser ogen"
                                             'states': {
@@ -27,6 +37,8 @@
                                         )
                                     )
                                     "element": (
+                                        /*a block comment after an option*/
+                                        /*a block comment after the last property*/
                                         'type': | 'state group' (
                                             'default state': "techniek"
                                             'states': {
