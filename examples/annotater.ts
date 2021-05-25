@@ -1,10 +1,10 @@
 import * as p from "pareto"
 import * as astn from "../src"
-import { ParserEventConsumer } from "../src"
+import { TextParserEventConsumer } from "../src"
 
 function createRequiredValuesAnnotater(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler {
     return {
-        onValue: createValuesAnnotater(indentation, writer),
+        onExists: createValuesAnnotater(indentation, writer),
         onMissing: () => {
             //write out an empty string to fix this missing data?
         },
@@ -64,8 +64,8 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
     }
 }
 
-export function createAnnotator(indentation: string, writer: (str: string) => void): ParserEventConsumer<null, null> {
-    const ds = astn.createStackedDataSubscriber<null, null>(
+export function createAnnotator(indentation: string, writer: (str: string) => void): TextParserEventConsumer<null, null> {
+    const ds = astn.createStackedParser<null, null>(
         createRequiredValuesAnnotater(indentation, writer),
         (error, range) => {
             throw new astn.RangeError(error[0], range)

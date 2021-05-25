@@ -17,7 +17,7 @@ import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation
 import { TreeEvent, TreeEventType } from "./TreeEvent"
 import { Token, TokenType, SimpleValueData, PunctionationData } from "./Token"
 import * as Char from "./Characters"
-import { ParserEventConsumer } from "./createTextParser"
+import { TextParserEventConsumer } from "./TextParserEventConsumer"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -88,10 +88,10 @@ export class TreeParser<ReturnType, ErrorType> {
     private readonly stack = new Array<StackContext>()
     private currentContext: StackContext | null = null
     private readonly onerror: (error: TreeParserError, range: Range) => void
-    private readonly eventsConsumer: ParserEventConsumer<ReturnType, ErrorType>
+    private readonly eventsConsumer: TextParserEventConsumer<ReturnType, ErrorType>
     constructor(
         onerror: (error: TreeParserError, range: Range) => void,
-        eventsConsumer: ParserEventConsumer<ReturnType, ErrorType>
+        eventsConsumer: TextParserEventConsumer<ReturnType, ErrorType>
     ) {
         this.onerror = onerror
         this.eventsConsumer = eventsConsumer

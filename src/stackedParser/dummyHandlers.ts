@@ -3,7 +3,7 @@ import { ArrayHandler, ObjectHandler, OnValue, RequiredValueHandler, TaggedUnion
 
 export function createDummyRequiredValueHandler(): RequiredValueHandler {
     return {
-        onValue: createDummyValueHandler(),
+        onExists: createDummyValueHandler(),
         onMissing: (): void => {
             //
         },

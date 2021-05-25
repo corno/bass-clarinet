@@ -1,6 +1,6 @@
 import * as p from "pareto"
 import * as astn from ".."
-import { ArrayEndData, ObjectEndData, PropertyData } from "../handlers"
+import { ArrayEndData, ObjectEndData, PropertyData } from "../stackedParser/handlers"
 import { ExpectContext, ExpectedProperties } from "./ExpectContext"
 
 function assertUnreachable<RT>(_x: never): RT {

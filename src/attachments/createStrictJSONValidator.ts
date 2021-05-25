@@ -4,12 +4,12 @@
     max-classes-per-file: "off",
 */
 import * as p from "pareto"
-import { TreeEventType, TreeEvent } from "../parser/TreeEvent"
-import { ParserEventConsumer } from "../parser/createTextParser"
-import { Range } from "../parser/location"
+import { TreeEventType, TreeEvent } from "../parser"
+import { TextParserEventConsumer } from "../parser"
+import { Range } from "../parser"
 import * as Char from "./NumberCharacters"
 import { RangeError } from "../errors"
-import { OverheadTokenType } from "../parser/Token"
+import { OverheadTokenType } from "../parser"
 
 type OnError = (message: string, range: Range) => void
 
@@ -110,7 +110,7 @@ type ContextType =
         // valueHandler: null | ValueHandler
     }]
 
-class StrictJSONValidator implements ParserEventConsumer<null, null> {
+class StrictJSONValidator implements TextParserEventConsumer<null, null> {
     private readonly onError: OnError
     private readonly stack: ContextType[] = []
     private currentContext: ContextType = ["root", {}]
@@ -451,6 +451,6 @@ class StrictJSONValidator implements ParserEventConsumer<null, null> {
     }
 }
 
-export function createStrictJSONValidator(onError: OnError): ParserEventConsumer<null, null> {
+export function createStrictJSONValidator(onError: OnError): TextParserEventConsumer<null, null> {
     return new StrictJSONValidator(onError)
 }

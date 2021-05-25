@@ -1,8 +1,8 @@
 import * as p from "pareto"
 import * as p20 from "pareto-20"
 import {
-    ParserEventConsumer,
-} from "./createTextParser"
+    TextParserEventConsumer,
+} from "./TextParserEventConsumer"
 import {
     OverheadToken,
 } from "./Token"
@@ -16,8 +16,8 @@ import {
 
 export function parseString<ReturnType, ErrorType>(
     data: string,
-    onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
-    onInstanceDataStart: (location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => TextParserEventConsumer<null, null>,
+    onInstanceDataStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },

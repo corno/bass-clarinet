@@ -18,7 +18,7 @@ const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
 function createRequiredValuePrettyPrinter(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler {
     return {
-        onValue: createValuePrettyPrinter(indentation, writer),
+        onExists: createValuePrettyPrinter(indentation, writer),
         onMissing: () => {
             //write out an empty string to fix this missing data?
         },
@@ -78,10 +78,10 @@ function createValuePrettyPrinter(indentation: string, writer: (str: string) => 
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): astn.ParserEventConsumer<null, null> {
-    const datasubscriber = astn.createStackedDataSubscriber<null, null>(
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): astn.TextParserEventConsumer<null, null> {
+    const datasubscriber = astn.createStackedParser<null, null>(
         {
-            onValue: createValuePrettyPrinter(indentation, writer),
+            onExists: createValuePrettyPrinter(indentation, writer),
             onMissing: () => {
                 console.error("FOUND MISSING DATA")
 

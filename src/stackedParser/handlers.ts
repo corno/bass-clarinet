@@ -1,12 +1,12 @@
 import * as p from "pareto"
-import { Range } from "./parser/location"
+import { Range } from "../parser/location"
 import {
     ArrayOpenData,
     ArrayCloseData,
     ObjectOpenData,
     ObjectCloseData,
-} from "./parser/TreeEvent"
-import { SimpleValueData } from "./parser/Token"
+} from "../parser/TreeEvent"
+import { SimpleValueData } from "../parser/Token"
 
 export type BeforeContextData = {
     comments: Comment[]
@@ -64,7 +64,7 @@ export type OnOption = (range: Range, option: string, optioncontextData: Context
 export type OnMissing = () => void
 
 export interface RequiredValueHandler {
-    onValue: OnValue
+    onExists: OnValue
     onMissing: OnMissing
 }
 

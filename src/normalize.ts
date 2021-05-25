@@ -62,7 +62,7 @@ function createRequiredValueNormalizer(
     comments: astn.Comment[]
 ): astn.RequiredValueHandler {
     return {
-        onValue: createValueNormalizer(
+        onExists: createValueNormalizer(
             handleValue,
             sortKeys,
             comments,
@@ -235,11 +235,11 @@ function createNormalizer(
     handleValue: HandleValue,
     sortKeys: boolean,
     documentComments: astn.Comment[]
-): astn.ParserEventConsumer<null, null> {
+): astn.TextParserEventConsumer<null, null> {
 
-    const datasubscriber = astn.createStackedDataSubscriber<null, null>(
+    const datasubscriber = astn.createStackedParser<null, null>(
         {
-            onValue: createValueNormalizer(handleValue, sortKeys, documentComments),
+            onExists: createValueNormalizer(handleValue, sortKeys, documentComments),
             onMissing: () => {
                 console.error("FOUND MISSING DATA")
 

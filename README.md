@@ -134,7 +134,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
     }
 }
 
-export function createPrettyPrinter(indentation: string, writer: (str: string) => void): astn.ParserEventConsumer<null, null> {
+export function createPrettyPrinter(indentation: string, writer: (str: string) => void): astn.TextParserEventConsumer<null, null> {
     const datasubscriber = astn.createStackedDataSubscriber<null, null>(
         {
             onValue: createValuesPrettyPrinter(indentation, writer),
@@ -198,7 +198,7 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: astn.ParserEventConsumer<null, null> = {
+export const parserEventConsumer: astn.TextParserEventConsumer<null, null> = {
     onData: data => {
         switch (data.type[0]) {
             case astn.TreeEventType.CloseArray: {
@@ -327,7 +327,7 @@ the data subscriber can be seen in the example code above
 # architecture
 
 The stack consists of the following chain:
-Stream -(string chunks)-> PreTokenizer -(PreToken's)-> Tokenizer -(Token's)-> Parser -(TreeEvent)-> ParserEventConsumer -(Resulting Type)-> ...
+Stream -(string chunks)-> PreTokenizer -(PreToken's)-> Tokenizer -(Token's)-> Parser -(TreeEvent)-> TextParserEventConsumer -(Resulting Type)-> ...
 
 
 PreTokens are low level token parts. For example `BlockCommentBegin`

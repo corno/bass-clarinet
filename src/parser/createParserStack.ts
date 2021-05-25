@@ -1,6 +1,8 @@
 import * as p from "pareto"
 import {
-    ParserEventConsumer,
+    TextParserEventConsumer,
+} from "./TextParserEventConsumer"
+import {
     createParser,
     TextParserError,
     printTextParserError,
@@ -55,8 +57,8 @@ export function printParsingError(error: ParsingError): string {
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).
  */
 export function createParserStack<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
-    onInstanceDataStart: (location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => TextParserEventConsumer<null, null>,
+    onInstanceDataStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },

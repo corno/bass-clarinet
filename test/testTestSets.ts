@@ -81,7 +81,7 @@ function outputOverheadToken(out: string[], $: astn.OverheadToken) {
     }
 }
 
-class OutPutter implements astn.ParserEventConsumer<null, null> {
+class OutPutter implements astn.TextParserEventConsumer<null, null> {
     readonly out: string[]
     constructor(out: string[]) {
         this.out = out
@@ -186,7 +186,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
         function createTestRequiredValueHandler(): astn.RequiredValueHandler {
             return {
-                onValue: createTestValueHandler(),
+                onExists: createTestValueHandler(),
                 onMissing: () => {
                     actualEvents.push(["stacked error", "missing value"])
                 },
@@ -238,7 +238,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             }
         }
 
-        const stackedSubscriber = astn.createStackedDataSubscriber(
+        const stackedSubscriber = astn.createStackedParser(
             createTestRequiredValueHandler(),
             error => {
 
@@ -277,7 +277,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     assertUnreachable($.type[0])
             }
         }
-        const eventSubscriber: astn.ParserEventConsumer<null, null> = {
+        const eventSubscriber: astn.TextParserEventConsumer<null, null> = {
             onData: data => {
                 switch (data.type[0]) {
                     case astn.TreeEventType.CloseArray: {
@@ -382,12 +382,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             )
         }
         const out: string[] = []
-        const schemaDataSubscribers: astn.ParserEventConsumer<null, null>[] = [
+        const schemaDataSubscribers: astn.TextParserEventConsumer<null, null>[] = [
             new OutPutter(out),
             eventSubscriber,
             createFormatter(),
         ]
-        const instanceDataSubscribers: astn.ParserEventConsumer<null, null>[] = [
+        const instanceDataSubscribers: astn.TextParserEventConsumer<null, null>[] = [
             new OutPutter(out),
             eventSubscriber,
             stackedSubscriber,

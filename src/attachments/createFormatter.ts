@@ -4,7 +4,7 @@
 import * as p from "pareto"
 import { Range, Location } from "../parser/location"
 import { TreeEventType } from "../parser/TreeEvent"
-import { ParserEventConsumer } from "../parser/createTextParser"
+import { TextParserEventConsumer } from "../parser"
 import { OverheadTokenType } from "../parser/Token"
 
 function assertUnreachable(_x: never) {
@@ -45,7 +45,7 @@ type PrecedingToken =
 	| [PrecedingTokenType.other]
 
 /**
- * this function creates a ParserEventConsumer that can be attached to a parser
+ * this function creates a TextParserEventConsumer that can be attached to a parser
  * It will call the replace, del and insert callbacks for each place in the text where a reformatting is needed
  */
 export function createFormatter(
@@ -62,7 +62,7 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onEnd: () => p.IValue<null>,
-): ParserEventConsumer<null, null> {
+): TextParserEventConsumer<null, null> {
 	let precedingWhitespace: null | TokenInfo = null
 
 	const stack: Style[] = []
@@ -243,7 +243,7 @@ export function createFormatter(
 		currentRequiredStyle = style
 	}
 
-	const ds: ParserEventConsumer<null, null> = {
+	const ds: TextParserEventConsumer<null, null> = {
 
 		onData: data => {
 			switch (data.type[0]) {

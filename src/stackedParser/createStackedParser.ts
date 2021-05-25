@@ -5,9 +5,16 @@
     max-classes-per-file: off,
 */
 import * as p from "pareto"
-import { TreeEventType, TreeEvent } from "./parser/TreeEvent"
-import { Location, Range, createRangeFromSingleLocation } from "./parser/location"
-import { createDummyValueHandler as createDummyOnValue } from "./dummyHandlers"
+import {
+    createRangeFromSingleLocation,
+    Location,
+    OverheadTokenType,
+    Range,
+    TextParserEventConsumer,
+    TreeEvent,
+    TreeEventType,
+} from "../parser"
+import { createDummyValueHandler } from "./dummyHandlers"
 import {
     RequiredValueHandler,
     OnValue,
@@ -19,9 +26,7 @@ import {
     ValueHandler,
     BeforeContextData,
 } from "./handlers"
-import { RangeError } from "./errors"
-import { ParserEventConsumer } from "./parser/createTextParser"
-import { OverheadTokenType } from "./parser/Token"
+import { RangeError } from "../errors"
 
 const DEBUG = false
 
@@ -200,9 +205,9 @@ class SemanticState {
                 if (this.currentContext[1].propertyHandler === null) {
                     //expected a key or end of the object
                     //error is already reported by parser
-                    return createDummyOnValue()
+                    return createDummyValueHandler()
                 } else {
-                    return this.currentContext[1].propertyHandler.onValue
+                    return this.currentContext[1].propertyHandler.onExists
                 }
             }
             case "root": {
@@ -210,17 +215,17 @@ class SemanticState {
                 if (vh === null) {
                     //expected end of document
                     //error is already reported by parser
-                    return createDummyOnValue()
+                    return createDummyValueHandler()
 
                 }
-                return vh.onValue
+                return vh.onExists
             }
             case "taggedunion": {
                 if (this.currentContext[1].state[0] !== "expecting value") {
                     //error is already reported by parser
-                    return createDummyOnValue()
+                    return createDummyValueHandler()
                 } else {
-                    return this.currentContext[1].state[1].onValue
+                    return this.currentContext[1].state[1].onExists
                 }
             }
             default:
@@ -479,15 +484,15 @@ function processParserEvent(
                                 }
                             } else {
                                 const $$$ = $$.propertyHandler
-                                return onSimpleValue($$$.onValue(contextData))
+                                return onSimpleValue($$$.onExists(contextData))
                             }
                         }
                         case "root": {
                             const $ = semanticState.currentContext[1]
                             //handle case when root value was already processed
                             const vh = $.rootValueHandler !== null
-                                ? $.rootValueHandler.onValue
-                                : createDummyOnValue()
+                                ? $.rootValueHandler.onExists
+                                : createDummyValueHandler()
                             return onSimpleValue(vh(contextData))
                         }
                         case "taggedunion": {
@@ -505,7 +510,7 @@ function processParserEvent(
                                 }
                                 case "expecting value": {
                                     const $$$ = $$.state[1]
-                                    return onSimpleValue($$$.onValue(contextData))
+                                    return onSimpleValue($$$.onExists(contextData))
                                 }
                                 default:
                                     return assertUnreachable($$.state[0])
@@ -544,11 +549,11 @@ function processParserEvent(
  * and
  * 'onopenarray' with 'onclosearray'
  */
-export function createStackedDataSubscriber<ReturnType, ErrorType>(
+export function createStackedParser<ReturnType, ErrorType>(
     valueHandler: RequiredValueHandler,
     onError: (error: StackedDataError, range: Range) => void,
     onEnd: () => p.IUnsafeValue<ReturnType, ErrorType>
-): ParserEventConsumer<ReturnType, ErrorType> {
+): TextParserEventConsumer<ReturnType, ErrorType> {
     const overheadState = new OverheadState()
     const semanticState = new SemanticState(valueHandler)
 

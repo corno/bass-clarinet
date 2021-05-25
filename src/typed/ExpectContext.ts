@@ -3,7 +3,7 @@
 */
 import * as p from "pareto"
 import * as astn from ".."
-import { ArrayEndData, ObjectEndData, PropertyData } from "../handlers"
+import { ArrayEndData, ObjectEndData, PropertyData } from "../stackedParser/handlers"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -284,7 +284,7 @@ export class ExpectContext {
         this.onDuplicateEntry = onDuplicateEntry
         this.createDummyRequiredValueHandler = () => {
             return {
-                onValue: this.createDummyValueHandler(),
+                onExists: this.createDummyValueHandler(),
                 onMissing: () => {
                     //
                 },
@@ -384,7 +384,7 @@ export class ExpectContext {
                                 return onUnexpectedProperty(propertyData.key, propertyData.keyRange, propertyData.contextData)
                             } else {
                                 return {
-                                    onValue: this.createDummyOnProperty(propertyData.keyRange, propertyData.key, propertyData.contextData),
+                                    onExists: this.createDummyOnProperty(propertyData.keyRange, propertyData.key, propertyData.contextData),
                                     onMissing: () => {
                                         //
                                     },
@@ -474,7 +474,7 @@ export class ExpectContext {
                         this.raiseError(["superfluous element", { }], range)//FIX print range properly
                         return this.createDummyValueHandler()
                     } else {
-                        return ee.getHandler().onValue
+                        return ee.getHandler().onExists
                     }
                 },
                 onEnd: endData => {
@@ -868,7 +868,7 @@ export class ExpectContext {
         onMissing?: () => void,
     ): astn.RequiredValueHandler {
         return {
-            onValue: onValue,
+            onExists: onValue,
             onMissing: onMissing
                 ? onMissing
                 : (): void => {

@@ -72,7 +72,7 @@ describe('bass-clarinet-typed', () => {
                             bct.Severity.warning,
                             bct.OnDuplicateEntry.ignore,
                         )
-                        return bct.createStackedDataSubscriber(
+                        return bct.createStackedParser(
                             callback(
                                 expect,
                                 errorLine => {
@@ -121,7 +121,7 @@ describe('bass-clarinet-typed', () => {
                     },
                     () => {
                         return {
-                            onValue: () => {
+                            onExists: () => {
                                 return expect.expectType(
                                     {},
                                 )
@@ -253,11 +253,11 @@ describe('bass-clarinet-typed', () => {
                         a: {
                             onExists: () => {
                                 return {
-                                    onValue: () => expect.expectTaggedUnion(
+                                    onExists: () => expect.expectTaggedUnion(
                                         {
                                             foo: () => {
                                                 return {
-                                                    onValue: () => expect.expectType(
+                                                    onExists: () => expect.expectType(
                                                         {
                                                             //
                                                         },
@@ -296,11 +296,11 @@ describe('bass-clarinet-typed', () => {
                         a: {
                             onExists: (): bct.RequiredValueHandler => {
                                 return {
-                                    onValue: () => expect.expectTaggedUnion(
+                                    onExists: () => expect.expectTaggedUnion(
                                         {
                                             foo: () => {
                                                 return {
-                                                    onValue: () => expect.expectType(),
+                                                    onExists: () => expect.expectType(),
                                                     onMissing: () => {
                                                         addError(["missing", "TBD", 0, 0, 0, 0])
                                                     },

@@ -7,7 +7,8 @@ import {
     TextState,
 } from "./TextParserStateTypes"
 import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "./location"
-import { TreeEvent, TreeEventType } from "./TreeEvent"
+import { TreeEventType } from "./TreeEvent"
+import { TextParserEventConsumer } from "./TextParserEventConsumer"
 import * as Char from "./Characters"
 import { TreeParser, TreeParserError, printTreeParserError } from "./TreeParser"
 import { TokenType, Token, PunctionationData, SimpleValueData, OverheadToken } from "./Token"
@@ -18,13 +19,6 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-/**
- * a ParserEventConsumer is a IStreamConsumer.
- * the chunks are the individual TreeEvent's.
- * at the end, the location of the last character is sent ('Location').
- * The ReturnType and ErrorType are determined by the specific implementation.
- */
-export type ParserEventConsumer<ReturnType, ErrorType> = p.IUnsafeStreamConsumer<TreeEvent, Location, ReturnType, ErrorType>
 
 export type RootContext<ReturnType, ErrorType> = {
     state:
@@ -92,16 +86,16 @@ export function printTextParserError(error: TextParserError): string {
 
 export class TextParser<ReturnType, ErrorType> {
     private readonly rootContext: RootContext<ReturnType, ErrorType> = { state: [TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE] }
-    private readonly onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>
-    private readonly onBodyStart: (location: Location) => ParserEventConsumer<ReturnType, ErrorType>
+    private readonly onSchemaDataStart: (range: Range) => TextParserEventConsumer<null, null>
+    private readonly onBodyStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>
     private readonly onerror: (error: TextParserError, range: Range) => void
     /*
     a structure overhead token is a newline/whitspace/comment outside the content parts: (schema data, instance data)
     */
     private readonly onStructureOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>
     constructor(
-        onInternalSchemaStart: (range: Range) => ParserEventConsumer<null, null>,
-        onBodyStart: (location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
+        onInternalSchemaStart: (range: Range) => TextParserEventConsumer<null, null>,
+        onBodyStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>,
         onerror: (error: TextParserError, range: Range) => void,
         onStructureOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
     ) {
@@ -368,13 +362,13 @@ export class TextParser<ReturnType, ErrorType> {
  * -ErrorType: The type if the parsing produced an unexpected error
  * @param onSchemaDataStart a document can contain schema data. If this is the case, this callback will be called.
  * it enables the consuming code to prepare for the instance data. It cannot produce a result itself, hence the type parameters are null and null
- * @param onInstanceDataStart when the instance data starts, this callback is called and a ParserEventConsumer should be returned. This consumer will also produce the final resulting type
+ * @param onInstanceDataStart when the instance data starts, this callback is called and a TextParserEventConsumer should be returned. This consumer will also produce the final resulting type
  * @param onerror a handler for when a parsing error occurs
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
 export function createParser<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => ParserEventConsumer<null, null>,
-    onInstanceDataStart: (location: Location) => ParserEventConsumer<ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => TextParserEventConsumer<null, null>,
+    onInstanceDataStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>,
     onerror: (error: TextParserError, range: Range) => void,
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
 ): TextParser<ReturnType, ErrorType> {
