@@ -475,12 +475,12 @@ export class ExpectContext<Annotation> {
         onBegin?: (data: ArrayBeginData<Annotation>) => void,
         onEnd?: (endData: ArrayEndData<Annotation>) => void
     ): astn.OnArray<Annotation> {
-        return data => {
+        return typeData => {
             if (onBegin) {
-                onBegin(data)
+                onBegin(typeData)
             }
-            if (data.type[0] !== "shorthand type") {
-                this.raiseWarning(["array is not a shorthand type", {}], data.annotation)
+            if (typeData.type[0] !== "shorthand type") {
+                this.raiseWarning(["array is not a shorthand type", {}], typeData.annotation)
             }
             let index = 0
             return {
