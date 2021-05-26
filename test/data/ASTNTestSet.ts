@@ -108,6 +108,7 @@ a comment
             ["token", "quotedstring", "foo", null],
             ["token", "closeobject", "}", null],
             ["end", null],
+            ["stacked error", "unmatched verbose type close"],
         ],
     },
     "missing comma": {

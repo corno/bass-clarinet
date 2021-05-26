@@ -72,10 +72,16 @@ type ContextType =
         rootValueHandler: RequiredValueHandler<ParserAnnotationData> | null //becomes null when processed
     }]
     | ["object", {
+        type:
+        | ["dictionary"]
+        | ["verbose type"]
         readonly objectHandler: ObjectHandler<ParserAnnotationData>
         propertyHandler: null | RequiredValueHandler<ParserAnnotationData>
     }]
     | ["array", {
+        type:
+        | ["list"]
+        | ["shorthand type"]
         readonly arrayHandler: ArrayHandler<ParserAnnotationData>
     }]
     | ["taggedunion", {
@@ -91,6 +97,11 @@ export type StackedDataError =
         | ["tagged union"]
     }]
     | ["missing property data"]
+    | ["unmatched dictionary close"]
+    | ["unmatched verbose type close"]
+
+    | ["unmatched list close"]
+    | ["unmatched shorthand type close"]
     | ["missing object close"]
     | ["missing array close"]
     | ["missing tagged union value"]
@@ -101,6 +112,18 @@ export type StackedDataError =
 
 export function printStackedDataError(error: StackedDataError): string {
     switch (error[0]) {
+        case "unmatched dictionary close": {
+            return error[0]
+        }
+        case "unmatched verbose type close": {
+            return error[0]
+        }
+        case "unmatched list close": {
+            return error[0]
+        }
+        case "unmatched shorthand type close": {
+            return error[0]
+        }
         case "missing array close": {
             return error[0]
         }
@@ -331,6 +354,25 @@ function processParserEvent(
                         return p.value(false)
                     } else {
                         const $$ = semanticState.currentContext[1]
+                        switch ($$.type[0]) {
+                            case "list": {
+                                if (data.tokenString !== "]") {
+                                    raiseError(onError, ["unmatched list close"], data.range)
+
+                                }
+                                break
+                            }
+                            case "shorthand type": {
+                                if (data.tokenString !== ">") {
+                                    raiseError(onError, ["unmatched shorthand type close"], data.range)
+
+                                }
+
+                                break
+                            }
+                            default:
+                                assertUnreachable($$.type[0])
+                        }
                         $$.arrayHandler.onEnd({
                             annotation: {
                                 tokenString: data.tokenString,
@@ -389,6 +431,25 @@ function processParserEvent(
                         return p.value(false)
                     } else {
                         const $$ = semanticState.currentContext[1]
+                        switch ($$.type[0]) {
+                            case "dictionary": {
+                                if (data.tokenString !== "}") {
+                                    raiseError(onError, ["unmatched dictionary close"], data.range)
+
+                                }
+                                break
+                            }
+                            case "verbose type": {
+                                if (data.tokenString !== ")") {
+                                    raiseError(onError, ["unmatched verbose type close"], data.range)
+
+                                }
+
+                                break
+                            }
+                            default:
+                                assertUnreachable($$.type[0])
+                        }
                         if ($$.propertyHandler !== null) {
                             //was in the middle of processing a property
                             //the key was parsed, but the data was not
@@ -428,7 +489,10 @@ function processParserEvent(
                             contextData: contextData,
                         },
                     })
-                    semanticState.push(["array", { arrayHandler: arrayHandler }])
+                    semanticState.push(["array", {
+                        type: data.tokenString === "<" ? ["shorthand type"] : ["list"],
+                        arrayHandler: arrayHandler,
+                    }])
                     return p.value(false)
                 },
             }]
@@ -448,6 +512,7 @@ function processParserEvent(
                         },
                     })
                     semanticState.push(["object", {
+                        type: data.tokenString === "(" ? ["verbose type"] : ["dictionary"],
                         objectHandler: objectHandler,
                         propertyHandler: null,
                     }])

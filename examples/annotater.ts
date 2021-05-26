@@ -1,46 +1,49 @@
 import * as p from "pareto"
 import * as astn from "../src"
-import { ParserAnnotationData, TextParserEventConsumer } from "../src"
 
-function createRequiredValuesAnnotater(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler<ParserAnnotationData> {
+function createRequiredValuesAnnotater<Annotation>(
+    indentation: string,
+    writer: (str: string) => void,
+    printAnnotation: (annotation: Annotation) => string
+): astn.RequiredValueHandler<Annotation> {
     return {
-        onExists: createValuesAnnotater(indentation, writer),
+        onExists: createValuesAnnotater(indentation, writer, printAnnotation),
         onMissing: () => {
             //write out an empty string to fix this missing data?
         },
     }
 }
 
-function createValuesAnnotater(indentation: string, writer: (str: string) => void): astn.ValueHandler<ParserAnnotationData> {
+function createValuesAnnotater<Annotation>(indentation: string, writer: (str: string) => void, printAnnotation: (annotation: Annotation) => string): astn.ValueHandler<Annotation> {
     return {
         array: arrayData => {
-            writer(`${indentation}[ // ${astn.printRange(arrayData.annotation.range)}`)
+            writer(`${indentation}[ // ${printAnnotation(arrayData.annotation)}`)
             return {
-                onData: () => createValuesAnnotater(`${indentation}\t`, writer),
+                onData: () => createValuesAnnotater(`${indentation}\t`, writer, printAnnotation),
                 onEnd: endData => {
-                    writer(`${indentation}] // ${astn.printRange(endData.annotation.range)}`)
+                    writer(`${indentation}] // ${printAnnotation(endData.annotation)}`)
                     return p.value(null)
                 },
             }
         },
         object: objectData => {
-            writer(`${indentation}{ // ${astn.printRange(objectData.annotation.range)}`)
+            writer(`${indentation}{ // ${printAnnotation(objectData.annotation)}`)
             return {
                 onData: propertyData => {
                     writer(`${indentation}"${propertyData.key}": `)
-                    return p.value(createRequiredValuesAnnotater(`${indentation}\t`, writer))
+                    return p.value(createRequiredValuesAnnotater(`${indentation}\t`, writer, printAnnotation))
                 },
                 onEnd: endData => {
-                    writer(`${indentation}} // ${astn.printRange(endData.annotation.range)}`)
+                    writer(`${indentation}} // ${printAnnotation(endData.annotation)}`)
                     return p.value(null)
                 },
             }
         },
         simpleValue: svData => {
             if (svData.wrapper[0] !== "none") {
-                writer(`${indentation}${JSON.stringify(svData.value)} // ${astn.printRange(svData.annotation.range)}`)
+                writer(`${indentation}${JSON.stringify(svData.value)} // ${printAnnotation(svData.annotation)}`)
             } else {
-                writer(`${indentation}${svData.value} // ${astn.printRange(svData.annotation.range)}`)
+                writer(`${indentation}${svData.value} // ${printAnnotation(svData.annotation)}`)
             }
             return p.value(false)
         },
@@ -48,8 +51,8 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
             writer(`| ${indentation}`)
             return {
                 option: optionData => {
-                    writer(`"${JSON.stringify(optionData.option)}" // ${astn.printRange(tuData.annotation.range)} ${astn.printRange(tuData.annotation.range)}`)
-                    return createRequiredValuesAnnotater(`${indentation}\t`, writer)
+                    writer(`"${JSON.stringify(optionData.option)}" // ${printAnnotation(tuData.annotation)} ${printAnnotation(tuData.annotation)}`)
+                    return createRequiredValuesAnnotater(`${indentation}\t`, writer, printAnnotation)
                 },
                 missingOption: () => {
                     //
@@ -62,9 +65,15 @@ function createValuesAnnotater(indentation: string, writer: (str: string) => voi
     }
 }
 
-export function createAnnotator(indentation: string, writer: (str: string) => void): TextParserEventConsumer<null, null> {
+export function createAnnotator(indentation: string, writer: (str: string) => void): astn.TextParserEventConsumer<null, null> {
     const ds = astn.createStackedParser<null, null>(
-        createRequiredValuesAnnotater(indentation, writer),
+        createRequiredValuesAnnotater(
+            indentation,
+            writer,
+            annotation => {
+                return astn.printRange(annotation.range)
+            }
+        ),
         (error, range) => {
             throw new astn.RangeError(error[0], range)
         },

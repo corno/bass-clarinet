@@ -28,13 +28,13 @@ type ErrorLine = [string, string, number, number, number, number]
 //     }
 // }
 
-describe('bass-clarinet-typed', () => {
+describe('typed', () => {
     describe('#expect', () => {
         function doTest(
             testName: string,
             data: string,
             callback: (
-                expect: bct.ExpectContext,
+                expect: bct.ExpectContext<ParserAnnotationData>,
                 addError: (errorLine: ErrorLine) => void
             ) => bct.RequiredValueHandler<ParserAnnotationData>,
             expectedErrors: ErrorLine[]
@@ -42,9 +42,9 @@ describe('bass-clarinet-typed', () => {
 
             it(testName, () => {
                 const foundErrors: ErrorLine[] = []
-                const onWarning = (issue: ExpectError, range: bct.Range) => {
-                    const end = getEndLocationFromRange(range)
-                    foundErrors.push(["expect warning", printExpectError(issue), range.start.line, range.start.column, end.line, end.column])
+                const onWarning = (issue: ExpectError, annotation: ParserAnnotationData) => {
+                    const end = getEndLocationFromRange(annotation.range)
+                    foundErrors.push(["expect warning", printExpectError(issue), annotation.range.start.line, annotation.range.start.column, end.line, end.column])
                 }
                 const streamTokenizer = bct.createParserStack(
                     () => {
@@ -62,9 +62,9 @@ describe('bass-clarinet-typed', () => {
                     () => {
 
                         const expect = new bct.ExpectContext(
-                            (issue: ExpectError, range: bct.Range) => {
-                                const end = getEndLocationFromRange(range)
-                                foundErrors.push(["expect error", printExpectError(issue), range.start.line, range.start.column, end.line, end.column])
+                            (issue: ExpectError, annotation: ParserAnnotationData) => {
+                                const end = getEndLocationFromRange(annotation.range)
+                                foundErrors.push(["expect error", printExpectError(issue), annotation.range.start.line, annotation.range.start.column, end.line, end.column])
                             },
                             onWarning,
                             bct.createDummyValueHandler,
@@ -142,7 +142,7 @@ describe('bass-clarinet-typed', () => {
             expect => bct.createRequiredValueHandler(
                 expect,
                 ["type", {
-                    a: (): bct.ValueType => {
+                    a: (): bct.ValueType<ParserAnnotationData> => {
                         return ["number", () => {
                             return p.value(false)
                         }]
@@ -162,7 +162,7 @@ describe('bass-clarinet-typed', () => {
                 [
                     "type",
                     {
-                        a: (): bct.ValueType => {
+                        a: (): bct.ValueType<ParserAnnotationData> => {
                             return [
                                 "number",
                                 () => {
@@ -193,7 +193,7 @@ describe('bass-clarinet-typed', () => {
                 [
                     "type",
                     {
-                        a: (): bct.ValueType => {
+                        a: (): bct.ValueType<ParserAnnotationData> => {
                             return [
                                 "number",
                                 () => {
@@ -236,7 +236,7 @@ describe('bass-clarinet-typed', () => {
                 ]
             ),
             [
-                ["expect error", "expected a list ( [] ) but found an object ( {} or () )", 1, 1, 1, 4],
+                ["expect error", "expected a list ( [] ) but found an object ( {} or () )", 1, 1, 1, 2],
             ]
         )
 
