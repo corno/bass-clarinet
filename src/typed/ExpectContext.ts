@@ -20,6 +20,20 @@ export type ExpectedToken =
     | "close curly"
 
 export type ExpectError =
+    | ["array is not a list", {
+        //
+    }]
+    | ["array is not a shorthand type", {
+        //
+    }]
+
+    | ["object is not a verbose type", {
+        //
+    }]
+
+    | ["object is not a dictionary", {
+        //
+    }]
     | ["invalid value type", {
         found: ExpectErrorValueType
         expected: ExpectErrorValue
@@ -130,6 +144,18 @@ export function printExpectErrorValue(vt: ExpectErrorValue): string {
 
 export function printExpectError(issue: ExpectError): string {
     switch (issue[0]) {
+        case "array is not a list": {
+            return `expected a list: [ ]`
+        }
+        case "array is not a shorthand type": {
+            return `expected a shorthand type: < >`
+        }
+        case "object is not a dictionary": {
+            return `expected a dictionary: { }`
+        }
+        case "object is not a verbose type": {
+            return `expected a verbose type: ( )`
+        }
         case "invalid value type": {
             const $ = issue[1]
             return `expected ${printExpectErrorValue($.expected)} but found ${printExpectErrorValueType($.found)}`
@@ -299,9 +325,13 @@ export class ExpectContext<Annotation> {
         onBegin?: (data: ObjectBeginData<Annotation>) => void,
         onEnd?: (endData: ObjectEndData<Annotation>) => void,
     ): astn.OnObject<Annotation> {
-        return objectData => {
+        return data => {
+
+            if (data.type[0] !== "dictionary") {
+                this.raiseWarning(["object is not a dictionary", {}], data.annotation)
+            }
             if (onBegin) {
-                onBegin(objectData)
+                onBegin(data)
             }
             const foundEntries: string[] = []
             return {
@@ -352,9 +382,13 @@ export class ExpectContext<Annotation> {
         onEnd?: (hasErrors: boolean, endData: ObjectEndData<Annotation>) => void,
         onUnexpectedProperty?: (data: astn.PropertyData<Annotation>) => astn.RequiredValueHandler<Annotation>,
     ): astn.OnObject<Annotation> {
-        return objectData => {
+        return data => {
+
+            if (data.type[0] !== "verbose type") {
+                this.raiseWarning(["object is not a verbose type", {}], data.annotation)
+            }
             if (onBegin) {
-                onBegin(objectData)
+                onBegin(data)
             }
             const foundProperies: string[] = []
             let hasErrors = false
@@ -417,11 +451,11 @@ export class ExpectContext<Annotation> {
                         if (!foundProperies.includes(epName)) {
                             const ep = expectedProperties[epName]
                             if (ep.onNotExists === null) {
-                                this.raiseError(["missing property", { name: epName }], objectData.annotation)//FIX print location properly
+                                this.raiseError(["missing property", { name: epName }], data.annotation)//FIX print location properly
                                 hasErrors = true
                             } else {
                                 ep.onNotExists(
-                                    objectData,
+                                    data,
                                     endData,
                                 )
                             }
@@ -441,9 +475,12 @@ export class ExpectContext<Annotation> {
         onBegin?: (data: ArrayBeginData<Annotation>) => void,
         onEnd?: (endData: ArrayEndData<Annotation>) => void
     ): astn.OnArray<Annotation> {
-        return arrayData => {
+        return data => {
             if (onBegin) {
-                onBegin(arrayData)
+                onBegin(data)
+            }
+            if (data.type[0] !== "shorthand type") {
+                this.raiseWarning(["array is not a shorthand type", {}], data.annotation)
             }
             let index = 0
             return {
@@ -470,7 +507,6 @@ export class ExpectContext<Annotation> {
                                 return dvh.taggedUnion(data)
                             },
                         }
-                        return this.createDummyValueHandler()
                     } else {
                         return ee.getHandler().onExists
                     }
@@ -502,9 +538,12 @@ export class ExpectContext<Annotation> {
         onBegin?: (beginData: ArrayBeginData<Annotation>) => void,
         onEnd?: (endData: ArrayEndData<Annotation>) => void,
     ): astn.OnArray<Annotation> {
-        return arrayData => {
+        return data => {
+            if (data.type[0] !== "list") {
+                this.raiseWarning(["array is not a list", {}], data.annotation)
+            }
             if (onBegin) {
-                onBegin(arrayData)
+                onBegin(data)
             }
             return {
                 onData: (): astn.ValueHandler<Annotation> => onElement(),
