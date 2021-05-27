@@ -15,6 +15,18 @@ export const extensionTests: TestDefinitions = {
             ["end", null],
         ],
     },
+    // "missing option": {
+    //     text: '| { }',
+    //     events: [
+    //         ["token", "opentaggedunion", null],
+    //         ["parsingerror", "expected option"],
+    //         ["token", "openobject", "{", null],
+    //         ["token", "closeobject", "}", null],
+    //         ["stacked error", "missing option"],
+    //         ["end", null],
+    //         ["stacked error", "unexpected end of document, still in tagged union"],
+    //     ],
+    // },
     "line comment": {
         text: '[ 1, "a" //a line comment\r\n]',
         formattedText: '[ 1, "a" //a line comment\n]',
