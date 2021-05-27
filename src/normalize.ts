@@ -62,12 +62,12 @@ function createRequiredValueNormalizer<Annotation>(
     comments: astn.Comment[]
 ): astn.RequiredValueHandler<Annotation> {
     return {
-        onExists: createValueNormalizer(
+        exists: createValueNormalizer(
             handleValue,
             sortKeys,
             comments,
         ),
-        onMissing: () => {
+        missing: () => {
             //write out an empty string to fix this missing data?
         },
     }
@@ -123,20 +123,20 @@ function createValueNormalizer<Annotation>(
     const valueComments: astn.Comment[] = []
     const comments = parentComments === null ? valueComments : parentComments
     return {
-        array: arrayData => {
-            const isShorthandType = arrayData.type[0] === "shorthand type"
+        array: $ => {
+            const isShorthandType = $.data.type[0] === "shorthand type"
             const elements: SerializableValue[] = []
             //addComments(arrayData.annotation.contextData, comments)
 
             return {
-                onData: () => createValueNormalizer(
+                element: () => createValueNormalizer(
                     elementValue => {
                         elements.push(elementValue)
                     },
                     sortKeys,
                     null,
                 ),
-                onEnd: _endData => {
+                arrayEnd: _endData => {
                     const intermediateComments: astn.Comment[] = []
                     //addComments(endData.annotation.contextData, intermediateComments)
                     handleValue({
@@ -154,19 +154,19 @@ function createValueNormalizer<Annotation>(
             }
 
         },
-        object: objectData => {
+        object: $ => {
             const properties: { [key: string]: SerializableProperty } = {}
 
-            const isType = objectData.type[0] === "verbose type"
+            const isType = $.data.type[0] === "verbose type"
             //addComments(objectData.annotation.contextData, comments)
 
             return {
-                onData: propertyData => {
+                property: $ => {
                     const propertyComments: astn.Comment[] = []
                     //addComments(propertyData.annotation.contextData, propertyComments)
                     return p.value(createRequiredValueNormalizer(
                         propertyValue => {
-                            properties[propertyData.key] = {
+                            properties[$.data.key] = {
                                 quote: isType ? "'" : "\"",
                                 commentData: transformCommentsToSerializableCommentData(propertyComments),
                                 value: propertyValue,
@@ -176,7 +176,7 @@ function createValueNormalizer<Annotation>(
                         propertyComments,
                     ))
                 },
-                onEnd: _endData => {
+                objectEnd: _endData => {
                     //addComments(endData.annotation.contextData, comments)
                     handleValue({
                         commentData: transformCommentsToSerializableCommentData(valueComments),
@@ -191,14 +191,14 @@ function createValueNormalizer<Annotation>(
                 },
             }
         },
-        simpleValue: svData => {
+        simpleValue: $ => {
             //addComments(svData.annotation.contextData, comments)
 
             handleValue({
                 commentData: transformCommentsToSerializableCommentData(valueComments),
                 type: ["simple value", {
-                    quote: svData.wrapper[0] === "none" ? null : "\"",
-                    value: svData.value,
+                    quote: $.data.wrapper[0] === "none" ? null : "\"",
+                    value: $.data.value,
                 }],
             })
             return p.value(false)
@@ -207,14 +207,14 @@ function createValueNormalizer<Annotation>(
             //addComments(tuData.annotation.contextData, comments)
 
             return {
-                option: optionData => {
+                option: $ => {
                     //addComments(optionData.annotation.contextData, comments)
                     return createRequiredValueNormalizer(
                         tuData2 => {
                             handleValue({
                                 commentData: transformCommentsToSerializableCommentData(valueComments),
                                 type: ["tagged union", {
-                                    option: optionData.option,
+                                    option: $.data.option,
                                     quote: "'",
                                     commentData: createEmptyCommentsData(),
                                     data: tuData2,
@@ -244,8 +244,8 @@ function createNormalizer(
 
     const datasubscriber = astn.createStackedParser<null, null>(
         {
-            onExists: createValueNormalizer(handleValue, sortKeys, documentComments),
-            onMissing: () => {
+            exists: createValueNormalizer(handleValue, sortKeys, documentComments),
+            missing: () => {
                 console.error("FOUND MISSING DATA")
 
             },

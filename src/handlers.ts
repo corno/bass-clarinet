@@ -1,82 +1,87 @@
 import * as p from "pareto"
 
-export type PropertyData<Annotation> = {
+export type PropertyData = {
     key: string
-    annotation: Annotation
 }
 
-export type ObjectEndData<Annotation> = {
-    annotation: Annotation
-}
-
-export type ObjectHandler<Annotation> = {
-    onData: (propertyData: PropertyData<Annotation>) => p.IValue<RequiredValueHandler<Annotation>>
-    onEnd: (objectEndData: ObjectEndData<Annotation>) => p.IValue<null>
-}
-
-export type ArrayEndData<Annotation> = {
-    annotation: Annotation
-}
-
-export type ArrayHandler<Annotation> = {
-    onData: () => ValueHandler<Annotation>
-    onEnd: (arrayEndData: ArrayEndData<Annotation>) => p.IValue<null>
-}
-
-export type TaggedUnionHandler<Annotation> = {
-    option: OnOption<Annotation>
-    missingOption: () => void
-    end: () => void
-}
-
-export type ObjectBeginData<Annotation> = {
+export type ObjectData = {
     type:
     | ["verbose type"]
     | ["dictionary"]
-    annotation: Annotation
 }
 
-export type OnObject<Annotation> = (data: ObjectBeginData<Annotation>) => ObjectHandler<Annotation>
-
-export type ArrayBeginData<Annotation> = {
+export type ArrayData = {
     type:
     | ["shorthand type"]
     | ["list"]
-    annotation: Annotation
 }
-
-export type OnArray<Annotation> = (data: ArrayBeginData<Annotation>) => ArrayHandler<Annotation>
 
 export type Wrapper =
     | ["none"]
     | ["backtick"]
     | ["quote"]
 
-export type SimpleValueData2<Annotation> = {
+export type SimpleValueData2 = {
     wrapper: Wrapper
     value: string
-    annotation: Annotation
 }
 
-export type OnSimpleValue<Annotation> = (data: SimpleValueData2<Annotation>) => p.IValue<boolean>
-
-export type TaggedUnionData<Annotation> = {
-    annotation: Annotation
-}
-
-export type OptionData<Annotation> = {
+export type OptionData = {
     option: string
-    annotation: Annotation
 }
 
-export type OnTaggedUnion<Annotation> = (data: TaggedUnionData<Annotation>) => TaggedUnionHandler<Annotation>
-export type OnOption<Annotation> = (data: OptionData<Annotation>) => RequiredValueHandler<Annotation>
+
+export interface ObjectHandler<Annotation> {
+    property: ($: {
+        data: PropertyData
+        annotation: Annotation
+    }) => p.IValue<RequiredValueHandler<Annotation>>
+    objectEnd: ($: {
+        annotation: Annotation
+    }) => p.IValue<null>
+}
+
+export interface ArrayHandler<Annotation> {
+    element: () => ValueHandler<Annotation>
+    arrayEnd: ($: {
+        annotation: Annotation
+    }) => p.IValue<null>
+}
+
+export interface TaggedUnionHandler<Annotation> {
+    option: OnOption<Annotation>
+    missingOption: () => void
+    end: () => void
+}
+export type OnObject<Annotation> = ($: {
+    data: ObjectData
+    annotation: Annotation
+}) => ObjectHandler<Annotation>
+
+export type OnArray<Annotation> = ($: {
+    data: ArrayData
+    annotation: Annotation
+}) => ArrayHandler<Annotation>
+
+export type OnSimpleValue<Annotation> = ($: {
+    data: SimpleValueData2
+    annotation: Annotation
+}) => p.IValue<boolean>
+
+
+export type OnTaggedUnion<Annotation> = ($: {
+    annotation: Annotation
+}) => TaggedUnionHandler<Annotation>
+export type OnOption<Annotation> = ($: {
+    data: OptionData
+    annotation: Annotation
+}) => RequiredValueHandler<Annotation>
 
 export type OnMissing = () => void
 
 export interface RequiredValueHandler<Annotation> {
-    onExists: ValueHandler<Annotation>
-    onMissing: OnMissing
+    exists: ValueHandler<Annotation>
+    missing: OnMissing
 }
 
 export interface ValueHandler<Annotation> {

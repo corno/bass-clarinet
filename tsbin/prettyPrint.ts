@@ -18,8 +18,8 @@ const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
 function createRequiredValuePrettyPrinter<Annotation>(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler<Annotation> {
     return {
-        onExists: createValuePrettyPrinter(indentation, writer),
-        onMissing: () => {
+        exists: createValuePrettyPrinter(indentation, writer),
+        missing: () => {
             //write out an empty string to fix this missing data?
         },
     }
@@ -29,55 +29,55 @@ function createValuePrettyPrinter<Annotation>(indentation: string, writer: (str:
     return {
         array: arrayData => {
 
-            writer(arrayData.type[0] === "shorthand type" ? "<" : "[")
+            writer(arrayData.data.type[0] === "shorthand type" ? "<" : "[")
             return {
-                onData: () => createValuePrettyPrinter(`${indentation}\t`, writer),
-                onEnd: () => {
-                    writer(`${indentation}${arrayData.type[0] === "shorthand type" ? ">" : "]"}`)
+                element: () => createValuePrettyPrinter(`${indentation}\t`, writer),
+                arrayEnd: () => {
+                    writer(`${indentation}${arrayData.data.type[0] === "shorthand type" ? ">" : "]"}`)
                     return p.value(null)
                 },
             }
 
         },
         object: objectData => {
-            writer(objectData.type[0] === "verbose type" ? "(" : "{")
+            writer(objectData.data.type[0] === "verbose type" ? "(" : "{")
             return {
-                onData: propertyData => {
-                    writer(`${indentation}\t"${propertyData.key}": `)
+                property: propertyData => {
+                    writer(`${indentation}\t"${propertyData.data.key}": `)
                     return p.value(createRequiredValuePrettyPrinter(`${indentation}\t`, writer))
                 },
-                onEnd: () => {
-                    writer(`${indentation}${objectData.type[0] === "verbose type" ? ")" : "}"}`)
+                objectEnd: () => {
+                    writer(`${indentation}${objectData.data.type[0] === "verbose type" ? ")" : "}"}`)
                     return p.value(null)
                 },
             }
         },
         simpleValue: svData => {
-            switch (svData.wrapper[0]) {
+            switch (svData.data.wrapper[0]) {
                 case "none": {
-                    writer(`${svData.value}`)
+                    writer(`${svData.data.value}`)
 
                     break
                 }
                 case "backtick": {
-                    writer(`FIXME BACKTICK${JSON.stringify(svData.value)}`)
+                    writer(`FIXME BACKTICK${JSON.stringify(svData.data.value)}`)
 
                     break
                 }
                 case "quote": {
-                    writer(`${JSON.stringify(svData.value)}`)
+                    writer(`${JSON.stringify(svData.data.value)}`)
 
                     break
                 }
                 default:
-                    assertUnreachable(svData.wrapper[0])
+                    assertUnreachable(svData.data.wrapper[0])
             }
             return p.value(false)
         },
         taggedUnion: () => {
             return {
                 option: optionData => {
-                    writer(`| "${optionData.option}" `)
+                    writer(`| "${optionData.data.option}" `)
                     return createRequiredValuePrettyPrinter(`${indentation}`, writer)
                 },
                 missingOption: () => {
@@ -94,8 +94,8 @@ function createValuePrettyPrinter<Annotation>(indentation: string, writer: (str:
 export function createPrettyPrinter(indentation: string, writer: (str: string) => void): astn.TextParserEventConsumer<null, null> {
     const datasubscriber = astn.createStackedParser<null, null>(
         {
-            onExists: createValuePrettyPrinter(indentation, writer),
-            onMissing: () => {
+            exists: createValuePrettyPrinter(indentation, writer),
+            missing: () => {
                 console.error("FOUND MISSING DATA")
 
             },

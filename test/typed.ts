@@ -121,8 +121,8 @@ describe('typed', () => {
                     },
                     () => {
                         return {
-                            onExists: expect.expectType({}),
-                            onMissing: () => {
+                            exists: expect.expectType({}),
+                            missing: () => {
                                 //
                             },
                         }
@@ -249,16 +249,16 @@ describe('typed', () => {
                         a: {
                             onExists: () => {
                                 return {
-                                    onExists: expect.expectTaggedUnion(
+                                    exists: expect.expectTaggedUnion(
                                         {
                                             foo: () => {
                                                 return {
-                                                    onExists: expect.expectType(
+                                                    exists: expect.expectType(
                                                         {
                                                             //
                                                         },
                                                     ),
-                                                    onMissing: () => {
+                                                    missing: () => {
                                                         //
                                                     },
                                                 }
@@ -271,7 +271,7 @@ describe('typed', () => {
                                             //
                                         },
                                     ),
-                                    onMissing: () => {
+                                    missing: () => {
                                         //
                                     },
                                 }
@@ -292,19 +292,19 @@ describe('typed', () => {
                         a: {
                             onExists: (): bct.RequiredValueHandler<ParserAnnotationData> => {
                                 return {
-                                    onExists: expect.expectTaggedUnion(
+                                    exists: expect.expectTaggedUnion(
                                         {
                                             foo: () => {
                                                 return {
-                                                    onExists: expect.expectType(),
-                                                    onMissing: () => {
+                                                    exists: expect.expectType(),
+                                                    missing: () => {
                                                         addError(["missing", "TBD", 0, 0, 0, 0])
                                                     },
                                                 }
                                             },
                                         },
                                     ),
-                                    onMissing: () => {
+                                    missing: () => {
                                         //
                                     },
                                 }

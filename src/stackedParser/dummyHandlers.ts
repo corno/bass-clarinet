@@ -3,8 +3,8 @@ import { ArrayHandler, ObjectHandler, RequiredValueHandler, TaggedUnionHandler, 
 
 export function createDummyRequiredValueHandler<Annotation>(): RequiredValueHandler<Annotation> {
     return {
-        onExists: createDummyValueHandler(),
-        onMissing: (): void => {
+        exists: createDummyValueHandler(),
+        missing: (): void => {
             //
         },
     }
@@ -34,8 +34,8 @@ export function createDummyValueHandler<Annotation>(): ValueHandler<Annotation> 
 
 export function createDummyArrayHandler<Annotation>(): ArrayHandler<Annotation> {
     return {
-        onData: (): ValueHandler<Annotation> => createDummyValueHandler(),
-        onEnd: () => {
+        element: (): ValueHandler<Annotation> => createDummyValueHandler(),
+        arrayEnd: () => {
             //do nothing
             return p.value(null)
         },
@@ -44,10 +44,10 @@ export function createDummyArrayHandler<Annotation>(): ArrayHandler<Annotation> 
 
 export function createDummyObjectHandler<Annotation>(): ObjectHandler<Annotation> {
     return {
-        onData: () => {
+        property: () => {
             return p.value(createDummyRequiredValueHandler())
         },
-        onEnd: () => {
+        objectEnd: () => {
             return p.value(null)
         },
     }

@@ -3,7 +3,7 @@
 */
 import * as p from "pareto"
 import * as astn from ".."
-import { ArrayBeginData, ArrayEndData, ObjectBeginData, ObjectEndData, OptionData, PropertyData, SimpleValueData2, TaggedUnionData } from "../handlers"
+import { ArrayData, OptionData, ObjectData, PropertyData, SimpleValueData2 } from "../handlers"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -245,11 +245,15 @@ export type ExpectedElement<Annotation> = {
 export type ExpectedElements<Annotation> = ExpectedElement<Annotation>[]
 
 export type ExpectedProperty<Annotation> = {
-    onExists: (data: astn.PropertyData<Annotation>) => astn.RequiredValueHandler<Annotation>
-    onNotExists: null | ((
-        beginData: ObjectBeginData<Annotation>,
-        endData: ObjectEndData<Annotation>,
-    ) => void
+    onExists: ($: {
+        data: PropertyData
+        annotation: Annotation
+    }) => astn.RequiredValueHandler<Annotation>
+    onNotExists: null | (($: {
+            data: ObjectData
+            beginAnnotation: Annotation
+            endAnnotation: Annotation
+        }) => void
     ) //if onNotExists is null and the property does not exist, an error will be raised
 }
 
@@ -260,8 +264,13 @@ export type ExpectedProperties<Annotation> = {
 
 export type Options<Annotation> = {
     [key: string]: (
-        taggedUnionData: TaggedUnionData<Annotation>,
-        optionData: OptionData<Annotation>,
+        taggedUnionData: {
+            annotation: Annotation
+        },
+        optionData: {
+            data: OptionData
+            annotation: Annotation
+        },
     ) => astn.RequiredValueHandler<Annotation>
 }
 
@@ -307,8 +316,8 @@ export class ExpectContext<Annotation> {
         this.onDuplicateEntry = onDuplicateEntry
         this.createDummyRequiredValueHandler = () => {
             return {
-                onExists: this.createDummyValueHandler(),
-                onMissing: () => {
+                exists: this.createDummyValueHandler(),
+                missing: () => {
                     //
                 },
             }
@@ -321,13 +330,21 @@ export class ExpectContext<Annotation> {
         this.errorHandler(issue, annotation)
     }
     public createDictionaryHandler(
-        onEntry: (propertyData: PropertyData<Annotation>) => astn.RequiredValueHandler<Annotation>,
-        onBegin?: (data: ObjectBeginData<Annotation>) => void,
-        onEnd?: (endData: ObjectEndData<Annotation>) => void,
+        onEntry: (propertyData: {
+            data: PropertyData
+            annotation: Annotation
+        }) => astn.RequiredValueHandler<Annotation>,
+        onBegin?: ($: {
+            data: ObjectData
+            annotation: Annotation
+        }) => void,
+        onEnd?: (endData: {
+            annotation: Annotation
+        }) => void,
     ): astn.OnObject<Annotation> {
         return data => {
 
-            if (data.type[0] !== "dictionary") {
+            if (data.data.type[0] !== "dictionary") {
                 this.raiseWarning(["object is not a dictionary", {}], data.annotation)
             }
             if (onBegin) {
@@ -335,17 +352,17 @@ export class ExpectContext<Annotation> {
             }
             const foundEntries: string[] = []
             return {
-                onData: propertyData => {
+                property: propertyData => {
                     const process = (): astn.RequiredValueHandler<Annotation> => {
-                        if (foundEntries.includes(propertyData.key)) {
+                        if (foundEntries.includes(propertyData.data.key)) {
                             switch (this.duplicateEntrySeverity) {
                                 case Severity.error:
-                                    this.raiseError(["duplicate entry", { key: propertyData.key }], propertyData.annotation)
+                                    this.raiseError(["duplicate entry", { key: propertyData.data.key }], propertyData.annotation)
                                     break
                                 case Severity.nothing:
                                     break
                                 case Severity.warning:
-                                    this.raiseWarning(["duplicate entry", { key: propertyData.key }], propertyData.annotation)
+                                    this.raiseWarning(["duplicate entry", { key: propertyData.data.key }], propertyData.annotation)
                                     break
                                 default:
                                     assertUnreachable(this.duplicateEntrySeverity)
@@ -364,10 +381,10 @@ export class ExpectContext<Annotation> {
 
                     }
                     const vh = process()
-                    foundEntries.push(propertyData.key)
+                    foundEntries.push(propertyData.data.key)
                     return p.value(vh)
                 },
-                onEnd: endData => {
+                objectEnd: endData => {
                     if (onEnd) {
                         onEnd(endData)
                     }
@@ -378,13 +395,22 @@ export class ExpectContext<Annotation> {
     }
     public createTypeHandler(
         expectedProperties: ExpectedProperties<Annotation>,
-        onBegin?: (objectData: ObjectBeginData<Annotation>) => void,
-        onEnd?: (hasErrors: boolean, endData: ObjectEndData<Annotation>) => void,
-        onUnexpectedProperty?: (data: astn.PropertyData<Annotation>) => astn.RequiredValueHandler<Annotation>,
+        onBegin?: ($: {
+            data: ObjectData
+            annotation: Annotation
+        }) => void,
+        onEnd?: ($: {
+            hasErrors: boolean
+            annotation: Annotation
+        }) => void,
+        onUnexpectedProperty?: ($: {
+            data: PropertyData
+            annotation: Annotation
+        }) => astn.RequiredValueHandler<Annotation>,
     ): astn.OnObject<Annotation> {
         return data => {
 
-            if (data.type[0] !== "verbose type") {
+            if (data.data.type[0] !== "verbose type") {
                 this.raiseWarning(["object is not a verbose type", {}], data.annotation)
             }
             if (onBegin) {
@@ -393,21 +419,21 @@ export class ExpectContext<Annotation> {
             const foundProperies: string[] = []
             let hasErrors = false
             return {
-                onData: propertyData => {
+                property: propertyData => {
                     const onProperty = (): astn.RequiredValueHandler<Annotation> => {
-                        const expected = expectedProperties[propertyData.key]
+                        const expected = expectedProperties[propertyData.data.key]
                         if (expected === undefined) {
                             hasErrors = true
                             this.raiseError(["unexpected property", {
-                                "found key": propertyData.key,
+                                "found key": propertyData.data.key,
                                 "valid keys": Object.keys(expectedProperties).sort(),
                             }], propertyData.annotation)
                             if (onUnexpectedProperty !== undefined) {
                                 return onUnexpectedProperty(propertyData)
                             } else {
                                 return {
-                                    onExists: this.createDummyOnProperty(propertyData.key, propertyData.annotation),
-                                    onMissing: () => {
+                                    exists: this.createDummyOnProperty(propertyData.data.key, propertyData.annotation),
+                                    missing: () => {
                                         //
                                     },
                                 }
@@ -416,15 +442,15 @@ export class ExpectContext<Annotation> {
                         return expected.onExists(propertyData)
                     }
                     const process = (): astn.RequiredValueHandler<Annotation> => {
-                        if (foundProperies.includes(propertyData.key)) {
+                        if (foundProperies.includes(propertyData.data.key)) {
                             switch (this.duplicateEntrySeverity) {
                                 case Severity.error:
-                                    this.raiseError(["duplicate property", { name: propertyData.key }], propertyData.annotation)
+                                    this.raiseError(["duplicate property", { name: propertyData.data.key }], propertyData.annotation)
                                     break
                                 case Severity.nothing:
                                     break
                                 case Severity.warning:
-                                    this.raiseWarning(["duplicate property", { name: propertyData.key }], propertyData.annotation)
+                                    this.raiseWarning(["duplicate property", { name: propertyData.data.key }], propertyData.annotation)
                                     break
                                 default:
                                     return assertUnreachable(this.duplicateEntrySeverity)
@@ -443,10 +469,10 @@ export class ExpectContext<Annotation> {
 
                     }
                     const vh = process()
-                    foundProperies.push(propertyData.key)
+                    foundProperies.push(propertyData.data.key)
                     return p.value(vh)
                 },
-                onEnd: endData => {
+                objectEnd: endData => {
                     Object.keys(expectedProperties).forEach(epName => {
                         if (!foundProperies.includes(epName)) {
                             const ep = expectedProperties[epName]
@@ -454,15 +480,19 @@ export class ExpectContext<Annotation> {
                                 this.raiseError(["missing property", { name: epName }], data.annotation)//FIX print location properly
                                 hasErrors = true
                             } else {
-                                ep.onNotExists(
-                                    data,
-                                    endData,
-                                )
+                                ep.onNotExists({
+                                    beginAnnotation: data.annotation,
+                                    endAnnotation: endData.annotation,
+                                    data: data.data,
+                                })
                             }
                         }
                     })
                     if (onEnd) {
-                        onEnd(hasErrors, endData)
+                        onEnd({
+                            hasErrors: hasErrors,
+                            annotation: endData.annotation,
+                        })
                     }
                     return p.value(null)
 
@@ -472,19 +502,24 @@ export class ExpectContext<Annotation> {
     }
     public createShorthandTypeHandler(
         expectedElements: ExpectedElements<Annotation>,
-        onBegin?: (data: ArrayBeginData<Annotation>) => void,
-        onEnd?: (endData: ArrayEndData<Annotation>) => void
+        onBegin?: ($: {
+            data: ArrayData
+            annotation: Annotation
+        }) => void,
+        onEnd?: (endData: {
+            annotation: Annotation
+        }) => void
     ): astn.OnArray<Annotation> {
         return typeData => {
             if (onBegin) {
                 onBegin(typeData)
             }
-            if (typeData.type[0] !== "shorthand type") {
+            if (typeData.data.type[0] !== "shorthand type") {
                 this.raiseWarning(["array is not a shorthand type", {}], typeData.annotation)
             }
             let index = 0
             return {
-                onData: () => {
+                element: () => {
                     const ee = expectedElements[index]
                     index++
                     if (ee === undefined) {
@@ -508,10 +543,10 @@ export class ExpectContext<Annotation> {
                             },
                         }
                     } else {
-                        return ee.getHandler().onExists
+                        return ee.getHandler().exists
                     }
                 },
-                onEnd: endData => {
+                arrayEnd: endData => {
                     const missing = expectedElements.length - index
                     if (missing > 0) {
                         this.raiseError(['elements missing', {
@@ -521,7 +556,7 @@ export class ExpectContext<Annotation> {
                         }], endData.annotation)
                         for (let i = index; i !== expectedElements.length; i += 1) {
                             const ee = expectedElements[i]
-                            ee.getHandler().onMissing()
+                            ee.getHandler().missing()
                         }
                     }
                     if (onEnd) {
@@ -535,19 +570,24 @@ export class ExpectContext<Annotation> {
     }
     public createListHandler(
         onElement: () => astn.ValueHandler<Annotation>,
-        onBegin?: (beginData: ArrayBeginData<Annotation>) => void,
-        onEnd?: (endData: ArrayEndData<Annotation>) => void,
+        onBegin?: ($: {
+            data: ArrayData
+            annotation: Annotation
+        }) => void,
+        onEnd?: (endData: {
+            annotation: Annotation
+        }) => void,
     ): astn.OnArray<Annotation> {
         return data => {
-            if (data.type[0] !== "list") {
+            if (data.data.type[0] !== "list") {
                 this.raiseWarning(["array is not a list", {}], data.annotation)
             }
             if (onBegin) {
                 onBegin(data)
             }
             return {
-                onData: (): astn.ValueHandler<Annotation> => onElement(),
-                onEnd: endData => {
+                element: (): astn.ValueHandler<Annotation> => onElement(),
+                arrayEnd: endData => {
                     if (onEnd) {
                         onEnd(endData)
                     }
@@ -632,9 +672,11 @@ export class ExpectContext<Annotation> {
     // }
     public createTaggedUnionHandler(
         options: Options<Annotation>,
-        onUnexpectedOption?: (
-            taggedUnionData: TaggedUnionData<Annotation>,
-            optionData: OptionData<Annotation>
+        onUnexpectedOption?: ($: {
+                tuAnnotation: Annotation
+                data: OptionData
+                optionAnnotation: Annotation
+            }
         ) => void,
         onMissingOption?: () => void,
     ): astn.OnTaggedUnion<Annotation> {
@@ -642,14 +684,15 @@ export class ExpectContext<Annotation> {
             return {
                 option: optionData => {
 
-                    const optionHandler = options[optionData.option]
+                    const optionHandler = options[optionData.data.option]
                     if (optionHandler === undefined) {
-                        this.raiseError(["unknown option", { "found": optionData.option, "valid options": Object.keys(options) }], optionData.annotation)
+                        this.raiseError(["unknown option", { "found": optionData.data.option, "valid options": Object.keys(options) }], optionData.annotation)
                         if (onUnexpectedOption !== undefined) {
-                            onUnexpectedOption(
-                                tuData,
-                                optionData,
-                            )
+                            onUnexpectedOption({
+                                tuAnnotation: tuData.annotation,
+                                data: optionData.data,
+                                optionAnnotation: optionData.annotation,
+                            })
                         }
                         return this.createDummyRequiredValueHandler()
                     } else {
@@ -669,10 +712,13 @@ export class ExpectContext<Annotation> {
     public createUnexpectedSimpleValueHandler(
         expected: ExpectErrorValue,
         onInvalidType?: OnInvalidType<Annotation>,
-        onNull?: (svData: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        onNull?: ($: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
     ): astn.OnSimpleValue<Annotation> {
         return svData => {
-            if (onNull !== undefined && svData.value === "null" && svData.wrapper[0] === "none") {
+            if (onNull !== undefined && svData.data.value === "null" && svData.data.wrapper[0] === "none") {
                 onNull(svData)
             } else {
                 if (onInvalidType !== undefined && onInvalidType !== null) {
@@ -738,15 +784,15 @@ export class ExpectContext<Annotation> {
                 )
             }
             return {
-                onData: propertyData => {
+                property: propertyData => {
                     return p.value({
-                        onExists: this.createDummyOnProperty(propertyData.key, propertyData.annotation),
-                        onMissing: (): void => {
+                        exists: this.createDummyOnProperty(propertyData.data.key, propertyData.annotation),
+                        missing: (): void => {
                             //
                         },
                     })
                 },
-                onEnd: _endData => {
+                objectEnd: _endData => {
                     return p.value(null)
                 },
             }
@@ -766,10 +812,10 @@ export class ExpectContext<Annotation> {
                 )
             }
             return {
-                onData: (): astn.ValueHandler<Annotation> => {
+                element: (): astn.ValueHandler<Annotation> => {
                     return this.createDummyValueHandler()
                 },
-                onEnd: _endData => {
+                arrayEnd: _endData => {
                     return p.value(null)
 
                 },
@@ -793,7 +839,10 @@ export class ExpectContext<Annotation> {
     public expectSimpleValueImp(
         expected: ExpectErrorValue,
         callback: (
-            data: SimpleValueData2<Annotation>,
+            data: {
+                data: SimpleValueData2
+                annotation: Annotation
+            },
         ) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<Annotation>,
     ): astn.ValueHandler<Annotation> {
@@ -805,9 +854,15 @@ export class ExpectContext<Annotation> {
         }
     }
     public expectSimpleValue(
-        callback: (data: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        callback: ($: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<Annotation>,
-        onNull?: (svData: astn.SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        onNull?: (svData: {
+            data: astn.SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
     ): astn.ValueHandler<Annotation> {
 
         const expectValue: ExpectErrorValue = {
@@ -817,7 +872,10 @@ export class ExpectContext<Annotation> {
         return this.expectSimpleValueImp(expectValue, callback, onInvalidType)
     }
     public expectBoolean(
-        callback: (value: boolean, data: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        callback: (value: boolean, data: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<Annotation>,
     ): astn.ValueHandler<Annotation> {
         const expectValue: ExpectErrorValue = {
@@ -827,15 +885,15 @@ export class ExpectContext<Annotation> {
         return this.expectSimpleValueImp(
             expectValue,
             svData => {
-                if (svData.wrapper[0] !== "none") {
+                if (svData.data.wrapper[0] !== "none") {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation)
                     } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.value }], svData.annotation)
+                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation)
                     }
                     return p.value(false)
                 }
-                switch (svData.value) {
+                switch (svData.data.value) {
                     case "true": {
                         return callback(true, svData)
                     }
@@ -847,7 +905,7 @@ export class ExpectContext<Annotation> {
                         if (onInvalidType) {
                             onInvalidType(svData.annotation)
                         } else {
-                            this.raiseError(["invalid simple value", { expected: expectValue, found: svData.value }], svData.annotation)
+                            this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation)
                         }
                         return p.value(false)
                 }
@@ -856,7 +914,10 @@ export class ExpectContext<Annotation> {
         )
     }
     public expectNull(
-        callback: (data: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        callback: ($: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<Annotation>,
     ): astn.ValueHandler<Annotation> {
 
@@ -867,21 +928,21 @@ export class ExpectContext<Annotation> {
         return this.expectSimpleValueImp(
             expectValue,
             svData => {
-                if (svData.wrapper[0] !== "none") {
+                if (svData.data.wrapper[0] !== "none") {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation)
                     } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.value }], svData.annotation)
+                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation)
                     }
                     return p.value(false)
                 }
-                if (svData.value === "null") {
+                if (svData.data.value === "null") {
                     return callback(svData)
                 } else {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation)
                     } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.value }], svData.annotation)
+                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation)
                     }
                     return p.value(false)
                 }
@@ -894,8 +955,8 @@ export class ExpectContext<Annotation> {
         onMissing?: () => void,
     ): astn.RequiredValueHandler<Annotation> {
         return {
-            onExists: onValue,
-            onMissing: onMissing
+            exists: onValue,
+            missing: onMissing
                 ? onMissing
                 : (): void => {
                     //
@@ -903,9 +964,12 @@ export class ExpectContext<Annotation> {
         }
     }
     public expectNumber(
-        callback: (value: number, data: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        callback: (value: number, data: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<Annotation>,
-        onNull?: (svData: astn.SimpleValueData) => p.IValue<boolean>,
+        onNull?: (svData: astn.SimpleValueData2) => p.IValue<boolean>,
     ): astn.ValueHandler<Annotation> {
 
         const expectValue: ExpectErrorValue = {
@@ -916,12 +980,12 @@ export class ExpectContext<Annotation> {
             expectValue,
             svData => {
                 //eslint-disable-next-line
-                const nr = new Number(svData.value).valueOf()
+                const nr = new Number(svData.data.value).valueOf()
                 if (isNaN(nr)) {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation)
                     } else {
-                        this.raiseError(["not a valid number", { value: svData.value }], svData.annotation)
+                        this.raiseError(["not a valid number", { value: svData.data.value }], svData.annotation)
                     }
                 }
                 return callback(nr, svData)
@@ -930,9 +994,17 @@ export class ExpectContext<Annotation> {
         )
     }
     public expectDictionary(
-        onBegin: (data: ObjectBeginData<Annotation>) => void,
-        onProperty: (propertyData: PropertyData<Annotation>) => astn.RequiredValueHandler<Annotation>,
-        onEnd: (endData: ObjectEndData<Annotation>) => void,
+        onBegin: ($: {
+            data: ObjectData
+            annotation: Annotation
+        }) => void,
+        onProperty: (propertyData: {
+            data: PropertyData
+            annotation: Annotation
+        }) => astn.RequiredValueHandler<Annotation>,
+        onEnd: (endData: {
+            annotation: Annotation
+        }) => void,
         onInvalidType?: OnInvalidType<Annotation>,
     ): astn.ValueHandler<Annotation> {
 
@@ -949,11 +1021,23 @@ export class ExpectContext<Annotation> {
     }
     public expectType(
         expectedProperties: ExpectedProperties<Annotation> = {},
-        onBegin?: (data: ObjectBeginData<Annotation>) => void,
-        onEnd?: (hasErrors: boolean, data: ObjectEndData<Annotation>) => void,
-        onUnexpectedProperty?: (data: astn.PropertyData<Annotation>) => astn.RequiredValueHandler<Annotation>,
+        onBegin?: ($: {
+            data: ObjectData
+            annotation: Annotation
+        }) => void,
+        onEnd?: ($: {
+            hasErrors: boolean
+            annotation: Annotation
+        }) => void,
+        onUnexpectedProperty?: ($: {
+            data: PropertyData
+            annotation: Annotation
+        }) => astn.RequiredValueHandler<Annotation>,
         onInvalidType?: OnInvalidType<Annotation>,
-        onNull?: (svData: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        onNull?: (svData: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
     ): astn.ValueHandler<Annotation> {
 
         const expectValue: ExpectErrorValue = {
@@ -973,9 +1057,14 @@ export class ExpectContext<Annotation> {
         }
     }
     public expectList(
-        onBegin: (data: ArrayBeginData<Annotation>) => void,
+        onBegin: ($: {
+            data: ArrayData
+            annotation: Annotation
+        }) => void,
         onElement: () => astn.ValueHandler<Annotation>,
-        onEnd: (endData: ArrayEndData<Annotation>) => void,
+        onEnd: (endData: {
+            annotation: Annotation
+        }) => void,
         onInvalidType?: OnInvalidType<Annotation>,
     ): astn.ValueHandler<Annotation> {
 
@@ -992,10 +1081,18 @@ export class ExpectContext<Annotation> {
     }
     public expectShorthandType(
         expectedElements: ExpectedElements<Annotation>,
-        onBegin?: (data: ArrayBeginData<Annotation>) => void,
-        onEnd?: (endData: ArrayEndData<Annotation>) => void,
+        onBegin?: ($: {
+            data: ArrayData
+            annotation: Annotation
+        }) => void,
+        onEnd?: (endData: {
+            annotation: Annotation
+        }) => void,
         onInvalidType?: OnInvalidType<Annotation>,
-        onNull?: (svData: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        onNull?: (svData: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
     ): astn.ValueHandler<Annotation> {
 
         const expectValue: ExpectErrorValue = {
@@ -1013,13 +1110,30 @@ export class ExpectContext<Annotation> {
     public expectTypeOrShorthandType(
         expectedProperties: ExpectedProperties<Annotation> = {},
         expectedElements: ExpectedElements<Annotation>,
-        onTypeBegin?: (data: ObjectBeginData<Annotation>) => void,
-        onTypeEnd?: (hasErrors: boolean, data: ObjectEndData<Annotation>) => void,
-        onUnexpectedProperty?: (data: astn.PropertyData<Annotation>) => astn.RequiredValueHandler<Annotation>,
-        onShorthandTypeBegin?: (data: ArrayBeginData<Annotation>) => void,
-        onShorthandTypeEnd?: (endData: ArrayEndData<Annotation>) => void,
+        onTypeBegin?: ($: {
+            data: ObjectData
+            annotation: Annotation
+        }) => void,
+        onTypeEnd?: ($: {
+            hasErrors: boolean
+            annotation: Annotation
+        }) => void,
+        onUnexpectedProperty?: ($: {
+            data: PropertyData
+            annotation: Annotation
+        }) => astn.RequiredValueHandler<Annotation>,
+        onShorthandTypeBegin?: ($: {
+            data: ArrayData
+            annotation: Annotation
+        }) => void,
+        onShorthandTypeEnd?: (endData: {
+            annotation: Annotation
+        }) => void,
         onInvalidType?: OnInvalidType<Annotation>,
-        onNull?: (svData: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        onNull?: (svData: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
     ): astn.ValueHandler<Annotation> {
 
         const expectValue: ExpectErrorValue = {
@@ -1041,12 +1155,18 @@ export class ExpectContext<Annotation> {
     public expectTaggedUnion(
         options: Options<Annotation>,
         onUnexpectedOption?: (
-            tuData: TaggedUnionData<Annotation>,
-            optionData: OptionData<Annotation>,
+            $: {
+                tuAnnotation: Annotation
+                data: OptionData
+                optionAnnotation: Annotation
+            },
         ) => void,
         onMissingOption?: () => void,
         onInvalidType?: OnInvalidType<Annotation>,
-        onNull?: (svData: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        onNull?: (svData: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
     ): astn.ValueHandler<Annotation> {
 
         const expectValue: ExpectErrorValue = {

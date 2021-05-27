@@ -1,13 +1,16 @@
 import * as p from "pareto"
 import * as astn from ".."
-import { ArrayBeginData, ArrayEndData, ObjectBeginData, ObjectEndData, OptionData, PropertyData, SimpleValueData2, TaggedUnionData } from "../handlers"
+import { ArrayData, ObjectData, OptionData, SimpleValueData2, PropertyData } from "../handlers"
 import { ExpectContext, ExpectedProperties } from "./ExpectContext"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-type PropertyHandler<Annotation> = (data: astn.PropertyData<Annotation>) => ValueType<Annotation>
+type PropertyHandler<Annotation> = (data: {
+    data: PropertyData
+    annotation: Annotation
+}) => ValueType<Annotation>
 
 type OnInvalidType<Annotation> = (annotation: Annotation) => void
 
@@ -27,7 +30,10 @@ export type ValueType<Annotation> =
     // ]
     | [
         "boolean",
-        (value: boolean, data: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        (value: boolean, data: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
         {
             onMissing?: () => void
             onInvalidType?: () => void
@@ -35,10 +41,18 @@ export type ValueType<Annotation> =
     ]
     | [
         "dicionary",
-        (propertyData: PropertyData<Annotation>) => ValueType<Annotation>,
+        (propertyData: {
+            data: PropertyData
+            annotation: Annotation
+        }) => ValueType<Annotation>,
         {
-            onBegin: (data: ObjectBeginData<Annotation>) => void
-            onEnd: (objectEndData: ObjectEndData<Annotation>) => void
+            onBegin: (data: {
+                data: ObjectData
+                annotation: Annotation
+            }) => void
+            onEnd: (objectEndData: {
+                annotation: Annotation
+            }) => void
             onMissing?: () => void
             onInvalidType?: () => void
         }
@@ -46,15 +60,23 @@ export type ValueType<Annotation> =
     | ["list",
         ValueType<Annotation>,
         {
-            onBegin: (data: ArrayBeginData<Annotation>) => void
-            onEnd: (endData: ArrayEndData<Annotation>) => void
+            onBegin: (data: {
+                data: ArrayData
+                annotation: Annotation
+            }) => void
+            onEnd: (endData: {
+                annotation: Annotation
+            }) => void
             onMissing?: () => void
             onInvalidType?: () => void
         }
     ]
     | [
         "null",
-        (data: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        (data: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
         {
             onMissing?: () => void
             onInvalidType?: () => void
@@ -62,7 +84,10 @@ export type ValueType<Annotation> =
     ]
     | [
         "number",
-        (number: number, data: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        (number: number, data: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
         {
             onMissing?: () => void
             onInvalidType?: () => void
@@ -70,7 +95,10 @@ export type ValueType<Annotation> =
     ]
     | [
         "simple value",
-        (data: SimpleValueData2<Annotation>) => p.IValue<boolean>,
+        (data: {
+            data: SimpleValueData2
+            annotation: Annotation
+        }) => p.IValue<boolean>,
         {
             onMissing?: () => void
             onInvalidType?: () => void
@@ -79,14 +107,22 @@ export type ValueType<Annotation> =
     | [
         "tagged union", {
             [key: string]: (
-                taggedUnionData: TaggedUnionData<Annotation>,
-                optionData: OptionData<Annotation>,
+                taggedUnionData: {
+                    annotation: Annotation
+                },
+                optionData: {
+                    data: OptionData
+                    annotation: Annotation
+                },
             ) => astn.RequiredValueHandler<Annotation>
         },
         {
             onUnexpectedOption?: (
-                taggedUnionData: TaggedUnionData<Annotation>,
-                optionData: OptionData<Annotation>,
+                $: {
+                    tuAnnotation: Annotation
+                    data: OptionData
+                    optionAnnotation: Annotation
+                },
             ) => void
             onMissingOption?: () => void
             onMissing?: () => void
@@ -99,17 +135,27 @@ export type ValueType<Annotation> =
             [key: string]:
             | PropertyHandler<Annotation>
             | [PropertyHandler<Annotation>, {
-                onNotExists?: (
-                    beginData: ObjectBeginData<Annotation>,
-                    endData: ObjectEndData<Annotation>,
-                ) => void
+                onNotExists?: ($: {
+                    data: ObjectData
+                    beginAnnotation: Annotation
+                    endAnnotation: Annotation
+                }) => void
             }?
             ]
         },
         {
-            onBegin?: (data: ObjectBeginData<Annotation>) => void
-            onEnd?: (hasErrors: boolean, data: ObjectEndData<Annotation>) => void
-            onUnexpectedProperty?: (data: astn.PropertyData<Annotation>) => astn.RequiredValueHandler<Annotation>
+            onBegin?: ($: {
+                data: ObjectData
+                annotation: Annotation
+            }) => void
+            onEnd?: ($: {
+                hasErrors: boolean
+                annotation: Annotation
+            }) => void
+            onUnexpectedProperty?: ($: {
+                data: PropertyData
+                annotation: Annotation
+            }) => astn.RequiredValueHandler<Annotation>
             onMissing?: () => void
             onInvalidType?: OnInvalidType<Annotation>
         }?

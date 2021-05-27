@@ -7,8 +7,8 @@ function createRequiredValuesAnnotater<Annotation>(
     printAnnotation: (annotation: Annotation) => string
 ): astn.RequiredValueHandler<Annotation> {
     return {
-        onExists: createValuesAnnotater(indentation, writer, printAnnotation),
-        onMissing: () => {
+        exists: createValuesAnnotater(indentation, writer, printAnnotation),
+        missing: () => {
             //write out an empty string to fix this missing data?
         },
     }
@@ -16,42 +16,42 @@ function createRequiredValuesAnnotater<Annotation>(
 
 function createValuesAnnotater<Annotation>(indentation: string, writer: (str: string) => void, printAnnotation: (annotation: Annotation) => string): astn.ValueHandler<Annotation> {
     return {
-        array: arrayData => {
-            writer(`${indentation}[ // ${printAnnotation(arrayData.annotation)}`)
+        array: $ => {
+            writer(`${indentation}[ // ${printAnnotation($.annotation)}`)
             return {
-                onData: () => createValuesAnnotater(`${indentation}\t`, writer, printAnnotation),
-                onEnd: endData => {
+                element: () => createValuesAnnotater(`${indentation}\t`, writer, printAnnotation),
+                arrayEnd: endData => {
                     writer(`${indentation}] // ${printAnnotation(endData.annotation)}`)
                     return p.value(null)
                 },
             }
         },
-        object: objectData => {
-            writer(`${indentation}{ // ${printAnnotation(objectData.annotation)}`)
+        object: $ => {
+            writer(`${indentation}{ // ${printAnnotation($.annotation)}`)
             return {
-                onData: propertyData => {
-                    writer(`${indentation}"${propertyData.key}": `)
+                property: propertyData => {
+                    writer(`${indentation}"${propertyData.data.key}": `)
                     return p.value(createRequiredValuesAnnotater(`${indentation}\t`, writer, printAnnotation))
                 },
-                onEnd: endData => {
+                objectEnd: endData => {
                     writer(`${indentation}} // ${printAnnotation(endData.annotation)}`)
                     return p.value(null)
                 },
             }
         },
-        simpleValue: svData => {
-            if (svData.wrapper[0] !== "none") {
-                writer(`${indentation}${JSON.stringify(svData.value)} // ${printAnnotation(svData.annotation)}`)
+        simpleValue: $ => {
+            if ($.data.wrapper[0] !== "none") {
+                writer(`${indentation}${JSON.stringify($.data.value)} // ${printAnnotation($.annotation)}`)
             } else {
-                writer(`${indentation}${svData.value} // ${printAnnotation(svData.annotation)}`)
+                writer(`${indentation}${$.data.value} // ${printAnnotation($.annotation)}`)
             }
             return p.value(false)
         },
-        taggedUnion: tuData => {
+        taggedUnion: $ => {
             writer(`| ${indentation}`)
             return {
                 option: optionData => {
-                    writer(`"${JSON.stringify(optionData.option)}" // ${printAnnotation(tuData.annotation)} ${printAnnotation(tuData.annotation)}`)
+                    writer(`"${JSON.stringify(optionData.data.option)}" // ${printAnnotation($.annotation)} ${printAnnotation($.annotation)}`)
                     return createRequiredValuesAnnotater(`${indentation}\t`, writer, printAnnotation)
                 },
                 missingOption: () => {

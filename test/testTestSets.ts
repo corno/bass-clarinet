@@ -182,8 +182,8 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
 
         function createTestRequiredValueHandler(): astn.RequiredValueHandler<ParserAnnotationData> {
             return {
-                onExists: createTestValueHandler(),
-                onMissing: () => {
+                exists: createTestValueHandler(),
+                missing: () => {
                     actualEvents.push(["stacked error", "missing value"])
                 },
             }
@@ -192,10 +192,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
             return {
                 array: () => {
                     return {
-                        onData: () => {
+                        element: () => {
                             return createTestValueHandler()
                         },
-                        onEnd: () => {
+                        arrayEnd: () => {
                             //
                             return p.value(null)
                         },
@@ -203,10 +203,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                 },
                 object: () => {
                     return {
-                        onData: () => {
+                        property: () => {
                             return p.value(createTestRequiredValueHandler())
                         },
-                        onEnd: () => {
+                        objectEnd: () => {
                             //
                             return p.value(null)
                         },

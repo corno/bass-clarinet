@@ -247,7 +247,7 @@ class SemanticState {
     public initValueHandler(): ValueHandler<ParserAnnotationData> {
         switch (this.currentContext[0]) {
             case "array": {
-                return this.currentContext[1].arrayHandler.onData()
+                return this.currentContext[1].arrayHandler.element()
             }
             case "object": {
                 if (this.currentContext[1].propertyHandler === null) {
@@ -255,7 +255,7 @@ class SemanticState {
                     //error is already reported by parser
                     return createDummyValueHandler()
                 } else {
-                    return this.currentContext[1].propertyHandler.onExists
+                    return this.currentContext[1].propertyHandler.exists
                 }
             }
             case "root": {
@@ -266,14 +266,14 @@ class SemanticState {
                     return createDummyValueHandler()
 
                 }
-                return vh.onExists
+                return vh.exists
             }
             case "taggedunion": {
                 if (this.currentContext[1].state[0] !== "expecting value") {
                     //error is already reported by parser
                     return createDummyValueHandler()
                 } else {
-                    return this.currentContext[1].state[1].onExists
+                    return this.currentContext[1].state[1].exists
                 }
             }
             default:
@@ -320,7 +320,7 @@ function processParserEvent(
                                 const $$2 = semanticState.currentContext[1]
                                 if ($$2.propertyHandler !== null) {
                                     raiseError(onError, ["missing property data"], data.range)
-                                    $$2.propertyHandler.onMissing()
+                                    $$2.propertyHandler.missing()
                                     $$2.propertyHandler = null
                                 }
                                 raiseError(onError, ["missing object close"], data.range)
@@ -336,7 +336,7 @@ function processParserEvent(
                             case "taggedunion": {
                                 //const $ = state.currentContext[1]
                                 if (semanticState.currentContext[1].state[0] === "expecting value") {
-                                    semanticState.currentContext[1].state[1].onMissing()
+                                    semanticState.currentContext[1].state[1].missing()
                                     raiseError(onError, ["missing tagged union value"], data.range)
                                 } else {
                                     raiseError(onError, ["missing tagged union option and value"], data.range)
@@ -373,7 +373,7 @@ function processParserEvent(
                             default:
                                 assertUnreachable($$.type[0])
                         }
-                        $$.arrayHandler.onEnd({
+                        $$.arrayHandler.arrayEnd({
                             annotation: {
                                 tokenString: data.tokenString,
                                 range: data.range,
@@ -413,7 +413,7 @@ function processParserEvent(
                             case "taggedunion": {
                                 //const $ = state.currentContext[1]
                                 if (semanticState.currentContext[1].state[0] === "expecting value") {
-                                    semanticState.currentContext[1].state[1].onMissing()
+                                    semanticState.currentContext[1].state[1].missing()
                                     raiseError(onError, ["missing tagged union value"], data.range)
                                 } else {
                                     raiseError(onError, ["missing tagged union option and value"], data.range)
@@ -453,10 +453,10 @@ function processParserEvent(
                         if ($$.propertyHandler !== null) {
                             //was in the middle of processing a property
                             //the key was parsed, but the data was not
-                            $$.propertyHandler.onMissing()
+                            $$.propertyHandler.missing()
                             $$.propertyHandler = null
                         }
-                        $$.objectHandler.onEnd({
+                        $$.objectHandler.objectEnd({
                             annotation: {
                                 tokenString: data.tokenString,
                                 range: data.range,
@@ -482,7 +482,9 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
                     const arrayHandler = semanticState.initValueHandler().array({
-                        type: data.tokenString === "<" ? ["shorthand type"] : ["list"],
+                        data: {
+                            type: data.tokenString === "<" ? ["shorthand type"] : ["list"],
+                        },
                         annotation: {
                             tokenString: data.tokenString,
                             range: data.range,
@@ -504,7 +506,9 @@ function processParserEvent(
                     const vh = semanticState.initValueHandler()
 
                     const objectHandler = vh.object({
-                        type: data.tokenString === "(" ? ["verbose type"] : ["dictionary"],
+                        data: {
+                            type: data.tokenString === "(" ? ["verbose type"] : ["dictionary"],
+                        },
                         annotation: {
                             tokenString: data.tokenString,
                             range: data.range,
@@ -557,24 +561,26 @@ function processParserEvent(
                         if (DEBUG) { console.log("on simple value", $.value) }
                         semanticState.wrapupValue(data.range)
                         return vh.simpleValue({
-                            wrapper: ((): Wrapper => {
-                                if ($.quote === null) {
-                                    return ["none"]
-                                }
-                                switch ($.quote) {
-                                    case "\"": {
-
-                                        return ["quote"]
+                            data: {
+                                wrapper: ((): Wrapper => {
+                                    if ($.quote === null) {
+                                        return ["none"]
                                     }
-                                    case "'": {
+                                    switch ($.quote) {
+                                        case "\"": {
 
-                                        return ["quote"]
+                                            return ["quote"]
+                                        }
+                                        case "'": {
+
+                                            return ["quote"]
+                                        }
+                                        default:
+                                            return assertUnreachable($.quote)
                                     }
-                                    default:
-                                        return assertUnreachable($.quote)
-                                }
-                            })(),
-                            value: $.value,
+                                })(),
+                                value: $.value,
+                            },
                             annotation: {
                                 tokenString: $.value, //this should probably the full token, including wrapping characters
                                 range: data.range,
@@ -585,7 +591,7 @@ function processParserEvent(
                     switch (semanticState.currentContext[0]) {
                         case "array": {
                             const $ = semanticState.currentContext[1]
-                            return onSimpleValue($.arrayHandler.onData(), contextData)
+                            return onSimpleValue($.arrayHandler.element(), contextData)
                         }
                         case "object": {
                             const $$ = semanticState.currentContext[1]
@@ -594,8 +600,10 @@ function processParserEvent(
                                     raiseError(onError, ["unexpected key"], data.range)
                                     return p.value(false)
                                 } else {
-                                    return $$.objectHandler.onData({
-                                        key: $.value,
+                                    return $$.objectHandler.property({
+                                        data: {
+                                            key: $.value,
+                                        },
                                         annotation: {
                                             tokenString: $.value, //this should probably the full token, including wrapping characters
                                             range: data.range,
@@ -608,14 +616,14 @@ function processParserEvent(
                                 }
                             } else {
                                 const $$$ = $$.propertyHandler
-                                return onSimpleValue($$$.onExists, contextData)
+                                return onSimpleValue($$$.exists, contextData)
                             }
                         }
                         case "root": {
                             const $ = semanticState.currentContext[1]
                             //handle case when root value was already processed
                             const vh = $.rootValueHandler !== null
-                                ? $.rootValueHandler.onExists
+                                ? $.rootValueHandler.exists
                                 : createDummyValueHandler()
                             return onSimpleValue(vh, contextData)
                         }
@@ -626,7 +634,9 @@ function processParserEvent(
                                     //const $$$ = $$.state[1]
                                     if (DEBUG) { console.log("on option", $.value) }
                                     $$.state = ["expecting value", $$.handler.option({
+                                        data: {
                                         option: $.value,
+                                        },
                                         annotation: {
                                             tokenString: $.value, //this should probably the full token, including wrapping characters
                                             range: data.range,
@@ -637,7 +647,7 @@ function processParserEvent(
                                 }
                                 case "expecting value": {
                                     const $$$ = $$.state[1]
-                                    return onSimpleValue($$$.onExists, contextData)
+                                    return onSimpleValue($$$.exists, contextData)
                                 }
                                 default:
                                     return assertUnreachable($$.state[0])
@@ -790,7 +800,7 @@ export function createStackedParser<ReturnType, ErrorType>(
                             case "root": {
                                 const $ = semanticState.currentContext[1]
                                 if ($.rootValueHandler !== null) {
-                                    $.rootValueHandler.onMissing()
+                                    $.rootValueHandler.missing()
                                     $.rootValueHandler = null
                                 }
                                 break unwindLoop
@@ -804,7 +814,7 @@ export function createStackedParser<ReturnType, ErrorType>(
                             case "object": {
                                 const $ = semanticState.currentContext[1]
                                 if ($.propertyHandler !== null) {
-                                    $.propertyHandler.onMissing()
+                                    $.propertyHandler.missing()
                                     $.propertyHandler = null
                                 }
                                 raiseError(onError, ["unexpected end of document", { "still in": ["object"] }], range)
@@ -823,7 +833,7 @@ export function createStackedParser<ReturnType, ErrorType>(
                                     case "expecting value": {
                                         const $$ = $.state[1]
                                         //option not yet parsed
-                                        $$.onMissing()
+                                        $$.missing()
 
                                         break
                                     }
