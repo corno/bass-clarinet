@@ -22,6 +22,7 @@ import {
     TaggedUnionHandler,
     ValueHandler,
     Wrapper,
+    StackContext,
 } from "../handlers"
 import { RangeError } from "../errors"
 
@@ -68,20 +69,19 @@ type TaggedUnionState =
 
 
 type ContextType =
-    | ["root", {
-        rootValueHandler: RequiredValueHandler<ParserAnnotationData> | null //becomes null when processed
-    }]
     | ["object", {
         type:
         | ["dictionary"]
         | ["verbose type"]
         readonly objectHandler: ObjectHandler<ParserAnnotationData>
         propertyHandler: null | RequiredValueHandler<ParserAnnotationData>
+        foundProperties: boolean
     }]
     | ["array", {
         type:
         | ["list"]
         | ["shorthand type"]
+        foundElements: boolean
         readonly arrayHandler: ArrayHandler<ParserAnnotationData>
     }]
     | ["taggedunion", {
@@ -194,17 +194,50 @@ class OverheadState {
 
 
 class SemanticState {
-    currentContext: ContextType
-    private readonly stack: ContextType[] = []
+    currentContext: ContextType | null = null
+    private readonly stack: (ContextType | null)[] = []
+    private objectDepth = 0
+    private arrayDepth = 0
+    private taggedUnionDepth = 0
+    public rootValueHandler: RequiredValueHandler<ParserAnnotationData> | null //becomes null when processed
+
     constructor(valueHandler: RequiredValueHandler<ParserAnnotationData>) {
-        this.currentContext = ["root", { rootValueHandler: valueHandler }]
+        this.rootValueHandler = valueHandler
+    }
+    public createStackContext(): StackContext {
+        return {
+            objectDepth: this.objectDepth,
+            arrayDepth: this.arrayDepth,
+            taggedUnionDepth: this.taggedUnionDepth,
+        }
     }
     public pop(range: Range) {
+
+        if (this.currentContext === null) {
+            throw new StackedDataSubscriberPanic("unexpected end of stack", range)
+        }
+        switch (this.currentContext[0]) {
+            case "array": {
+                this.arrayDepth -= 1
+                break
+            }
+            case "object": {
+                this.objectDepth -= 1
+
+                break
+            }
+            case "taggedunion": {
+                this.taggedUnionDepth -= 1
+                break
+            }
+            default:
+                assertUnreachable(this.currentContext[0])
+        }
         const previousContext = this.stack.pop()
         if (previousContext === undefined) {
             throw new StackedDataSubscriberPanic("unexpected end of stack", range)
         } else {
-            if (previousContext[0] === "taggedunion") {
+            if (previousContext !== null && previousContext[0] === "taggedunion") {
                 const taggedUnion = previousContext[1]
                 if (taggedUnion.state[0] !== "expecting value") {
                     throw new StackedDataSubscriberPanic("unexpected tagged union state", range)
@@ -217,67 +250,95 @@ class SemanticState {
     public push(newContext: ContextType) {
         this.stack.push(this.currentContext)
         this.currentContext = newContext
-    }
-    public wrapupValue(range: Range): void {
-        switch (this.currentContext[0]) {
+        switch (newContext[0]) {
             case "array": {
+                this.arrayDepth += 1
                 break
             }
             case "object": {
-                this.currentContext[1].propertyHandler = null
-                break
-            }
-            case "root": {
-                this.currentContext[1].rootValueHandler = null
+                this.objectDepth += 1
+
                 break
             }
             case "taggedunion": {
-                if (this.currentContext[1].state[0] !== "expecting value") {
-                    //error is already reported by parser
-                } else {
-                    this.pop(range)
-                    this.wrapupValue(range)
-                }
+                this.taggedUnionDepth += 1
                 break
             }
             default:
-                return assertUnreachable(this.currentContext[0])
+                assertUnreachable(newContext[0])
+        }
+    }
+    public wrapupValue(range: Range): void {
+        if (this.currentContext === null) {
+            this.rootValueHandler = null
+        } else {
+            switch (this.currentContext[0]) {
+                case "array": {
+                    break
+                }
+                case "object": {
+                    this.currentContext[1].propertyHandler = null
+                    break
+                }
+                case "taggedunion": {
+                    if (this.currentContext[1].state[0] !== "expecting value") {
+                        //error is already reported by parser
+                    } else {
+                        this.pop(range)
+                        this.wrapupValue(range)
+                    }
+                    break
+                }
+                default:
+                    return assertUnreachable(this.currentContext[0])
+            }
         }
     }
     public initValueHandler(): ValueHandler<ParserAnnotationData> {
-        switch (this.currentContext[0]) {
-            case "array": {
-                return this.currentContext[1].arrayHandler.element()
-            }
-            case "object": {
-                if (this.currentContext[1].propertyHandler === null) {
-                    //expected a key or end of the object
-                    //error is already reported by parser
-                    return createDummyValueHandler()
-                } else {
-                    return this.currentContext[1].propertyHandler.exists
-                }
-            }
-            case "root": {
-                const vh = this.currentContext[1].rootValueHandler
-                if (vh === null) {
-                    //expected end of document
-                    //error is already reported by parser
-                    return createDummyValueHandler()
+        if (this.currentContext === null) {
+            const vh = this.rootValueHandler
+            if (vh === null) {
+                //expected end of document
+                //error is already reported by parser
+                return createDummyValueHandler()
 
-                }
-                return vh.exists
             }
-            case "taggedunion": {
-                if (this.currentContext[1].state[0] !== "expecting value") {
-                    //error is already reported by parser
-                    return createDummyValueHandler()
-                } else {
-                    return this.currentContext[1].state[1].exists
+            return vh.exists
+        } else {
+            switch (this.currentContext[0]) {
+                case "array": {
+                    const $ = this.currentContext[1]
+                    const isFirst = !$.foundElements
+                    $.foundElements = true
+                    return this.currentContext[1].arrayHandler.element({
+                        isFirst: isFirst,
+                        stackContext: {
+                            objectDepth: this.objectDepth,
+                            arrayDepth: this.arrayDepth,
+                            taggedUnionDepth: this.taggedUnionDepth,
+                        },
+                    })
                 }
+                case "object": {
+                    if (this.currentContext[1].propertyHandler === null) {
+                        //expected a key or end of the object
+                        //error is already reported by parser
+                        return createDummyValueHandler()
+                    } else {
+                        return this.currentContext[1].propertyHandler.exists
+                    }
+                }
+                case "taggedunion": {
+                    if (this.currentContext[1].state[0] !== "expecting value") {
+                        //error is already reported by parser
+                        return createDummyValueHandler()
+                    } else {
+                        return this.currentContext[1].state[1].exists
+                    }
+                }
+                default:
+                    return assertUnreachable(this.currentContext[0])
             }
-            default:
-                return assertUnreachable(this.currentContext[0])
         }
     }
 }
@@ -311,6 +372,9 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
                     unwindLoop: while (true) {
+                        if (semanticState.currentContext === null) {
+                            break unwindLoop
+                        }
                         switch (semanticState.currentContext[0]) {
                             case "array": {
                                 break unwindLoop
@@ -328,11 +392,6 @@ function processParserEvent(
                                 semanticState.wrapupValue(data.range)
                                 break
                             }
-                            case "root": {
-                                //const $ = state.currentContext[1]
-                                break unwindLoop
-                                //break
-                            }
                             case "taggedunion": {
                                 //const $ = state.currentContext[1]
                                 if (semanticState.currentContext[1].state[0] === "expecting value") {
@@ -349,7 +408,7 @@ function processParserEvent(
                                 assertUnreachable(semanticState.currentContext[0])
                         }
                     }
-                    if (semanticState.currentContext[0] !== "array") {
+                    if (semanticState.currentContext === null || semanticState.currentContext[0] !== "array") {
                         raiseError(onError, ["unexpected end of array"], data.range)
                         return p.value(false)
                     } else {
@@ -379,6 +438,7 @@ function processParserEvent(
                                 range: data.range,
                                 contextData: contextData,
                             },
+                            stackContext: semanticState.createStackContext(),
                         })
                         semanticState.pop(data.range)
                         semanticState.wrapupValue(data.range)
@@ -392,6 +452,9 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
                     unwindLoop: while (true) {
+                        if (semanticState.currentContext === null) {
+                            break unwindLoop
+                        }
                         switch (semanticState.currentContext[0]) {
                             case "array": {
                                 //const $ = state.currentContext[1]
@@ -401,12 +464,6 @@ function processParserEvent(
                                 break
                             }
                             case "object": {
-                                break unwindLoop
-                                break
-                            }
-                            case "root": {
-                                //const $ = state.currentContext[1]
-
                                 break unwindLoop
                                 break
                             }
@@ -426,7 +483,7 @@ function processParserEvent(
                                 assertUnreachable(semanticState.currentContext[0])
                         }
                     }
-                    if (semanticState.currentContext[0] !== "object") {
+                    if (semanticState.currentContext === null || semanticState.currentContext[0] !== "object") {
                         raiseError(onError, ["unexpected end of object"], data.range)
                         return p.value(false)
                     } else {
@@ -462,6 +519,7 @@ function processParserEvent(
                                 range: data.range,
                                 contextData: contextData,
                             },
+                            stackContext: semanticState.createStackContext(),
                         })
                         semanticState.pop(data.range)
                         semanticState.wrapupValue(data.range)
@@ -490,8 +548,10 @@ function processParserEvent(
                             range: data.range,
                             contextData: contextData,
                         },
+                        stackContext: semanticState.createStackContext(),
                     })
                     semanticState.push(["array", {
+                        foundElements: false,
                         type: data.tokenString === "<" ? ["shorthand type"] : ["list"],
                         arrayHandler: arrayHandler,
                     }])
@@ -514,8 +574,10 @@ function processParserEvent(
                             range: data.range,
                             contextData: contextData,
                         },
+                        stackContext: semanticState.createStackContext(),
                     })
                     semanticState.push(["object", {
+                        foundProperties: false,
                         type: data.tokenString === "(" ? ["verbose type"] : ["dictionary"],
                         objectHandler: objectHandler,
                         propertyHandler: null,
@@ -588,10 +650,22 @@ function processParserEvent(
                             },
                         })
                     }
+                    if (semanticState.currentContext === null) {
+                        //handle case when root value was already processed
+                        const vh = semanticState.rootValueHandler !== null
+                            ? semanticState.rootValueHandler.exists
+                            : createDummyValueHandler()
+                        return onSimpleValue(vh, contextData)
+                    }
                     switch (semanticState.currentContext[0]) {
                         case "array": {
                             const $ = semanticState.currentContext[1]
-                            return onSimpleValue($.arrayHandler.element(), contextData)
+                            const isFirst = !$.foundElements
+                            $.foundElements = true
+                            return onSimpleValue($.arrayHandler.element({
+                                isFirst: isFirst,
+                                stackContext: semanticState.createStackContext(),
+                            }), contextData)
                         }
                         case "object": {
                             const $$ = semanticState.currentContext[1]
@@ -600,7 +674,11 @@ function processParserEvent(
                                     raiseError(onError, ["unexpected key"], data.range)
                                     return p.value(false)
                                 } else {
+                                    const $$$ = semanticState.currentContext[1]
+                                    const isFirst = !$$$.foundProperties
+                                    $$$.foundProperties = true
                                     return $$.objectHandler.property({
+                                        isFirst: isFirst,
                                         data: {
                                             key: $.value,
                                         },
@@ -609,6 +687,7 @@ function processParserEvent(
                                             range: data.range,
                                             contextData: contextData,
                                         },
+                                        stackContext: semanticState.createStackContext(),
                                     }).mapResult(propHandler => {
                                         $$.propertyHandler = propHandler
                                         return p.value(false)
@@ -619,14 +698,6 @@ function processParserEvent(
                                 return onSimpleValue($$$.exists, contextData)
                             }
                         }
-                        case "root": {
-                            const $ = semanticState.currentContext[1]
-                            //handle case when root value was already processed
-                            const vh = $.rootValueHandler !== null
-                                ? $.rootValueHandler.exists
-                                : createDummyValueHandler()
-                            return onSimpleValue(vh, contextData)
-                        }
                         case "taggedunion": {
                             const $$ = semanticState.currentContext[1]
                             switch ($$.state[0]) {
@@ -635,13 +706,14 @@ function processParserEvent(
                                     if (DEBUG) { console.log("on option", $.value) }
                                     $$.state = ["expecting value", $$.handler.option({
                                         data: {
-                                        option: $.value,
+                                            option: $.value,
                                         },
                                         annotation: {
                                             tokenString: $.value, //this should probably the full token, including wrapping characters
                                             range: data.range,
                                             contextData: contextData,
                                         },
+                                        stackContext: semanticState.createStackContext(),
                                     })]
                                     return p.value(false)
                                 }
@@ -671,6 +743,7 @@ function processParserEvent(
                                 range: data.range,
                                 contextData: contextData,
                             },
+                            stackContext: semanticState.createStackContext(),
                         }),
                         state: ["expecting option", {
                         }],
@@ -796,15 +869,15 @@ export function createStackedParser<ReturnType, ErrorType>(
                 const range = createRangeFromSingleLocation(location)
                 if (!aborted) {
                     unwindLoop: while (true) {
-                        switch (semanticState.currentContext[0]) {
-                            case "root": {
-                                const $ = semanticState.currentContext[1]
-                                if ($.rootValueHandler !== null) {
-                                    $.rootValueHandler.missing()
-                                    $.rootValueHandler = null
-                                }
-                                break unwindLoop
+                        if (semanticState.currentContext === null) {
+
+                            if (semanticState.rootValueHandler !== null) {
+                                semanticState.rootValueHandler.missing()
+                                semanticState.rootValueHandler = null
                             }
+                            break unwindLoop
+                        }
+                        switch (semanticState.currentContext[0]) {
                             case "array": {
                                 raiseError(onError, ["unexpected end of document", { "still in": ["array"] }], range)
                                 semanticState.pop(range)

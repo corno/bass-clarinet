@@ -30,21 +30,34 @@ export type OptionData = {
     option: string
 }
 
+export type StackContext = {
+    objectDepth: number
+    arrayDepth: number
+    taggedUnionDepth: number
+}
+
 
 export interface ObjectHandler<Annotation> {
     property: ($: {
         data: PropertyData
         annotation: Annotation
+        stackContext: StackContext
+        isFirst: boolean
     }) => p.IValue<RequiredValueHandler<Annotation>>
     objectEnd: ($: {
         annotation: Annotation
+        stackContext: StackContext
     }) => p.IValue<null>
 }
 
 export interface ArrayHandler<Annotation> {
-    element: () => ValueHandler<Annotation>
+    element: ($: {
+        isFirst: boolean
+        stackContext: StackContext
+    }) => ValueHandler<Annotation>
     arrayEnd: ($: {
         annotation: Annotation
+        stackContext: StackContext
     }) => p.IValue<null>
 }
 
@@ -56,11 +69,13 @@ export interface TaggedUnionHandler<Annotation> {
 export type OnObject<Annotation> = ($: {
     data: ObjectData
     annotation: Annotation
+    stackContext: StackContext
 }) => ObjectHandler<Annotation>
 
 export type OnArray<Annotation> = ($: {
     data: ArrayData
     annotation: Annotation
+    stackContext: StackContext
 }) => ArrayHandler<Annotation>
 
 export type OnSimpleValue<Annotation> = ($: {
@@ -71,10 +86,13 @@ export type OnSimpleValue<Annotation> = ($: {
 
 export type OnTaggedUnion<Annotation> = ($: {
     annotation: Annotation
+    stackContext: StackContext
 }) => TaggedUnionHandler<Annotation>
+
 export type OnOption<Annotation> = ($: {
     data: OptionData
     annotation: Annotation
+    stackContext: StackContext
 }) => RequiredValueHandler<Annotation>
 
 export type OnMissing = () => void
