@@ -45,7 +45,7 @@ type PrecedingToken =
 	| [PrecedingTokenType.other]
 
 /**
- * this function creates a TextParserEventConsumer that can be attached to a parser
+ * this function creates a TextParserEventConsumer that can be attached to a text parser
  * It will call the replace, del and insert callbacks for each place in the text where a reformatting is needed
  */
 export function createFormatter(
