@@ -17,6 +17,7 @@
                         'type': | 'collection' (
                             'node': (
                                 'properties': {
+                                    "name": ( )
                                     "aanval": (
                                         'type': | 'state group' (
                                             'default state': "laser ogen"
@@ -28,21 +29,20 @@
                                     )
                                     "element": (
                                         'type': | 'state group' (
-                                            'default state': "techniek"
                                             'states': {
+                                                "techniek": ( )
+                                                "water": ( )
+                                                "planten": ( )
+                                                "ondood": ( )
                                                 "aarde": ( )
                                                 "bergen": ( )
                                                 "lucht": ( )
                                                 "magie": ( )
-                                                "ondood": ( )
-                                                "planten": ( )
-                                                "techniek": ( )
                                                 "vuur": ( )
-                                                "water": ( )
                                             }
+                                            'default state': "techniek"
                                         )
                                     )
-                                    "name": ( )
                                 }
                             )
                             'type': | 'dictionary' ( )

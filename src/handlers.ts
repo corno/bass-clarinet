@@ -1,13 +1,16 @@
 import * as p from "pareto"
 
-export type PropertyData = {
-    key: string
-}
-
 export type ObjectData = {
     type:
     | ["verbose type"]
     | ["dictionary"]
+}
+
+export type PropertyData = {
+    key: string
+}
+
+export type ElementData = {
 }
 
 export type ArrayData = {
@@ -31,80 +34,85 @@ export type OptionData = {
 }
 
 export type StackContext = {
-    objectDepth: number
-    arrayDepth: number
+    dictionaryDepth: number
+    verboseTypeDepth: number
+    listDepth: number
+    shorthandTypeDepth: number
     taggedUnionDepth: number
 }
 
 
-export interface ObjectHandler<Annotation> {
+export interface ObjectHandler<TokenAnnotation, NonTokenAnnotation> {
     property: ($: {
         data: PropertyData
-        annotation: Annotation
+        annotation: TokenAnnotation
         stackContext: StackContext
-        isFirst: boolean
-    }) => p.IValue<RequiredValueHandler<Annotation>>
+    }) => p.IValue<RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>>
     objectEnd: ($: {
-        annotation: Annotation
+        annotation: TokenAnnotation
         stackContext: StackContext
     }) => p.IValue<null>
 }
 
-export interface ArrayHandler<Annotation> {
+export interface ArrayHandler<TokenAnnotation, NonTokenAnnotation> {
     element: ($: {
-        isFirst: boolean
+        data: ElementData
         stackContext: StackContext
-    }) => ValueHandler<Annotation>
+        annotation: NonTokenAnnotation
+    }) => ValueHandler<TokenAnnotation, NonTokenAnnotation>
     arrayEnd: ($: {
-        annotation: Annotation
+        annotation: TokenAnnotation
         stackContext: StackContext
     }) => p.IValue<null>
 }
 
-export interface TaggedUnionHandler<Annotation> {
-    option: OnOption<Annotation>
+export interface TaggedUnionHandler<TokenAnnotation, NonTokenAnnotation> {
+    option: OnOption<TokenAnnotation, NonTokenAnnotation>
     missingOption: () => void
-    end: () => void
+    end: ($: {
+        annotation: NonTokenAnnotation
+    }) => void
 }
-export type OnObject<Annotation> = ($: {
+export type OnObject<TokenAnnotation, NonTokenAnnotation> = ($: {
     data: ObjectData
-    annotation: Annotation
+    annotation: TokenAnnotation
     stackContext: StackContext
-}) => ObjectHandler<Annotation>
+}) => ObjectHandler<TokenAnnotation, NonTokenAnnotation>
 
-export type OnArray<Annotation> = ($: {
+export type OnArray<TokenAnnotation, NonTokenAnnotation> = ($: {
     data: ArrayData
-    annotation: Annotation
+    annotation: TokenAnnotation
     stackContext: StackContext
-}) => ArrayHandler<Annotation>
+}) => ArrayHandler<TokenAnnotation, NonTokenAnnotation>
 
-export type OnSimpleValue<Annotation> = ($: {
+export type OnSimpleValue<TokenAnnotation> = ($: {
     data: SimpleValueData2
-    annotation: Annotation
+    annotation: TokenAnnotation
+    stackContext: StackContext
 }) => p.IValue<boolean>
 
 
-export type OnTaggedUnion<Annotation> = ($: {
-    annotation: Annotation
+export type OnTaggedUnion<TokenAnnotation, NonTokenAnnotation> = ($: {
+    annotation: TokenAnnotation
     stackContext: StackContext
-}) => TaggedUnionHandler<Annotation>
+}) => TaggedUnionHandler<TokenAnnotation, NonTokenAnnotation>
 
-export type OnOption<Annotation> = ($: {
+export type OnOption<TokenAnnotation, NonTokenAnnotation> = ($: {
     data: OptionData
-    annotation: Annotation
+    annotation: TokenAnnotation
     stackContext: StackContext
-}) => RequiredValueHandler<Annotation>
+}) => RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
 
 export type OnMissing = () => void
 
-export interface RequiredValueHandler<Annotation> {
-    exists: ValueHandler<Annotation>
+export interface RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
+    exists: ValueHandler<TokenAnnotation, NonTokenAnnotation>
     missing: OnMissing
 }
 
-export interface ValueHandler<Annotation> {
-    object: OnObject<Annotation>
-    array: OnArray<Annotation>
-    simpleValue: OnSimpleValue<Annotation>
-    taggedUnion: OnTaggedUnion<Annotation>
+export interface ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+    object: OnObject<TokenAnnotation, NonTokenAnnotation>
+    array: OnArray<TokenAnnotation, NonTokenAnnotation>
+    simpleValue: OnSimpleValue<TokenAnnotation>
+    taggedUnion: OnTaggedUnion<TokenAnnotation, NonTokenAnnotation>
 }

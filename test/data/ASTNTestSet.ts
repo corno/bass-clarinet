@@ -5,6 +5,16 @@ import { TestDefinitions } from "../TestDefinition";
 
 
 export const extensionTests: TestDefinitions = {
+    "backticked value": {
+        text: '{ "foo" : `bar` }',
+        events: [
+            ["token", "openobject", "{", null],
+            ["token", "quotedstring", "foo", null],
+            ["token", "unquotedtoken", "`bar`", null],
+            ["token", "closeobject", "}", null],
+            ["end", null],
+        ],
+    },
     "trailing comma": {
         text: '[ 1, 2, ]',
         events: [

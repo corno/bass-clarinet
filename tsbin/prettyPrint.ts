@@ -16,7 +16,7 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-function createRequiredValuePrettyPrinter<Annotation>(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler<Annotation> {
+function createRequiredValuePrettyPrinter<TokenAnnotation, NonTokenAnnotation>(indentation: string, writer: (str: string) => void): astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
     return {
         exists: createValuePrettyPrinter(indentation, writer),
         missing: () => {
@@ -25,7 +25,7 @@ function createRequiredValuePrettyPrinter<Annotation>(indentation: string, write
     }
 }
 
-function createValuePrettyPrinter<Annotation>(indentation: string, writer: (str: string) => void): astn.ValueHandler<Annotation> {
+function createValuePrettyPrinter<TokenAnnotation, NonTokenAnnotation>(indentation: string, writer: (str: string) => void): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
     return {
         array: arrayData => {
 

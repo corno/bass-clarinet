@@ -6,7 +6,7 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 import { describe } from "mocha"
 import * as chai from "chai"
-import * as bct from "../src"
+import * as astn from "../src"
 import { getEndLocationFromRange, ExpectError, printExpectError, ParserAnnotationData } from "../src"
 
 //const selectedJSONTests: string[] = ["two keys"]
@@ -34,9 +34,9 @@ describe('typed', () => {
             testName: string,
             data: string,
             callback: (
-                expect: bct.ExpectContext<ParserAnnotationData>,
+                expect: astn.ExpectContext<ParserAnnotationData, null>,
                 addError: (errorLine: ErrorLine) => void
-            ) => bct.RequiredValueHandler<ParserAnnotationData>,
+            ) => astn.ParserRequiredValueHandler,
             expectedErrors: ErrorLine[]
         ) {
 
@@ -46,7 +46,7 @@ describe('typed', () => {
                     const end = getEndLocationFromRange(annotation.range)
                     foundErrors.push(["expect warning", printExpectError(issue), annotation.range.start.line, annotation.range.start.column, end.line, end.column])
                 }
-                const streamTokenizer = bct.createParserStack(
+                const streamTokenizer = astn.createParserStack(
                     () => {
 
                         return {
@@ -61,18 +61,18 @@ describe('typed', () => {
                     },
                     () => {
 
-                        const expect = new bct.ExpectContext(
+                        const expect = new astn.ExpectContext<ParserAnnotationData, null>(
                             (issue: ExpectError, annotation: ParserAnnotationData) => {
                                 const end = getEndLocationFromRange(annotation.range)
                                 foundErrors.push(["expect error", printExpectError(issue), annotation.range.start.line, annotation.range.start.column, end.line, end.column])
                             },
                             onWarning,
-                            bct.createDummyValueHandler,
-                            bct.createDummyValueHandler,
-                            bct.Severity.warning,
-                            bct.OnDuplicateEntry.ignore,
+                            astn.createDummyValueHandler,
+                            astn.createDummyValueHandler,
+                            astn.Severity.warning,
+                            astn.OnDuplicateEntry.ignore,
                         )
-                        return bct.createStackedParser(
+                        return astn.createStackedParser(
                             callback(
                                 expect,
                                 errorLine => {
@@ -92,7 +92,7 @@ describe('typed', () => {
                     },
                     (error, range) => {
                         const end = getEndLocationFromRange(range)
-                        foundErrors.push(["parser error", bct.printParsingError(error), range.start.line, range.start.column, end.line, end.column])
+                        foundErrors.push(["parser error", astn.printParsingError(error), range.start.line, range.start.column, end.line, end.column])
                     },
                 )
                 return p20.createArray([data]).streamify().tryToConsume(
@@ -139,10 +139,10 @@ describe('typed', () => {
         doTest(
             'duplicate property',
             `( "a": 42, "a": 42 )`,
-            expect => bct.createRequiredValueHandler(
+            expect => astn.createRequiredValueHandler(
                 expect,
                 ["type", {
-                    a: (): bct.ValueType<ParserAnnotationData> => {
+                    a: (): astn.ValueType<ParserAnnotationData, null> => {
                         return ["number", () => {
                             return p.value(false)
                         }]
@@ -157,12 +157,12 @@ describe('typed', () => {
             'unexpected boolean',
 
             `( "a": true )`,
-            (expect, addError) => bct.createRequiredValueHandler(
+            (expect, addError) => astn.createRequiredValueHandler(
                 expect,
                 [
                     "type",
                     {
-                        a: (): bct.ValueType<ParserAnnotationData> => {
+                        a: (): astn.ValueType<ParserAnnotationData, null> => {
                             return [
                                 "number",
                                 () => {
@@ -188,12 +188,12 @@ describe('typed', () => {
         doTest(
             'unexpected empty type',
             `( )`,
-            (expect, addError) => bct.createRequiredValueHandler(
+            (expect, addError) => astn.createRequiredValueHandler(
                 expect,
                 [
                     "type",
                     {
-                        a: (): bct.ValueType<ParserAnnotationData> => {
+                        a: (): astn.ValueType<ParserAnnotationData, null> => {
                             return [
                                 "number",
                                 () => {
@@ -218,7 +218,7 @@ describe('typed', () => {
         doTest(
             'unexpected object',
             `{ }`,
-            (expect, _addError) => bct.createRequiredValueHandler(
+            (expect, _addError) => astn.createRequiredValueHandler(
                 expect,
                 [
                     "list",
@@ -290,7 +290,7 @@ describe('typed', () => {
                 expect.expectType(
                     {
                         a: {
-                            onExists: (): bct.RequiredValueHandler<ParserAnnotationData> => {
+                            onExists: (): astn.RequiredValueHandler<ParserAnnotationData, null> => {
                                 return {
                                     exists: expect.expectTaggedUnion(
                                         {

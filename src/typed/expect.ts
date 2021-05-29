@@ -7,14 +7,14 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-type PropertyHandler<Annotation> = (data: {
+type PropertyHandler<TokenAnnotation, NonTokenAnnotation> = (data: {
     data: PropertyData
-    annotation: Annotation
-}) => ValueType<Annotation>
+    annotation: TokenAnnotation
+}) => ValueType<TokenAnnotation, NonTokenAnnotation>
 
-type OnInvalidType<Annotation> = (annotation: Annotation) => void
+type OnInvalidType<TokenAnnotation> = (annotation: TokenAnnotation) => void
 
-export type ValueType<Annotation> =
+export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     // | [
     //     "shorthand type",
     //     {
@@ -32,7 +32,7 @@ export type ValueType<Annotation> =
         "boolean",
         (value: boolean, data: {
             data: SimpleValueData2
-            annotation: Annotation
+            annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
             onMissing?: () => void
@@ -43,29 +43,29 @@ export type ValueType<Annotation> =
         "dicionary",
         (propertyData: {
             data: PropertyData
-            annotation: Annotation
-        }) => ValueType<Annotation>,
+            annotation: TokenAnnotation
+        }) => ValueType<TokenAnnotation, NonTokenAnnotation>,
         {
             onBegin: (data: {
                 data: ObjectData
-                annotation: Annotation
+                annotation: TokenAnnotation
             }) => void
             onEnd: (objectEndData: {
-                annotation: Annotation
+                annotation: TokenAnnotation
             }) => void
             onMissing?: () => void
             onInvalidType?: () => void
         }
     ]
     | ["list",
-        ValueType<Annotation>,
+        ValueType<TokenAnnotation, NonTokenAnnotation>,
         {
             onBegin: (data: {
                 data: ArrayData
-                annotation: Annotation
+                annotation: TokenAnnotation
             }) => void
             onEnd: (endData: {
-                annotation: Annotation
+                annotation: TokenAnnotation
             }) => void
             onMissing?: () => void
             onInvalidType?: () => void
@@ -75,7 +75,7 @@ export type ValueType<Annotation> =
         "null",
         (data: {
             data: SimpleValueData2
-            annotation: Annotation
+            annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
             onMissing?: () => void
@@ -86,7 +86,7 @@ export type ValueType<Annotation> =
         "number",
         (number: number, data: {
             data: SimpleValueData2
-            annotation: Annotation
+            annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
             onMissing?: () => void
@@ -97,7 +97,7 @@ export type ValueType<Annotation> =
         "simple value",
         (data: {
             data: SimpleValueData2
-            annotation: Annotation
+            annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
             onMissing?: () => void
@@ -108,20 +108,20 @@ export type ValueType<Annotation> =
         "tagged union", {
             [key: string]: (
                 taggedUnionData: {
-                    annotation: Annotation
+                    annotation: TokenAnnotation
                 },
                 optionData: {
                     data: OptionData
-                    annotation: Annotation
+                    annotation: TokenAnnotation
                 },
-            ) => astn.RequiredValueHandler<Annotation>
+            ) => astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
         },
         {
             onUnexpectedOption?: (
                 $: {
-                    tuAnnotation: Annotation
+                    tuAnnotation: TokenAnnotation
                     data: OptionData
-                    optionAnnotation: Annotation
+                    optionAnnotation: TokenAnnotation
                 },
             ) => void
             onMissingOption?: () => void
@@ -133,12 +133,12 @@ export type ValueType<Annotation> =
         "type",
         {
             [key: string]:
-            | PropertyHandler<Annotation>
-            | [PropertyHandler<Annotation>, {
+            | PropertyHandler<TokenAnnotation, NonTokenAnnotation>
+            | [PropertyHandler<TokenAnnotation, NonTokenAnnotation>, {
                 onNotExists?: ($: {
                     data: ObjectData
-                    beginAnnotation: Annotation
-                    endAnnotation: Annotation
+                    beginAnnotation: TokenAnnotation
+                    endAnnotation: TokenAnnotation
                 }) => void
             }?
             ]
@@ -146,25 +146,25 @@ export type ValueType<Annotation> =
         {
             onBegin?: ($: {
                 data: ObjectData
-                annotation: Annotation
+                annotation: TokenAnnotation
             }) => void
             onEnd?: ($: {
                 hasErrors: boolean
-                annotation: Annotation
+                annotation: TokenAnnotation
             }) => void
             onUnexpectedProperty?: ($: {
                 data: PropertyData
-                annotation: Annotation
-            }) => astn.RequiredValueHandler<Annotation>
+                annotation: TokenAnnotation
+            }) => astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
             onMissing?: () => void
-            onInvalidType?: OnInvalidType<Annotation>
+            onInvalidType?: OnInvalidType<TokenAnnotation>
         }?
     ]
 
-export function createRequiredValueHandler<Annotation>(
-    context: ExpectContext<Annotation>,
-    valueType: ValueType<Annotation>,
-): astn.RequiredValueHandler<Annotation> {
+export function createRequiredValueHandler<TokenAnnotation, NonTokenAnnotation>(
+    context: ExpectContext<TokenAnnotation, NonTokenAnnotation>,
+    valueType: ValueType<TokenAnnotation, NonTokenAnnotation>,
+): astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
     return context.expectValue(
         createValueHandler(
             context,
@@ -174,10 +174,10 @@ export function createRequiredValueHandler<Annotation>(
     )
 }
 
-export function createValueHandler<Annotation>(
-    context: ExpectContext<Annotation>,
-    valueType: ValueType<Annotation>,
-): astn.ValueHandler<Annotation> {
+export function createValueHandler<TokenAnnotation, NonTokenAnnotation>(
+    context: ExpectContext<TokenAnnotation, NonTokenAnnotation>,
+    valueType: ValueType<TokenAnnotation, NonTokenAnnotation>,
+): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
     switch (valueType[0]) {
         // case "shorthand type": {
         //     const $1 = valueType[1]
@@ -272,7 +272,7 @@ export function createValueHandler<Annotation>(
         case "type": {
             const $1 = valueType[1]
             const $2 = valueType[2]
-            const props: ExpectedProperties<Annotation> = {}
+            const props: ExpectedProperties<TokenAnnotation, NonTokenAnnotation> = {}
             Object.keys($1).forEach(key => {
                 const rawProp = $1[key]
                 if (rawProp instanceof Array) {

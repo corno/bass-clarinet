@@ -1,0 +1,79 @@
+(
+    'correct': (
+        'strings': (
+            'key with line feed\n': "foo"
+            'key with carriage return\r': "foo"
+            'key with carriage return and line feed\r\n': "foo"
+            'multiline': (
+                'no newlines': `foo`
+                'newline': `foo
+                'bar`': 
+            )
+        )
+        'character escaping': (
+            'solidus': "/"
+            'tab': "\t"
+            'line feed': "\n"
+            'carriage return': "\r"
+            'unescaped tab in multiline string': `
+            '`': 
+        )
+        'arrays': (
+            'empty list': [ ]
+            'non empty list': [ "foo" "foo" ]
+            'empty shorthand type': < >
+            'non empty shorthand type': < "foo" "foo" >
+        )
+        'objects': (
+            'empty dictionary': { }
+            'non empty dictionary': {
+                "correct property": "foo"
+            }
+            'empty verbose type': ( )
+        )
+        'tagged union': | 'bar' ( )
+    )
+    'incorrect': (
+        'whitespace': (
+            'no space in empty list': [ ]
+            'no space in empty object': { }
+            'tabs instead of spaces in indentation': "foo"
+            'tab instead of space before value': "foo"
+            'space before colon': "foo"
+            'space before newline': "foo"
+            'wrong indentation': "foo"
+            'no space before value': "foo"
+        )
+        'commas': (
+            'comma between elements': [ "foo" "foo" ]
+            'comma after last elements': [ "foo" ]
+            'comma between properties': "foo"
+            'comma after last property': "foo"
+        )
+        'strings': (
+            '`backticked': type
+            'key`': "foo"
+            'quoted value with escaped apostrophe': "'"
+            'key with escaped string: "': "foo"
+            'qouted type property key': "foo"
+            'escaped newline in multiline string': `foo\\nfoo`
+            'quoted tagged union option': | 'bar' ( )
+            'backticked tagged union option': | '`bar`' ( )
+            'unquoted tagged union option': | 'baz' ( )
+            'object keys': {
+                "`backticked`": "foo"
+                "apostrophed": "foo"
+                "unwrapped": "foo"
+            }
+        )
+        'character escaping': (
+            'using lowercase letters in hexadecimal escape sequence': "\u000C"
+            'superfluous escape of solidus': "/"
+            'superfluous escape of regular character (letter a)': "a"
+            'superfluous escape of regular character (G clef character)': "𝄞"
+            'two-character escape sequence representation of form feed': "\u000C"
+            'two-character escape sequence representation of backspace': "\u0008"
+            'unescaped tab in quoted string': "  "
+        )
+    )
+)

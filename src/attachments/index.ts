@@ -1,2 +1,2 @@
 export * from "./createStrictJSONValidator"
-export * from "./createFormatter"
+export * from "../formatting/old_createFormatter"

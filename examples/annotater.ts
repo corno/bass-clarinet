@@ -1,11 +1,11 @@
 import * as p from "pareto"
 import * as astn from "../src"
 
-function createRequiredValuesAnnotater<Annotation>(
+function createRequiredValuesAnnotater<TokenAnnotation, NonTokenAnnotation>(
     indentation: string,
     writer: (str: string) => void,
-    printAnnotation: (annotation: Annotation) => string
-): astn.RequiredValueHandler<Annotation> {
+    printAnnotation: (annotation: TokenAnnotation) => string
+): astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
     return {
         exists: createValuesAnnotater(indentation, writer, printAnnotation),
         missing: () => {
@@ -14,7 +14,11 @@ function createRequiredValuesAnnotater<Annotation>(
     }
 }
 
-function createValuesAnnotater<Annotation>(indentation: string, writer: (str: string) => void, printAnnotation: (annotation: Annotation) => string): astn.ValueHandler<Annotation> {
+function createValuesAnnotater<TokenAnnotation, NonTokenAnnotation>(
+    indentation: string,
+    writer: (str: string) => void,
+    printAnnotation: (annotation: TokenAnnotation) => string
+): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
     return {
         array: $ => {
             writer(`${indentation}[ // ${printAnnotation($.annotation)}`)

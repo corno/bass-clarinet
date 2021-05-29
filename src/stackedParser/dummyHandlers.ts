@@ -1,7 +1,7 @@
 import * as p from "pareto"
 import { ArrayHandler, ObjectHandler, RequiredValueHandler, TaggedUnionHandler, ValueHandler } from "../handlers"
 
-export function createDummyRequiredValueHandler<Annotation>(): RequiredValueHandler<Annotation> {
+export function createDummyRequiredValueHandler<TokenAnnotation, NonTokenAnnotation>(): RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
     return {
         exists: createDummyValueHandler(),
         missing: (): void => {
@@ -10,17 +10,17 @@ export function createDummyRequiredValueHandler<Annotation>(): RequiredValueHand
     }
 }
 
-export function createDummyValueHandler<Annotation>(): ValueHandler<Annotation> {
+export function createDummyValueHandler<TokenAnnotation, NonTokenAnnotation>(): ValueHandler<TokenAnnotation, NonTokenAnnotation> {
     return {
-        array: (): ArrayHandler<Annotation> => createDummyArrayHandler(),
-        object: (): ObjectHandler<Annotation> => createDummyObjectHandler(),
+        array: (): ArrayHandler<TokenAnnotation, NonTokenAnnotation> => createDummyArrayHandler(),
+        object: (): ObjectHandler<TokenAnnotation, NonTokenAnnotation> => createDummyObjectHandler(),
         simpleValue: (): p.IValue<boolean> => {
             //do nothing
             return p.value(false)
         },
-        taggedUnion: (): TaggedUnionHandler<Annotation> => {
+        taggedUnion: (): TaggedUnionHandler<TokenAnnotation, NonTokenAnnotation> => {
             return {
-                option: (): RequiredValueHandler<Annotation> => createDummyRequiredValueHandler(),
+                option: (): RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> => createDummyRequiredValueHandler(),
                 missingOption: (): void => {
                     //
                 },
@@ -32,9 +32,9 @@ export function createDummyValueHandler<Annotation>(): ValueHandler<Annotation> 
     }
 }
 
-export function createDummyArrayHandler<Annotation>(): ArrayHandler<Annotation> {
+export function createDummyArrayHandler<TokenAnnotation, NonTokenAnnotation>(): ArrayHandler<TokenAnnotation, NonTokenAnnotation> {
     return {
-        element: (): ValueHandler<Annotation> => createDummyValueHandler(),
+        element: (): ValueHandler<TokenAnnotation, NonTokenAnnotation> => createDummyValueHandler(),
         arrayEnd: () => {
             //do nothing
             return p.value(null)
@@ -42,7 +42,7 @@ export function createDummyArrayHandler<Annotation>(): ArrayHandler<Annotation> 
     }
 }
 
-export function createDummyObjectHandler<Annotation>(): ObjectHandler<Annotation> {
+export function createDummyObjectHandler<TokenAnnotation, NonTokenAnnotation>(): ObjectHandler<TokenAnnotation, NonTokenAnnotation> {
     return {
         property: () => {
             return p.value(createDummyRequiredValueHandler())

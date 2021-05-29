@@ -45,6 +45,12 @@ export type ParserAnnotationData = {
     range: Range
 }
 
+export type ParserRequiredValueHandler = RequiredValueHandler<ParserAnnotationData, null>
+export type ParserValueHandler = ValueHandler<ParserAnnotationData, null>
+export type ParserObjectHandler = ObjectHandler<ParserAnnotationData, null>
+export type ParserTaggedUnionHandler = TaggedUnionHandler<ParserAnnotationData, null>
+export type ParserArrayHandler = ArrayHandler<ParserAnnotationData, null>
+
 export type Comment = {
     text: string
     outerRange: Range
@@ -65,7 +71,7 @@ class StackedDataSubscriberPanic extends RangeError {
 type TaggedUnionState =
     | ["expecting option", {
     }]
-    | ["expecting value", RequiredValueHandler<ParserAnnotationData>]
+    | ["expecting value", ParserRequiredValueHandler]
 
 
 type ContextType =
@@ -73,8 +79,8 @@ type ContextType =
         type:
         | ["dictionary"]
         | ["verbose type"]
-        readonly objectHandler: ObjectHandler<ParserAnnotationData>
-        propertyHandler: null | RequiredValueHandler<ParserAnnotationData>
+        readonly objectHandler: ParserObjectHandler
+        propertyHandler: null | ParserRequiredValueHandler
         foundProperties: boolean
     }]
     | ["array", {
@@ -82,10 +88,10 @@ type ContextType =
         | ["list"]
         | ["shorthand type"]
         foundElements: boolean
-        readonly arrayHandler: ArrayHandler<ParserAnnotationData>
+        readonly arrayHandler: ParserArrayHandler
     }]
     | ["taggedunion", {
-        readonly handler: TaggedUnionHandler<ParserAnnotationData>
+        readonly handler: ParserTaggedUnionHandler
         state: TaggedUnionState
     }]
 
@@ -196,18 +202,22 @@ class OverheadState {
 class SemanticState {
     currentContext: ContextType | null = null
     private readonly stack: (ContextType | null)[] = []
-    private objectDepth = 0
-    private arrayDepth = 0
+    private dictionaryDepth = 0
+    private verboseTypeDepth = 0
+    private listDepth = 0
+    private shorthandTypeDepth = 0
     private taggedUnionDepth = 0
-    public rootValueHandler: RequiredValueHandler<ParserAnnotationData> | null //becomes null when processed
+    public rootValueHandler: ParserRequiredValueHandler | null //becomes null when processed
 
-    constructor(valueHandler: RequiredValueHandler<ParserAnnotationData>) {
+    constructor(valueHandler: ParserRequiredValueHandler) {
         this.rootValueHandler = valueHandler
     }
     public createStackContext(): StackContext {
         return {
-            objectDepth: this.objectDepth,
-            arrayDepth: this.arrayDepth,
+            dictionaryDepth: this.dictionaryDepth,
+            verboseTypeDepth: this.verboseTypeDepth,
+            listDepth: this.listDepth,
+            shorthandTypeDepth: this.shorthandTypeDepth,
             taggedUnionDepth: this.taggedUnionDepth,
         }
     }
@@ -218,12 +228,35 @@ class SemanticState {
         }
         switch (this.currentContext[0]) {
             case "array": {
-                this.arrayDepth -= 1
+                const $ = this.currentContext[1]
+                switch ($.type[0]) {
+                    case "list": {
+                        this.listDepth -= 1
+                        break
+                    }
+                    case "shorthand type": {
+                        this.shorthandTypeDepth -= 1
+                        break
+                    }
+                    default:
+                        assertUnreachable($.type[0])
+                }
                 break
             }
             case "object": {
-                this.objectDepth -= 1
-
+                const $ = this.currentContext[1]
+                switch ($.type[0]) {
+                    case "dictionary": {
+                        this.dictionaryDepth -= 1
+                        break
+                    }
+                    case "verbose type": {
+                        this.verboseTypeDepth -= 1
+                        break
+                    }
+                    default:
+                        assertUnreachable($.type[0])
+                }
                 break
             }
             case "taggedunion": {
@@ -242,7 +275,9 @@ class SemanticState {
                 if (taggedUnion.state[0] !== "expecting value") {
                     throw new StackedDataSubscriberPanic("unexpected tagged union state", range)
                 }
-                taggedUnion.handler.end()
+                taggedUnion.handler.end({
+                    annotation: null,
+                })
             }
             this.currentContext = previousContext
         }
@@ -252,12 +287,35 @@ class SemanticState {
         this.currentContext = newContext
         switch (newContext[0]) {
             case "array": {
-                this.arrayDepth += 1
+                const $ = newContext[1]
+                switch ($.type[0]) {
+                    case "list": {
+                        this.listDepth += 1
+                        break
+                    }
+                    case "shorthand type": {
+                        this.shorthandTypeDepth += 1
+                        break
+                    }
+                    default:
+                        assertUnreachable($.type[0])
+                }
                 break
             }
             case "object": {
-                this.objectDepth += 1
-
+                const $ = newContext[1]
+                switch ($.type[0]) {
+                    case "dictionary": {
+                        this.dictionaryDepth += 1
+                        break
+                    }
+                    case "verbose type": {
+                        this.verboseTypeDepth += 1
+                        break
+                    }
+                    default:
+                        assertUnreachable($.type[0])
+                }
                 break
             }
             case "taggedunion": {
@@ -294,7 +352,7 @@ class SemanticState {
             }
         }
     }
-    public initValueHandler(): ValueHandler<ParserAnnotationData> {
+    public initValueHandler(): ParserValueHandler {
         if (this.currentContext === null) {
             const vh = this.rootValueHandler
             if (vh === null) {
@@ -311,12 +369,11 @@ class SemanticState {
                     const isFirst = !$.foundElements
                     $.foundElements = true
                     return this.currentContext[1].arrayHandler.element({
-                        isFirst: isFirst,
-                        stackContext: {
-                            objectDepth: this.objectDepth,
-                            arrayDepth: this.arrayDepth,
-                            taggedUnionDepth: this.taggedUnionDepth,
+                        data: {
+                            isFirst: isFirst,
                         },
+                        stackContext: this.createStackContext(),
+                        annotation: null,
                     })
                 }
                 case "object": {
@@ -619,7 +676,7 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
 
-                    function onSimpleValue(vh: ValueHandler<ParserAnnotationData>, cd: ContextData): p.IValue<boolean> {
+                    function onSimpleValue(vh: ParserValueHandler, cd: ContextData): p.IValue<boolean> {
                         if (DEBUG) { console.log("on simple value", $.value) }
                         semanticState.wrapupValue(data.range)
                         return vh.simpleValue({
@@ -648,6 +705,8 @@ function processParserEvent(
                                 range: data.range,
                                 contextData: cd,
                             },
+                            stackContext: semanticState.createStackContext(),
+
                         })
                     }
                     if (semanticState.currentContext === null) {
@@ -662,10 +721,15 @@ function processParserEvent(
                             const $ = semanticState.currentContext[1]
                             const isFirst = !$.foundElements
                             $.foundElements = true
-                            return onSimpleValue($.arrayHandler.element({
-                                isFirst: isFirst,
-                                stackContext: semanticState.createStackContext(),
-                            }), contextData)
+                            return onSimpleValue(
+                                $.arrayHandler.element({
+                                    data: {
+                                        isFirst: isFirst,
+                                    },
+                                    stackContext: semanticState.createStackContext(),
+                                    annotation: null,
+                                }),
+                                contextData)
                         }
                         case "object": {
                             const $$ = semanticState.currentContext[1]
@@ -675,10 +739,8 @@ function processParserEvent(
                                     return p.value(false)
                                 } else {
                                     const $$$ = semanticState.currentContext[1]
-                                    const isFirst = !$$$.foundProperties
                                     $$$.foundProperties = true
                                     return $$.objectHandler.property({
-                                        isFirst: isFirst,
                                         data: {
                                             key: $.value,
                                         },
@@ -764,7 +826,7 @@ function processParserEvent(
  * 'onopenarray' with 'onclosearray'
  */
 export function createStackedParser<ReturnType, ErrorType>(
-    valueHandler: RequiredValueHandler<ParserAnnotationData>,
+    valueHandler: ParserRequiredValueHandler,
     onError: (error: StackedDataError, range: Range) => void,
     onEnd: () => p.IUnsafeValue<ReturnType, ErrorType>
 ): TextParserEventConsumer<ReturnType, ErrorType> {
