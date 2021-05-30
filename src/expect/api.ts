@@ -161,26 +161,26 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
     ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
     expectString(
         callback: ($: {
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: ($: {
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
     expectBoolean(
         callback: ($: {
             value: boolean
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
     ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
     expectNull(
         callback: ($: {
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
@@ -192,24 +192,24 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
     expectNumber(
         callback: ($: {
             value: number
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: ($: {
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
     expectQuotedString(
         callback: ($: {
             value: string
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: ($: {
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
@@ -243,7 +243,7 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: ($: {
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
@@ -269,7 +269,7 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => void,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: ($: {
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
@@ -297,7 +297,7 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => void,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: ($: {
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
@@ -311,7 +311,7 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
         onMissingOption?: () => void,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: ($: {
-            data: h.StringData2
+            data: h.StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>

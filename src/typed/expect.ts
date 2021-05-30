@@ -1,6 +1,6 @@
 import * as p from "pareto"
 import * as astn from ".."
-import { ArrayData, ObjectData, OptionData, StringData2, PropertyData } from "../handlers"
+import { ArrayData, ObjectData, OptionData, StringValueData, PropertyData } from "../handlers"
 import { ExpectedProperties, IExpectContext } from "../expect"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -34,7 +34,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
         "boolean",
         ($: {
             value: boolean
-            data: StringData2
+            data: StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
@@ -77,7 +77,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     | [
         "null",
         ($: {
-            data: StringData2
+            data: StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
@@ -89,7 +89,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
         "number",
         ($: {
             value: number
-            data: StringData2
+            data: StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
@@ -100,7 +100,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     | [
         "string",
         ($: {
-            data: StringData2
+            data: StringValueData
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {

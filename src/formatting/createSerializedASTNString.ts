@@ -1,4 +1,4 @@
-import { StringData2 } from "../handlers"
+import { StringValueData } from "../handlers"
 import { createSerializedMultilineString, createSerializedNonWrappedString, createSerializedQuotedString } from "./escapeString"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -6,7 +6,7 @@ function assertUnreachable<RT>(_x: never): RT {
 }
 
 export function createSerializedString(
-    data: StringData2,
+    data: StringValueData,
     indentation: string,
     newline: string,
 ): string {

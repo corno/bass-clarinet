@@ -81,7 +81,7 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
             }
         },
 
-        string: $ => {
+        stringValue: $ => {
 
             return {
                 stringBefore: ``,

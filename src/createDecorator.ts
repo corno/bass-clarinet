@@ -1,5 +1,5 @@
 import * as p from "pareto"
-import { ArrayData, ElementData, ObjectData, OptionData, PropertyData, RequiredValueHandler, StringData2, StackContext, ValueHandler } from "./handlers";
+import { ArrayData, ElementData, ObjectData, OptionData, PropertyData, RequiredValueHandler, StringValueData, StackContext, ValueHandler } from "./handlers";
 
 export interface Annotater<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation> {
     objectBegin: ($: {
@@ -40,9 +40,9 @@ export interface Annotater<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnno
         isEmpty: boolean
     }) => OutTokenAnnotation
 
-    string: ($: {
+    stringValue: ($: {
         source: InTokenAnnotation
-        data: StringData2
+        data: StringValueData
         stackContext: StackContext
     }) => OutTokenAnnotation
 
@@ -158,7 +158,7 @@ export function createDecoratedValue<InTokenAnnotation, InNonTokenAnnotation, Ou
         string: $ => {
             return downstream.string({
                 data: $.data,
-                annotation: annotater.string({
+                annotation: annotater.stringValue({
                     source: $.annotation,
                     data: $.data,
                     stackContext: $.stackContext,

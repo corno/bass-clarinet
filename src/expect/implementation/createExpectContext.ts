@@ -15,7 +15,7 @@ import {
     ExpectError, ExpectErrorHandler, OnDuplicateEntry, Severity,
 } from "../functions"
 import { createSerializedString } from "../../formatting"
-import { ArrayData, OptionData, ObjectData, PropertyData, StringData2 } from "../../handlers"
+import { ArrayData, OptionData, ObjectData, PropertyData, StringValueData } from "../../handlers"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -464,7 +464,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
             expected: ExpectErrorValue,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
             onNull?: ($: {
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
         ): astn.OnString<TokenAnnotation> {
@@ -603,7 +603,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
         public expectStringImp(
             expected: ExpectErrorValue,
             callback: ($: {
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
@@ -617,12 +617,12 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
         }
         public expectString(
             callback: ($: {
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
             onNull?: ($: {
-                data: astn.StringData2
+                data: astn.StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
         ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -636,7 +636,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
         public expectBoolean(
             callback: ($: {
                 value: boolean
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
@@ -682,7 +682,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
         }
         public expectNull(
             callback: ($: {
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
@@ -728,12 +728,12 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
         public expectNumber(
             callback: ($: {
                 value: number
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
             onNull?: ($: {
-                data: astn.StringData2
+                data: astn.StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
         ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -775,12 +775,12 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
         public expectQuotedString(
             callback: ($: {
                 value: string
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
             onNull?: ($: {
-                data: astn.StringData2
+                data: astn.StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
         ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -856,7 +856,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
             }) => astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
             onNull?: ($: {
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
         ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -911,7 +911,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
             }) => void,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
             onNull?: ($: {
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
         ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -952,7 +952,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
             }) => void,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
             onNull?: ($: {
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
         ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -983,7 +983,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
             onMissingOption?: () => void,
             onInvalidType?: OnInvalidType<TokenAnnotation>,
             onNull?: ($: {
-                data: StringData2
+                data: StringValueData
                 annotation: TokenAnnotation
             }) => p.IValue<boolean>,
         ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {

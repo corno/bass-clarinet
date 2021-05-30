@@ -19,7 +19,7 @@ export type ArrayData = {
     | ["list"]
 }
 
-export type StringType2 =
+export type StringValueDataType =
     | ["nonwrapped", {
         value: string
     }]
@@ -30,8 +30,8 @@ export type StringType2 =
         value: string
     }]
 
-export type StringData2 = {
-    type: StringType2
+export type StringValueData = {
+    type: StringValueDataType
 }
 
 export type OptionData = {
@@ -91,7 +91,7 @@ export type OnArray<TokenAnnotation, NonTokenAnnotation> = ($: {
 }) => ArrayHandler<TokenAnnotation, NonTokenAnnotation>
 
 export type OnString<TokenAnnotation> = ($: {
-    data: StringData2
+    data: StringValueData
     annotation: TokenAnnotation
     stackContext: StackContext
 }) => p.IValue<boolean>

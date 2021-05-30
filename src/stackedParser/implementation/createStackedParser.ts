@@ -14,7 +14,7 @@ import {
     createDummyValueHandler
 } from "../../dummyHandlers"
 import {
-    StringType2,
+    StringValueDataType,
     StackContext,
 } from "../../handlers"
 import {
@@ -629,7 +629,7 @@ function processParserEvent(
                         semanticState.wrapupValue(data.range)
                         return vh.string({
                             data: {
-                                type: ((): StringType2 => {
+                                type: ((): StringValueDataType => {
                                     switch ($.type[0]) {
                                         case "quoted": {
                                             const $$ = $.type[1]

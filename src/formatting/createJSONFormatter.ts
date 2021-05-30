@@ -62,7 +62,7 @@ export function createJSONFormatter<TokenAnnotation, NonTokenAnnotation>(
             }
         },
 
-        string: $ => {
+        stringValue: $ => {
             return {
                 stringBefore: ``,
                 token: ((): string => {
