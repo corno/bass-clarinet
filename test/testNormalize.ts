@@ -1,36 +1,37 @@
 // import * as fs from "fs"
-// import * as p from "pareto"
-// import * as chai from "chai"
-// import * as astn from "../src"
+import * as p from "pareto"
+import * as fs from "fs"
+import * as chai from "chai"
+import * as astn from "../src"
 
-
-// const before = fs.readFileSync("./test/data/normalize/before.astn", { encoding: "utf-8"})
-// const after = fs.readFileSync("./test/data/normalize/after.astn", { encoding: "utf-8"})
-
+const dataIn = fs.readFileSync("./test/data/formatting/in.astn", { encoding: "utf-8" })
+const expectedOut = fs.readFileSync("./test/data/formatting/out.expected.astn", { encoding: "utf-8" })
 
 describe('normalize', () => {
     it("normalize", () => {
-        // astn.formatASTNText(),
-        // return normalize.normalize(before).mapResult(
-        //     stream => {
-        //         const out: string[] = []
-        //         return stream.consume<string>(null, {
-        //             onData: chunk => {
-        //                 out.push(chunk)
-        //                 return p.value(false)
-        //             },
-        //             onEnd: () => {
-        //                 return p.value(out.join(``))
-        //             },
-        //         })
-        //     }
-        // ).convertToNativePromise(
-        //     () => {
-        //         return `unexpected error`
-        //     },
-        // ).then(actualAfter => {
-        //     //fs.writeFileSync("./test/data/normalize/actualAfter.astn", actualAfter, { encoding: "utf-8"})
-        //     chai.assert.equal(actualAfter, after)
-        // })
+
+        let actualOut = ""
+
+        const writeStream: p.IStreamConsumer<string, null, null> = {
+            onData: str => {
+                actualOut += str
+                return p.value(false)
+            },
+            onEnd: () => {
+                return p.value(null)
+            },
+        }
+
+        return astn.formatASTNText(
+            dataIn,
+            astn.createASTNFormatter("    ", "\r\n"),
+            writeStream,
+        ).convertToNativePromise().then(() => {
+            if (actualOut !== expectedOut) {
+                fs.writeFileSync("./test/data/formatting/out.acutal.astn", actualOut, { encoding: "utf-8" })
+            }
+            //fs.writeFileSync("./test/data/normalize/actualAfter.astn", actualAfter, { encoding: "utf-8"})
+            chai.assert.equal(expectedOut, actualOut)
+        })
     })
 })
