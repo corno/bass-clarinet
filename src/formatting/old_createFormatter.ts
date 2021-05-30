@@ -393,7 +393,7 @@ export function createFormatter(
 					}
 					break
 				}
-				case TreeEventType.SimpleValue: {
+				case TreeEventType.String: {
 					semanticToken(data.range.start)
 					if (precedingToken[0] === PrecedingTokenType.pipe) {
 						precedingToken = [PrecedingTokenType.option]

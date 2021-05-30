@@ -14,7 +14,7 @@ export function createDummyValueHandler<TokenAnnotation, NonTokenAnnotation>(): 
     return {
         array: (): ArrayHandler<TokenAnnotation, NonTokenAnnotation> => createDummyArrayHandler(),
         object: (): ObjectHandler<TokenAnnotation, NonTokenAnnotation> => createDummyObjectHandler(),
-        simpleValue: (): p.IValue<boolean> => {
+        string: (): p.IValue<boolean> => {
             //do nothing
             return p.value(false)
         },

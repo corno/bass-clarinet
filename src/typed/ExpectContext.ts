@@ -4,7 +4,7 @@
 import * as p from "pareto"
 import * as astn from ".."
 import { createSerializedString } from "../formatting"
-import { ArrayData, OptionData, ObjectData, PropertyData, SimpleValueData2 } from "../handlers"
+import { ArrayData, OptionData, ObjectData, PropertyData, StringData2 } from "../handlers"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -534,9 +534,9 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
                                 this.raiseError(["superfluous element", {}], data.annotation)
                                 return dvh.array(data)
                             },
-                            simpleValue: data => {
+                            string: data => {
                                 this.raiseError(["superfluous element", {}], data.annotation)
-                                return dvh.simpleValue(data)
+                                return dvh.string(data)
                             },
                             taggedUnion: data => {
                                 this.raiseError(["superfluous element", {}], data.annotation)
@@ -631,7 +631,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
     //                     //         dataHandler.nonwrappedString(value, dataRange, dataComments, pauser)
     //                     //     }
     //                     // },
-    //                     simpleValue: (value, metaData, optionComments) => {
+    //                     string: (value, metaData, optionComments) => {
     //                         if (dataHandler === null) {
     //                             //found the option
     //                             const optionHandler = options[value]
@@ -649,7 +649,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
     //                             )
     //                         } else {
     //                             //found the value
-    //                             dataHandler.simpleValue(value, metaData, optionComments)
+    //                             dataHandler.string(value, metaData, optionComments)
     //                         }
     //                     },
     //                     taggedUnion: (option, metaData) => {
@@ -710,14 +710,14 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
             }
         }
     }
-    public createUnexpectedSimpleValueHandler(
+    public createUnexpectedStringHandler(
         expected: ExpectErrorValue,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: ($: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
-    ): astn.OnSimpleValue<TokenAnnotation> {
+    ): astn.OnString<TokenAnnotation> {
         return svData => {
             if (onNull !== undefined && svData.data.type[0] === "nonwrapped" && svData.data.type[1].value === "null") {
                 onNull(svData)
@@ -738,7 +738,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
     public createNullHandler(
         expected: ExpectErrorValue,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
-    ): astn.OnSimpleValue<TokenAnnotation> {
+    ): astn.OnString<TokenAnnotation> {
         return svData => {
             if (onInvalidType !== undefined && onInvalidType !== null) {
                 onInvalidType(svData.annotation)
@@ -833,15 +833,15 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         return {
             array: this.createUnexpectedArrayHandler(expectValue, onInvalidType),
             object: this.createUnexpectedObjectHandler(expectValue, onInvalidType),
-            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType),
+            string: this.createUnexpectedStringHandler(expectValue, onInvalidType),
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
         }
     }
-    public expectSimpleValueImp(
+    public expectStringImp(
         expected: ExpectErrorValue,
         callback: (
             data: {
-                data: SimpleValueData2
+                data: StringData2
                 annotation: TokenAnnotation
             },
         ) => p.IValue<boolean>,
@@ -850,18 +850,18 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         return {
             array: this.createUnexpectedArrayHandler(expected, onInvalidType),
             object: this.createUnexpectedObjectHandler(expected, onInvalidType),
-            simpleValue: callback,
+            string: callback,
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expected, onInvalidType),
         }
     }
-    public expectSimpleValue(
+    public expectString(
         callback: ($: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: (svData: {
-            data: astn.SimpleValueData2
+            data: astn.StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -870,11 +870,11 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
             "type": "simple value",
             "null allowed": onNull !== undefined,
         }
-        return this.expectSimpleValueImp(expectValue, callback, onInvalidType)
+        return this.expectStringImp(expectValue, callback, onInvalidType)
     }
     public expectBoolean(
         callback: (value: boolean, data: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
@@ -883,7 +883,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
             "type": "boolean",
             "null allowed": false,
         }
-        return this.expectSimpleValueImp(
+        return this.expectStringImp(
             expectValue,
             svData => {
                 const onError = () => {
@@ -910,7 +910,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
     }
     public expectNull(
         callback: ($: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
@@ -920,7 +920,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
             "type": "null",
             "null allowed": false,
         }
-        return this.expectSimpleValueImp(
+        return this.expectStringImp(
             expectValue,
             svData => {
                 const isNull = svData.data.type[0] === "nonwrapped"
@@ -953,18 +953,18 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
     }
     public expectNumber(
         callback: (value: number, data: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
-        onNull?: (svData: astn.SimpleValueData2) => p.IValue<boolean>,
+        onNull?: (svData: astn.StringData2) => p.IValue<boolean>,
     ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
 
         const expectValue: ExpectErrorValue = {
             "type": "number",
             "null allowed": onNull !== undefined,
         }
-        return this.expectSimpleValueImp(
+        return this.expectStringImp(
             expectValue,
             svData => {
                 const onError = () => {
@@ -1010,7 +1010,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         return {
             array: this.createUnexpectedArrayHandler(expectValue, onInvalidType),
             object: this.createDictionaryHandler(onProperty, onBegin, onEnd),
-            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType),
+            string: this.createUnexpectedStringHandler(expectValue, onInvalidType),
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
         }
     }
@@ -1030,7 +1030,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: (svData: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -1047,7 +1047,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
                 onEnd,
                 onUnexpectedProperty
             ),
-            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType, onNull),
+            string: this.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
         }
     }
@@ -1070,7 +1070,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         return {
             array: this.createListHandler(onElement, onBegin, onEnd),
             object: this.createUnexpectedObjectHandler(expectValue, onInvalidType),
-            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType),
+            string: this.createUnexpectedStringHandler(expectValue, onInvalidType),
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
         }
     }
@@ -1085,7 +1085,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => void,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: (svData: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -1097,7 +1097,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         return {
             array: this.createShorthandTypeHandler(expectedElements, onBegin, onEnd),
             object: this.createUnexpectedObjectHandler(expectValue, onInvalidType),
-            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType, onNull),
+            string: this.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
         }
     }
@@ -1126,7 +1126,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => void,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: (svData: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -1143,7 +1143,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
                 onTypeEnd,
                 onUnexpectedProperty
             ),
-            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType, onNull),
+            string: this.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
             taggedUnion: this.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
         }
     }
@@ -1159,7 +1159,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         onMissingOption?: () => void,
         onInvalidType?: OnInvalidType<TokenAnnotation>,
         onNull?: (svData: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
     ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
@@ -1171,7 +1171,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         return {
             array: this.createUnexpectedArrayHandler(expectValue, onInvalidType),
             object: this.createUnexpectedObjectHandler(expectValue, onInvalidType),
-            simpleValue: this.createUnexpectedSimpleValueHandler(expectValue, onInvalidType, onNull),
+            string: this.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
             taggedUnion: this.createTaggedUnionHandler(
                 options,
                 onUnexpectedOption,
@@ -1189,7 +1189,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
     //     return {
     //         array: this.createTaggedUnionSurrogateHandler(options),
     //         object: this.createUnexpectedObjectHandler("tagged union"),
-    //         simpleValue: this.createUnexpectedSimpleValueHandler("tagged union"),
+    //         string: this.createUnexpectedStringHandler("tagged union"),
     //         taggedUnion: this.createTaggedUnionHandler(options),
     //     }
     // }

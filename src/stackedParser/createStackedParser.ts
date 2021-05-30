@@ -21,7 +21,7 @@ import {
     ArrayHandler,
     TaggedUnionHandler,
     ValueHandler,
-    SimpleValueType2,
+    StringType2,
     StackContext,
 } from "../handlers"
 import { RangeError } from "../errors"
@@ -685,7 +685,7 @@ function processParserEvent(
                 return line
             })
         }
-        case TreeEventType.SimpleValue: {
+        case TreeEventType.String: {
             const $ = data.type[1]
 
             const valueAsString = ((): string => {
@@ -714,12 +714,12 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
 
-                    function onSimpleValue(vh: ParserValueHandler, cd: ContextData): p.IValue<boolean> {
+                    function onString(vh: ParserValueHandler, cd: ContextData): p.IValue<boolean> {
                         //if (DEBUG) { console.log("on simple value", $.value) }
                         semanticState.wrapupValue(data.range)
-                        return vh.simpleValue({
+                        return vh.string({
                             data: {
-                                type: ((): SimpleValueType2 => {
+                                type: ((): StringType2 => {
                                     switch ($.type[0]) {
                                         case "quoted": {
                                             const $$ = $.type[1]
@@ -766,14 +766,14 @@ function processParserEvent(
                         const vh = semanticState.rootValueHandler !== null
                             ? semanticState.rootValueHandler.exists
                             : createDummyValueHandler()
-                        return onSimpleValue(vh, contextData)
+                        return onString(vh, contextData)
                     }
                     switch (semanticState.currentContext[0]) {
                         case "array": {
                             const $ = semanticState.currentContext[1]
                             const isFirst = !$.foundElements
                             $.foundElements = true
-                            return onSimpleValue(
+                            return onString(
                                 $.arrayHandler.element({
                                     data: {
                                         isFirst: isFirst,
@@ -809,7 +809,7 @@ function processParserEvent(
                                 }
                             } else {
                                 const $$$ = $$.propertyHandler
-                                return onSimpleValue($$$.exists, contextData)
+                                return onString($$$.exists, contextData)
                             }
                         }
                         case "taggedunion": {
@@ -833,7 +833,7 @@ function processParserEvent(
                                 }
                                 case "expecting value": {
                                     const $$$ = $$.state[1]
-                                    return onSimpleValue($$$.exists, contextData)
+                                    return onString($$$.exists, contextData)
                                 }
                                 default:
                                     return assertUnreachable($$.state[0])

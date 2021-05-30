@@ -104,7 +104,7 @@ class OutPutter implements astn.TextParserEventConsumer<null, null> {
                 outputOverheadToken(this.out, $)
                 break
             }
-            case astn.TreeEventType.SimpleValue: {
+            case astn.TreeEventType.String: {
                 const $ = data.type[1]
 
                 //FIX FIX FIX
@@ -197,7 +197,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                     }
 
                 },
-                simpleValue: () => {
+                string: () => {
                     return p.value(false)
                 },
                 taggedUnion: () => {
@@ -289,7 +289,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                         onOverheadTokenEvent($, data.range)
                         break
                     }
-                    case astn.TreeEventType.SimpleValue: {
+                    case astn.TreeEventType.String: {
                         const $ = data.type[1]
                         switch ($.type[0]) {
                             case "apostrophed": {

@@ -192,19 +192,19 @@ export class TreeParser<ReturnType, ErrorType> {
             case TokenType.String: {
                 const $ = token.type[1]
 
-                return this.onSimpleValue(token.range, token.tokenString, $, onStackEmpty)
+                return this.onString(token.range, token.tokenString, $, onStackEmpty)
             }
             default:
                 return assertUnreachable(token.type[0])
         }
     }
-    private onSimpleValue(range: Range, tokenString: string, data: StringData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+    private onString(range: Range, tokenString: string, data: StringData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
 
         const y = (data2: StringData) => {
             return this.sendEvent({
                 tokenString: tokenString,
                 range: range,
-                type: [TreeEventType.SimpleValue, data2],
+                type: [TreeEventType.String, data2],
             })
         }
 

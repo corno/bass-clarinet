@@ -19,7 +19,7 @@ export type ArrayData = {
     | ["list"]
 }
 
-export type SimpleValueType2 =
+export type StringType2 =
     | ["nonwrapped", {
         value: string
     }]
@@ -30,8 +30,8 @@ export type SimpleValueType2 =
         value: string
     }]
 
-export type SimpleValueData2 = {
-    type: SimpleValueType2
+export type StringData2 = {
+    type: StringType2
 }
 
 export type OptionData = {
@@ -90,8 +90,8 @@ export type OnArray<TokenAnnotation, NonTokenAnnotation> = ($: {
     stackContext: StackContext
 }) => ArrayHandler<TokenAnnotation, NonTokenAnnotation>
 
-export type OnSimpleValue<TokenAnnotation> = ($: {
-    data: SimpleValueData2
+export type OnString<TokenAnnotation> = ($: {
+    data: StringData2
     annotation: TokenAnnotation
     stackContext: StackContext
 }) => p.IValue<boolean>
@@ -118,6 +118,6 @@ export interface RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
 export interface ValueHandler<TokenAnnotation, NonTokenAnnotation> {
     object: OnObject<TokenAnnotation, NonTokenAnnotation>
     array: OnArray<TokenAnnotation, NonTokenAnnotation>
-    simpleValue: OnSimpleValue<TokenAnnotation>
+    string: OnString<TokenAnnotation>
     taggedUnion: OnTaggedUnion<TokenAnnotation, NonTokenAnnotation>
 }

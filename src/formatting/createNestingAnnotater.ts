@@ -66,10 +66,10 @@ export function createNestingAnnotater<
                 out: nestedAnnotater.arrayEnd($),
             }
         },
-        simpleValue: $ => {
+        string: $ => {
             return {
                 in: $.source,
-                out: nestedAnnotater.simpleValue($),
+                out: nestedAnnotater.string($),
             }
         },
         taggedUnionBegin: $ => {

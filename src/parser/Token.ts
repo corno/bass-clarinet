@@ -1,6 +1,6 @@
 import { Range } from "./location"
 
-export type SimpleValueType =
+export type StringType =
 | ["multiline", {
     lines: string[]
     terminated: boolean
@@ -19,7 +19,7 @@ export type SimpleValueType =
 }]
 
 export type StringData = {
-    type: SimpleValueType
+    type: StringType
 }
 
 export type WhiteSpaceData = {

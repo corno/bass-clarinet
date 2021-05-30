@@ -160,7 +160,7 @@ export class TextParser<ReturnType, ErrorType> {
     private handleToken(
         token: Token,
         onPunctuation: (data: PunctionationData) => p.IValue<boolean>,
-        onSimpleValue: (simpleValueData: StringData) => p.IValue<boolean>,
+        onString: (stringData: StringData) => p.IValue<boolean>,
     ): p.IValue<boolean> {
         switch (token.type[0]) {
             case TokenType.Overhead: {
@@ -173,7 +173,7 @@ export class TextParser<ReturnType, ErrorType> {
             }
             case TokenType.String: {
                 const $ = token.type[1]
-                return onSimpleValue($)
+                return onString($)
             }
             default:
                 return assertUnreachable(token.type[0])
@@ -193,8 +193,8 @@ export class TextParser<ReturnType, ErrorType> {
                                 return this.processComplexValueInstanceData(data, data.range)
                         }
                     },
-                    simpleValue => {
-                        return this.processSimpleValueInstanceData(simpleValue, data.range, data.tokenString)
+                    string => {
+                        return this.processStringInstanceData(string, data.range, data.tokenString)
                     }
                 )
             }
@@ -229,12 +229,12 @@ export class TextParser<ReturnType, ErrorType> {
                             )
                         })
                     },
-                    simpleValue => {
+                    string => {
                         const consumer = this.onSchemaDataStart(data.range)
                         return consumer.onData({
                             tokenString: data.tokenString,
                             range: data.range,
-                            type: [TreeEventType.SimpleValue, simpleValue],
+                            type: [TreeEventType.String, string],
                         }).mapResult(() => {
 
                             this.rootContext.state = [TextState.EXPECTING_BODY, {
@@ -274,8 +274,8 @@ export class TextParser<ReturnType, ErrorType> {
                     _punctuation => {
                         return this.processComplexValueInstanceData(data, data.range)
                     },
-                    simpleValue => {
-                        return this.processSimpleValueInstanceData(simpleValue, data.range, data.tokenString)
+                    string => {
+                        return this.processStringInstanceData(string, data.range, data.tokenString)
                     }
                 )
             }
@@ -296,7 +296,7 @@ export class TextParser<ReturnType, ErrorType> {
                         }], data.range)
                         return p.value(false)
                     },
-                    simpleValue => {
+                    string => {
 
                         const valueAsString = (($: StringData): string => {
                             switch ($.type[0]) {
@@ -319,7 +319,7 @@ export class TextParser<ReturnType, ErrorType> {
                                 default:
                                     return assertUnreachable($.type[0])
                             }
-                        })(simpleValue)
+                        })(string)
                         this.raiseStructureError([`unexpected data after end`, {
                             data: valueAsString,
                         }], data.range)
@@ -353,13 +353,13 @@ export class TextParser<ReturnType, ErrorType> {
             return p.value(false)
         })
     }
-    private processSimpleValueInstanceData(simpleValue: StringData, range: Range, tokenString: string) {
+    private processStringInstanceData(string: StringData, range: Range, tokenString: string) {
 
         const consumer = this.onBodyStart(range.start)
         return consumer.onData({
             tokenString: tokenString,
             range: range,
-            type: [TreeEventType.SimpleValue, simpleValue],
+            type: [TreeEventType.String, string],
         }).mapResult(() => {
             this.rootContext.state = [TextState.EXPECTING_END, {
                 result: consumer.onEnd(false, getEndLocationFromRange(range)),

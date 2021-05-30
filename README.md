@@ -111,7 +111,7 @@ function createValuesPrettyPrinter(indentation: string, writer: (str: string) =>
                     },
                 }
             },
-            simpleValue: (_range, data) => {
+            string: (_range, data) => {
                 if (data.quote !== null) {
                     writer(`${JSON.stringify(data.value)}`)
                 } else {
@@ -259,7 +259,7 @@ export const parserEventConsumer: astn.TextParserEventConsumer<null, null> = {
                 }
                 break
             }
-            case astn.TreeEventType.SimpleValue: {
+            case astn.TreeEventType.String: {
                 //const $ = data.type[1]
                 //place your code here
                 //in strict JSON, the value is a string, a number, null, true or false

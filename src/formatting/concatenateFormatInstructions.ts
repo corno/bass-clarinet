@@ -48,7 +48,7 @@ function createValueConcatenator(
                 },
             }
         },
-        simpleValue: $ => {
+        string: $ => {
             writeToken(writer, $.annotation)
             return p.value(false)
         },

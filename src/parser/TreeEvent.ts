@@ -9,7 +9,7 @@ export enum TreeEventType {
     OpenArray,
     OpenObject,
     Overhead,
-    SimpleValue,
+    String,
     TaggedUnion,
 }
 
@@ -24,7 +24,7 @@ export type TreeEvent = {
     | [TreeEventType.OpenArray]
     | [TreeEventType.OpenObject]
     | [TreeEventType.Overhead, OverheadToken]
-    | [TreeEventType.SimpleValue, StringData]
+    | [TreeEventType.String, StringData]
     | [TreeEventType.TaggedUnion, {
         //
     }]

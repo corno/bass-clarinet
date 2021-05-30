@@ -1,6 +1,6 @@
 import * as p from "pareto"
 import * as astn from ".."
-import { ArrayData, ObjectData, OptionData, SimpleValueData2, PropertyData } from "../handlers"
+import { ArrayData, ObjectData, OptionData, StringData2, PropertyData } from "../handlers"
 import { ExpectContext, ExpectedProperties } from "./ExpectContext"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -31,7 +31,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     | [
         "boolean",
         (value: boolean, data: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
@@ -74,7 +74,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     | [
         "null",
         (data: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
@@ -85,7 +85,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     | [
         "number",
         (number: number, data: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
@@ -96,7 +96,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     | [
         "simple value",
         (data: {
-            data: SimpleValueData2
+            data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
         {
@@ -254,7 +254,7 @@ export function createValueHandler<TokenAnnotation, NonTokenAnnotation>(
             const $1 = valueType[1]
             const $2 = valueType[2]
 
-            return context.expectSimpleValue(
+            return context.expectString(
                 $1,
                 $2?.onInvalidType,
             )

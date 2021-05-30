@@ -12,7 +12,7 @@ import {
 } from "./TextParserStateTypes"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
 import { PreTokenDataType, PreToken, WrappedStringType } from "./PreToken"
-import { TokenType, Token, OverheadTokenType, SimpleValueType } from "./Token"
+import { TokenType, Token, OverheadTokenType, StringType } from "./Token"
 import { RangeError } from "../errors"
 import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
 
@@ -287,7 +287,7 @@ export class Tokenizer<ReturnType, ErrorType> {
             })(),
             range: range,
             type: [TokenType.String, {
-                type: ((): SimpleValueType => {
+                type: ((): StringType => {
                     switch ($.type[0]) {
                         case "apostrophed": {
                             return ["apostrophed", {

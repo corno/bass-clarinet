@@ -72,7 +72,7 @@ export const parserEventConsumer: astn.TextParserEventConsumer<null, null> = {
                 }
                 break
             }
-            case astn.TreeEventType.SimpleValue: {
+            case astn.TreeEventType.String: {
                 //const $ = data.type[1]
                 //place your code here
                 //in strict JSON, the value is a string, a number, null, true or false
