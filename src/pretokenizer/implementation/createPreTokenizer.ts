@@ -4,18 +4,64 @@
     max-classes-per-file: "off",
 */
 import * as Char from "../../Characters"
-import {
-    TokenType,
-    CurrentToken,
-    FoundNewlineCharacterType,
-    FoundNewlineCharacter,
-} from "./PreTokenizerStateTypes"
+
 import { Range, createRangeFromSingleLocation, createRangeFromLocations } from "../../location"
 import { Chunk, ILocationState, IPreTokenizer, PreToken, PreTokenDataType, PreTokenizerError } from "../api"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
+
+import { Location } from "../../location"
+
+enum TokenType {
+    BLOCK_COMMENT,
+    LINE_COMMENT,
+    WRAPPED_STRING,
+    NONWRAPPED_STRING,
+    WHITESPACE,
+    NONE,
+}
+
+type CurrentToken =
+    | [TokenType.BLOCK_COMMENT, BlockCommentContext]
+    | [TokenType.LINE_COMMENT]
+    | [TokenType.NONE, NoneContext]
+    | [TokenType.NONWRAPPED_STRING]
+    | [TokenType.WRAPPED_STRING, StringContext]
+    | [TokenType.WHITESPACE]
+
+type BlockCommentContext = {
+    locationOfFoundAsterisk: null | Location
+}
+
+enum FoundNewlineCharacterType {
+    CARRIAGE_RETURN,
+    LINE_FEED,
+}
+
+type FoundNewlineCharacter = {
+    type: FoundNewlineCharacterType
+    startLocation: Location
+}
+
+type NoneContext = {
+    foundNewlineCharacter: FoundNewlineCharacter | null
+    foundSolidus: Location | null
+}
+
+type Unicode = {
+    charactersLeft: number
+    foundCharacters: ""
+}
+
+type StringContext = {
+    slashed: boolean
+    readonly startCharacter: number
+    unicode: null | Unicode
+    foundNewlineCharacter: FoundNewlineCharacter | null
+}
+
 
 const DEBUG = false
 
@@ -75,34 +121,6 @@ class Snippet {
 
 function getCurrentCharacterRange(ls: ILocationState): Range {
     return createRangeFromLocations(ls.getCurrentLocation(), ls.getNextLocation())
-}
-
-export function printPreTokenizerError($: PreTokenizerError): string {
-
-    switch ($.type[0]) {
-        case "expected hexadecimal digit": {
-            const $$ = $.type[1]
-            return `expected hexadecimal digit: 0-9, A-F or a-f, but found ${$$.found}`
-        }
-        case "expected special character after escape slash": {
-            const $$ = $.type[1]
-            return `expected special character after escape slash, but found ${$$.found}`
-        }
-        case "found dangling slash": {
-            return `found dangling slash`
-        }
-        case "found dangling slash at the end of the document": {
-            return `found dangling slash at the end of the document`
-        }
-        case "unterminated block comment": {
-            return `unterminated block comment`
-        }
-        case "unterminated string": {
-            return `unterminated string`
-        }
-        default:
-            return assertUnreachable($.type[0])
-    }
 }
 
 type OnError = ($: {

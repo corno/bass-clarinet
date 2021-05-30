@@ -3,13 +3,6 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import {
-    CurrentToken,
-    CurrentTokenType,
-    IndentationState,
-    IndentationData,
-    WhitespaceContext,
-} from "../../parser/TextParserStateTypes"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "../../location"
 import { TokenType, OverheadTokenType, StringType } from "../../treeParser"
 import { RangeError } from "../../errors"
@@ -21,6 +14,48 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
+
+type NonWrappedStringContext = {
+    nonwrappedStringNode: string
+    readonly start: Location
+}
+type WhitespaceContext = {
+    whitespaceNode: string
+    readonly start: Location
+}
+
+type CommentContext = {
+    commentNode: string
+    readonly start: Range
+    readonly indentation: null | string
+}
+
+enum CurrentTokenType {
+    LINE_COMMENT,
+    BLOCK_COMMENT,
+    QUOTED_STRING,
+    NONE,
+    UNQUOTED_TOKEN,
+    WHITESPACE,
+}
+
+
+type WrappedStringContext = {
+    readonly type: WrappedStringType
+    readonly start: Range
+    wrappedStringNode: string
+
+}
+
+
+type CurrentToken =
+    | [CurrentTokenType.NONE]
+    | [CurrentTokenType.LINE_COMMENT, CommentContext]
+    | [CurrentTokenType.BLOCK_COMMENT, CommentContext]
+    | [CurrentTokenType.UNQUOTED_TOKEN, NonWrappedStringContext]
+    | [CurrentTokenType.QUOTED_STRING, WrappedStringContext]
+    | [CurrentTokenType.WHITESPACE, WhitespaceContext]
+
 const DEBUG = false
 
 class TokenizerStackPanicError extends RangeError {
@@ -28,6 +63,17 @@ class TokenizerStackPanicError extends RangeError {
         super(`stack panic: ${message}`, range)
     }
 }
+
+enum IndentationState {
+    lineIsVirgin,
+    foundIndentation,
+    lineIsDitry,
+}
+
+type IndentationData =
+    | [IndentationState.foundIndentation, WhitespaceContext]
+    | [IndentationState.lineIsVirgin]
+    | [IndentationState.lineIsDitry]
 
 export function createTokenizer<ReturnType, ErrorType>(
     parser: TokenConsumer<ReturnType, ErrorType>,

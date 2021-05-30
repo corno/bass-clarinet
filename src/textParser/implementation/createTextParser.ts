@@ -3,9 +3,6 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import {
-    TextState,
-} from "../../parser/TextParserStateTypes"
 import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
 import * as Char from "../../Characters"
 import { createTreeParser, printTreeParserError, TreeParserEventConsumer, TreeEventType } from "../../treeParser"
@@ -20,8 +17,18 @@ function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
+enum TextState {
+    EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
+    EXPECTING_SCHEMA,
+    PROCESSING_SCHEMA,
+    EXPECTING_BODY,
+    PROCESSING_BODY,
+    EXPECTING_END, // no more input expected}
 
-export type RootContext<ReturnType, ErrorType> = {
+}
+
+
+type RootContext<ReturnType, ErrorType> = {
     state:
     | [TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE]
     | [TextState.EXPECTING_SCHEMA]
@@ -36,38 +43,6 @@ export type RootContext<ReturnType, ErrorType> = {
     | [TextState.EXPECTING_END, {
         result: p.IUnsafeValue<ReturnType, ErrorType>
     }]
-}
-
-
-export function printTextParserError(error: TextParserError): string {
-    switch (error.type[0]) {
-        case "body": {
-            const $$ = error.type[1]
-            return printTreeParserError($$)
-        }
-        case "structure": {
-            const $$ = error.type[1]
-            switch ($$.type[0]) {
-                case "expected rootvalue": {
-                    return `expected rootvalue`
-                }
-                case "expected the schema": {
-                    return `expected the schema`
-                }
-                case "expected the schema start (!) or root value": {
-                    return `expected the schema start (!) or root value`
-                }
-                case "unexpected data after end": {
-                    const $$$ = $$.type[1]
-                    return `unexpected data after end: ${$$$.data}`
-                }
-                default:
-                    return assertUnreachable($$.type[0])
-            }
-        }
-        default:
-            return assertUnreachable(error.type[0])
-    }
 }
 
 /**

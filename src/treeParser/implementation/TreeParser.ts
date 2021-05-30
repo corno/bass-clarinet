@@ -27,26 +27,26 @@ function assertUnreachable<RT>(_x: never): RT {
 }
 
 
-export enum ObjectState {
+enum ObjectState {
     EXPECTING_OBJECT_VALUE,
     EXPECTING_KEY,
 }
-export enum TaggedUnionState {
+enum TaggedUnionState {
     EXPECTING_OPTION,
     EXPECTING_VALUE,
 }
 
-export enum StackContextType2 {
+enum StackContextType2 {
     ARRAY,
     OBJECT,
     TAGGED_UNION,
 }
 
 
-export type TaggedUnionContext = {
+type TaggedUnionContext = {
     state: TaggedUnionState
 }
-export type ObjectContext = {
+type ObjectContext = {
     state: ObjectState
     //readonly openChar: number
 }

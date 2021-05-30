@@ -22,7 +22,7 @@ import * as Char from "../../Characters"
 const DEBUG = false
 
 
-export class LocationState implements ILocationState {
+class LocationState implements ILocationState {
     private readonly location = {
         position: -1,
         column: 0,

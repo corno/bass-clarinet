@@ -1,7 +1,10 @@
 export * from "./api"
 
 export {
-    createTextParser,
-    printTextParserError
+    createTextParser
 } from "./implementation/createTextParser"
+
+export {
+    printTextParserError
+} from "./implementation/printTextParserError"
 
