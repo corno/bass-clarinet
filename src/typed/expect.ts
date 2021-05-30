@@ -12,7 +12,9 @@ type PropertyHandler<TokenAnnotation, NonTokenAnnotation> = (data: {
     annotation: TokenAnnotation
 }) => ValueType<TokenAnnotation, NonTokenAnnotation>
 
-type OnInvalidType<TokenAnnotation> = (annotation: TokenAnnotation) => void
+type OnInvalidType<TokenAnnotation> = ($: {
+    annotation: TokenAnnotation
+}) => void
 
 export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     // | [
@@ -30,7 +32,8 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     // ]
     | [
         "boolean",
-        (value: boolean, data: {
+        ($: {
+            value: boolean
             data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
@@ -41,16 +44,16 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     ]
     | [
         "dicionary",
-        (propertyData: {
+        ($: {
             data: PropertyData
             annotation: TokenAnnotation
         }) => ValueType<TokenAnnotation, NonTokenAnnotation>,
         {
-            onBegin: (data: {
+            onBegin: ($: {
                 data: ObjectData
                 annotation: TokenAnnotation
             }) => void
-            onEnd: (objectEndData: {
+            onEnd: ($: {
                 annotation: TokenAnnotation
             }) => void
             onMissing?: () => void
@@ -60,11 +63,11 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     | ["list",
         ValueType<TokenAnnotation, NonTokenAnnotation>,
         {
-            onBegin: (data: {
+            onBegin: ($: {
                 data: ArrayData
                 annotation: TokenAnnotation
             }) => void
-            onEnd: (endData: {
+            onEnd: ($: {
                 annotation: TokenAnnotation
             }) => void
             onMissing?: () => void
@@ -73,7 +76,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     ]
     | [
         "null",
-        (data: {
+        ($: {
             data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
@@ -84,7 +87,8 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     ]
     | [
         "number",
-        (number: number, data: {
+        ($: {
+            value: number
             data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
@@ -95,7 +99,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     ]
     | [
         "string",
-        (data: {
+        ($: {
             data: StringData2
             annotation: TokenAnnotation
         }) => p.IValue<boolean>,
@@ -117,13 +121,11 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
             ) => astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
         },
         {
-            onUnexpectedOption?: (
-                $: {
-                    tuAnnotation: TokenAnnotation
-                    data: OptionData
-                    optionAnnotation: TokenAnnotation
-                },
-            ) => void
+            onUnexpectedOption?: ($: {
+                tuAnnotation: TokenAnnotation
+                data: OptionData
+                optionAnnotation: TokenAnnotation
+            }) => void
             onMissingOption?: () => void
             onMissing?: () => void
             onInvalidType?: () => void

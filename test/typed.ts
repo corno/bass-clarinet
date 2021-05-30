@@ -42,9 +42,12 @@ describe('typed', () => {
 
             it(testName, () => {
                 const foundErrors: ErrorLine[] = []
-                const onWarning = (issue: ExpectError, annotation: ParserAnnotationData) => {
-                    const end = getEndLocationFromRange(annotation.range)
-                    foundErrors.push(["expect warning", printExpectError(issue), annotation.range.start.line, annotation.range.start.column, end.line, end.column])
+                const onWarning = ($: {
+                    issue: ExpectError
+                    annotation: ParserAnnotationData
+                }) => {
+                    const end = getEndLocationFromRange($.annotation.range)
+                    foundErrors.push(["expect warning", printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
                 }
                 const streamTokenizer = astn.createParserStack(
                     () => {
@@ -62,9 +65,9 @@ describe('typed', () => {
                     () => {
 
                         const expect = new astn.ExpectContext<ParserAnnotationData, null>(
-                            (issue: ExpectError, annotation: ParserAnnotationData) => {
-                                const end = getEndLocationFromRange(annotation.range)
-                                foundErrors.push(["expect error", printExpectError(issue), annotation.range.start.line, annotation.range.start.column, end.line, end.column])
+                            $ => {
+                                const end = getEndLocationFromRange($.annotation.range)
+                                foundErrors.push(["expect error", printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
                             },
                             onWarning,
                             astn.createDummyValueHandler,

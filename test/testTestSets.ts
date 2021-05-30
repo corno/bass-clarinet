@@ -26,7 +26,7 @@ const selectedExtensionTests = Object.keys(extensionTests)
 // const selectedJSONTests: string[] = []
 // const selectedExtensionTests: string[] = ["comment"]
 
-type OnError = (message: string, range: astn.Range) => void
+// type OnError = (message: string, range: astn.Range) => void
 
 interface HeaderSubscriber {
     onSchemaDataStart(range: astn.Range): void
@@ -68,69 +68,71 @@ function outputOverheadToken(out: string[], $: astn.OverheadToken) {
     }
 }
 
-class OutPutter implements astn.TextParserEventConsumer<null, null> {
-    readonly out: string[]
-    constructor(out: string[]) {
-        this.out = out
-    }
-    onData(data: astn.TreeEvent) {
-        switch (data.type[0]) {
-            case astn.TreeEventType.CloseArray: {
-                this.out.push(data.tokenString)
-                break
-            }
-            case astn.TreeEventType.CloseObject: {
-                this.out.push(data.tokenString)
-                break
-            }
-            case astn.TreeEventType.Colon: {
-                this.out.push(":")
-                break
-            }
-            case astn.TreeEventType.Comma: {
-                this.out.push(",")
-                break
-            }
-            case astn.TreeEventType.OpenArray: {
-                this.out.push(data.tokenString)
-                break
-            }
-            case astn.TreeEventType.OpenObject: {
-                this.out.push(data.tokenString)
-                break
-            }
-            case astn.TreeEventType.Overhead: {
-                const $ = data.type[1]
-                outputOverheadToken(this.out, $)
-                break
-            }
-            case astn.TreeEventType.String: {
-                const $ = data.type[1]
+function createOutPutter(
+    out: string[]
+): astn.TextParserEventConsumer<null, null> {
+    class OutPutter implements astn.TextParserEventConsumer<null, null> {
+        onData(data: astn.TreeEvent) {
+            switch (data.type[0]) {
+                case astn.TreeEventType.CloseArray: {
+                    out.push(data.tokenString)
+                    break
+                }
+                case astn.TreeEventType.CloseObject: {
+                    out.push(data.tokenString)
+                    break
+                }
+                case astn.TreeEventType.Colon: {
+                    out.push(":")
+                    break
+                }
+                case astn.TreeEventType.Comma: {
+                    out.push(",")
+                    break
+                }
+                case astn.TreeEventType.OpenArray: {
+                    out.push(data.tokenString)
+                    break
+                }
+                case astn.TreeEventType.OpenObject: {
+                    out.push(data.tokenString)
+                    break
+                }
+                case astn.TreeEventType.Overhead: {
+                    const $ = data.type[1]
+                    outputOverheadToken(out, $)
+                    break
+                }
+                case astn.TreeEventType.String: {
+                    const $ = data.type[1]
 
-                //FIX FIX FIX
-                // this.out.push(astn.createSerializedString(
-                //     $,
-                //     "   ",
-                //     "\r\n",
-                // ))
-                break
+                    //FIX FIX FIX
+                    // out.push(astn.createSerializedString(
+                    //     $,
+                    //     "   ",
+                    //     "\r\n",
+                    // ))
+                    break
+                }
+                case astn.TreeEventType.TaggedUnion: {
+                    out.push("|")
+                    break
+                }
+                default:
+                    assertUnreachable(data.type[0])
             }
-            case astn.TreeEventType.TaggedUnion: {
-                this.out.push("|")
-                break
-            }
-            default:
-                assertUnreachable(data.type[0])
+            return p.value(false)
         }
-        return p.value(false)
+        //do the check
+        onEnd(): p.IUnsafeValue<null, null> {
+            return p.success(null)
+        }
     }
-    //do the check
-    onEnd(): p.IUnsafeValue<null, null> {
-        return p.success(null)
-    }
+    return new OutPutter()
 }
 
-function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: boolean) {
+
+function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON: boolean) {
     return function () {
         if (DEBUG) console.log("CHUNKS:", chunks)
 
@@ -296,28 +298,28 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
                                 const $$ = $.type[1]
                                 if (DEBUG) console.log("found wrapped string")
                                 actualEvents.push(["token", "wrappedstring", $$.value, getRange(test.testForLocation, data.range)])
-                                
+
                                 break
                             }
                             case "multiline": {
                                 const $$ = $.type[1]
                                 if (DEBUG) console.log("found wrapped string")
                                 actualEvents.push(["token", "wrappedstring", $$.lines.join("\\n"), getRange(test.testForLocation, data.range)])
-                                
+
                                 break
                             }
                             case "quoted": {
                                 const $$ = $.type[1]
                                 if (DEBUG) console.log("found wrapped string")
                                 actualEvents.push(["token", "wrappedstring", $$.value, getRange(test.testForLocation, data.range)])
-                                
+
                                 break
                             }
                             case "nonwrapped": {
                                 const $$ = $.type[1]
                                 if (DEBUG) console.log("found nonwrapped string")
                                 actualEvents.push(["token", "nonwrappedstring", $$.value, getRange(test.testForLocation, data.range)])
-                                
+
                                 break
                             }
                             default:
@@ -382,12 +384,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, strictJSON: 
         }
         const out: string[] = []
         const schemaDataSubscribers: astn.TextParserEventConsumer<null, null>[] = [
-            new OutPutter(out),
+            createOutPutter(out),
             eventSubscriber,
             createFormatter(),
         ]
         const instanceDataSubscribers: astn.TextParserEventConsumer<null, null>[] = [
-            new OutPutter(out),
+            createOutPutter(out),
             eventSubscriber,
             stackedSubscriber,
             createFormatter(),
