@@ -10,8 +10,10 @@ import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSi
 import { TreeEventType } from "./TreeEvent"
 import { TextParserEventConsumer } from "./TextParserEventConsumer"
 import * as Char from "./Characters"
-import { TreeParser, TreeParserError, printTreeParserError } from "./TreeParser"
-import { TokenType, Token, PunctionationData, StringData, OverheadToken } from "./Token"
+import { createTreeParser, TreeParserError, printTreeParserError } from "../treeParser"
+import { TokenType, Token, PunctionationData, StringData, OverheadToken } from "../treeParser/api"
+import { TokenConsumer } from "./createTokenizer"
+import { ITreeParser } from "../treeParser/api"
 
 const DEBUG = false
 
@@ -25,12 +27,12 @@ export type RootContext<ReturnType, ErrorType> = {
     | [TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE]
     | [TextState.EXPECTING_SCHEMA]
     | [TextState.PROCESSING_SCHEMA, {
-        treeParser: TreeParser<null, null>
+        treeParser: ITreeParser<null, null>
     }]
     | [TextState.EXPECTING_BODY, {
     }]
     | [TextState.PROCESSING_BODY, {
-        treeParser: TreeParser<ReturnType, ErrorType>
+        treeParser: ITreeParser<ReturnType, ErrorType>
     }]
     | [TextState.EXPECTING_END, {
         result: p.IUnsafeValue<ReturnType, ErrorType>
@@ -84,302 +86,6 @@ export function printTextParserError(error: TextParserError): string {
     }
 }
 
-export class TextParser<ReturnType, ErrorType> {
-    private readonly rootContext: RootContext<ReturnType, ErrorType> = { state: [TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE] }
-    private readonly onSchemaDataStart: (range: Range) => TextParserEventConsumer<null, null>
-    private readonly onBodyStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>
-    private readonly onerror: (error: TextParserError, range: Range) => void
-    /*
-    a structure overhead token is a newline/whitspace/comment outside the content parts: (schema data, instance data)
-    */
-    private readonly onStructureOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>
-    constructor(
-        onInternalSchemaStart: (range: Range) => TextParserEventConsumer<null, null>,
-        onBodyStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>,
-        onerror: (error: TextParserError, range: Range) => void,
-        onStructureOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
-    ) {
-        this.onSchemaDataStart = onInternalSchemaStart
-        this.onBodyStart = onBodyStart
-        this.onerror = onerror
-        this.onStructureOverheadToken = onStructureOverheadToken
-    }
-    public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
-
-        const range = createRangeFromSingleLocation(location)
-
-        switch (this.rootContext.state[0]) {
-            case TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: {
-                //const $ = this.rootContext.state[1]
-
-                this.raiseStructureError(["expected the schema start (!) or root value"], range)
-
-                return this.onBodyStart(location).onEnd(aborted, location)
-            }
-            case TextState.EXPECTING_SCHEMA: {
-                //const $ = this.rootContext.state[1]
-
-                this.raiseStructureError(["expected the schema"], range)
-                return this.onBodyStart(location).onEnd(aborted, location)
-            }
-            case TextState.PROCESSING_SCHEMA: {
-                const $ = this.rootContext.state[1]
-                return $.treeParser.forceEnd(aborted, location).reworkAndCatch(
-                    () => {
-                        return p.value(false)
-                    },
-                    () => {
-                        return p.value(false)
-
-                    }
-                ).try(() => {
-                    //this.raiseError("incomplete schema", range)
-                    return this.onBodyStart(location).onEnd(aborted, location)
-                })
-            }
-            case TextState.EXPECTING_BODY: {
-                //const $ = this.rootContext.state[1]
-                this.raiseStructureError(["expected rootvalue"], range)
-
-                return this.onBodyStart(location).onEnd(aborted, location)
-            }
-            case TextState.PROCESSING_BODY: {
-                const $ = this.rootContext.state[1]
-                //this.raiseError("incomplete document", range)
-
-                return $.treeParser.forceEnd(aborted, location)
-            }
-            case TextState.EXPECTING_END: {
-                const $ = this.rootContext.state[1]
-                return $.result
-            }
-            default:
-                return assertUnreachable(this.rootContext.state[0])
-        }
-    }
-    private handleToken(
-        token: Token,
-        onPunctuation: (data: PunctionationData) => p.IValue<boolean>,
-        onString: (stringData: StringData) => p.IValue<boolean>,
-    ): p.IValue<boolean> {
-        switch (token.type[0]) {
-            case TokenType.Overhead: {
-                const $ = token.type[1]
-                return this.onStructureOverheadToken($, token.range)
-            }
-            case TokenType.Structural: {
-                const $ = token.type[1]
-                return onPunctuation($)
-            }
-            case TokenType.String: {
-                const $ = token.type[1]
-                return onString($)
-            }
-            default:
-                return assertUnreachable(token.type[0])
-        }
-    }
-    public onData(data: Token): p.IValue<boolean> {
-        switch (this.rootContext.state[0]) {
-            case TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: {
-                return this.handleToken(
-                    data,
-                    punctuation => {
-                        switch (punctuation.char) {
-                            case Char.Punctuation.exclamationMark:
-                                this.rootContext.state = [TextState.EXPECTING_SCHEMA]
-                                return p.value(false)
-                            default:
-                                return this.processComplexValueInstanceData(data, data.range)
-                        }
-                    },
-                    string => {
-                        return this.processStringInstanceData(string, data.range, data.tokenString)
-                    }
-                )
-            }
-            case TextState.EXPECTING_SCHEMA: {
-                return this.handleToken(
-                    data,
-                    _punctuation => {
-                        const bp = new TreeParser(
-                            (error, errorRange) => {
-                                this.onerror(
-                                    {
-                                        type: ["body", error],
-                                    },
-                                    errorRange
-                                )
-                            },
-                            this.onSchemaDataStart(data.range),
-                        )
-                        this.rootContext.state = [TextState.PROCESSING_SCHEMA, {
-                            treeParser: bp,
-                        }]
-                        return bp.onData(data, result => {
-                            this.rootContext.state = [TextState.EXPECTING_BODY, {
-                            }]
-                            return result.reworkAndCatch(
-                                () => {
-                                    return p.value(false)
-                                },
-                                () => {
-                                    return p.value(false)
-                                }
-                            )
-                        })
-                    },
-                    string => {
-                        const consumer = this.onSchemaDataStart(data.range)
-                        return consumer.onData({
-                            tokenString: data.tokenString,
-                            range: data.range,
-                            type: [TreeEventType.String, string],
-                        }).mapResult(() => {
-
-                            this.rootContext.state = [TextState.EXPECTING_BODY, {
-                            }]
-                            return consumer.onEnd(false, getEndLocationFromRange(data.range)).reworkAndCatch(
-                                () => {
-                                    return p.value(false)
-                                },
-                                () => {
-                                    return p.value(false)
-                                },
-                            )
-                        })
-                    }
-                )
-            }
-            case TextState.PROCESSING_SCHEMA: {
-                const $ = this.rootContext.state[1]
-
-                return $.treeParser.onData(data, result => {
-                    this.rootContext.state = [TextState.EXPECTING_BODY, {}]
-                    return result.reworkAndCatch(
-                        () => {
-                            return p.value(false)
-                        },
-                        () => {
-                            return p.value(false)
-
-                        }
-                    )
-                })
-
-            }
-            case TextState.EXPECTING_BODY: {
-                return this.handleToken(
-                    data,
-                    _punctuation => {
-                        return this.processComplexValueInstanceData(data, data.range)
-                    },
-                    string => {
-                        return this.processStringInstanceData(string, data.range, data.tokenString)
-                    }
-                )
-            }
-            case TextState.PROCESSING_BODY: {
-                const $ = this.rootContext.state[1]
-
-                return $.treeParser.onData(data, result => {
-                    this.rootContext.state = [TextState.EXPECTING_END, { result: result }]
-                    return p.value(false)
-                })
-            }
-            case TextState.EXPECTING_END: {
-                return this.handleToken(
-                    data,
-                    punctuation => {
-                        this.raiseStructureError([`unexpected data after end`, {
-                            data: String.fromCharCode(punctuation.char),
-                        }], data.range)
-                        return p.value(false)
-                    },
-                    string => {
-
-                        const valueAsString = (($: StringData): string => {
-                            switch ($.type[0]) {
-                                case "quoted": {
-                                    const $$ = $.type[1]
-                                    return $$.value
-                                }
-                                case "apostrophed": {
-                                    const $$ = $.type[1]
-                                    return $$.value
-                                }
-                                case "multiline": {
-                                    const $$ = $.type[1]
-                                    return $$.lines.join("\n")
-                                }
-                                case "nonwrapped": {
-                                    const $$ = $.type[1]
-                                    return $$.value
-                                }
-                                default:
-                                    return assertUnreachable($.type[0])
-                            }
-                        })(string)
-                        this.raiseStructureError([`unexpected data after end`, {
-                            data: valueAsString,
-                        }], data.range)
-                        return p.value(false)
-                    }
-                )
-            }
-            default:
-                return assertUnreachable(this.rootContext.state[0])
-        }
-    }
-    private processComplexValueInstanceData(data: Token, range: Range) {
-        const bp = new TreeParser(
-            (error, errorRange) => {
-                this.onerror(
-                    {
-                        type: ["body", error],
-                    },
-                    errorRange
-                )
-            },
-            this.onBodyStart(range.start),
-        )
-        this.rootContext.state = [TextState.PROCESSING_BODY, {
-            treeParser: bp,
-        }]
-        return bp.onData(data, result => {
-            this.rootContext.state = [TextState.EXPECTING_END, {
-                result: result,
-            }]
-            return p.value(false)
-        })
-    }
-    private processStringInstanceData(string: StringData, range: Range, tokenString: string) {
-
-        const consumer = this.onBodyStart(range.start)
-        return consumer.onData({
-            tokenString: tokenString,
-            range: range,
-            type: [TreeEventType.String, string],
-        }).mapResult(() => {
-            this.rootContext.state = [TextState.EXPECTING_END, {
-                result: consumer.onEnd(false, getEndLocationFromRange(range)),
-            }]
-            return p.value(false)
-        })
-
-    }
-    private raiseStructureError(type: TextErrorType, range: Range) {
-        if (DEBUG) { console.log("error raised:", type[0], printRange(range)) }
-        this.onerror(
-            {
-                type: ["structure", {
-                    type: type,
-                }],
-            },
-            range)
-    }
-}
-
 /**
  * A parser is used to build a certain type,
  * for this reason it has 2 type parameters:
@@ -396,6 +102,286 @@ export function createTextParser<ReturnType, ErrorType>(
     onInstanceDataStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>,
     onerror: (error: TextParserError, range: Range) => void,
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
-): TextParser<ReturnType, ErrorType> {
-    return new TextParser(onSchemaDataStart, onInstanceDataStart, onerror, onHeaderOverheadToken)
+): TokenConsumer<ReturnType, ErrorType> {
+    class TextParser {
+        private readonly rootContext: RootContext<ReturnType, ErrorType> = { state: [TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE] }
+        /*
+        a structure overhead token is a newline/whitspace/comment outside the content parts: (schema data, instance data)
+        */
+        public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
+
+            const range = createRangeFromSingleLocation(location)
+
+            switch (this.rootContext.state[0]) {
+                case TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: {
+                    //const $ = this.rootContext.state[1]
+
+                    this.raiseStructureError(["expected the schema start (!) or root value"], range)
+
+                    return onInstanceDataStart(location).onEnd(aborted, location)
+                }
+                case TextState.EXPECTING_SCHEMA: {
+                    //const $ = this.rootContext.state[1]
+
+                    this.raiseStructureError(["expected the schema"], range)
+                    return onInstanceDataStart(location).onEnd(aborted, location)
+                }
+                case TextState.PROCESSING_SCHEMA: {
+                    const $ = this.rootContext.state[1]
+                    return $.treeParser.forceEnd(aborted, location).reworkAndCatch(
+                        () => {
+                            return p.value(false)
+                        },
+                        () => {
+                            return p.value(false)
+
+                        }
+                    ).try(() => {
+                        //this.raiseError("incomplete schema", range)
+                        return onInstanceDataStart(location).onEnd(aborted, location)
+                    })
+                }
+                case TextState.EXPECTING_BODY: {
+                    //const $ = this.rootContext.state[1]
+                    this.raiseStructureError(["expected rootvalue"], range)
+
+                    return onInstanceDataStart(location).onEnd(aborted, location)
+                }
+                case TextState.PROCESSING_BODY: {
+                    const $ = this.rootContext.state[1]
+                    //this.raiseError("incomplete document", range)
+
+                    return $.treeParser.forceEnd(aborted, location)
+                }
+                case TextState.EXPECTING_END: {
+                    const $ = this.rootContext.state[1]
+                    return $.result
+                }
+                default:
+                    return assertUnreachable(this.rootContext.state[0])
+            }
+        }
+        private handleToken(
+            token: Token,
+            onPunctuation: (data: PunctionationData) => p.IValue<boolean>,
+            onString: (stringData: StringData) => p.IValue<boolean>,
+        ): p.IValue<boolean> {
+            switch (token.type[0]) {
+                case TokenType.Overhead: {
+                    const $ = token.type[1]
+                    return onHeaderOverheadToken($, token.range)
+                }
+                case TokenType.Structural: {
+                    const $ = token.type[1]
+                    return onPunctuation($)
+                }
+                case TokenType.String: {
+                    const $ = token.type[1]
+                    return onString($)
+                }
+                default:
+                    return assertUnreachable(token.type[0])
+            }
+        }
+        public onData(data: Token): p.IValue<boolean> {
+            switch (this.rootContext.state[0]) {
+                case TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: {
+                    return this.handleToken(
+                        data,
+                        punctuation => {
+                            switch (punctuation.char) {
+                                case Char.Punctuation.exclamationMark:
+                                    this.rootContext.state = [TextState.EXPECTING_SCHEMA]
+                                    return p.value(false)
+                                default:
+                                    return this.processComplexValueInstanceData(data, data.range)
+                            }
+                        },
+                        string => {
+                            return this.processStringInstanceData(string, data.range, data.tokenString)
+                        }
+                    )
+                }
+                case TextState.EXPECTING_SCHEMA: {
+                    return this.handleToken(
+                        data,
+                        _punctuation => {
+                            const bp = createTreeParser(
+                                (error, errorRange) => {
+                                    onerror(
+                                        {
+                                            type: ["body", error],
+                                        },
+                                        errorRange
+                                    )
+                                },
+                                onSchemaDataStart(data.range),
+                            )
+                            this.rootContext.state = [TextState.PROCESSING_SCHEMA, {
+                                treeParser: bp,
+                            }]
+                            return bp.onData(data, result => {
+                                this.rootContext.state = [TextState.EXPECTING_BODY, {
+                                }]
+                                return result.reworkAndCatch(
+                                    () => {
+                                        return p.value(false)
+                                    },
+                                    () => {
+                                        return p.value(false)
+                                    }
+                                )
+                            })
+                        },
+                        string => {
+                            const consumer = onSchemaDataStart(data.range)
+                            return consumer.onData({
+                                tokenString: data.tokenString,
+                                range: data.range,
+                                type: [TreeEventType.String, string],
+                            }).mapResult(() => {
+
+                                this.rootContext.state = [TextState.EXPECTING_BODY, {
+                                }]
+                                return consumer.onEnd(false, getEndLocationFromRange(data.range)).reworkAndCatch(
+                                    () => {
+                                        return p.value(false)
+                                    },
+                                    () => {
+                                        return p.value(false)
+                                    },
+                                )
+                            })
+                        }
+                    )
+                }
+                case TextState.PROCESSING_SCHEMA: {
+                    const $ = this.rootContext.state[1]
+
+                    return $.treeParser.onData(data, result => {
+                        this.rootContext.state = [TextState.EXPECTING_BODY, {}]
+                        return result.reworkAndCatch(
+                            () => {
+                                return p.value(false)
+                            },
+                            () => {
+                                return p.value(false)
+
+                            }
+                        )
+                    })
+
+                }
+                case TextState.EXPECTING_BODY: {
+                    return this.handleToken(
+                        data,
+                        _punctuation => {
+                            return this.processComplexValueInstanceData(data, data.range)
+                        },
+                        string => {
+                            return this.processStringInstanceData(string, data.range, data.tokenString)
+                        }
+                    )
+                }
+                case TextState.PROCESSING_BODY: {
+                    const $ = this.rootContext.state[1]
+
+                    return $.treeParser.onData(data, result => {
+                        this.rootContext.state = [TextState.EXPECTING_END, { result: result }]
+                        return p.value(false)
+                    })
+                }
+                case TextState.EXPECTING_END: {
+                    return this.handleToken(
+                        data,
+                        punctuation => {
+                            this.raiseStructureError([`unexpected data after end`, {
+                                data: String.fromCharCode(punctuation.char),
+                            }], data.range)
+                            return p.value(false)
+                        },
+                        string => {
+
+                            const valueAsString = (($: StringData): string => {
+                                switch ($.type[0]) {
+                                    case "quoted": {
+                                        const $$ = $.type[1]
+                                        return $$.value
+                                    }
+                                    case "apostrophed": {
+                                        const $$ = $.type[1]
+                                        return $$.value
+                                    }
+                                    case "multiline": {
+                                        const $$ = $.type[1]
+                                        return $$.lines.join("\n")
+                                    }
+                                    case "nonwrapped": {
+                                        const $$ = $.type[1]
+                                        return $$.value
+                                    }
+                                    default:
+                                        return assertUnreachable($.type[0])
+                                }
+                            })(string)
+                            this.raiseStructureError([`unexpected data after end`, {
+                                data: valueAsString,
+                            }], data.range)
+                            return p.value(false)
+                        }
+                    )
+                }
+                default:
+                    return assertUnreachable(this.rootContext.state[0])
+            }
+        }
+        private processComplexValueInstanceData(data: Token, range: Range) {
+            const bp = createTreeParser(
+                (error, errorRange) => {
+                    onerror(
+                        {
+                            type: ["body", error],
+                        },
+                        errorRange
+                    )
+                },
+                onInstanceDataStart(range.start),
+            )
+            this.rootContext.state = [TextState.PROCESSING_BODY, {
+                treeParser: bp,
+            }]
+            return bp.onData(data, result => {
+                this.rootContext.state = [TextState.EXPECTING_END, {
+                    result: result,
+                }]
+                return p.value(false)
+            })
+        }
+        private processStringInstanceData(string: StringData, range: Range, tokenString: string) {
+
+            const consumer = onInstanceDataStart(range.start)
+            return consumer.onData({
+                tokenString: tokenString,
+                range: range,
+                type: [TreeEventType.String, string],
+            }).mapResult(() => {
+                this.rootContext.state = [TextState.EXPECTING_END, {
+                    result: consumer.onEnd(false, getEndLocationFromRange(range)),
+                }]
+                return p.value(false)
+            })
+
+        }
+        private raiseStructureError(type: TextErrorType, range: Range) {
+            if (DEBUG) { console.log("error raised:", type[0], printRange(range)) }
+            onerror(
+                {
+                    type: ["structure", {
+                        type: type,
+                    }],
+                },
+                range)
+        }
+    }
+    return new TextParser()
 }

@@ -5,7 +5,7 @@ import * as p from "pareto"
 import { Range, Location } from "../parser/location"
 import { TreeEventType } from "../parser/TreeEvent"
 import { TextParserEventConsumer } from "../parser"
-import { OverheadTokenType } from "../parser/Token"
+import { OverheadTokenType } from "../treeParser/api"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")

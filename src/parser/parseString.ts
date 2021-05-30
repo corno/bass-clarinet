@@ -5,7 +5,7 @@ import {
 } from "./TextParserEventConsumer"
 import {
     OverheadToken,
-} from "./Token"
+} from "../treeParser/api"
 import {
     Range,
     Location,

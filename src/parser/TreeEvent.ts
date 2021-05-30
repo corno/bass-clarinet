@@ -1,5 +1,5 @@
+import { OverheadToken, StringData } from "../treeParser/api"
 import { Range } from "./location"
-import { StringData, OverheadToken } from "./Token"
 
 export enum TreeEventType {
     CloseArray,

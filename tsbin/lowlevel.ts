@@ -2,6 +2,7 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as fs from "fs"
 import * as astn from "../src"
+import * as tp from "../src/treeParser/api"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -52,17 +53,17 @@ export const parserEventConsumer: astn.TextParserEventConsumer<null, null> = {
             case astn.TreeEventType.Overhead: {
                 const $ = data.type[1]
                 switch ($.type[0]) {
-                    case astn.OverheadTokenType.Comment: {
+                    case tp.OverheadTokenType.Comment: {
                         //const $ = data.type[1]
                         //place your code here
                         break
                     }
-                    case astn.OverheadTokenType.NewLine: {
+                    case tp.OverheadTokenType.NewLine: {
                         //const $ = data.type[1]
                         //place your code here
                         break
                     }
-                    case astn.OverheadTokenType.WhiteSpace: {
+                    case tp.OverheadTokenType.WhiteSpace: {
                         //const $ = data.type[1]
                         //place your code here
                         break

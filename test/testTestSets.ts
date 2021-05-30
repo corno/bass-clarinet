@@ -13,6 +13,7 @@ import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
 import { createStreamSplitter } from "../src/createStreamSplitter"
 import { printParsingError, printStackedDataError } from "../src"
+import * as tp from "../src/treeParser/api"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -34,9 +35,9 @@ interface HeaderSubscriber {
 }
 
 
-function outputOverheadToken(out: string[], $: astn.OverheadToken) {
+function outputOverheadToken(out: string[], $: tp.OverheadToken) {
     switch ($.type[0]) {
-        case astn.OverheadTokenType.Comment: {
+        case tp.OverheadTokenType.Comment: {
             const $$ = $.type[1]
             switch ($$.type) {
                 case "block": {
@@ -54,11 +55,11 @@ function outputOverheadToken(out: string[], $: astn.OverheadToken) {
             }
             break
         }
-        case astn.OverheadTokenType.NewLine: {
+        case tp.OverheadTokenType.NewLine: {
             out.push("\n")
             break
         }
-        case astn.OverheadTokenType.WhiteSpace: {
+        case tp.OverheadTokenType.WhiteSpace: {
             const $$ = $.type[1]
             out.push($$.value)
             break
@@ -228,10 +229,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 return p.success<null, null>(null)
             }
         )
-        function onOverheadTokenEvent($: astn.OverheadToken, range: astn.Range) {
+        function onOverheadTokenEvent($: tp.OverheadToken, range: astn.Range) {
 
             switch ($.type[0]) {
-                case astn.OverheadTokenType.Comment: {
+                case tp.OverheadTokenType.Comment: {
                     const $$ = $.type[1]
                     if (DEBUG) console.log("found block comment")
                     if ($$.type === "block") {
@@ -243,12 +244,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                     }
                     break
                 }
-                case astn.OverheadTokenType.NewLine: {
+                case tp.OverheadTokenType.NewLine: {
                     //const $ = data.type[1]
                     //place your code here
                     break
                 }
-                case astn.OverheadTokenType.WhiteSpace: {
+                case tp.OverheadTokenType.WhiteSpace: {
                     //const $ = data.type[1]
                     //place your code here
                     break

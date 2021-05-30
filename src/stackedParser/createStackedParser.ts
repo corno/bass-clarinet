@@ -8,7 +8,6 @@ import * as p from "pareto"
 import {
     createRangeFromSingleLocation,
     Location,
-    OverheadTokenType,
     Range,
     TextParserEventConsumer,
     TreeEvent,
@@ -25,6 +24,7 @@ import {
     StackContext,
 } from "../handlers"
 import { RangeError } from "../errors"
+import { OverheadTokenType } from "../treeParser/api"
 
 const DEBUG = false
 

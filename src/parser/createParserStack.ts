@@ -8,9 +8,6 @@ import {
     printTextParserError,
 } from "./createTextParser"
 import {
-    OverheadToken,
-} from "./Token"
-import {
     Range,
     Location,
 } from "./location"
@@ -21,6 +18,7 @@ import {
     createTokenizer,
 } from "./createTokenizer"
 import { printPreTokenizerError, PreTokenizerError } from "./PreTokenizer"
+import { OverheadToken } from "../treeParser/api"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -78,12 +76,12 @@ export function createParserStack<ReturnType, ErrorType>(
             },
             onHeaderOverheadToken,
         )),
-        (error, range) => {
+        $ => {
             onError(
                 {
-                    source: ["tokenizer", error],
+                    source: ["tokenizer", $.error],
                 },
-                range,
+                $.range,
             )
         },
     )

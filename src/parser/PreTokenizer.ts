@@ -184,737 +184,849 @@ export function printPreTokenizerError($: PreTokenizerError): string {
     }
 }
 
-export class PreTokenizer {
-    public currentTokenType: CurrentToken
-    private readonly onError: (error: PreTokenizerError, range: Range) => void
-    private readonly locationState: LocationState
+type OnError = ($: {
+    error: PreTokenizerError
+    range: Range
+}) => void
 
-    constructor(
-        locationState: LocationState,
-        onError: (error: PreTokenizerError, range: Range) => void,
-    ) {
-        //start at the position just before the first character
-        //because we are going to call currentChar = next() once at the beginning
-        this.currentTokenType = [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }]
-        this.onError = onError
-        this.locationState = locationState
-    }
-    private changeCurrentTokenType(tokenType: CurrentToken, tokenData: PreToken): PreToken {
-        if (DEBUG) console.log("setting token state to", getStateDescription(tokenType))
-        this.currentTokenType = tokenType
-        return tokenData
-    }
-    private flushString(
-        str: string,
-    ): PreToken {
-        return {
-            type: [PreTokenDataType.Snippet, {
-                chunk: str,
-                begin: 0,
-                end: str.length,
-            }],
+export interface IPreTokenizer {
+    handleDanglingToken(): PreToken | null
+    createNextToken(currentChunk: Chunk): null | PreToken
+}
+
+export function createPreTokenizer(
+    locationState: LocationState,
+    onError: OnError,
+): IPreTokenizer {
+
+
+    class PreTokenizer {
+        public currentTokenType: CurrentToken
+        private readonly onError: OnError
+        private readonly locationState: LocationState
+
+        constructor(
+        ) {
+            //start at the position just before the first character
+            //because we are going to call currentChar = next() once at the beginning
+            this.currentTokenType = [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }]
+            this.onError = onError
+            this.locationState = locationState
         }
-    }
-    private processUntilFirstNotIncludedCharacter(
-        currentChunk: Chunk,
-        isIncludedCharacter: (char: number) => boolean,
-        onEndOfToken: () => TokenReturnType,
-    ): null | PreToken {
-        return this.whileLoop(
-            currentChunk,
-            (nextChar, snippet) => {
-
-                //first check if we are breaking out of an nonwrapped string. Can only be done by checking the character that comes directly after the nonwrapped string
-                if (!isIncludedCharacter(nextChar)) {
-
-                    return snippet.ensureFlushed(onEndOfToken)
-
-                    //this character does not belong to the keyword so don't go to the next character by breaking
-                } else {
-                    //normal character
-                    //don't flush
-                    snippet.start()
-                    return {
-                        consumeCharacter: true,
-                        preToken: null,
-                    }
-                }
-            }
-        )
-    }
-    private whileLoop(
-        currentChunk: Chunk,
-        callback: (
-            nextChar: number,
-            snippet: Snippet,
-        ) => TokenReturnType
-    ): PreToken | null {
-        const snippet = new Snippet(currentChunk)
-        while (true) {
-
-            const nextChar = currentChunk.lookahead()
-
-            if (nextChar === null) {
-                return snippet.ensureFlushed(() => {
-                    return {
-                        consumeCharacter: false,
-                        preToken: null,
-                    }
-                }).preToken
-            }
-            const result = callback(nextChar, snippet)
-            if (result.consumeCharacter) {
-                const cc = currentChunk.lookahead()
-                if (cc === null) {
-                    throw new Error("Unexpected consume")
-                }
-                this.locationState.increase(cc)
-                currentChunk.increaseIndex()
-            }
-            if (result.preToken !== null) {
-                return result.preToken
+        private changeCurrentTokenType(tokenType: CurrentToken, tokenData: PreToken): PreToken {
+            if (DEBUG) console.log("setting token state to", getStateDescription(tokenType))
+            this.currentTokenType = tokenType
+            return tokenData
+        }
+        private flushString(
+            str: string,
+        ): PreToken {
+            return {
+                type: [PreTokenDataType.Snippet, {
+                    chunk: str,
+                    begin: 0,
+                    end: str.length,
+                }],
             }
         }
-    }
-    public handleDanglingToken(): PreToken | null {
-        const ct = this.currentTokenType
-        switch (ct[0]) {
-            case TokenType.BLOCK_COMMENT: {
-                this.onError({ type: ["unterminated block comment"] }, createRangeFromSingleLocation(this.locationState.getCurrentLocation()))
-                return {
-                    type: [PreTokenDataType.BlockCommentEnd, {
-                        range: createRangeFromSingleLocation(this.locationState.getCurrentLocation()),
-                    }],
-                }
-            }
-            case TokenType.LINE_COMMENT: {
-                return {
-                    type: [PreTokenDataType.LineCommentEnd, {
-                        location: this.locationState.getCurrentLocation(),
-                    }],
-                }
-            }
-            case TokenType.NONE:
-                const $ = ct[1]
-                if ($.foundNewlineCharacter !== null) {
-                    return {
-                        type: [PreTokenDataType.NewLine, {
-                            range: createRangeFromLocations(
-                                $.foundNewlineCharacter.startLocation,
-                                this.locationState.getCurrentLocation(),
-                            ),
-                        }],
-                    }
-                } else if ($.foundSolidus) {
-                    this.onError({ type: ["found dangling slash at the end of the document"] }, this.locationState.getCurrentCharacterRange())
-                    return null
-                } else {
-                    return null
-                }
-            case TokenType.WRAPPED_STRING: {
-                this.onError({ type: ["unterminated string"] }, createRangeFromLocations(this.locationState.getCurrentLocation(), this.locationState.getCurrentLocation()))
-                return {
-                    type: [PreTokenDataType.WrappedStringEnd, {
-                        range: createRangeFromLocations(
-                            this.locationState.getCurrentLocation(),
-                            this.locationState.getCurrentLocation(),
-                        ),
-                        wrapper: null,
-                    }],
-                }
-            }
-            case TokenType.NONWRAPPED_STRING:
-                return {
-                    type: [PreTokenDataType.NonWrappedStringEnd, {
-                        location: this.locationState.getCurrentLocation(),
-                    }],
-                }
-            case TokenType.WHITESPACE:
-                return {
-                    type: [PreTokenDataType.WhiteSpaceEnd, {
-                        location: this.locationState.getCurrentLocation(),
-                    }],
-                }
-            default:
-                return assertUnreachable(ct[0])
-        }
-    }
-    private handleNewlineCharacter(
-        fnlc: FoundNewlineCharacter,
-        nextChar: number,
-    ): TokenReturnType {
-        switch (fnlc.type) {
-            case FoundNewlineCharacterType.CARRIAGE_RETURN: {
-                /*
-                if nextChar === Char.Whitespace.lineFeed
-                    windows style newlines (\r\n)
-                else
-                    old style Mac OS newlines (\r)
-                */
-                return {
-                    consumeCharacter: nextChar === Char.Whitespace.lineFeed,
-                    preToken: this.changeCurrentTokenType(
-                        [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
-                        {
-                            type: [PreTokenDataType.NewLine, {
-                                range: createRangeFromLocations(fnlc.startLocation, this.locationState.getCurrentLocation()),
-                            }],
-                        }
-                    ),
-                }
+        private processUntilFirstNotIncludedCharacter(
+            currentChunk: Chunk,
+            isIncludedCharacter: (char: number) => boolean,
+            onEndOfToken: () => TokenReturnType,
+        ): null | PreToken {
+            return this.whileLoop(
+                currentChunk,
+                (nextChar, snippet) => {
 
-            }
-            case FoundNewlineCharacterType.LINE_FEED: {
-                /*
-                if nextChar === Char.Whitespace.carriageReturn
-                    //strange style newline (\n\r)
-                else
-                    //unix style newlines (\n)
-                    //don't consume character
-                */
-                return {
-                    consumeCharacter: nextChar === Char.Whitespace.carriageReturn,
-                    preToken: this.changeCurrentTokenType(
-                        [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
-                        {
-                            type: [PreTokenDataType.NewLine, {
-                                range: createRangeFromLocations(fnlc.startLocation, this.locationState.getCurrentLocation()),
-                            }],
-                        }
-                    ),
-                }
-            }
-            default:
-                return assertUnreachable(fnlc.type)
-        }
-    }
-    public createNextToken(currentChunk: Chunk): null | PreToken {
-        const currentTokenType = this.currentTokenType
-        switch (currentTokenType[0]) {
-            case TokenType.BLOCK_COMMENT: {
-                const $$ = currentTokenType[1]
-                return this.whileLoop(
-                    currentChunk,
-                    (nextChar, snippet) => {
-                        if ($$.locationOfFoundAsterisk !== null) {
-                            if (nextChar === Char.Comment.solidus) {
-                                //end of block comment
-                                return {
-                                    consumeCharacter: true,
-                                    preToken: this.changeCurrentTokenType(
-                                        [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
-                                        {
-                                            type: [PreTokenDataType.BlockCommentEnd, {
-                                                range: createRangeFromLocations($$.locationOfFoundAsterisk, this.locationState.getCurrentLocation()),
-                                            }],
-                                        }
-                                    ),
-                                }
-                            } else {
-                                //false alarm, not the end of the comment
+                    //first check if we are breaking out of an nonwrapped string. Can only be done by checking the character that comes directly after the nonwrapped string
+                    if (!isIncludedCharacter(nextChar)) {
 
-                                //don't consume next token yet
-                                $$.locationOfFoundAsterisk = null
-                                return { consumeCharacter: false, preToken: this.flushString("*") }
-                            }
-                        } else {
+                        return snippet.ensureFlushed(onEndOfToken)
 
-                            if (nextChar === Char.Comment.asterisk) {
-                                return snippet.ensureFlushed(() => {
-                                    $$.locationOfFoundAsterisk = this.locationState.getCurrentLocation()
-                                    return {
-                                        consumeCharacter: true,
-                                        preToken: null,
-                                    }
-                                })
-
-                            } else {
-                                snippet.start()
-                                return {
-                                    consumeCharacter: true,
-                                    preToken: null,
-                                }
-                            }
-
+                        //this character does not belong to the keyword so don't go to the next character by breaking
+                    } else {
+                        //normal character
+                        //don't flush
+                        snippet.start()
+                        return {
+                            consumeCharacter: true,
+                            preToken: null,
                         }
                     }
-                )
-            }
-            case TokenType.LINE_COMMENT: {
-                return this.processUntilFirstNotIncludedCharacter(
-                    currentChunk,
-                    char => {
-                        return char !== Char.Whitespace.lineFeed &&
-                            char !== Char.Whitespace.carriageReturn
-                    },
-                    () => {
+                }
+            )
+        }
+        private whileLoop(
+            currentChunk: Chunk,
+            callback: (
+                nextChar: number,
+                snippet: Snippet,
+            ) => TokenReturnType
+        ): PreToken | null {
+            const snippet = new Snippet(currentChunk)
+            while (true) {
+
+                const nextChar = currentChunk.lookahead()
+
+                if (nextChar === null) {
+                    return snippet.ensureFlushed(() => {
                         return {
                             consumeCharacter: false,
-                            preToken: this.changeCurrentTokenType(
-                                [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
-                                {
-                                    type: [PreTokenDataType.LineCommentEnd, {
-                                        location: this.locationState.getCurrentLocation(),
-                                    }],
-                                },
+                            preToken: null,
+                        }
+                    }).preToken
+                }
+                const result = callback(nextChar, snippet)
+                if (result.consumeCharacter) {
+                    const cc = currentChunk.lookahead()
+                    if (cc === null) {
+                        throw new Error("Unexpected consume")
+                    }
+                    this.locationState.increase(cc)
+                    currentChunk.increaseIndex()
+                }
+                if (result.preToken !== null) {
+                    return result.preToken
+                }
+            }
+        }
+        public handleDanglingToken(): PreToken | null {
+            const ct = this.currentTokenType
+            switch (ct[0]) {
+                case TokenType.BLOCK_COMMENT: {
+                    this.onError({
+                        error: { type: ["unterminated block comment"] },
+                        range: createRangeFromSingleLocation(this.locationState.getCurrentLocation()),
+                    })
+                    return {
+                        type: [PreTokenDataType.BlockCommentEnd, {
+                            range: createRangeFromSingleLocation(this.locationState.getCurrentLocation()),
+                        }],
+                    }
+                }
+                case TokenType.LINE_COMMENT: {
+                    return {
+                        type: [PreTokenDataType.LineCommentEnd, {
+                            location: this.locationState.getCurrentLocation(),
+                        }],
+                    }
+                }
+                case TokenType.NONE:
+                    const $ = ct[1]
+                    if ($.foundNewlineCharacter !== null) {
+                        return {
+                            type: [PreTokenDataType.NewLine, {
+                                range: createRangeFromLocations(
+                                    $.foundNewlineCharacter.startLocation,
+                                    this.locationState.getCurrentLocation(),
+                                ),
+                            }],
+                        }
+                    } else if ($.foundSolidus) {
+                        this.onError({
+                            error: { type: ["found dangling slash at the end of the document"] },
+                            range: this.locationState.getCurrentCharacterRange(),
+                        })
+                        return null
+                    } else {
+                        return null
+                    }
+                case TokenType.WRAPPED_STRING: {
+                    this.onError({
+                        error: { type: ["unterminated string"] },
+                        range: createRangeFromLocations(this.locationState.getCurrentLocation(), this.locationState.getCurrentLocation()),
+                    })
+                    return {
+                        type: [PreTokenDataType.WrappedStringEnd, {
+                            range: createRangeFromLocations(
+                                this.locationState.getCurrentLocation(),
+                                this.locationState.getCurrentLocation(),
                             ),
-                        }
+                            wrapper: null,
+                        }],
                     }
-                )
-            }
-            case TokenType.NONE: {
-                return this.whileLoop(
-                    currentChunk,
-                    nextChar => {
-
-                        const $ = currentTokenType[1]
-                        if ($.foundNewlineCharacter !== null) {
-                            return this.handleNewlineCharacter($.foundNewlineCharacter, nextChar)
-                        } else if ($.foundSolidus !== null) {
-
-                            if (nextChar === Char.Comment.solidus) {
-                                return {
-                                    consumeCharacter: true,
-                                    preToken: this.changeCurrentTokenType(
-                                        [TokenType.LINE_COMMENT],
-                                        {
-                                            type: [PreTokenDataType.LineCommentBegin, {
-                                                range: createRangeFromLocations($.foundSolidus, this.locationState.getCurrentLocation()),
-                                            }],
-                                        },
-                                    ),
-                                }
-
-                            } else if (nextChar === Char.Comment.asterisk) {
-
-                                return {
-                                    consumeCharacter: true,
-                                    preToken: this.changeCurrentTokenType(
-                                        [TokenType.BLOCK_COMMENT, { locationOfFoundAsterisk: null }],
-                                        {
-                                            type: [PreTokenDataType.BlockCommentBegin, {
-                                                range: createRangeFromLocations($.foundSolidus, this.locationState.getNextLocation()),
-                                            }],
-                                        },
-                                    ),
-                                }
-
-                            } else {
-                                this.onError({ type: ["found dangling slash"] }, this.locationState.getCurrentCharacterRange())
-                                $.foundSolidus = null
-                                return {
-                                    consumeCharacter: false,
-                                    preToken: null,
-                                }
-                            }
-
-                        } else {
-
-                            switch (nextChar) {
-                                case Char.Whitespace.carriageReturn: {
-
-                                    $.foundNewlineCharacter = {
-                                        type: FoundNewlineCharacterType.CARRIAGE_RETURN,
-                                        startLocation: this.locationState.getCurrentLocation(),
-                                    }
-                                    return {
-                                        consumeCharacter: true,
-                                        preToken: null,
-                                    }
-                                }
-                                case Char.Whitespace.lineFeed: {
-
-                                    $.foundNewlineCharacter = {
-                                        type: FoundNewlineCharacterType.LINE_FEED,
-                                        startLocation: this.locationState.getCurrentLocation(),
-                                    }
-                                    return {
-                                        consumeCharacter: true,
-                                        preToken: null,
-                                    }
-                                }
-                                case Char.Whitespace.space: {
-                                    return {
-                                        consumeCharacter: false,
-                                        preToken: this.changeCurrentTokenType(
-                                            [TokenType.WHITESPACE],
-                                            {
-                                                type: [PreTokenDataType.WhiteSpaceBegin, {
-                                                    location: this.locationState.getCurrentLocation(),
-                                                }],
-                                            },
-                                        ),
-                                    }
-                                }
-                                case Char.Comment.solidus: {
-                                    $.foundSolidus = this.locationState.getCurrentLocation()
-                                    return {
-                                        consumeCharacter: true,
-                                        preToken: null,
-                                    }
-                                }
-                                case Char.Whitespace.tab: {
-                                    return {
-                                        consumeCharacter: false,
-                                        preToken: this.changeCurrentTokenType(
-                                            [TokenType.WHITESPACE],
-                                            {
-                                                type: [PreTokenDataType.WhiteSpaceBegin, {
-                                                    location: this.locationState.getCurrentLocation(),
-                                                }],
-                                            },
-                                        ),
-                                    }
-                                }
-                                case Char.WrappedString.apostrophe: {
-                                    return {
-                                        consumeCharacter: true,
-                                        preToken: this.changeCurrentTokenType(
-                                            [TokenType.WRAPPED_STRING, {
-                                                startCharacter: nextChar,
-                                                slashed: false,
-                                                unicode: null,
-                                                foundNewlineCharacter: null,
-                                            }],
-                                            {
-                                                type: [PreTokenDataType.WrappedStringBegin, {
-                                                    type: ["apostrophed", {}],
-                                                    range: this.locationState.getCurrentCharacterRange(),
-                                                }],
-                                            },
-                                        ),
-                                    }
-                                }
-                                case Char.WrappedString.backtick: {
-                                    return {
-                                        consumeCharacter: true,
-                                        preToken: this.changeCurrentTokenType(
-                                            [TokenType.WRAPPED_STRING, {
-                                                startCharacter: nextChar,
-                                                slashed: false,
-                                                unicode: null,
-                                                foundNewlineCharacter: null,
-                                            }],
-                                            {
-                                                type: [PreTokenDataType.WrappedStringBegin, {
-                                                    type: ["multiline", {
-                                                        previousLines: [],
-                                                    }],
-                                                    range: this.locationState.getCurrentCharacterRange(),
-                                                }],
-                                            },
-                                        ),
-                                    }
-                                }
-                                case Char.WrappedString.quotationMark: {
-                                    return {
-                                        consumeCharacter: true,
-                                        preToken: this.changeCurrentTokenType(
-                                            [TokenType.WRAPPED_STRING, {
-                                                startCharacter: nextChar,
-                                                slashed: false,
-                                                unicode: null,
-                                                foundNewlineCharacter: null,
-                                            }],
-                                            {
-                                                type: [PreTokenDataType.WrappedStringBegin, {
-                                                    type: ["quoted", {}],
-                                                    range: this.locationState.getCurrentCharacterRange(),
-                                                }],
-                                            },
-                                        ),
-                                    }
-                                }
-                                default: {
-                                    function nextIsPunctuation(): boolean {
-                                        if (
-                                            nextChar === Char.Punctuation.openBracket ||
-                                            nextChar === Char.Punctuation.openAngleBracket ||
-                                            nextChar === Char.Punctuation.comma ||
-                                            nextChar === Char.Punctuation.closeBracket ||
-                                            nextChar === Char.Punctuation.closeAngleBracket ||
-                                            nextChar === Char.Punctuation.openBrace ||
-                                            nextChar === Char.Punctuation.openParen ||
-                                            nextChar === Char.Punctuation.closeParen ||
-                                            nextChar === Char.Punctuation.closeBrace ||
-                                            nextChar === Char.Punctuation.colon ||
-                                            nextChar === Char.Punctuation.exclamationMark ||
-                                            nextChar === Char.Punctuation.verticalLine
-                                        ) {
-                                            return true
-                                        }
-                                        return false
-                                    }
-                                    if (!nextIsPunctuation()) {
-                                        return {
-                                            consumeCharacter: false,
-                                            preToken: this.changeCurrentTokenType(
-                                                [TokenType.NONWRAPPED_STRING],
-                                                {
-                                                    type: [PreTokenDataType.NonWrappedStringBegin, {
-                                                        location: this.locationState.getCurrentLocation(),
-                                                    }],
-                                                },
-                                            ),
-                                        }
-                                    } else {
-                                        return {
-                                            consumeCharacter: true,
-                                            preToken: {
-                                                type: [PreTokenDataType.Punctuation, {
-                                                    range: this.locationState.getCurrentCharacterRange(),
-                                                    char: nextChar,
-                                                }],
-                                            },
-                                        }
-                                    }
-
-                                }
-                            }
-
-                        }
+                }
+                case TokenType.NONWRAPPED_STRING:
+                    return {
+                        type: [PreTokenDataType.NonWrappedStringEnd, {
+                            location: this.locationState.getCurrentLocation(),
+                        }],
                     }
-                )
+                case TokenType.WHITESPACE:
+                    return {
+                        type: [PreTokenDataType.WhiteSpaceEnd, {
+                            location: this.locationState.getCurrentLocation(),
+                        }],
+                    }
+                default:
+                    return assertUnreachable(ct[0])
             }
-            case TokenType.WRAPPED_STRING: {
-                /**
-                 * QUOTED STRING PROCESSING
-                 */
-                const $ = currentTokenType[1]
-
-                return this.whileLoop(
-                    currentChunk,
-                    (nextChar, snippet): TokenReturnType => {
-
-                        if ($.slashed) {
-                            const flushChar = (str: string): TokenReturnType => {
-                                $.slashed = false
-                                return {
-                                    consumeCharacter: true,
-                                    preToken: this.flushString(str),
-                                }
+        }
+        private handleNewlineCharacter(
+            fnlc: FoundNewlineCharacter,
+            nextChar: number,
+        ): TokenReturnType {
+            switch (fnlc.type) {
+                case FoundNewlineCharacterType.CARRIAGE_RETURN: {
+                    /*
+                    if nextChar === Char.Whitespace.lineFeed
+                        windows style newlines (\r\n)
+                    else
+                        old style Mac OS newlines (\r)
+                    */
+                    return {
+                        consumeCharacter: nextChar === Char.Whitespace.lineFeed,
+                        preToken: this.changeCurrentTokenType(
+                            [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
+                            {
+                                type: [PreTokenDataType.NewLine, {
+                                    range: createRangeFromLocations(fnlc.startLocation, this.locationState.getCurrentLocation()),
+                                }],
                             }
+                        ),
+                    }
 
-                            if (nextChar === Char.WrappedString.quotationMark) { return flushChar('"') }
-                            else if (nextChar === Char.WrappedString.apostrophe) { return flushChar('\'') } //deviation from the JSON standard
-                            else if (nextChar === Char.WrappedString.apostrophe) { return flushChar('`') } //deviation from the JSON standard
-                            else if (nextChar === Char.WrappedString.reverseSolidus) { return flushChar('\\') }
-                            else if (nextChar === Char.WrappedString.solidus) { return flushChar('\/') }
-                            else if (nextChar === Char.WrappedString.b) {
-                                 return flushChar('\b')
-                                 }
-                            else if (nextChar === Char.WrappedString.f) { return flushChar('\f') }
-                            else if (nextChar === Char.WrappedString.n) {
-                                if ($.startCharacter === Char.WrappedString.backtick) {
-                                    return snippet.ensureFlushed(() => {
-                                        $.slashed = false
-                                        return {
-                                            consumeCharacter: true,
-                                            preToken: {
-                                                type: [PreTokenDataType.NewLine, {
-                                                    range: this.locationState.getCurrentCharacterRange(),
-                                                }],
-                                            },
-                                        }
-                                    })
-                                } else {
-                                    return flushChar('\n')
-                                }
+                }
+                case FoundNewlineCharacterType.LINE_FEED: {
+                    /*
+                    if nextChar === Char.Whitespace.carriageReturn
+                        //strange style newline (\n\r)
+                    else
+                        //unix style newlines (\n)
+                        //don't consume character
+                    */
+                    return {
+                        consumeCharacter: nextChar === Char.Whitespace.carriageReturn,
+                        preToken: this.changeCurrentTokenType(
+                            [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
+                            {
+                                type: [PreTokenDataType.NewLine, {
+                                    range: createRangeFromLocations(fnlc.startLocation, this.locationState.getCurrentLocation()),
+                                }],
                             }
-                            else if (nextChar === Char.WrappedString.r) {
-                                if ($.startCharacter === Char.WrappedString.backtick) {
-                                    $.slashed = false
-
-                                    return snippet.ensureFlushed(() => {
-                                        return {
-                                            consumeCharacter: true,
-                                            preToken: {
-                                                type: [PreTokenDataType.NewLine, {
-                                                    range: this.locationState.getCurrentCharacterRange(),
-                                                }],
-                                            },
-                                        }
-                                    })
-                                } else {
-                                    return flushChar('\r')
-                                }
-                            }
-                            else if (nextChar === Char.WrappedString.t) { return flushChar('\t') }
-                            else if (nextChar === Char.WrappedString.u) {
-                                // \uxxxx
-                                $.slashed = false
-                                $.unicode = {
-                                    charactersLeft: 4,
-                                    foundCharacters: "",
-                                }
-                                return {
-                                    consumeCharacter: true,
-                                    preToken: null,
-                                }
-                            }
-                            else {
-                                //no special character
-
-                                this.onError(
-                                    {
-                                        type: ["expected special character after escape slash", {
-                                            found: String.fromCharCode(nextChar),
-                                        }],
-                                    },
-                                    this.locationState.getCurrentCharacterRange()
-                                )
-                                return {
-                                    consumeCharacter: true,
-                                    preToken: null,
-                                }
-                            }
-
-                        } else if ($.unicode !== null) {
-                            if (
-                                (nextChar < Char.UnicodeChars["0"] && nextChar > Char.UnicodeChars["9"])
-                                &&
-                                (nextChar < Char.UnicodeChars.A && nextChar > Char.UnicodeChars.F)
-                                &&
-                                (nextChar < Char.UnicodeChars.a && nextChar > Char.UnicodeChars.f)
-                            ) {
-
-                                this.onError(
-                                    {
-                                        type: ["expected hexadecimal digit", {
-                                            found: String.fromCharCode(nextChar),
-                                        }],
-                                    },
-                                    this.locationState.getCurrentCharacterRange()
-                                )
-                            }
-                            const nextCharAsString = String.fromCharCode(nextChar)
-
-                            $.unicode.foundCharacters += nextCharAsString
-                            $.unicode.charactersLeft--
-                            if ($.unicode.charactersLeft === 0) {
-                                const textNode = String.fromCharCode(parseInt($.unicode.foundCharacters, 16))
-                                $.unicode = null
-                                return {
-                                    consumeCharacter: true,
-                                    preToken: this.flushString(textNode),
-                                }
-                            } else {
-                                return {
-                                    consumeCharacter: true,
-                                    preToken: null,
-                                }
-                            }
-                        } else if ($.foundNewlineCharacter !== null) {
-
-                            switch ($.foundNewlineCharacter.type) {
-                                case FoundNewlineCharacterType.CARRIAGE_RETURN: {
-                                    /*
-                                    if nextChar === Char.Whitespace.lineFeed
-                                        windows style newlines (\r\n)
-                                    else
-                                        old style Mac OS newlines (\r)
-                                    */
-                                    const fnlc = $.foundNewlineCharacter
-                                    $.foundNewlineCharacter = null
-                                    return {
-                                        consumeCharacter: nextChar === Char.Whitespace.lineFeed,
-                                        preToken: {
-                                            type: [PreTokenDataType.NewLine, {
-                                                range: createRangeFromLocations(fnlc.startLocation, this.locationState.getCurrentLocation()),
-                                            }],
-                                        },
-                                    }
-
-                                }
-                                case FoundNewlineCharacterType.LINE_FEED: {
-                                    /*
-                                    if nextChar === Char.Whitespace.carriageReturn
-                                        //strange style newline (\n\r)
-                                    else
-                                        //unix style newlines (\n)
-                                        //don't consume character
-                                    */
-                                    const fnlc = $.foundNewlineCharacter
-                                    $.foundNewlineCharacter = null
-                                    console.error("LINE FEED")
-                                    return {
-                                        consumeCharacter: nextChar === Char.Whitespace.carriageReturn,
-                                        preToken: {
-                                            type: [PreTokenDataType.NewLine, {
-                                                range: createRangeFromLocations(fnlc.startLocation, this.locationState.getCurrentLocation()),
-                                            }],
-                                        },
-                                    }
-                                }
-                                default:
-                                    return assertUnreachable($.foundNewlineCharacter.type)
-                            }
-                        } else {
-                            //not slashed, not unicode, not newline
-                            if (nextChar === Char.WrappedString.reverseSolidus) {//backslash
-                                return snippet.ensureFlushed(() => {
-                                    $.slashed = true
-                                    return {
-                                        consumeCharacter: true,
-                                        preToken: null,
-                                    }
-                                })
-                            } else if (nextChar === $.startCharacter) {
-                                /**
-                                 * THE QUOTED STRING IS FINISHED
-                                 */
-
-                                return snippet.ensureFlushed(() => {
-                                    const rangeInfo = this.locationState.getCurrentCharacterRange()
-
+                        ),
+                    }
+                }
+                default:
+                    return assertUnreachable(fnlc.type)
+            }
+        }
+        public createNextToken(currentChunk: Chunk): null | PreToken {
+            const currentTokenType = this.currentTokenType
+            switch (currentTokenType[0]) {
+                case TokenType.BLOCK_COMMENT: {
+                    const $$ = currentTokenType[1]
+                    return this.whileLoop(
+                        currentChunk,
+                        (nextChar, snippet) => {
+                            if ($$.locationOfFoundAsterisk !== null) {
+                                if (nextChar === Char.Comment.solidus) {
+                                    //end of block comment
                                     return {
                                         consumeCharacter: true,
                                         preToken: this.changeCurrentTokenType(
                                             [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
                                             {
-                                                type: [PreTokenDataType.WrappedStringEnd, {
-                                                    range: rangeInfo,
-                                                    wrapper: String.fromCharCode(nextChar),
+                                                type: [PreTokenDataType.BlockCommentEnd, {
+                                                    range: createRangeFromLocations($$.locationOfFoundAsterisk, this.locationState.getCurrentLocation()),
+                                                }],
+                                            }
+                                        ),
+                                    }
+                                } else {
+                                    //false alarm, not the end of the comment
+
+                                    //don't consume next token yet
+                                    $$.locationOfFoundAsterisk = null
+                                    return { consumeCharacter: false, preToken: this.flushString("*") }
+                                }
+                            } else {
+
+                                if (nextChar === Char.Comment.asterisk) {
+                                    return snippet.ensureFlushed(() => {
+                                        $$.locationOfFoundAsterisk = this.locationState.getCurrentLocation()
+                                        return {
+                                            consumeCharacter: true,
+                                            preToken: null,
+                                        }
+                                    })
+
+                                } else {
+                                    snippet.start()
+                                    return {
+                                        consumeCharacter: true,
+                                        preToken: null,
+                                    }
+                                }
+
+                            }
+                        }
+                    )
+                }
+                case TokenType.LINE_COMMENT: {
+                    return this.processUntilFirstNotIncludedCharacter(
+                        currentChunk,
+                        char => {
+                            return char !== Char.Whitespace.lineFeed &&
+                                char !== Char.Whitespace.carriageReturn
+                        },
+                        () => {
+                            return {
+                                consumeCharacter: false,
+                                preToken: this.changeCurrentTokenType(
+                                    [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
+                                    {
+                                        type: [PreTokenDataType.LineCommentEnd, {
+                                            location: this.locationState.getCurrentLocation(),
+                                        }],
+                                    },
+                                ),
+                            }
+                        }
+                    )
+                }
+                case TokenType.NONE: {
+                    return this.whileLoop(
+                        currentChunk,
+                        nextChar => {
+
+                            const $ = currentTokenType[1]
+                            if ($.foundNewlineCharacter !== null) {
+                                return this.handleNewlineCharacter($.foundNewlineCharacter, nextChar)
+                            } else if ($.foundSolidus !== null) {
+
+                                if (nextChar === Char.Comment.solidus) {
+                                    return {
+                                        consumeCharacter: true,
+                                        preToken: this.changeCurrentTokenType(
+                                            [TokenType.LINE_COMMENT],
+                                            {
+                                                type: [PreTokenDataType.LineCommentBegin, {
+                                                    range: createRangeFromLocations($.foundSolidus, this.locationState.getCurrentLocation()),
                                                 }],
                                             },
                                         ),
                                     }
-                                })
-                            } else if (nextChar === Char.Whitespace.carriageReturn || nextChar === Char.Whitespace.lineFeed) {
-                                if ($.startCharacter === Char.WrappedString.backtick) { //multiline
 
-                                    return snippet.ensureFlushed(() => {
+                                } else if (nextChar === Char.Comment.asterisk) {
+
+                                    return {
+                                        consumeCharacter: true,
+                                        preToken: this.changeCurrentTokenType(
+                                            [TokenType.BLOCK_COMMENT, { locationOfFoundAsterisk: null }],
+                                            {
+                                                type: [PreTokenDataType.BlockCommentBegin, {
+                                                    range: createRangeFromLocations($.foundSolidus, this.locationState.getNextLocation()),
+                                                }],
+                                            },
+                                        ),
+                                    }
+
+                                } else {
+                                    this.onError({
+                                        error: { type: ["found dangling slash"] },
+                                        range: this.locationState.getCurrentCharacterRange(),
+                                    })
+                                    $.foundSolidus = null
+                                    return {
+                                        consumeCharacter: false,
+                                        preToken: null,
+                                    }
+                                }
+
+                            } else {
+
+                                switch (nextChar) {
+                                    case Char.Whitespace.carriageReturn: {
 
                                         $.foundNewlineCharacter = {
-                                            type: nextChar === Char.Whitespace.carriageReturn ? FoundNewlineCharacterType.CARRIAGE_RETURN : FoundNewlineCharacterType.LINE_FEED,
+                                            type: FoundNewlineCharacterType.CARRIAGE_RETURN,
                                             startLocation: this.locationState.getCurrentLocation(),
                                         }
                                         return {
                                             consumeCharacter: true,
                                             preToken: null,
                                         }
+                                    }
+                                    case Char.Whitespace.lineFeed: {
+
+                                        $.foundNewlineCharacter = {
+                                            type: FoundNewlineCharacterType.LINE_FEED,
+                                            startLocation: this.locationState.getCurrentLocation(),
+                                        }
+                                        return {
+                                            consumeCharacter: true,
+                                            preToken: null,
+                                        }
+                                    }
+                                    case Char.Whitespace.space: {
+                                        return {
+                                            consumeCharacter: false,
+                                            preToken: this.changeCurrentTokenType(
+                                                [TokenType.WHITESPACE],
+                                                {
+                                                    type: [PreTokenDataType.WhiteSpaceBegin, {
+                                                        location: this.locationState.getCurrentLocation(),
+                                                    }],
+                                                },
+                                            ),
+                                        }
+                                    }
+                                    case Char.Comment.solidus: {
+                                        $.foundSolidus = this.locationState.getCurrentLocation()
+                                        return {
+                                            consumeCharacter: true,
+                                            preToken: null,
+                                        }
+                                    }
+                                    case Char.Whitespace.tab: {
+                                        return {
+                                            consumeCharacter: false,
+                                            preToken: this.changeCurrentTokenType(
+                                                [TokenType.WHITESPACE],
+                                                {
+                                                    type: [PreTokenDataType.WhiteSpaceBegin, {
+                                                        location: this.locationState.getCurrentLocation(),
+                                                    }],
+                                                },
+                                            ),
+                                        }
+                                    }
+                                    case Char.WrappedString.apostrophe: {
+                                        return {
+                                            consumeCharacter: true,
+                                            preToken: this.changeCurrentTokenType(
+                                                [TokenType.WRAPPED_STRING, {
+                                                    startCharacter: nextChar,
+                                                    slashed: false,
+                                                    unicode: null,
+                                                    foundNewlineCharacter: null,
+                                                }],
+                                                {
+                                                    type: [PreTokenDataType.WrappedStringBegin, {
+                                                        type: ["apostrophed", {}],
+                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                    }],
+                                                },
+                                            ),
+                                        }
+                                    }
+                                    case Char.WrappedString.backtick: {
+                                        return {
+                                            consumeCharacter: true,
+                                            preToken: this.changeCurrentTokenType(
+                                                [TokenType.WRAPPED_STRING, {
+                                                    startCharacter: nextChar,
+                                                    slashed: false,
+                                                    unicode: null,
+                                                    foundNewlineCharacter: null,
+                                                }],
+                                                {
+                                                    type: [PreTokenDataType.WrappedStringBegin, {
+                                                        type: ["multiline", {
+                                                            previousLines: [],
+                                                        }],
+                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                    }],
+                                                },
+                                            ),
+                                        }
+                                    }
+                                    case Char.WrappedString.quotationMark: {
+                                        return {
+                                            consumeCharacter: true,
+                                            preToken: this.changeCurrentTokenType(
+                                                [TokenType.WRAPPED_STRING, {
+                                                    startCharacter: nextChar,
+                                                    slashed: false,
+                                                    unicode: null,
+                                                    foundNewlineCharacter: null,
+                                                }],
+                                                {
+                                                    type: [PreTokenDataType.WrappedStringBegin, {
+                                                        type: ["quoted", {}],
+                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                    }],
+                                                },
+                                            ),
+                                        }
+                                    }
+                                    default: {
+                                        function nextIsPunctuation(): boolean {
+                                            if (
+                                                nextChar === Char.Punctuation.openBracket ||
+                                                nextChar === Char.Punctuation.openAngleBracket ||
+                                                nextChar === Char.Punctuation.comma ||
+                                                nextChar === Char.Punctuation.closeBracket ||
+                                                nextChar === Char.Punctuation.closeAngleBracket ||
+                                                nextChar === Char.Punctuation.openBrace ||
+                                                nextChar === Char.Punctuation.openParen ||
+                                                nextChar === Char.Punctuation.closeParen ||
+                                                nextChar === Char.Punctuation.closeBrace ||
+                                                nextChar === Char.Punctuation.colon ||
+                                                nextChar === Char.Punctuation.exclamationMark ||
+                                                nextChar === Char.Punctuation.verticalLine
+                                            ) {
+                                                return true
+                                            }
+                                            return false
+                                        }
+                                        if (!nextIsPunctuation()) {
+                                            return {
+                                                consumeCharacter: false,
+                                                preToken: this.changeCurrentTokenType(
+                                                    [TokenType.NONWRAPPED_STRING],
+                                                    {
+                                                        type: [PreTokenDataType.NonWrappedStringBegin, {
+                                                            location: this.locationState.getCurrentLocation(),
+                                                        }],
+                                                    },
+                                                ),
+                                            }
+                                        } else {
+                                            return {
+                                                consumeCharacter: true,
+                                                preToken: {
+                                                    type: [PreTokenDataType.Punctuation, {
+                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                        char: nextChar,
+                                                    }],
+                                                },
+                                            }
+                                        }
+
+                                    }
+                                }
+
+                            }
+                        }
+                    )
+                }
+                case TokenType.WRAPPED_STRING: {
+                    /**
+                     * QUOTED STRING PROCESSING
+                     */
+                    const $ = currentTokenType[1]
+
+                    return this.whileLoop(
+                        currentChunk,
+                        (nextChar, snippet): TokenReturnType => {
+
+                            if ($.slashed) {
+                                const flushChar = (str: string): TokenReturnType => {
+                                    $.slashed = false
+                                    return {
+                                        consumeCharacter: true,
+                                        preToken: this.flushString(str),
+                                    }
+                                }
+
+                                if (nextChar === Char.WrappedString.quotationMark) { return flushChar('"') }
+                                else if (nextChar === Char.WrappedString.apostrophe) { return flushChar('\'') } //deviation from the JSON standard
+                                else if (nextChar === Char.WrappedString.apostrophe) { return flushChar('`') } //deviation from the JSON standard
+                                else if (nextChar === Char.WrappedString.reverseSolidus) { return flushChar('\\') }
+                                else if (nextChar === Char.WrappedString.solidus) { return flushChar('\/') }
+                                else if (nextChar === Char.WrappedString.b) {
+                                    return flushChar('\b')
+                                }
+                                else if (nextChar === Char.WrappedString.f) { return flushChar('\f') }
+                                else if (nextChar === Char.WrappedString.n) {
+                                    if ($.startCharacter === Char.WrappedString.backtick) {
+                                        return snippet.ensureFlushed(() => {
+                                            $.slashed = false
+                                            return {
+                                                consumeCharacter: true,
+                                                preToken: {
+                                                    type: [PreTokenDataType.NewLine, {
+                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                    }],
+                                                },
+                                            }
+                                        })
+                                    } else {
+                                        return flushChar('\n')
+                                    }
+                                }
+                                else if (nextChar === Char.WrappedString.r) {
+                                    if ($.startCharacter === Char.WrappedString.backtick) {
+                                        $.slashed = false
+
+                                        return snippet.ensureFlushed(() => {
+                                            return {
+                                                consumeCharacter: true,
+                                                preToken: {
+                                                    type: [PreTokenDataType.NewLine, {
+                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                    }],
+                                                },
+                                            }
+                                        })
+                                    } else {
+                                        return flushChar('\r')
+                                    }
+                                }
+                                else if (nextChar === Char.WrappedString.t) { return flushChar('\t') }
+                                else if (nextChar === Char.WrappedString.u) {
+                                    // \uxxxx
+                                    $.slashed = false
+                                    $.unicode = {
+                                        charactersLeft: 4,
+                                        foundCharacters: "",
+                                    }
+                                    return {
+                                        consumeCharacter: true,
+                                        preToken: null,
+                                    }
+                                }
+                                else {
+                                    //no special character
+
+                                    this.onError({
+                                        error: {
+                                            type: ["expected special character after escape slash", {
+                                                found: String.fromCharCode(nextChar),
+                                            }],
+                                        },
+                                        range: this.locationState.getCurrentCharacterRange(),
                                     })
+                                    return {
+                                        consumeCharacter: true,
+                                        preToken: null,
+                                    }
+                                }
+
+                            } else if ($.unicode !== null) {
+                                if (
+                                    (nextChar < Char.UnicodeChars["0"] && nextChar > Char.UnicodeChars["9"])
+                                    &&
+                                    (nextChar < Char.UnicodeChars.A && nextChar > Char.UnicodeChars.F)
+                                    &&
+                                    (nextChar < Char.UnicodeChars.a && nextChar > Char.UnicodeChars.f)
+                                ) {
+
+                                    this.onError({
+                                        error: {
+                                            type: ["expected hexadecimal digit", {
+                                                found: String.fromCharCode(nextChar),
+                                            }],
+                                        },
+                                        range: this.locationState.getCurrentCharacterRange(),
+                                    })
+                                }
+                                const nextCharAsString = String.fromCharCode(nextChar)
+
+                                $.unicode.foundCharacters += nextCharAsString
+                                $.unicode.charactersLeft--
+                                if ($.unicode.charactersLeft === 0) {
+                                    const textNode = String.fromCharCode(parseInt($.unicode.foundCharacters, 16))
+                                    $.unicode = null
+                                    return {
+                                        consumeCharacter: true,
+                                        preToken: this.flushString(textNode),
+                                    }
                                 } else {
+                                    return {
+                                        consumeCharacter: true,
+                                        preToken: null,
+                                    }
+                                }
+                            } else if ($.foundNewlineCharacter !== null) {
+
+                                switch ($.foundNewlineCharacter.type) {
+                                    case FoundNewlineCharacterType.CARRIAGE_RETURN: {
+                                        /*
+                                        if nextChar === Char.Whitespace.lineFeed
+                                            windows style newlines (\r\n)
+                                        else
+                                            old style Mac OS newlines (\r)
+                                        */
+                                        const fnlc = $.foundNewlineCharacter
+                                        $.foundNewlineCharacter = null
+                                        return {
+                                            consumeCharacter: nextChar === Char.Whitespace.lineFeed,
+                                            preToken: {
+                                                type: [PreTokenDataType.NewLine, {
+                                                    range: createRangeFromLocations(fnlc.startLocation, this.locationState.getCurrentLocation()),
+                                                }],
+                                            },
+                                        }
+
+                                    }
+                                    case FoundNewlineCharacterType.LINE_FEED: {
+                                        /*
+                                        if nextChar === Char.Whitespace.carriageReturn
+                                            //strange style newline (\n\r)
+                                        else
+                                            //unix style newlines (\n)
+                                            //don't consume character
+                                        */
+                                        const fnlc = $.foundNewlineCharacter
+                                        $.foundNewlineCharacter = null
+                                        console.error("LINE FEED")
+                                        return {
+                                            consumeCharacter: nextChar === Char.Whitespace.carriageReturn,
+                                            preToken: {
+                                                type: [PreTokenDataType.NewLine, {
+                                                    range: createRangeFromLocations(fnlc.startLocation, this.locationState.getCurrentLocation()),
+                                                }],
+                                            },
+                                        }
+                                    }
+                                    default:
+                                        return assertUnreachable($.foundNewlineCharacter.type)
+                                }
+                            } else {
+                                //not slashed, not unicode, not newline
+                                if (nextChar === Char.WrappedString.reverseSolidus) {//backslash
+                                    return snippet.ensureFlushed(() => {
+                                        $.slashed = true
+                                        return {
+                                            consumeCharacter: true,
+                                            preToken: null,
+                                        }
+                                    })
+                                } else if (nextChar === $.startCharacter) {
+                                    /**
+                                     * THE QUOTED STRING IS FINISHED
+                                     */
+
                                     return snippet.ensureFlushed(() => {
                                         const rangeInfo = this.locationState.getCurrentCharacterRange()
-                                        this.onError({ type: ["unterminated string"] }, rangeInfo)
 
                                         return {
-                                            consumeCharacter: true, preToken: this.changeCurrentTokenType(
+                                            consumeCharacter: true,
+                                            preToken: this.changeCurrentTokenType(
                                                 [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
                                                 {
                                                     type: [PreTokenDataType.WrappedStringEnd, {
                                                         range: rangeInfo,
-                                                        wrapper: null,
+                                                        wrapper: String.fromCharCode(nextChar),
                                                     }],
-                                                }
+                                                },
                                             ),
                                         }
                                     })
+                                } else if (nextChar === Char.Whitespace.carriageReturn || nextChar === Char.Whitespace.lineFeed) {
+                                    if ($.startCharacter === Char.WrappedString.backtick) { //multiline
+
+                                        return snippet.ensureFlushed(() => {
+
+                                            $.foundNewlineCharacter = {
+                                                type: nextChar === Char.Whitespace.carriageReturn ? FoundNewlineCharacterType.CARRIAGE_RETURN : FoundNewlineCharacterType.LINE_FEED,
+                                                startLocation: this.locationState.getCurrentLocation(),
+                                            }
+                                            return {
+                                                consumeCharacter: true,
+                                                preToken: null,
+                                            }
+                                        })
+                                    } else {
+                                        return snippet.ensureFlushed(() => {
+                                            const rangeInfo = this.locationState.getCurrentCharacterRange()
+                                            this.onError({
+                                                error: { type: ["unterminated string"] },
+                                                range: rangeInfo,
+                                            })
+
+                                            return {
+                                                consumeCharacter: true, preToken: this.changeCurrentTokenType(
+                                                    [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
+                                                    {
+                                                        type: [PreTokenDataType.WrappedStringEnd, {
+                                                            range: rangeInfo,
+                                                            wrapper: null,
+                                                        }],
+                                                    }
+                                                ),
+                                            }
+                                        })
+                                    }
+                                } else {
+                                    //normal character
+                                    //don't flush
+                                    snippet.start()
+                                    return {
+                                        consumeCharacter: true,
+                                        preToken: null,
+                                    }
                                 }
+                            }
+                        }
+                    )
+
+                }
+                case TokenType.NONWRAPPED_STRING: {
+                    /**
+                     * nonwrapped string PROCESSING (null, true, false)
+                     */
+                    return this.processUntilFirstNotIncludedCharacter(
+                        currentChunk,
+                        (char: number) => {
+                            const isOtherCharacter = (false
+                                || char === Char.Whitespace.carriageReturn
+                                || char === Char.Whitespace.lineFeed
+                                || char === Char.Whitespace.space
+                                || char === Char.Whitespace.tab
+
+                                || char === Char.Punctuation.closeBrace
+                                || char === Char.Punctuation.closeParen
+                                || char === Char.Punctuation.colon
+                                || char === Char.Punctuation.comma
+                                || char === Char.Punctuation.openBrace
+                                || char === Char.Punctuation.openParen
+                                || char === Char.Punctuation.closeAngleBracket
+                                || char === Char.Punctuation.closeBracket
+                                || char === Char.Punctuation.openAngleBracket
+                                || char === Char.Punctuation.openBracket
+                                || char === Char.Punctuation.verticalLine
+
+                                || char === Char.Comment.solidus
+
+                                || char === Char.WrappedString.quotationMark
+                                || char === Char.WrappedString.apostrophe
+                            )
+                            return !isOtherCharacter
+                        },
+                        () => {
+                            return {
+                                consumeCharacter: false,
+                                preToken: this.changeCurrentTokenType(
+                                    [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
+                                    {
+                                        type: [PreTokenDataType.NonWrappedStringEnd, {
+                                            location: this.locationState.getCurrentLocation(),
+                                        }],
+                                    }
+                                ),
+                            }
+                        },
+                    )
+                }
+                case TokenType.WHITESPACE: {
+                    /**
+                     * nonwrapped string PROCESSING (null, true, false)
+                     */
+
+                    return this.whileLoop(
+                        currentChunk,
+                        (nextChar, snippet) => {
+                            //first check if we are breaking out of an whitespace token. Can only be done by checking the character that comes directly after the whitespace token
+                            if (nextChar !== Char.Whitespace.space && nextChar !== Char.Whitespace.tab) {
+                                return snippet.ensureFlushed(() => {
+                                    return {
+                                        consumeCharacter: false,
+                                        preToken: this.changeCurrentTokenType(
+                                            [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
+                                            {
+                                                type: [PreTokenDataType.WhiteSpaceEnd, {
+                                                    location: this.locationState.getCurrentLocation(),
+                                                }],
+                                            }
+                                        ),
+                                    }
+                                })
                             } else {
-                                //normal character
-                                //don't flush
+                                //whitespace character
                                 snippet.start()
                                 return {
                                     consumeCharacter: true,
@@ -922,94 +1034,13 @@ export class PreTokenizer {
                                 }
                             }
                         }
-                    }
-                )
+                    )
 
+                }
+                default:
+                    return assertUnreachable(currentTokenType[0])
             }
-            case TokenType.NONWRAPPED_STRING: {
-                /**
-                 * nonwrapped string PROCESSING (null, true, false)
-                 */
-                return this.processUntilFirstNotIncludedCharacter(
-                    currentChunk,
-                    (char: number) => {
-                        const isOtherCharacter = (false
-                            || char === Char.Whitespace.carriageReturn
-                            || char === Char.Whitespace.lineFeed
-                            || char === Char.Whitespace.space
-                            || char === Char.Whitespace.tab
-
-                            || char === Char.Punctuation.closeBrace
-                            || char === Char.Punctuation.closeParen
-                            || char === Char.Punctuation.colon
-                            || char === Char.Punctuation.comma
-                            || char === Char.Punctuation.openBrace
-                            || char === Char.Punctuation.openParen
-                            || char === Char.Punctuation.closeAngleBracket
-                            || char === Char.Punctuation.closeBracket
-                            || char === Char.Punctuation.openAngleBracket
-                            || char === Char.Punctuation.openBracket
-                            || char === Char.Punctuation.verticalLine
-
-                            || char === Char.Comment.solidus
-
-                            || char === Char.WrappedString.quotationMark
-                            || char === Char.WrappedString.apostrophe
-                        )
-                        return !isOtherCharacter
-                    },
-                    () => {
-                        return {
-                            consumeCharacter: false,
-                            preToken: this.changeCurrentTokenType(
-                                [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
-                                {
-                                    type: [PreTokenDataType.NonWrappedStringEnd, {
-                                        location: this.locationState.getCurrentLocation(),
-                                    }],
-                                }
-                            ),
-                        }
-                    },
-                )
-            }
-            case TokenType.WHITESPACE: {
-                /**
-                 * nonwrapped string PROCESSING (null, true, false)
-                 */
-
-                return this.whileLoop(
-                    currentChunk,
-                    (nextChar, snippet) => {
-                        //first check if we are breaking out of an whitespace token. Can only be done by checking the character that comes directly after the whitespace token
-                        if (nextChar !== Char.Whitespace.space && nextChar !== Char.Whitespace.tab) {
-                            return snippet.ensureFlushed(() => {
-                                return {
-                                    consumeCharacter: false,
-                                    preToken: this.changeCurrentTokenType(
-                                        [TokenType.NONE, { foundNewlineCharacter: null, foundSolidus: null }],
-                                        {
-                                            type: [PreTokenDataType.WhiteSpaceEnd, {
-                                                location: this.locationState.getCurrentLocation(),
-                                            }],
-                                        }
-                                    ),
-                                }
-                            })
-                        } else {
-                            //whitespace character
-                            snippet.start()
-                            return {
-                                consumeCharacter: true,
-                                preToken: null,
-                            }
-                        }
-                    }
-                )
-
-            }
-            default:
-                return assertUnreachable(currentTokenType[0])
         }
     }
+    return new PreTokenizer()
 }
