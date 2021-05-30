@@ -5,22 +5,24 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "../../../location"
+import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
 import {
     TreeEvent,
     TreeEventType,
-    TreeParserEventConsumer,
+    ITreeParserEventConsumer,
+} from "../../interfaces/ITreeParserEventConsumer"
+import {
     TreeParserError,
     TreeParserErrorType,
-} from "../functions"
+} from "./functions"
 import {
     Token,
     TokenType,
     StringData,
     PunctionationData,
     ITreeParser,
-} from "../../../interfaces/ITreeParser"
-import * as Char from "../../../Characters"
+} from "../../interfaces/ITreeParser"
+import * as Char from "../../Characters"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -63,14 +65,14 @@ type StackContext = {
 
 export function createTreeParser<ReturnType, ErrorType>(
     onerror: (error: TreeParserError, range: Range) => void,
-    eventsConsumer: TreeParserEventConsumer<ReturnType, ErrorType>
+    eventsConsumer: ITreeParserEventConsumer<ReturnType, ErrorType>
 ): ITreeParser<ReturnType, ErrorType> {
 
     class TreeParser {
         private readonly stack = new Array<StackContext>()
         private currentContext: StackContext | null = null
         private readonly onerror: (error: TreeParserError, range: Range) => void
-        private readonly eventsConsumer: TreeParserEventConsumer<ReturnType, ErrorType>
+        private readonly eventsConsumer: ITreeParserEventConsumer<ReturnType, ErrorType>
         constructor(
         ) {
             this.onerror = onerror

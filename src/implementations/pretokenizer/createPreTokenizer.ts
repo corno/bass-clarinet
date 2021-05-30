@@ -799,7 +799,6 @@ export function createPreTokenizer(
                                         */
                                         const fnlc = $.foundNewlineCharacter
                                         $.foundNewlineCharacter = null
-                                        console.error("LINE FEED")
                                         return {
                                             consumeCharacter: nextChar === Char.Whitespace.carriageReturn,
                                             preToken: {

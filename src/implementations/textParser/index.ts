@@ -1,5 +1,5 @@
 export * from "./functions"
 
-export { createTextParser } from "./implementation/createTextParser"
-export { printTextParserError } from "./implementation/printTextParserError"
+export { createTextParser } from "./createTextParser"
+export { printTextParserError } from "./printTextParserError"
 

@@ -1,2 +1,2 @@
 
-export { createTokenizer} from "./implementation/createTokenizer"
+export { createTokenizer} from "./createTokenizer"

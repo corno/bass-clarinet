@@ -4,7 +4,7 @@
 import * as p from "pareto"
 import { OverheadTokenType } from "../interfaces/ITreeParser"
 import { Range, Location } from "../location"
-import { TreeEventType, TreeParserEventConsumer } from "../implementations/treeParser"
+import { TreeEventType, ITreeParserEventConsumer } from "../interfaces/ITreeParserEventConsumer"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")
@@ -61,7 +61,7 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onEnd: () => p.IValue<null>,
-): TreeParserEventConsumer<null, null> {
+): ITreeParserEventConsumer<null, null> {
 	let precedingWhitespace: null | TokenInfo = null
 
 	const stack: Style[] = []
@@ -242,7 +242,7 @@ export function createFormatter(
 		currentRequiredStyle = style
 	}
 
-	const ds: TreeParserEventConsumer<null, null> = {
+	const ds: ITreeParserEventConsumer<null, null> = {
 
 		onData: data => {
 			switch (data.type[0]) {

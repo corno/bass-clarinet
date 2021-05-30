@@ -3,12 +3,12 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "../../../location"
-import { RangeError } from "../../../errors"
-import { IPreTokenStreamConsumer } from "../../../interfaces/IPreTokenStreamConsumer"
-import { TokenConsumer } from "../../../interfaces/ITokenConsumer"
-import { PreToken, PreTokenDataType, WrappedStringType } from "../../../interfaces/IPreTokenStreamConsumer"
-import { OverheadTokenType, StringType, TokenType } from "../../../interfaces/ITreeParser"
+import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "../../location"
+import { RangeError } from "../../errors"
+import { IPreTokenStreamConsumer } from "../../interfaces/IPreTokenStreamConsumer"
+import { TokenConsumer } from "../../interfaces/ITokenConsumer"
+import { PreToken, PreTokenDataType, WrappedStringType } from "../../interfaces/IPreTokenStreamConsumer"
+import { OverheadTokenType, StringType, TokenType } from "../../interfaces/ITreeParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

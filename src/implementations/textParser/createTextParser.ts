@@ -3,12 +3,13 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../../location"
-import * as Char from "../../../Characters"
-import { createTreeParser, TreeParserEventConsumer, TreeEventType } from "../../treeParser"
-import { TextErrorType, TextParserError } from "../functions"
-import { ITreeParser, OverheadToken, PunctionationData, StringData, Token, TokenType } from "../../../interfaces/ITreeParser"
-import { TokenConsumer } from "../../../interfaces/ITokenConsumer"
+import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
+import * as Char from "../../Characters"
+import { createTreeParser } from "../treeParser"
+import { ITreeParserEventConsumer, TreeEventType } from "../../interfaces/ITreeParserEventConsumer"
+import { TextErrorType, TextParserError } from "./functions"
+import { ITreeParser, OverheadToken, PunctionationData, StringData, Token, TokenType } from "../../interfaces/ITreeParser"
+import { TokenConsumer } from "../../interfaces/ITokenConsumer"
 
 const DEBUG = false
 
@@ -56,8 +57,8 @@ type RootContext<ReturnType, ErrorType> = {
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
 export function createTextParser<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => TreeParserEventConsumer<null, null>,
-    onInstanceDataStart: (location: Location) => TreeParserEventConsumer<ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => ITreeParserEventConsumer<null, null>,
+    onInstanceDataStart: (location: Location) => ITreeParserEventConsumer<ReturnType, ErrorType>,
     onerror: (error: TextParserError, range: Range) => void,
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
 ): TokenConsumer<ReturnType, ErrorType> {

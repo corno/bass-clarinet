@@ -11,9 +11,6 @@ import * as chai from "chai"
 import { ownJSONTests } from "./data/ownJSONTestset"
 import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
-import { createStreamSplitter } from "../src/implementations/createStreamSplitter"
-import { printParsingError, printStackedDataError } from "../src"
-import * as tp from "../src/interfaces/ITreeParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -35,9 +32,9 @@ interface HeaderSubscriber {
 }
 
 
-function outputOverheadToken(out: string[], $: tp.OverheadToken) {
+function outputOverheadToken(out: string[], $: astn.OverheadToken) {
     switch ($.type[0]) {
-        case tp.OverheadTokenType.Comment: {
+        case astn.OverheadTokenType.Comment: {
             const $$ = $.type[1]
             switch ($$.type) {
                 case "block": {
@@ -55,11 +52,11 @@ function outputOverheadToken(out: string[], $: tp.OverheadToken) {
             }
             break
         }
-        case tp.OverheadTokenType.NewLine: {
+        case astn.OverheadTokenType.NewLine: {
             out.push("\n")
             break
         }
-        case tp.OverheadTokenType.WhiteSpace: {
+        case astn.OverheadTokenType.WhiteSpace: {
             const $$ = $.type[1]
             out.push($$.value)
             break
@@ -71,8 +68,8 @@ function outputOverheadToken(out: string[], $: tp.OverheadToken) {
 
 function createOutPutter(
     out: string[]
-): astn.TreeParserEventConsumer<null, null> {
-    class OutPutter implements astn.TreeParserEventConsumer<null, null> {
+): astn.ITreeParserEventConsumer<null, null> {
+    class OutPutter implements astn.ITreeParserEventConsumer<null, null> {
         onData(data: astn.TreeEvent) {
             switch (data.type[0]) {
                 case astn.TreeEventType.CloseArray: {
@@ -223,16 +220,16 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             createTestRequiredValueHandler(),
             error => {
 
-                actualEvents.push(["stacked error", printStackedDataError(error)])
+                actualEvents.push(["stacked error", astn.printStackedDataError(error)])
             },
             () => {
                 return p.success<null, null>(null)
             }
         )
-        function onOverheadTokenEvent($: tp.OverheadToken, range: astn.Range) {
+        function onOverheadTokenEvent($: astn.OverheadToken, range: astn.Range) {
 
             switch ($.type[0]) {
-                case tp.OverheadTokenType.Comment: {
+                case astn.OverheadTokenType.Comment: {
                     const $$ = $.type[1]
                     if (DEBUG) console.log("found block comment")
                     if ($$.type === "block") {
@@ -244,12 +241,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                     }
                     break
                 }
-                case tp.OverheadTokenType.NewLine: {
+                case astn.OverheadTokenType.NewLine: {
                     //const $ = data.type[1]
                     //place your code here
                     break
                 }
-                case tp.OverheadTokenType.WhiteSpace: {
+                case astn.OverheadTokenType.WhiteSpace: {
                     //const $ = data.type[1]
                     //place your code here
                     break
@@ -258,7 +255,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                     assertUnreachable($.type[0])
             }
         }
-        const eventSubscriber: astn.TreeParserEventConsumer<null, null> = {
+        const eventSubscriber: astn.ITreeParserEventConsumer<null, null> = {
             onData: data => {
                 switch (data.type[0]) {
                     case astn.TreeEventType.CloseArray: {
@@ -384,12 +381,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             )
         }
         const out: string[] = []
-        const schemaDataSubscribers: astn.TreeParserEventConsumer<null, null>[] = [
+        const schemaDataSubscribers: astn.ITreeParserEventConsumer<null, null>[] = [
             createOutPutter(out),
             eventSubscriber,
             createFormatter(),
         ]
-        const instanceDataSubscribers: astn.TreeParserEventConsumer<null, null>[] = [
+        const instanceDataSubscribers: astn.ITreeParserEventConsumer<null, null>[] = [
             createOutPutter(out),
             eventSubscriber,
             stackedSubscriber,
@@ -422,17 +419,17 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 headerSubscribers.forEach(s => {
                     s.onSchemaDataStart(range)
                 })
-                return createStreamSplitter(schemaDataSubscribers)
+                return astn.createStreamSplitter(schemaDataSubscribers)
             },
             location => {
                 headerSubscribers.forEach(s => {
                     s.onInstanceDataStart(location)
                 })
-                return createStreamSplitter(instanceDataSubscribers)
+                return astn.createStreamSplitter(instanceDataSubscribers)
             },
             (error, _location) => {
                 if (DEBUG) console.log("found error")
-                actualEvents.push(["parsingerror", printParsingError(error)])
+                actualEvents.push(["parsingerror", astn.printParsingError(error)])
 
 
             },

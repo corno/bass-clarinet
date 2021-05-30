@@ -21,10 +21,10 @@ import {
     RangeError,
 } from "../../errors"
 import {
-    TreeParserEventConsumer,
+    ITreeParserEventConsumer,
     TreeEvent,
     TreeEventType,
-} from "../treeParser"
+} from "../../interfaces/ITreeParserEventConsumer"
 import {
     BeforeContextData,
     ContextData,
@@ -791,7 +791,7 @@ export function createStackedParser<ReturnType, ErrorType>(
     valueHandler: ParserRequiredValueHandler,
     onError: (error: StackedDataError, range: Range) => void,
     onEnd: () => p.IUnsafeValue<ReturnType, ErrorType>
-): TreeParserEventConsumer<ReturnType, ErrorType> {
+): ITreeParserEventConsumer<ReturnType, ErrorType> {
     const overheadState = new OverheadState()
     const semanticState = new SemanticState(valueHandler)
 

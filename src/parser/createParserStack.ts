@@ -13,7 +13,7 @@ import {
     createTokenizer,
 } from "../implementations/tokenizer"
 import { printPreTokenizerError, PreTokenizerError } from "../implementations/pretokenizer"
-import { TreeParserEventConsumer } from "../implementations/treeParser"
+import { ITreeParserEventConsumer } from "../interfaces/ITreeParserEventConsumer"
 import { printTextParserError } from "../implementations/textParser"
 import { TextParserError } from "../implementations/textParser"
 import { OverheadToken } from "../interfaces/ITreeParser"
@@ -53,8 +53,8 @@ export function printParsingError(error: ParsingError): string {
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).
  */
 export function createParserStack<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => TreeParserEventConsumer<null, null>,
-    onInstanceDataStart: (location: Location) => TreeParserEventConsumer<ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => ITreeParserEventConsumer<null, null>,
+    onInstanceDataStart: (location: Location) => ITreeParserEventConsumer<ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },

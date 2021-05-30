@@ -1,4 +1,4 @@
 export * from "./functions"
 
-export { printTreeParserError } from "./implementation/printTreeParserError"
-export { createTreeParser } from "./implementation/createTreeParser"
+export { printTreeParserError } from "./printTreeParserError"
+export { createTreeParser } from "./createTreeParser"

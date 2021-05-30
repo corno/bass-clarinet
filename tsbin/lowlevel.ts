@@ -17,7 +17,7 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: astn.TreeParserEventConsumer<null, null> = {
+export const parserEventConsumer: astn.ITreeParserEventConsumer<null, null> = {
     onData: data => {
         switch (data.type[0]) {
             case astn.TreeEventType.CloseArray: {
