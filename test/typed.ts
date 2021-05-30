@@ -9,7 +9,7 @@ import * as chai from "chai"
 import * as astn from "../src"
 import { getEndLocationFromRange } from "../src"
 import { ParserAnnotationData } from "../src/stackedParser"
-import { ExpectError, printExpectError } from "../src/expect"
+import { ExpectError, printExpectError, createExpectContext, IExpectContext } from "../src/expect"
 
 //const selectedJSONTests: string[] = ["two keys"]
 //const selectedExtensionTests: string[] = []
@@ -36,7 +36,7 @@ describe('typed', () => {
             testName: string,
             data: string,
             callback: (
-                expect: astn.ExpectContext<ParserAnnotationData, null>,
+                expect: IExpectContext<ParserAnnotationData, null>,
                 addError: (errorLine: ErrorLine) => void
             ) => astn.ParserRequiredValueHandler,
             expectedErrors: ErrorLine[]
@@ -66,7 +66,7 @@ describe('typed', () => {
                     },
                     () => {
 
-                        const expect = new astn.ExpectContext<ParserAnnotationData, null>(
+                        const expect = createExpectContext<ParserAnnotationData, null>(
                             $ => {
                                 const end = getEndLocationFromRange($.annotation.range)
                                 foundErrors.push(["expect error", printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
@@ -301,7 +301,7 @@ describe('typed', () => {
                                         {
                                             foo: () => {
                                                 return {
-                                                    exists: expect.expectType(),
+                                                    exists: expect.expectType({}),
                                                     missing: () => {
                                                         addError(["missing", "TBD", 0, 0, 0, 0])
                                                     },

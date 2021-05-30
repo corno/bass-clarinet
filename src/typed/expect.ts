@@ -1,7 +1,7 @@
 import * as p from "pareto"
 import * as astn from ".."
 import { ArrayData, ObjectData, OptionData, StringData2, PropertyData } from "../handlers"
-import { ExpectContext, ExpectedProperties } from "../expect"
+import { ExpectedProperties, IExpectContext } from "../expect"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -164,7 +164,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
     ]
 
 export function createRequiredValueHandler<TokenAnnotation, NonTokenAnnotation>(
-    context: ExpectContext<TokenAnnotation, NonTokenAnnotation>,
+    context: IExpectContext<TokenAnnotation, NonTokenAnnotation>,
     valueType: ValueType<TokenAnnotation, NonTokenAnnotation>,
 ): astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
     return context.expectValue(
@@ -177,7 +177,7 @@ export function createRequiredValueHandler<TokenAnnotation, NonTokenAnnotation>(
 }
 
 export function createValueHandler<TokenAnnotation, NonTokenAnnotation>(
-    context: ExpectContext<TokenAnnotation, NonTokenAnnotation>,
+    context: IExpectContext<TokenAnnotation, NonTokenAnnotation>,
     valueType: ValueType<TokenAnnotation, NonTokenAnnotation>,
 ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
     switch (valueType[0]) {

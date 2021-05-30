@@ -1,8 +1,10 @@
 import {
     ExpectErrorValueType,
-    ExpectError,
     ExpectErrorValue,
 } from "../api"
+import {
+    ExpectError,
+} from "../functions"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
