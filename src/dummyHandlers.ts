@@ -1,5 +1,5 @@
 import * as p from "pareto"
-import { ArrayHandler, ObjectHandler, RequiredValueHandler, TaggedUnionHandler, ValueHandler } from "../handlers"
+import { ArrayHandler, ObjectHandler, RequiredValueHandler, TaggedUnionHandler, ValueHandler } from "./handlers"
 
 export function createDummyRequiredValueHandler<TokenAnnotation, NonTokenAnnotation>(): RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
     return {

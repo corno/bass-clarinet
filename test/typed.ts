@@ -7,7 +7,9 @@ import * as p20 from "pareto-20"
 import { describe } from "mocha"
 import * as chai from "chai"
 import * as astn from "../src"
-import { getEndLocationFromRange, ExpectError, printExpectError, ParserAnnotationData } from "../src"
+import { getEndLocationFromRange } from "../src"
+import { ParserAnnotationData } from "../src/stackedParser"
+import { ExpectError, printExpectError } from "../src/expect"
 
 //const selectedJSONTests: string[] = ["two keys"]
 //const selectedExtensionTests: string[] = []

@@ -1,5 +1,5 @@
 import * as p from "pareto"
-import { ArrayData, ElementData, ObjectData, OptionData, PropertyData, RequiredValueHandler, StringData2, StackContext, ValueHandler } from "../handlers";
+import { ArrayData, ElementData, ObjectData, OptionData, PropertyData, RequiredValueHandler, StringData2, StackContext, ValueHandler } from "./handlers";
 
 export interface Annotater<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation> {
     objectBegin: ($: {

@@ -1,7 +1,7 @@
 import * as p from "pareto"
 import * as fs from "fs"
 import * as stream from "stream"
-import { Annotater } from "../src/attachments/createDecorator"
+import { Annotater } from "../src/createDecorator"
 import { TokenFormatInstruction, NonTokenFormatInstruction } from "../src/formatting/FormatInstruction"
 import { formatASTNText, ParserAnnotationData } from "../src"
 

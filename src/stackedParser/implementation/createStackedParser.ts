@@ -9,56 +9,36 @@ import {
     createRangeFromSingleLocation,
     Location,
     Range,
-} from "../location"
-import { createDummyValueHandler } from "./dummyHandlers"
+} from "../../location"
 import {
-    RequiredValueHandler,
-    ObjectHandler,
-    ArrayHandler,
-    TaggedUnionHandler,
-    ValueHandler,
+    createDummyValueHandler
+} from "../../dummyHandlers"
+import {
     StringType2,
     StackContext,
-} from "../handlers"
-import { RangeError } from "../errors"
-import { OverheadTokenType, TreeParserEventConsumer } from "../treeParser"
-import { TreeEvent, TreeEventType } from "../treeParser"
+} from "../../handlers"
+import {
+    RangeError,
+} from "../../errors"
+import {
+    OverheadTokenType,
+    TreeParserEventConsumer,
+    TreeEvent,
+    TreeEventType,
+} from "../../treeParser"
+import {
+    BeforeContextData,
+    ContextData,
+    ParserArrayHandler,
+    ParserObjectHandler,
+    ParserRequiredValueHandler,
+    ParserTaggedUnionHandler,
+    ParserValueHandler,
+    Comment,
+} from "../api"
+import { StackedDataError } from "../functions"
 
 const DEBUG = false
-
-
-export type BeforeContextData = {
-    comments: Comment[]
-    indentation: string | null
-}
-
-export type ContextData = {
-    before: BeforeContextData
-    lineCommentAfter: null | Comment
-}
-
-export type ParserAnnotationData = {
-    tokenString: string
-    contextData: ContextData
-    range: Range
-}
-
-export type ParserRequiredValueHandler = RequiredValueHandler<ParserAnnotationData, null>
-export type ParserValueHandler = ValueHandler<ParserAnnotationData, null>
-export type ParserObjectHandler = ObjectHandler<ParserAnnotationData, null>
-export type ParserTaggedUnionHandler = TaggedUnionHandler<ParserAnnotationData, null>
-export type ParserArrayHandler = ArrayHandler<ParserAnnotationData, null>
-
-export type Comment = {
-    text: string
-    outerRange: Range
-    innerRange: Range
-    type:
-    | "block"
-    | "line"
-    indent: null | string
-}
-
 
 class StackedDataSubscriberPanic extends RangeError {
     constructor(message: string, range: Range) {
@@ -92,74 +72,6 @@ type ContextType =
         readonly handler: ParserTaggedUnionHandler
         state: TaggedUnionState
     }]
-
-export type StackedDataError =
-    | ["unexpected end of document", {
-        "still in":
-        | ["array"]
-        | ["object"]
-        | ["tagged union"]
-    }]
-    | ["missing property data"]
-    | ["unmatched dictionary close"]
-    | ["unmatched verbose type close"]
-
-    | ["unmatched list close"]
-    | ["unmatched shorthand type close"]
-    | ["missing object close"]
-    | ["missing array close"]
-    | ["missing tagged union value"]
-    | ["missing tagged union option and value"]
-    | ["unexpected end of array"]
-    | ["unexpected end of object"]
-    | ["unexpected key"]
-
-export function printStackedDataError(error: StackedDataError): string {
-    switch (error[0]) {
-        case "unmatched dictionary close": {
-            return error[0]
-        }
-        case "unmatched verbose type close": {
-            return error[0]
-        }
-        case "unmatched list close": {
-            return error[0]
-        }
-        case "unmatched shorthand type close": {
-            return error[0]
-        }
-        case "missing array close": {
-            return error[0]
-        }
-        case "missing object close": {
-            return error[0]
-        }
-        case "missing property data": {
-            return error[0]
-        }
-        case "missing tagged union option and value": {
-            return error[0]
-        }
-        case "missing tagged union value": {
-            return error[0]
-        }
-        case "unexpected end of array": {
-            return error[0]
-        }
-        case "unexpected end of document": {
-            const $ = error[1]
-            return `unexpected end of document, still in ${$["still in"][0]}`
-        }
-        case "unexpected end of object": {
-            return error[0]
-        }
-        case "unexpected key": {
-            return error[0]
-        }
-        default:
-            return assertUnreachable(error[0])
-    }
-}
 
 function raiseError(onError: (error: StackedDataError, range: Range) => void, error: StackedDataError, range: Range) {
     onError(error, range)
@@ -672,17 +584,17 @@ function processParserEvent(
             }
         }
 
-        function trimStringLines(lines: string[], indentation: string) {
-            return lines.map((line, index) => {
-                if (index === 0) { //the first line needs no trimming
+            function trimStringLines(lines: string[], indentation: string) {
+                return lines.map((line, index) => {
+                    if (index === 0) { //the first line needs no trimming
+                        return line
+                    }
+                    if (line.startsWith(indentation)) {
+                        return line.substr(indentation.length)
+                    }
                     return line
-                }
-                if (line.startsWith(indentation)) {
-                    return line.substr(indentation.length)
-                }
-                return line
-            })
-        }
+                })
+            }
         case TreeEventType.String: {
             const $ = data.type[1]
 

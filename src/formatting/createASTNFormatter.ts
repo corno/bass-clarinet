@@ -1,4 +1,4 @@
-import { Annotater } from "../attachments/createDecorator"
+import { Annotater } from "../createDecorator"
 import {  StackContext } from "../handlers"
 import { NonTokenFormatInstruction, TokenFormatInstruction } from "./FormatInstruction"
 import { createSerializedApostrophedString, createSerializedQuotedString } from "./escapeString"

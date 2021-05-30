@@ -5,7 +5,7 @@
 import * as p from "pareto"
 import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
 import * as Char from "../../Characters"
-import { createTreeParser, printTreeParserError, TreeParserEventConsumer, TreeEventType } from "../../treeParser"
+import { createTreeParser, TreeParserEventConsumer, TreeEventType } from "../../treeParser"
 import { TokenType, Token, PunctionationData, StringData, OverheadToken } from "../../treeParser"
 import { TokenConsumer } from "../../tokenizer"
 import { ITreeParser } from "../../treeParser"

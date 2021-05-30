@@ -1,3 +1,1 @@
-export {
-    createStreamPreTokenizer
-} from "./implementation/createStreamPreTokenizer"
+export { createStreamPreTokenizer } from "./implementation/createStreamPreTokenizer"

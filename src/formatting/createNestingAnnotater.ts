@@ -1,4 +1,4 @@
-import { Annotater } from "../attachments/createDecorator";
+import { Annotater } from "../createDecorator";
 
 export type NestingTokenAnnotation<InTokenAnnotation, OutTokenAnnotation> = {
     in: InTokenAnnotation

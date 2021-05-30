@@ -1,10 +1,10 @@
 import * as p from "pareto"
-import { Annotater, createDecoratedRequiredValue } from "../attachments/createDecorator"
+import { Annotater, createDecoratedRequiredValue } from "../createDecorator"
 import { TokenFormatInstruction, NonTokenFormatInstruction } from "./FormatInstruction"
 import { createRequiredValueConcatenator } from "./concatenateFormatInstructions"
-import { createStackedParser, ParserAnnotationData } from "../stackedParser/createStackedParser"
+import { createStackedParser, ParserAnnotationData } from "../stackedParser"
 import { parseString, printParsingError } from "../parser"
-import { createDummyValueHandler } from "../stackedParser/dummyHandlers"
+import { createDummyValueHandler } from "../dummyHandlers"
 import { printRange } from "../location"
 
 export function formatASTNText(
