@@ -715,7 +715,7 @@ function processParserEvent(
                 handler: contextData => {
 
                     function onString(vh: ParserValueHandler, cd: ContextData): p.IValue<boolean> {
-                        //if (DEBUG) { console.log("on simple value", $.value) }
+                        //if (DEBUG) { console.log("on string", $.value) }
                         semanticState.wrapupValue(data.range)
                         return vh.string({
                             data: {
@@ -729,7 +729,7 @@ function processParserEvent(
                                         }
                                         case "apostrophed": {
                                             const $$ = $.type[1]
-                                            //simple values with apostrophes are not canonical
+                                            //strings with apostrophes are not canonical
                                             return ["quoted", {
                                                 value: $$.value,
                                             }]

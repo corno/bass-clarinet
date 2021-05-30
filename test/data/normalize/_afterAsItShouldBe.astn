@@ -7,7 +7,7 @@
                 'properties': {
                     "foo": (
                         'type': | 'state group' (
-                            /*a comment after a simple value*/
+                            /*a comment after a string*/
                             'default state': "bla"
                             'states': {
                                 "bla": ( )

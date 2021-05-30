@@ -39,7 +39,7 @@ export type ExpectError =
         found: ExpectErrorValueType
         expected: ExpectErrorValue
     }]
-    | ["invalid simple value", {
+    | ["invalid string", {
         found: string
         expected: ExpectErrorValue
     }]
@@ -63,6 +63,8 @@ export type ExpectError =
     | ["not a valid number", {
         value: string
     }]
+    | ["not a quoted string", {
+    }]
     | ["superfluous element", {
     }]
     | ["elements missing", {
@@ -84,7 +86,8 @@ export type ExpectErrorValueType =
     | "list"
     | "shorthand type"
     | "tagged union"
-    | "simple value"
+    | "string"
+    | "quoted string"
     | "type"
     | "type or shorthand type"
 
@@ -122,8 +125,11 @@ export function printExpectErrorValueType(vt: ExpectErrorValueType): string {
         case "object": {
             return `an object ( {} or () )`
         }
-        case "simple value": {
-            return `a simple value (a number, a string, a keyword, a boolean)`
+        case "string": {
+            return `a string (quoted, apostrophed, multiline or non wrapped (including a number, a keyword, a boolean)`
+        }
+        case "quoted string": {
+            return `a string with quotes`
         }
         case "tagged union": {
             return `a tagged union ( | "statename" data )`
@@ -161,7 +167,7 @@ export function printExpectError(issue: ExpectError): string {
             const $ = issue[1]
             return `expected ${printExpectErrorValue($.expected)} but found ${printExpectErrorValueType($.found)}`
         }
-        case "invalid simple value": {
+        case "invalid string": {
             const $ = issue[1]
             return `expected '${printExpectErrorValue($.expected)}' but found '${$.found}'`
         }
@@ -217,7 +223,11 @@ export function printExpectError(issue: ExpectError): string {
         }
         case "not a valid number": {
             const $ = issue[1]
-            return `'${$.value} is not a valid number`
+            return `'${$.value}' is not a valid number`
+        }
+        case "not a quoted string": {
+            // const $ = issue[1]
+            return `not a quoted string`
         }
         case "superfluous element": {
             //const $ = issue[1]
@@ -726,7 +736,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
                     onInvalidType(svData.annotation)
                 } else {
                     this.raiseError(["invalid value type", {
-                        found: "simple value",
+                        found: "string",
                         expected: expected,
 
                     }], svData.annotation)
@@ -743,7 +753,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
             if (onInvalidType !== undefined && onInvalidType !== null) {
                 onInvalidType(svData.annotation)
             } else {
-                this.raiseError(["invalid value type", { found: "simple value", expected: expected }], svData.annotation)
+                this.raiseError(["invalid value type", { found: "string", expected: expected }], svData.annotation)
             }
             return p.value(false)
         }
@@ -867,7 +877,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
     ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
 
         const expectValue: ExpectErrorValue = {
-            "type": "simple value",
+            "type": "string",
             "null allowed": onNull !== undefined,
         }
         return this.expectStringImp(expectValue, callback, onInvalidType)
@@ -890,7 +900,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation)
                     } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: createSerializedString(svData.data, "", "\\n") }], svData.annotation)
+                        this.raiseError(["invalid string", { expected: expectValue, found: createSerializedString(svData.data, "", "\\n") }], svData.annotation)
                     }
                     return p.value(false)
                 }
@@ -929,7 +939,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation)
                     } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: createSerializedString(svData.data, "", "\\n") }], svData.annotation)
+                        this.raiseError(["invalid string", { expected: expectValue, found: createSerializedString(svData.data, "", "\\n") }], svData.annotation)
                     }
                     return p.value(false)
                 }
@@ -988,7 +998,38 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
             onInvalidType
         )
     }
+    public expectQuotedString(
+        callback: (value: string, data: {
+            data: StringData2
+            annotation: TokenAnnotation
+        }) => p.IValue<boolean>,
+        onInvalidType?: OnInvalidType<TokenAnnotation>,
+        onNull?: (svData: astn.StringData2) => p.IValue<boolean>,
+    ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+
+        const expectValue: ExpectErrorValue = {
+            "type": "quoted string",
+            "null allowed": onNull !== undefined,
         }
+        return this.expectStringImp(
+            expectValue,
+            svData => {
+                const onError = () => {
+                    if (onInvalidType) {
+                        onInvalidType(svData.annotation)
+                    } else {
+                        this.raiseError(["not a quoted string", { }], svData.annotation)
+                    }
+                    return p.value(false)
+                }
+                if (svData.data.type[0] !== "quoted") {
+                    return onError()
+                }
+                return callback(svData.data.type[1].value, svData)
+            },
+            onInvalidType
+        )
+    }
     public expectDictionary(
         onBegin: ($: {
             data: ObjectData

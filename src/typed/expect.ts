@@ -94,7 +94,7 @@ export type ValueType<TokenAnnotation, NonTokenAnnotation> =
         }?
     ]
     | [
-        "simple value",
+        "string",
         (data: {
             data: StringData2
             annotation: TokenAnnotation
@@ -250,7 +250,7 @@ export function createValueHandler<TokenAnnotation, NonTokenAnnotation>(
                 $2?.onInvalidType,
             )
         }
-        case "simple value": {
+        case "string": {
             const $1 = valueType[1]
             const $2 = valueType[2]
 
