@@ -31,7 +31,7 @@ module.exports = {
             "error",
             {
                 "multiline": {
-                    "delimiter": "nonwrapped",
+                    "delimiter": "none",
                     "requireLast": true
                 },
                 "singleline": {
