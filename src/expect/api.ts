@@ -75,87 +75,87 @@ export type Options<TokenAnnotation, NonTokenAnnotation> = {
 }
 
 export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
-    createDictionaryHandler(
-        onEntry: ($: {
-            data: h.PropertyData
-            annotation: TokenAnnotation
-        }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
-        onBegin?: ($: {
-            data: h.ObjectData
-            annotation: TokenAnnotation
-        }) => void,
-        onEnd?: ($: {
-            annotation: TokenAnnotation
-        }) => void,
-    ): h.OnObject<TokenAnnotation, NonTokenAnnotation>
-    createTypeHandler(
-        expectedProperties: ExpectedProperties<TokenAnnotation, NonTokenAnnotation>,
-        onBegin?: ($: {
-            data: h.ObjectData
-            annotation: TokenAnnotation
-        }) => void,
-        onEnd?: ($: {
-            hasErrors: boolean
-            annotation: TokenAnnotation
-        }) => void,
-        onUnexpectedProperty?: ($: {
-            data: h.PropertyData
-            annotation: TokenAnnotation
-        }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
-    ): h.OnObject<TokenAnnotation, NonTokenAnnotation>
-    createShorthandTypeHandler(
-        expectedElements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>,
-        onBegin?: ($: {
-            data: h.ArrayData
-            annotation: TokenAnnotation
-        }) => void,
-        onEnd?: ($: {
-            annotation: TokenAnnotation
-        }) => void
-    ): h.OnArray<TokenAnnotation, NonTokenAnnotation>
-    createListHandler(
-        onElement: () => h.ValueHandler<TokenAnnotation, NonTokenAnnotation>,
-        onBegin?: ($: {
-            data: h.ArrayData
-            annotation: TokenAnnotation
-        }) => void,
-        onEnd?: ($: {
-            annotation: TokenAnnotation
-        }) => void,
-    ): h.OnArray<TokenAnnotation, NonTokenAnnotation>
-    createTaggedUnionHandler(
-        options: Options<TokenAnnotation, NonTokenAnnotation>,
-        onUnexpectedOption?: ($: {
-            tuAnnotation: TokenAnnotation
-            data: h.OptionData
-            optionAnnotation: TokenAnnotation
-        }) => void,
-        onMissingOption?: () => void,
-    ): h.OnTaggedUnion<TokenAnnotation, NonTokenAnnotation>
-    createUnexpectedStringHandler(
-        expected: ExpectErrorValue,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
-        onNull?: ($: {
-            data: h.StringData2
-            annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-    ): h.OnString<TokenAnnotation>
-    createNullHandler(
-        expected: ExpectErrorValue,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
-    ): h.OnString<TokenAnnotation>
-    createUnexpectedTaggedUnionHandler(
-        expected: ExpectErrorValue,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
-    ): h.OnTaggedUnion<TokenAnnotation, NonTokenAnnotation>
-    createUnexpectedObjectHandler(
-        expected: ExpectErrorValue,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
-    ): h.OnObject<TokenAnnotation, NonTokenAnnotation>
-    createUnexpectedArrayHandler(
-        expected: ExpectErrorValue,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
-    ): h.OnArray<TokenAnnotation, NonTokenAnnotation>
+    // createDictionaryHandler(
+    //     onEntry: ($: {
+    //         data: h.PropertyData
+    //         annotation: TokenAnnotation
+    //     }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
+    //     onBegin?: ($: {
+    //         data: h.ObjectData
+    //         annotation: TokenAnnotation
+    //     }) => void,
+    //     onEnd?: ($: {
+    //         annotation: TokenAnnotation
+    //     }) => void,
+    // ): h.OnObject<TokenAnnotation, NonTokenAnnotation>
+    // createTypeHandler(
+    //     expectedProperties: ExpectedProperties<TokenAnnotation, NonTokenAnnotation>,
+    //     onBegin?: ($: {
+    //         data: h.ObjectData
+    //         annotation: TokenAnnotation
+    //     }) => void,
+    //     onEnd?: ($: {
+    //         hasErrors: boolean
+    //         annotation: TokenAnnotation
+    //     }) => void,
+    //     onUnexpectedProperty?: ($: {
+    //         data: h.PropertyData
+    //         annotation: TokenAnnotation
+    //     }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
+    // ): h.OnObject<TokenAnnotation, NonTokenAnnotation>
+    // createShorthandTypeHandler(
+    //     expectedElements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>,
+    //     onBegin?: ($: {
+    //         data: h.ArrayData
+    //         annotation: TokenAnnotation
+    //     }) => void,
+    //     onEnd?: ($: {
+    //         annotation: TokenAnnotation
+    //     }) => void
+    // ): h.OnArray<TokenAnnotation, NonTokenAnnotation>
+    // createListHandler(
+    //     onElement: () => h.ValueHandler<TokenAnnotation, NonTokenAnnotation>,
+    //     onBegin?: ($: {
+    //         data: h.ArrayData
+    //         annotation: TokenAnnotation
+    //     }) => void,
+    //     onEnd?: ($: {
+    //         annotation: TokenAnnotation
+    //     }) => void,
+    // ): h.OnArray<TokenAnnotation, NonTokenAnnotation>
+    // createTaggedUnionHandler(
+    //     options: Options<TokenAnnotation, NonTokenAnnotation>,
+    //     onUnexpectedOption?: ($: {
+    //         tuAnnotation: TokenAnnotation
+    //         data: h.OptionData
+    //         optionAnnotation: TokenAnnotation
+    //     }) => void,
+    //     onMissingOption?: () => void,
+    // ): h.OnTaggedUnion<TokenAnnotation, NonTokenAnnotation>
+    // createUnexpectedStringHandler(
+    //     expected: ExpectErrorValue,
+    //     onInvalidType?: OnInvalidType<TokenAnnotation>,
+    //     onNull?: ($: {
+    //         data: h.StringData2
+    //         annotation: TokenAnnotation
+    //     }) => p.IValue<boolean>,
+    // ): h.OnString<TokenAnnotation>
+    // createNullHandler(
+    //     expected: ExpectErrorValue,
+    //     onInvalidType?: OnInvalidType<TokenAnnotation>,
+    // ): h.OnString<TokenAnnotation>
+    // createUnexpectedTaggedUnionHandler(
+    //     expected: ExpectErrorValue,
+    //     onInvalidType?: OnInvalidType<TokenAnnotation>,
+    // ): h.OnTaggedUnion<TokenAnnotation, NonTokenAnnotation>
+    // createUnexpectedObjectHandler(
+    //     expected: ExpectErrorValue,
+    //     onInvalidType?: OnInvalidType<TokenAnnotation>,
+    // ): h.OnObject<TokenAnnotation, NonTokenAnnotation>
+    // createUnexpectedArrayHandler(
+    //     expected: ExpectErrorValue,
+    //     onInvalidType?: OnInvalidType<TokenAnnotation>,
+    // ): h.OnArray<TokenAnnotation, NonTokenAnnotation>
     expectNothing(
         onInvalidType?: OnInvalidType<TokenAnnotation>,
     ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
