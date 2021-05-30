@@ -988,6 +988,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
             onInvalidType
         )
     }
+        }
     public expectDictionary(
         onBegin: ($: {
             data: ObjectData
