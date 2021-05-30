@@ -8,11 +8,11 @@ export const Whitespace = {
     tab: 0x09,               // \t
     lineFeed: 0x0A,          // \n
     carriageReturn: 0x0D,    // \r
-    space: 0x20,             // " "
+    space: 0x20,             //
 }
 
 export const WrappedString = {
-    quotationMark: 0x22,     // "
+    quotationMark: 0x22,     // ?
     apostrophe: 0x27,        // '
     backtick: 0x60,          // `
     reverseSolidus: 0x5C,    // \
@@ -42,11 +42,11 @@ export const Punctuation = {
 }
 
 export const UnicodeChars = {
-    "0": 0x30,
-    "9": 0x39,
-    "A": 0x41,
-    "F": 0x46,
-    "a": 0x61,
-    "f": 0x66,
+    0: 0x30,
+    9: 0x39,
+    A: 0x41,
+    F: 0x46,
+    a: 0x61,
+    f: 0x66,
 
 }

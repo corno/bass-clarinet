@@ -169,7 +169,7 @@ function raiseError(onError: (error: StackedDataError, range: Range) => void, er
 
 class OverheadState {
     private comments: Comment[] = []
-    private indentation: string = ""
+    private indentation = ""
     private lineIsDirty = false
     flush(): BeforeContextData {
         const bcd: BeforeContextData = {

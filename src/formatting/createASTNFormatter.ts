@@ -1,7 +1,7 @@
 import { Annotater } from "../attachments/createDecorator"
-import { SimpleValueData2, StackContext } from "../handlers"
+import {  StackContext } from "../handlers"
 import { NonTokenFormatInstruction, TokenFormatInstruction } from "./FormatInstruction"
-import { createSerializedMultilineString, createSerializedApostrophedString, createSerializedNonWrappedString, createSerializedQuotedString } from "./escapeString"
+import { createSerializedApostrophedString, createSerializedQuotedString } from "./escapeString"
 import { createSerializedString } from "./createSerializedASTNString"
 
 

@@ -4,7 +4,7 @@
 import * as p from "pareto"
 import * as astn from ".."
 import { createSerializedString } from "../formatting"
-import { ArrayData, OptionData, ObjectData, PropertyData, SimpleValueData2, SimpleValueType2 } from "../handlers"
+import { ArrayData, OptionData, ObjectData, PropertyData, SimpleValueData2 } from "../handlers"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

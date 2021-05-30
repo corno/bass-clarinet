@@ -1,8 +1,3 @@
-import { SimpleValueData2 } from "../handlers"
-
-function assertUnreachable<RT>(_x: never): RT {
-    throw new Error("unreachable")
-}
 
 export function createSerializedMultilineString(
     lines: string[],

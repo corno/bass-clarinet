@@ -79,6 +79,7 @@ export function createJSONFormatter<TokenAnnotation, NonTokenAnnotation>(
                             if ($$.value === "true" || $$.value === "false" || $$.value === "null") {
                                 return $$.value
                             }
+                            //eslint-disable-next-line
                             const nr = new Number($$.value).valueOf()
                             if (isNaN(nr)) {
                                 return createSerializedQuotedString($$.value)

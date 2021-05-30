@@ -12,7 +12,6 @@ import { TextParserEventConsumer } from "./TextParserEventConsumer"
 import * as Char from "./Characters"
 import { TreeParser, TreeParserError, printTreeParserError } from "./TreeParser"
 import { TokenType, Token, PunctionationData, StringData, OverheadToken } from "./Token"
-import { SimpleValueType2 } from "../handlers"
 
 const DEBUG = false
 

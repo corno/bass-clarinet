@@ -1,15 +1,15 @@
 import { Location, Range, printRange, printLocation } from "./location"
 
-export type WrappedStringType = 
-| ["apostrophed", {
-
-}]
-| ["quoted", {
-
-}]
-| ["multiline", {
-    previousLines: string[]
-}]
+export type WrappedStringType =
+    | ["apostrophed", {
+        //
+    }]
+    | ["quoted", {
+        //
+    }]
+    | ["multiline", {
+        previousLines: string[]
+    }]
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -59,11 +59,19 @@ export function printPreTokenData(tokenData: PreToken): string {
         }
         case PreTokenDataType.WrappedStringBegin: {
             const $ = tokenData.type[1]
-            return `WrappedStringBegin: '${$.type}' (${printRange($.range)})`
+            const wrapper = ((): string => {
+                switch ($.type[0]) {
+                    case "apostrophed": return "'"
+                    case "multiline": return "`"
+                    case "quoted": return "\""
+                    default: return assertUnreachable($.type[0])
+                }
+            })()
+            return `WrappedStringBegin: '${wrapper}' (${printRange($.range)})`
         }
         case PreTokenDataType.WrappedStringEnd: {
             const $ = tokenData.type[1]
-            return `WrappedStringEnd: ${$.wrapper === null ? 'n/a': `'${$.wrapper}'`} (${printRange($.range)})`
+            return `WrappedStringEnd: ${$.wrapper === null ? 'n/a' : `'${$.wrapper}'`} (${printRange($.range)})`
         }
         case PreTokenDataType.Snippet: {
             const $ = tokenData.type[1]

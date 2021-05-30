@@ -8,7 +8,6 @@ import {
     TokenType,
     CurrentToken,
     FoundNewlineCharacterType,
-    NoneContext,
     FoundNewlineCharacter,
 } from "./PreTokenizerStateTypes"
 import { Location, Range, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
@@ -237,7 +236,7 @@ export class PreTokenizer {
                     snippet.start()
                     return {
                         consumeCharacter: true,
-                        preToken: null
+                        preToken: null,
                     }
                 }
             }
@@ -247,7 +246,7 @@ export class PreTokenizer {
         currentChunk: Chunk,
         callback: (
             nextChar: number,
-            snippet: Snippet
+            snippet: Snippet,
         ) => TokenReturnType
     ): PreToken | null {
         const snippet = new Snippet(currentChunk)
@@ -409,7 +408,7 @@ export class PreTokenizer {
                                                 range: createRangeFromLocations($$.locationOfFoundAsterisk, this.locationState.getCurrentLocation()),
                                             }],
                                         }
-                                    )
+                                    ),
                                 }
                             } else {
                                 //false alarm, not the end of the comment
@@ -457,8 +456,8 @@ export class PreTokenizer {
                                     type: [PreTokenDataType.LineCommentEnd, {
                                         location: this.locationState.getCurrentLocation(),
                                     }],
-                                }
-                            )
+                                },
+                            ),
                         }
                     }
                 )
@@ -482,8 +481,8 @@ export class PreTokenizer {
                                             type: [PreTokenDataType.LineCommentBegin, {
                                                 range: createRangeFromLocations($.foundSolidus, this.locationState.getCurrentLocation()),
                                             }],
-                                        }
-                                    )
+                                        },
+                                    ),
                                 }
 
                             } else if (nextChar === Char.Comment.asterisk) {
@@ -496,8 +495,8 @@ export class PreTokenizer {
                                             type: [PreTokenDataType.BlockCommentBegin, {
                                                 range: createRangeFromLocations($.foundSolidus, this.locationState.getNextLocation()),
                                             }],
-                                        }
-                                    )
+                                        },
+                                    ),
                                 }
 
                             } else {
@@ -543,8 +542,8 @@ export class PreTokenizer {
                                                 type: [PreTokenDataType.WhiteSpaceBegin, {
                                                     location: this.locationState.getCurrentLocation(),
                                                 }],
-                                            }
-                                        )
+                                            },
+                                        ),
                                     }
                                 }
                                 case Char.Comment.solidus: {
@@ -563,8 +562,8 @@ export class PreTokenizer {
                                                 type: [PreTokenDataType.WhiteSpaceBegin, {
                                                     location: this.locationState.getCurrentLocation(),
                                                 }],
-                                            }
-                                        )
+                                            },
+                                        ),
                                     }
                                 }
                                 case Char.WrappedString.apostrophe: {
@@ -582,8 +581,8 @@ export class PreTokenizer {
                                                     type: ["apostrophed", {}],
                                                     range: this.locationState.getCurrentCharacterRange(),
                                                 }],
-                                            }
-                                        )
+                                            },
+                                        ),
                                     }
                                 }
                                 case Char.WrappedString.backtick: {
@@ -599,12 +598,12 @@ export class PreTokenizer {
                                             {
                                                 type: [PreTokenDataType.WrappedStringBegin, {
                                                     type: ["multiline", {
-                                                        previousLines: []
+                                                        previousLines: [],
                                                     }],
                                                     range: this.locationState.getCurrentCharacterRange(),
                                                 }],
-                                            }
-                                        )
+                                            },
+                                        ),
                                     }
                                 }
                                 case Char.WrappedString.quotationMark: {
@@ -622,8 +621,8 @@ export class PreTokenizer {
                                                     type: ["quoted", {}],
                                                     range: this.locationState.getCurrentCharacterRange(),
                                                 }],
-                                            }
-                                        )
+                                            },
+                                        ),
                                     }
                                 }
                                 default: {
@@ -655,8 +654,8 @@ export class PreTokenizer {
                                                     type: [PreTokenDataType.NonWrappedStringBegin, {
                                                         location: this.locationState.getCurrentLocation(),
                                                     }],
-                                                }
-                                            )
+                                                },
+                                            ),
                                         }
                                     } else {
                                         return {
@@ -666,7 +665,7 @@ export class PreTokenizer {
                                                     range: this.locationState.getCurrentCharacterRange(),
                                                     char: nextChar,
                                                 }],
-                                            }
+                                            },
                                         }
                                     }
 
@@ -797,7 +796,7 @@ export class PreTokenizer {
                                 $.unicode = null
                                 return {
                                     consumeCharacter: true,
-                                    preToken: this.flushString(textNode)
+                                    preToken: this.flushString(textNode),
                                 }
                             } else {
                                 return {
@@ -877,8 +876,8 @@ export class PreTokenizer {
                                                     range: rangeInfo,
                                                     wrapper: String.fromCharCode(nextChar),
                                                 }],
-                                            }
-                                        )
+                                            },
+                                        ),
                                     }
                                 })
                             } else if (nextChar === Char.Whitespace.carriageReturn || nextChar === Char.Whitespace.lineFeed) {
@@ -909,7 +908,7 @@ export class PreTokenizer {
                                                         wrapper: null,
                                                     }],
                                                 }
-                                            )
+                                            ),
                                         }
                                     })
                                 }
@@ -969,7 +968,7 @@ export class PreTokenizer {
                                         location: this.locationState.getCurrentLocation(),
                                     }],
                                 }
-                            )
+                            ),
                         }
                     },
                 )
@@ -994,7 +993,7 @@ export class PreTokenizer {
                                                 location: this.locationState.getCurrentLocation(),
                                             }],
                                         }
-                                    )
+                                    ),
                                 }
                             })
                         } else {

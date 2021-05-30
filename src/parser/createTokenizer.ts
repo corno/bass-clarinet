@@ -211,8 +211,8 @@ export class Tokenizer<ReturnType, ErrorType> {
             range: range,
             type: [TokenType.String, {
                 type: ["nonwrapped", {
-                    value: value
-                }]
+                    value: value,
+                }],
                 //startCharacter: $tok.startCharacter,
                 //terminated: null,
                 //wrapper: null,
@@ -276,7 +276,7 @@ export class Tokenizer<ReturnType, ErrorType> {
                         return `'${$.wrappedStringNode}'`
                     }
                     case "multiline": {
-                        return `\`${$.type[1].previousLines.concat([ $.wrappedStringNode]).join("\n")}\``
+                        return `\`${$.type[1].previousLines.concat([$.wrappedStringNode]).join("\n")}\``
                     }
                     case "quoted": {
                         return `'${$.wrappedStringNode}'`
@@ -311,7 +311,7 @@ export class Tokenizer<ReturnType, ErrorType> {
                         default:
                             return assertUnreachable($.type[0])
                     }
-                })()
+                })(),
             }],
         })
     }
@@ -410,7 +410,6 @@ export class Tokenizer<ReturnType, ErrorType> {
                 throw new Error(`unexpected newline`)
             }
             case CurrentTokenType.BLOCK_COMMENT: {
-                const $ = this.currentToken[1]
                 throw new Error("IMPLEMENT ME: BLOCK COMMENT NEWLINE")
                 // $.type[1].previousLines.push($.wrappedStringNode)
                 // $.wrappedStringNode = ""
@@ -430,7 +429,7 @@ export class Tokenizer<ReturnType, ErrorType> {
             case CurrentTokenType.QUOTED_STRING: {
                 const $ = this.currentToken[1]
                 if ($.type[0] !== "multiline") {
-                    throw new Error(`unexpected newline`) 
+                    throw new Error(`unexpected newline`)
                 }
                 $.type[1].previousLines.push($.wrappedStringNode)
                 $.wrappedStringNode = ""
