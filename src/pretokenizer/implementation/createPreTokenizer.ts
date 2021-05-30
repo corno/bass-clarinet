@@ -6,7 +6,7 @@
 import * as Char from "../../Characters"
 
 import { Range, createRangeFromSingleLocation, createRangeFromLocations } from "../../location"
-import { Chunk, ILocationState, IPreTokenizer, PreToken, PreTokenDataType, PreTokenizerError } from "../api"
+import { IChunk, ILocationState, IPreTokenizer, PreToken, PreTokenDataType, PreTokenizerError } from "../api"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -87,9 +87,9 @@ type TokenReturnType = {
 }
 
 class Snippet {
-    private readonly chunk: Chunk
+    private readonly chunk: IChunk
     private startIndex: null | number = null
-    constructor(chunk: Chunk) {
+    constructor(chunk: IChunk) {
         this.chunk = chunk
     }
     public start() {
@@ -108,7 +108,7 @@ class Snippet {
                 consumeCharacter: false,
                 preToken: {
                     type: [PreTokenDataType.Snippet, {
-                        chunk: this.chunk.str,
+                        chunk: this.chunk.getString(),
                         begin: this.startIndex,
                         end: this.chunk.getIndexOfNextCharacter(),
                     }],
@@ -165,7 +165,7 @@ export function createPreTokenizer(
             }
         }
         private processUntilFirstNotIncludedCharacter(
-            currentChunk: Chunk,
+            currentChunk: IChunk,
             isIncludedCharacter: (char: number) => boolean,
             onEndOfToken: () => TokenReturnType,
         ): null | PreToken {
@@ -192,7 +192,7 @@ export function createPreTokenizer(
             )
         }
         private whileLoop(
-            currentChunk: Chunk,
+            currentChunk: IChunk,
             callback: (
                 nextChar: number,
                 snippet: Snippet,
@@ -346,7 +346,7 @@ export function createPreTokenizer(
                     return assertUnreachable(fnlc.type)
             }
         }
-        public createNextToken(currentChunk: Chunk): null | PreToken {
+        public createNextToken(currentChunk: IChunk): null | PreToken {
             const currentTokenType = this.currentTokenType
             switch (currentTokenType[0]) {
                 case TokenType.BLOCK_COMMENT: {

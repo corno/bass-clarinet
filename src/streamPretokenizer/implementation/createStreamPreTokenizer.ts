@@ -7,10 +7,10 @@ import * as p from "pareto"
 import { Location, Range } from "../../location"
 import { ITokenStreamConsumer } from "../../parser/ITokenStreamConsumer"
 import {
-    Chunk,
     IPreTokenizer,
     TokenizerOptions,
     createPreTokenizer,
+    IChunk,
 } from "../../pretokenizer"
 import { PreTokenizerError } from "../../pretokenizer"
 
@@ -65,6 +65,29 @@ class LocationState implements ILocationState {
     }
 }
 
+
+class Chunk implements IChunk {
+    private currentIndex: number
+    public readonly str: string
+    constructor(str: string) {
+        this.str = str
+        this.currentIndex = -1
+    }
+    lookahead(): number | null {
+        const char = this.str.charCodeAt(this.getIndexOfNextCharacter())
+        return isNaN(char) ? null : char
+    }
+    increaseIndex(): void {
+        this.currentIndex += 1
+    }
+    getIndexOfNextCharacter(): number {
+        return this.currentIndex + 1
+    }
+    getString(): string {
+        return this.str
+    }
+}
+
 /**
  *
  * @param tokenStreamConsumer
@@ -99,7 +122,7 @@ export function createStreamPreTokenizer<ReturnType, ErrorType>(
             )
             this.tokenizerState = createPreTokenizer(this.locationState, onError)
         }
-        private loopUntilPromiseOrEnd(currentChunk: Chunk): p.IValue<boolean> {
+        private loopUntilPromiseOrEnd(currentChunk: IChunk): p.IValue<boolean> {
             if (this.aborted) {
                 //ignore this data
                 return p.value(true)

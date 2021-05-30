@@ -67,24 +67,6 @@ export enum PreTokenDataType {
         location: Location //| null
     }]
 }
-export class Chunk {
-    private currentIndex: number
-    public readonly str: string
-    constructor(str: string) {
-        this.str = str
-        this.currentIndex = -1
-    }
-    lookahead(): number | null {
-        const char = this.str.charCodeAt(this.getIndexOfNextCharacter())
-        return isNaN(char) ? null : char
-    }
-    increaseIndex(): void {
-        this.currentIndex += 1
-    }
-    getIndexOfNextCharacter(): number {
-        return this.currentIndex + 1
-    }
-}
 
 export type PreTokenizerError = {
     type:
@@ -106,9 +88,16 @@ export interface ILocationState {
     increase(character: number): void
 }
 
+export interface IChunk {
+    lookahead(): number | null
+    getIndexOfNextCharacter(): number
+    getString(): string
+    increaseIndex(): void
+}
+
 export interface IPreTokenizer {
     handleDanglingToken(): PreToken | null
-    createNextToken(currentChunk: Chunk): null | PreToken
+    createNextToken(currentChunk: IChunk): null | PreToken
 }
 
 export type WrappedStringType =
