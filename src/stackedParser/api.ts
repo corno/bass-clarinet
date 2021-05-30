@@ -19,7 +19,7 @@ import {
     RequiredValueHandler,
     TaggedUnionHandler,
     ValueHandler,
-} from "../handlers"
+} from "../interfaces/handlers"
 
 export type BeforeContextData = {
     comments: Comment[]

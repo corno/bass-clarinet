@@ -2,9 +2,9 @@
 	complexity: off
 */
 import * as p from "pareto"
+import { OverheadTokenType } from "../interfaces/ITreeParser"
 import { Range, Location } from "../location"
-import { TreeEventType, TreeParserEventConsumer } from "../treeParser"
-import { OverheadTokenType } from "../treeParser"
+import { TreeEventType, TreeParserEventConsumer } from "../implementations/treeParser"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")

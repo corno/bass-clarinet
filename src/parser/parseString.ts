@@ -1,16 +1,14 @@
 import * as p from "pareto"
 import * as p20 from "pareto-20"
 import {
-    OverheadToken,
-} from "../treeParser"
-import {
     Range,
     Location,
 } from "../location"
 import {
     createParserStack, ParsingError,
 } from "./createParserStack"
-import { TreeParserEventConsumer } from "../treeParser"
+import { TreeParserEventConsumer } from "../implementations/treeParser"
+import { OverheadToken } from "../interfaces/ITreeParser"
 
 export function parseString<ReturnType, ErrorType>(
     data: string,

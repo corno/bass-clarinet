@@ -1,5 +1,5 @@
-import { printRange, printLocation } from "../../location"
-import { PreToken, PreTokenDataType } from "../api"
+import { printRange, printLocation } from "../location"
+import { PreToken, PreTokenDataType } from "../interfaces/IPreTokenStreamConsumer"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

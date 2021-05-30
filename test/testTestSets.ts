@@ -13,7 +13,7 @@ import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
 import { createStreamSplitter } from "../src/createStreamSplitter"
 import { printParsingError, printStackedDataError } from "../src"
-import * as tp from "../src/treeParser"
+import * as tp from "../src/interfaces/ITreeParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -105,7 +105,7 @@ function createOutPutter(
                     break
                 }
                 case astn.TreeEventType.String: {
-                    const $ = data.type[1]
+                    //const $ = data.type[1]
 
                     //FIX FIX FIX
                     // out.push(astn.createSerializedString(

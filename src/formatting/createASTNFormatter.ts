@@ -1,5 +1,5 @@
-import { Annotater } from "../createDecorator"
-import {  StackContext } from "../handlers"
+import { Annotater } from "../interfaces/IAnnotater"
+import {  StackContext } from "../interfaces/handlers"
 import { NonTokenFormatInstruction, TokenFormatInstruction } from "./FormatInstruction"
 import { createSerializedApostrophedString, createSerializedQuotedString } from "./escapeString"
 import { createSerializedString } from "./createSerializedASTNString"

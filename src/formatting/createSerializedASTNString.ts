@@ -1,4 +1,4 @@
-import { StringValueData } from "../handlers"
+import { StringValueData } from "../interfaces/handlers"
 import { createSerializedMultilineString, createSerializedNonWrappedString, createSerializedQuotedString } from "./escapeString"
 
 function assertUnreachable<RT>(_x: never): RT {

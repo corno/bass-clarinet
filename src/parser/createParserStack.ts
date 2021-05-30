@@ -1,22 +1,22 @@
 import * as p from "pareto"
 import {
     createTextParser,
-} from "../textParser"
+} from "../implementations/textParser"
 import {
     Range,
     Location,
 } from "../location"
 import {
     createStreamPreTokenizer,
-} from "../streamPretokenizer"
+} from "../implementations/streamPretokenizer"
 import {
     createTokenizer,
-} from "../tokenizer"
-import { printPreTokenizerError, PreTokenizerError } from "../pretokenizer"
-import { OverheadToken } from "../treeParser"
-import { TreeParserEventConsumer } from "../treeParser"
-import { printTextParserError } from "../textParser"
-import { TextParserError } from "../textParser"
+} from "../implementations/tokenizer"
+import { printPreTokenizerError, PreTokenizerError } from "../implementations/pretokenizer"
+import { TreeParserEventConsumer } from "../implementations/treeParser"
+import { printTextParserError } from "../implementations/textParser"
+import { TextParserError } from "../implementations/textParser"
+import { OverheadToken } from "../interfaces/ITreeParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

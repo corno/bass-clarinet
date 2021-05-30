@@ -1,6 +1,6 @@
 import * as p from "pareto"
-import { ITreeParser, OverheadToken, StringData } from "./api";
-import { Location, Range } from "../location"
+import { ITreeParser, OverheadToken, StringData } from "../../interfaces/ITreeParser";
+import { Location, Range } from "../../location"
 
 export enum TreeEventType {
     CloseArray,

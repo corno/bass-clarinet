@@ -3,12 +3,12 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "../../location"
-import { TokenType, OverheadTokenType, StringType } from "../../treeParser"
-import { RangeError } from "../../errors"
-import { ITokenStreamConsumer } from "../../parser/ITokenStreamConsumer"
-import { TokenConsumer } from "../api"
-import { PreToken, PreTokenDataType, WrappedStringType } from "../../pretokenizer"
+import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "../../../location"
+import { RangeError } from "../../../errors"
+import { IPreTokenStreamConsumer } from "../../../interfaces/IPreTokenStreamConsumer"
+import { TokenConsumer } from "../../../interfaces/ITokenConsumer"
+import { PreToken, PreTokenDataType, WrappedStringType } from "../../../interfaces/IPreTokenStreamConsumer"
+import { OverheadTokenType, StringType, TokenType } from "../../../interfaces/ITreeParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -77,7 +77,7 @@ type IndentationData =
 
 export function createTokenizer<ReturnType, ErrorType>(
     parser: TokenConsumer<ReturnType, ErrorType>,
-): ITokenStreamConsumer<ReturnType, ErrorType> {
+): IPreTokenStreamConsumer<ReturnType, ErrorType> {
 
     class Tokenizer {
         private readonly parser: TokenConsumer<ReturnType, ErrorType>

@@ -4,20 +4,21 @@
     max-classes-per-file: "off",
 */
 import * as p from "pareto"
-import { Location, Range } from "../../location"
-import { ITokenStreamConsumer } from "../../parser/ITokenStreamConsumer"
+import { Location, Range } from "../../../location"
+import { IPreTokenStreamConsumer } from "../../../interfaces/IPreTokenStreamConsumer"
 import {
-    IPreTokenizer,
     TokenizerOptions,
     createPreTokenizer,
-    IChunk,
 } from "../../pretokenizer"
+import {
+    IPreTokenizer,
+    IChunk,
+    ILocationState,
+
+} from "../../../interfaces/IPreTokenizer"
 import { PreTokenizerError } from "../../pretokenizer"
 
-import {
-    ILocationState,
-} from "../../pretokenizer"
-import * as Char from "../../Characters"
+import * as Char from "../../../Characters"
 
 const DEBUG = false
 
@@ -95,7 +96,7 @@ class Chunk implements IChunk {
  * @param opt
  */
 export function createStreamPreTokenizer<ReturnType, ErrorType>(
-    tokenStreamConsumer: ITokenStreamConsumer<ReturnType, ErrorType>,
+    tokenStreamConsumer: IPreTokenStreamConsumer<ReturnType, ErrorType>,
     onError: ($: {
         error: PreTokenizerError
         range: Range
@@ -107,7 +108,7 @@ export function createStreamPreTokenizer<ReturnType, ErrorType>(
 
         private readonly tokenizerState: IPreTokenizer
         private readonly locationState: LocationState
-        private readonly tokenStreamConsumer: ITokenStreamConsumer<ReturnType, ErrorType>
+        private readonly tokenStreamConsumer: IPreTokenStreamConsumer<ReturnType, ErrorType>
         private aborted = false
 
         constructor(

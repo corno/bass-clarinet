@@ -5,7 +5,7 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
+import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "../../../location"
 import {
     TreeEvent,
     TreeEventType,
@@ -19,8 +19,8 @@ import {
     StringData,
     PunctionationData,
     ITreeParser,
-} from "../api"
-import * as Char from "../../Characters"
+} from "../../../interfaces/ITreeParser"
+import * as Char from "../../../Characters"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

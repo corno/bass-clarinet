@@ -1,4 +1,4 @@
-import * as h from "../handlers"
+import * as h from "./handlers"
 import * as p from "pareto"
 
 

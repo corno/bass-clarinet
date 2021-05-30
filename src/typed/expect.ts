@@ -1,7 +1,7 @@
 import * as p from "pareto"
 import * as astn from ".."
-import { ArrayData, ObjectData, OptionData, StringValueData, PropertyData } from "../handlers"
-import { ExpectedProperties, IExpectContext } from "../expect"
+import { ArrayData, ObjectData, OptionData, StringValueData, PropertyData } from "../interfaces/handlers"
+import { ExpectedProperties, IExpectContext } from "../interfaces/IExpectContext"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

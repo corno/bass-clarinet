@@ -1,71 +1,12 @@
 import * as p from "pareto"
-import { ArrayData, ElementData, ObjectData, OptionData, PropertyData, RequiredValueHandler, StringValueData, StackContext, ValueHandler } from "./handlers";
+import * as h from "./interfaces/handlers";
+import { Annotater } from "./interfaces/IAnnotater";
 
-export interface Annotater<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation> {
-    objectBegin: ($: {
-        source: InTokenAnnotation
-        data: ObjectData
-        stackContext: StackContext
-    }) => OutTokenAnnotation
-    property: ($: {
-        source: InTokenAnnotation
-        propertyData: PropertyData
-        objectData: ObjectData
-        stackContext: StackContext
-        isFirst: boolean
-    }) => OutTokenAnnotation
-    objectEnd: ($: {
-        source: InTokenAnnotation
-        data: ObjectData
-        stackContext: StackContext
-        isEmpty: boolean
-    }) => OutTokenAnnotation
-
-    arrayBegin: ($: {
-        source: InTokenAnnotation
-        data: ArrayData
-        stackContext: StackContext
-    }) => OutTokenAnnotation
-    element: ($: {
-        source: InNonTokenAnnotation
-        elementData: ElementData
-        arrayData: ArrayData
-        stackContext: StackContext
-        isFirst: boolean
-    }) => OutNonTokenAnnotation
-    arrayEnd: ($: {
-        source: InTokenAnnotation
-        data: ArrayData
-        stackContext: StackContext
-        isEmpty: boolean
-    }) => OutTokenAnnotation
-
-    stringValue: ($: {
-        source: InTokenAnnotation
-        data: StringValueData
-        stackContext: StackContext
-    }) => OutTokenAnnotation
-
-    taggedUnionBegin: ($: {
-        source: InTokenAnnotation
-        stackContext: StackContext
-    }) => OutTokenAnnotation
-    option: ($: {
-        source: InTokenAnnotation
-        stackContext: StackContext
-        data: OptionData
-    }) => OutTokenAnnotation
-    taggedUnionEnd: ($: {
-        source: InNonTokenAnnotation
-        stackContext: StackContext
-    }) => OutNonTokenAnnotation
-
-}
 
 export function createDecoratedValue<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>(
-    downstream: ValueHandler<OutTokenAnnotation, OutNonTokenAnnotation>,
+    downstream: h.ValueHandler<OutTokenAnnotation, OutNonTokenAnnotation>,
     annotater: Annotater<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>,
-): ValueHandler<InTokenAnnotation, InNonTokenAnnotation> {
+): h.ValueHandler<InTokenAnnotation, InNonTokenAnnotation> {
     return {
         object: $ => {
             const ds = downstream.object({
@@ -206,8 +147,8 @@ export function createDecoratedValue<InTokenAnnotation, InNonTokenAnnotation, Ou
 }
 export function createDecoratedRequiredValue<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>(
     annotater: Annotater<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>,
-    downstream: RequiredValueHandler<OutTokenAnnotation, OutNonTokenAnnotation>,
-): RequiredValueHandler<InTokenAnnotation, InNonTokenAnnotation> {
+    downstream: h.RequiredValueHandler<OutTokenAnnotation, OutNonTokenAnnotation>,
+): h.RequiredValueHandler<InTokenAnnotation, InNonTokenAnnotation> {
     return {
         exists: createDecoratedValue(downstream.exists, annotater),
         missing: () => downstream.missing(),

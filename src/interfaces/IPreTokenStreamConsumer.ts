@@ -1,5 +1,17 @@
+
+import * as p from "pareto"
 import { Location, Range } from "../location"
-//import { Char } from "../Characters"
+
+export type WrappedStringType =
+    | ["apostrophed", {
+        //
+    }]
+    | ["quoted", {
+        //
+    }]
+    | ["multiline", {
+        previousLines: string[]
+    }]
 
 export enum PreTokenDataType {
     BlockCommentBegin,
@@ -68,45 +80,4 @@ export enum PreTokenDataType {
     }]
 }
 
-export type PreTokenizerError = {
-    type:
-    | ["unterminated block comment"]
-    | ["found dangling slash at the end of the document"]
-    | ["unterminated string"]
-    | ["found dangling slash"]
-    | ["expected hexadecimal digit", {
-        found: string
-    }]
-    | ["expected special character after escape slash", {
-        found: string
-    }]
-}
-
-export interface ILocationState {
-    getCurrentLocation(): Location
-    getNextLocation(): Location
-    increase(character: number): void
-}
-
-export interface IChunk {
-    lookahead(): number | null
-    getIndexOfNextCharacter(): number
-    getString(): string
-    increaseIndex(): void
-}
-
-export interface IPreTokenizer {
-    handleDanglingToken(): PreToken | null
-    createNextToken(currentChunk: IChunk): null | PreToken
-}
-
-export type WrappedStringType =
-    | ["apostrophed", {
-        //
-    }]
-    | ["quoted", {
-        //
-    }]
-    | ["multiline", {
-        previousLines: string[]
-    }]
+export type IPreTokenStreamConsumer<ReturnType, ErrorType> = p.IUnsafeStreamConsumer<PreToken, Location, ReturnType, ErrorType>

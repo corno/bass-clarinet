@@ -1,4 +1,4 @@
-import { PreTokenizerError } from "../api"
+import { PreTokenizerError } from "./functions"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

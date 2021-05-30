@@ -6,13 +6,15 @@
 import * as Char from "../../Characters"
 
 import { Range, createRangeFromSingleLocation, createRangeFromLocations } from "../../location"
-import { IChunk, ILocationState, IPreTokenizer, PreToken, PreTokenDataType, PreTokenizerError } from "../api"
+import { IChunk, ILocationState, IPreTokenizer } from "../../interfaces/IPreTokenizer"
+import { Location } from "../../location"
+import { PreToken, PreTokenDataType } from "../../interfaces/IPreTokenStreamConsumer"
+import { PreTokenizerError } from "./functions"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-import { Location } from "../../location"
 
 enum TokenType {
     BLOCK_COMMENT,

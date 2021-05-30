@@ -2,7 +2,7 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as fs from "fs"
 import * as astn from "../src"
-import * as tp from "../src/treeParser"
+import * as tp from "../src/interfaces/ITreeParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

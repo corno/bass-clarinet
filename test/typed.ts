@@ -9,7 +9,8 @@ import * as chai from "chai"
 import * as astn from "../src"
 import { getEndLocationFromRange } from "../src"
 import { ParserAnnotationData } from "../src/stackedParser"
-import { ExpectError, printExpectError, createExpectContext, IExpectContext } from "../src/expect"
+import { ExpectError, printExpectError, createExpectContext } from "../src/expect"
+import { IExpectContext } from "../src/interfaces/IExpectContext"
 
 //const selectedJSONTests: string[] = ["two keys"]
 //const selectedExtensionTests: string[] = []

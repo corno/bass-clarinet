@@ -1,4 +1,4 @@
-import { StackedDataError } from "../functions"
+import { StackedDataError } from "./functions"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

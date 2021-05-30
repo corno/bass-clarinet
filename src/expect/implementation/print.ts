@@ -1,7 +1,7 @@
 import {
     ExpectErrorValueType,
     ExpectErrorValue,
-} from "../api"
+} from "../../interfaces/IExpectContext"
 import {
     ExpectError,
 } from "../functions"

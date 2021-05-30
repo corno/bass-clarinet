@@ -10,12 +10,12 @@ import {
     IExpectContext,
     OnInvalidType,
     Options,
-} from "../api"
+} from "../../interfaces/IExpectContext"
 import {
     ExpectError, ExpectErrorHandler, OnDuplicateEntry, Severity,
 } from "../functions"
 import { createSerializedString } from "../../formatting"
-import { ArrayData, OptionData, ObjectData, PropertyData, StringValueData } from "../../handlers"
+import { ArrayData, OptionData, ObjectData, PropertyData, StringValueData } from "../../interfaces/handlers"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

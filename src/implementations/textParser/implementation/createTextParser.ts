@@ -3,13 +3,12 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
-import * as Char from "../../Characters"
+import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../../location"
+import * as Char from "../../../Characters"
 import { createTreeParser, TreeParserEventConsumer, TreeEventType } from "../../treeParser"
-import { TokenType, Token, PunctionationData, StringData, OverheadToken } from "../../treeParser"
-import { TokenConsumer } from "../../tokenizer"
-import { ITreeParser } from "../../treeParser"
-import { TextErrorType, TextParserError } from "../api"
+import { TextErrorType, TextParserError } from "../functions"
+import { ITreeParser, OverheadToken, PunctionationData, StringData, Token, TokenType } from "../../../interfaces/ITreeParser"
+import { TokenConsumer } from "../../../interfaces/ITokenConsumer"
 
 const DEBUG = false
 
