@@ -1,4 +1,3 @@
-export * from "./attachments"
 export * from "./stackedParser/createStackedParser"
 export * from "./stackedParser/dummyHandlers"
 export * from "./errors"

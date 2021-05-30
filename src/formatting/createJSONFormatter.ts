@@ -1,7 +1,11 @@
 import { Annotater } from "../attachments/createDecorator"
 import { StackContext } from "../handlers"
 import { NonTokenFormatInstruction, TokenFormatInstruction } from "./FormatInstruction"
-import { createQuotedString } from "./escapeString"
+import { createSerializedNonWrappedString, createSerializedQuotedString } from "./escapeString"
+
+function assertUnreachable<RT>(_x: never): RT {
+    throw new Error("unreachable")
+}
 
 export function createJSONFormatter<TokenAnnotation, NonTokenAnnotation>(
     indentationString: string,
@@ -26,7 +30,7 @@ export function createJSONFormatter<TokenAnnotation, NonTokenAnnotation>(
         property: $ => {
             return {
                 stringBefore: `${$.isFirst ? "" : ","}${newline}${createIndentation($.stackContext)}${indentationString}`,
-                token: createQuotedString($.propertyData.key),
+                token: createSerializedQuotedString($.propertyData.key),
                 stringAfter: `: `,
             }
         },
@@ -61,7 +65,34 @@ export function createJSONFormatter<TokenAnnotation, NonTokenAnnotation>(
         simpleValue: $ => {
             return {
                 stringBefore: ``,
-                token: createQuotedString($.data.value),
+                token: ((): string => {
+
+                    switch ($.data.type[0]) {
+                        case "multiline": {
+                            const $$ = $.data.type[1]
+                            return createSerializedQuotedString(
+                                $$.lines.join(newline),
+                            )
+                        }
+                        case "nonwrapped": {
+                            const $$ = $.data.type[1]
+                            if ($$.value === "true" || $$.value === "false" || $$.value === "null") {
+                                return $$.value
+                            }
+                            const nr = new Number($$.value).valueOf()
+                            if (isNaN(nr)) {
+                                return createSerializedQuotedString($$.value)
+                            }
+                            return createSerializedNonWrappedString($$.value)
+                        }
+                        case "quoted": {
+                            const $$ = $.data.type[1]
+                            return createSerializedQuotedString($$.value)
+                        }
+                        default:
+                            return assertUnreachable($.data.type[0])
+                    }
+                })(),
                 stringAfter: ``,
             }
         },
@@ -76,7 +107,7 @@ export function createJSONFormatter<TokenAnnotation, NonTokenAnnotation>(
         option: $ => {
             return {
                 stringBefore: ` `,
-                token: createQuotedString($.data.option),
+                token: createSerializedQuotedString($.data.option),
                 stringAfter: `, `,
             }
         },

@@ -21,7 +21,7 @@ import {
     ArrayHandler,
     TaggedUnionHandler,
     ValueHandler,
-    Wrapper,
+    SimpleValueType2,
     StackContext,
 } from "../handlers"
 import { RangeError } from "../errors"
@@ -169,7 +169,7 @@ function raiseError(onError: (error: StackedDataError, range: Range) => void, er
 
 class OverheadState {
     private comments: Comment[] = []
-    private indentation: string | null = null
+    private indentation: string = ""
     private lineIsDirty = false
     flush(): BeforeContextData {
         const bcd: BeforeContextData = {
@@ -177,7 +177,6 @@ class OverheadState {
             indentation: this.indentation,
         }
         this.comments = []
-        this.indentation = null
         this.lineIsDirty = false
         return bcd
     }
@@ -193,8 +192,11 @@ class OverheadState {
         }
     }
     onNewline() {
-        this.indentation = null
+        this.indentation = ""
         this.lineIsDirty = false
+    }
+    getIndentation() {
+        return this.indentation
     }
 }
 
@@ -422,6 +424,7 @@ function processParserEvent(
     overheadState: OverheadState,
     onError: (error: StackedDataError, range: Range) => void,
 ): ProcessResult {
+
 
     switch (data.type[0]) {
         case TreeEventType.CloseArray: {
@@ -670,38 +673,87 @@ function processParserEvent(
                     return assertUnreachable($.type[0])
             }
         }
+
+        function trimStringLines(lines: string[], indentation: string) {
+            return lines.map((line, index) => {
+                if (index === 0) { //the first line needs no trimming
+                    return line
+                }
+                if (line.startsWith(indentation)) {
+                    return line.substr(indentation.length)
+                }
+                return line
+            })
+        }
         case TreeEventType.SimpleValue: {
             const $ = data.type[1]
+
+            const valueAsString = ((): string => {
+                switch ($.type[0]) {
+                    case "quoted": {
+                        const $$ = $.type[1]
+                        return $$.value
+                    }
+                    case "apostrophed": {
+                        const $$ = $.type[1]
+                        return $$.value
+                    }
+                    case "multiline": {
+                        const $$ = $.type[1]
+                        return trimStringLines($$.lines, overheadState.getIndentation()).join("\n")
+                    }
+                    case "nonwrapped": {
+                        const $$ = $.type[1]
+                        return $$.value
+                    }
+                    default:
+                        return assertUnreachable($.type[0])
+                }
+            })()
             return ["event", {
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
 
                     function onSimpleValue(vh: ParserValueHandler, cd: ContextData): p.IValue<boolean> {
-                        if (DEBUG) { console.log("on simple value", $.value) }
+                        //if (DEBUG) { console.log("on simple value", $.value) }
                         semanticState.wrapupValue(data.range)
                         return vh.simpleValue({
                             data: {
-                                wrapper: ((): Wrapper => {
-                                    if ($.quote === null) {
-                                        return ["none"]
-                                    }
-                                    switch ($.quote) {
-                                        case "\"": {
-
-                                            return ["quote"]
+                                type: ((): SimpleValueType2 => {
+                                    switch ($.type[0]) {
+                                        case "quoted": {
+                                            const $$ = $.type[1]
+                                            return ["quoted", {
+                                                value: $$.value,
+                                            }]
                                         }
-                                        case "'": {
+                                        case "apostrophed": {
+                                            const $$ = $.type[1]
+                                            //simple values with apostrophes are not canonical
+                                            return ["quoted", {
+                                                value: $$.value,
+                                            }]
+                                        }
+                                        case "multiline": {
+                                            const $$ = $.type[1]
 
-                                            return ["quote"]
+                                            return ["multiline", {
+                                                lines: trimStringLines($$.lines, overheadState.getIndentation()),
+                                            }]
+                                        }
+                                        case "nonwrapped": {
+                                            const $$ = $.type[1]
+                                            return ["nonwrapped", {
+                                                value: $$.value,
+                                            }]
                                         }
                                         default:
-                                            return assertUnreachable($.quote)
+                                            return assertUnreachable($.type[0])
                                     }
                                 })(),
-                                value: $.value,
                             },
                             annotation: {
-                                tokenString: $.value, //this should probably the full token, including wrapping characters
+                                tokenString: valueAsString,
                                 range: data.range,
                                 contextData: cd,
                             },
@@ -742,10 +794,10 @@ function processParserEvent(
                                     $$$.foundProperties = true
                                     return $$.objectHandler.property({
                                         data: {
-                                            key: $.value,
+                                            key: valueAsString,
                                         },
                                         annotation: {
-                                            tokenString: $.value, //this should probably the full token, including wrapping characters
+                                            tokenString: valueAsString,
                                             range: data.range,
                                             contextData: contextData,
                                         },
@@ -765,13 +817,13 @@ function processParserEvent(
                             switch ($$.state[0]) {
                                 case "expecting option": {
                                     //const $$$ = $$.state[1]
-                                    if (DEBUG) { console.log("on option", $.value) }
+                                    if (DEBUG) { console.log("on option", valueAsString) }
                                     $$.state = ["expecting value", $$.handler.option({
                                         data: {
-                                            option: $.value,
+                                            option: valueAsString,
                                         },
                                         annotation: {
-                                            tokenString: $.value, //this should probably the full token, including wrapping characters
+                                            tokenString: valueAsString,
                                             range: data.range,
                                             contextData: contextData,
                                         },

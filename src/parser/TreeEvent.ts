@@ -1,5 +1,5 @@
 import { Range } from "./location"
-import { SimpleValueData, OverheadToken } from "./Token"
+import { StringData, OverheadToken } from "./Token"
 
 export enum TreeEventType {
     CloseArray,
@@ -24,7 +24,7 @@ export type TreeEvent = {
     | [TreeEventType.OpenArray]
     | [TreeEventType.OpenObject]
     | [TreeEventType.Overhead, OverheadToken]
-    | [TreeEventType.SimpleValue, SimpleValueData]
+    | [TreeEventType.SimpleValue, StringData]
     | [TreeEventType.TaggedUnion, {
         //
     }]

@@ -3,8 +3,8 @@ import { Location } from "./location"
 export enum TokenType {
     BLOCK_COMMENT,
     LINE_COMMENT,
-    QUOTED_STRING,
-    UNQUOTED_TOKEN,
+    WRAPPED_STRING,
+    NONWRAPPED_STRING,
     WHITESPACE,
     NONE,
 }
@@ -13,27 +13,27 @@ export type CurrentToken =
     | [TokenType.BLOCK_COMMENT, BlockCommentContext]
     | [TokenType.LINE_COMMENT]
     | [TokenType.NONE, NoneContext]
-    | [TokenType.UNQUOTED_TOKEN]
-    | [TokenType.QUOTED_STRING, StringContext]
+    | [TokenType.NONWRAPPED_STRING]
+    | [TokenType.WRAPPED_STRING, StringContext]
     | [TokenType.WHITESPACE]
 
 export type BlockCommentContext = {
     locationOfFoundAsterisk: null | Location
 }
 
-export enum FoundCharacterType {
-    SOLIDUS,
+export enum FoundNewlineCharacterType {
     CARRIAGE_RETURN,
     LINE_FEED,
 }
 
-export type FoundCharacter = {
-    type: FoundCharacterType
+export type FoundNewlineCharacter = {
+    type: FoundNewlineCharacterType
     startLocation: Location
 }
 
 export type NoneContext = {
-    foundCharacter: FoundCharacter | null
+    foundNewlineCharacter: FoundNewlineCharacter | null
+    foundSolidus: Location | null
 }
 
 export type Unicode = {
@@ -45,4 +45,5 @@ export type StringContext = {
     slashed: boolean
     readonly startCharacter: number
     unicode: null | Unicode
+    foundNewlineCharacter: FoundNewlineCharacter | null
 }

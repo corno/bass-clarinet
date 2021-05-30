@@ -1,10 +1,25 @@
 import { Range } from "./location"
-import { Quote } from "./PreToken"
 
-export type SimpleValueData = {
+export type SimpleValueType =
+| ["multiline", {
+    lines: string[]
+    terminated: boolean
+}]
+| ["quoted", {
     value: string
-    quote: Quote | null
-    terminated: boolean | null //terminated is 'null' when the value is not quoted
+    terminated: boolean
+}]
+| ["apostrophed", {
+    value: string
+    terminated: boolean
+}]
+| ["nonwrapped", {
+    value: string
+
+}]
+
+export type StringData = {
+    type: SimpleValueType
 }
 
 export type WhiteSpaceData = {
@@ -30,8 +45,8 @@ export enum OverheadTokenType {
 
 export enum TokenType {
     Overhead,
-    Punctuation,
-    SimpleValue,
+    Structural,
+    String,
 }
 
 export type OverheadToken = {
@@ -48,6 +63,6 @@ export type Token = {
     range: Range
     type:
     | [TokenType.Overhead, OverheadToken]
-    | [TokenType.Punctuation, PunctionationData]
-    | [TokenType.SimpleValue, SimpleValueData]
+    | [TokenType.Structural, PunctionationData]
+    | [TokenType.String, StringData]
 }

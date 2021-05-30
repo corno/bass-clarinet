@@ -19,14 +19,19 @@ export type ArrayData = {
     | ["list"]
 }
 
-export type Wrapper =
-    | ["none"]
-    | ["backtick"]
-    | ["quote"]
+export type SimpleValueType2 =
+    | ["nonwrapped", {
+        value: string
+    }]
+    | ["multiline", {
+        lines: string[]
+    }]
+    | ["quoted", {
+        value: string
+    }]
 
 export type SimpleValueData2 = {
-    wrapper: Wrapper
-    value: string
+    type: SimpleValueType2
 }
 
 export type OptionData = {

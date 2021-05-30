@@ -1,26 +1,31 @@
-export function createBacktickedString(str: string): string {
+import { SimpleValueData2 } from "../handlers"
+
+function assertUnreachable<RT>(_x: never): RT {
+    throw new Error("unreachable")
+}
+
+export function createSerializedMultilineString(
+    lines: string[],
+    indentation: string,
+    newline: string
+): string {
     //don't escape tabs, newlines!
-    return `\`${escapeString(str, false, "`")}\``
+    return `\`${lines.map((line, index) => `${index === 0 ? "" : indentation}${escapeCharacters(line, false, "`")}`).join(newline)}\``
 }
 
-export function createApostrophedString(str: string): string {
-    return `'${escapeString(str, true, "'")}'`
+export function createSerializedApostrophedString(str: string): string {
+    return `'${escapeCharacters(str, true, "'")}'`
 }
 
-export function createQuotedString(str: string): string {
-    return `"${escapeString(str, true, "\"")}"`
-}
-export function createNonQuotedString(str: string): string {
-    return escapeString(str, false, null)
+export function createSerializedQuotedString(str: string): string {
+    return `"${escapeCharacters(str, true, "\"")}"`
 }
 
-// function entityForSymbolInContainer(str: string, position: number) {
-//     const code = str.charCodeAt(position);
-//     const codeHex = code.toString(16).toUpperCase();
-//     return `\\u${codeHex.padStart(4, "0")}`
-// }
+export function createSerializedNonWrappedString(str: string): string {
+    return escapeCharacters(str, false, null)
+}
 
-function escapeString(
+function escapeCharacters(
     str: string,
     escapeTabsAndNewLines: boolean,
     wrapperToEscape: string | null,
@@ -39,15 +44,12 @@ function escapeString(
         } else if (str[i] === wrapperToEscape) {
             out += "\\" + wrapperToEscape
         } else if (str[i] === "\n") {
-            console.error("JA")
             out += escapeTabsAndNewLines ? "\\n" : str[i]
         } else if (str[i] === "\r") {
             out += escapeTabsAndNewLines ? "\\r" : str[i]
         } else if (str[i] === "\t") {
-            console.error("TAB")
             out += escapeTabsAndNewLines ? "\\t" : str[i]
         } else if (str.charCodeAt(i) < 32) {
-            console.error("C0 character", str.charCodeAt(i))
             //control character (some of them have already been escaped above)
             out += "\\u" + curChar.toString(16).toUpperCase().padStart(4, "0")
         } else {

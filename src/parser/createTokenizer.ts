@@ -11,8 +11,8 @@ import {
     WhitespaceContext,
 } from "./TextParserStateTypes"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
-import { PreTokenDataType, PreToken, Quote } from "./PreToken"
-import { TokenType, Token, OverheadTokenType } from "./Token"
+import { PreTokenDataType, PreToken, WrappedStringType } from "./PreToken"
+import { TokenType, Token, OverheadTokenType, SimpleValueType } from "./Token"
 import { RangeError } from "../errors"
 import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
 
@@ -70,7 +70,7 @@ export class Tokenizer<ReturnType, ErrorType> {
                 return this.parser.onData({
                     tokenString: String.fromCharCode($.char),
                     range: $.range,
-                    type: [TokenType.Punctuation, {
+                    type: [TokenType.Structural, {
                         char: $.char,
                     }],
                 })
@@ -79,21 +79,21 @@ export class Tokenizer<ReturnType, ErrorType> {
                 const $ = data.type[1]
                 return this.onSnippet($.chunk, $.begin, $.end)
             }
-            case PreTokenDataType.QuotedStringBegin: {
+            case PreTokenDataType.WrappedStringBegin: {
                 const $ = data.type[1]
-                return this.onQuotedStringBegin($.range, $.quote)
+                return this.onWrappedStringBegin($.range, $.type)
             }
-            case PreTokenDataType.QuotedStringEnd: {
+            case PreTokenDataType.WrappedStringEnd: {
                 const $ = data.type[1]
-                return this.onQuotedStringEnd($.range, $.quote)
+                return this.onWrappedStringEnd($.range, $.wrapper)
             }
-            case PreTokenDataType.UnquotedTokenBegin: {
+            case PreTokenDataType.NonWrappedStringBegin: {
                 const $ = data.type[1]
-                return this.onUnquotedTokenBegin($.location)
+                return this.onNonWrappedStringBegin($.location)
             }
-            case PreTokenDataType.UnquotedTokenEnd: {
+            case PreTokenDataType.NonWrappedStringEnd: {
                 const $ = data.type[1]
-                return this.onUnquotedTokenEnd($.location)
+                return this.onNonWrappedStringEnd($.location)
             }
             case PreTokenDataType.WhiteSpaceBegin: {
                 const $ = data.type[1]
@@ -186,34 +186,36 @@ export class Tokenizer<ReturnType, ErrorType> {
         this.unsetCurrentToken(end)
         return od
     }
-    private onUnquotedTokenBegin(location: Location): p.IValue<boolean> {
-        if (DEBUG) console.log(`onUnquotedTokenBegin`)
+    private onNonWrappedStringBegin(location: Location): p.IValue<boolean> {
+        if (DEBUG) console.log(`onNonWrappedStringBegin`)
 
         this.indentationState = [IndentationState.lineIsDitry]
 
-        this.setCurrentToken([CurrentTokenType.UNQUOTED_TOKEN, { unquotedTokenNode: "", start: location }], createRangeFromSingleLocation(location))
+        this.setCurrentToken([CurrentTokenType.UNQUOTED_TOKEN, { nonwrappedStringNode: "", start: location }], createRangeFromSingleLocation(location))
         return p.value(false)
     }
-    private onUnquotedTokenEnd(location: Location): p.IValue<boolean> {
-        if (DEBUG) console.log(`onUnquotedTokenEnd`)
+    private onNonWrappedStringEnd(location: Location): p.IValue<boolean> {
+        if (DEBUG) console.log(`onNonWrappedStringEnd`)
 
         if (this.currentToken[0] !== CurrentTokenType.UNQUOTED_TOKEN) {
-            throw new TokenizerStackPanicError(`Unexpected unquoted token end`, createRangeFromSingleLocation(location))
+            throw new TokenizerStackPanicError(`Unexpected nonwrapped string end`, createRangeFromSingleLocation(location))
         }
         const $ = this.currentToken[1]
 
         const $tok = this.currentToken[1]
-        const value = $tok.unquotedTokenNode
+        const value = $tok.nonwrappedStringNode
         const range = createRangeFromLocations($.start, location)
         this.unsetCurrentToken(createRangeFromSingleLocation(location))
         return this.parser.onData({
             tokenString: "",
             range: range,
-            type: [TokenType.SimpleValue, {
-                value: value,
+            type: [TokenType.String, {
+                type: ["nonwrapped", {
+                    value: value
+                }]
                 //startCharacter: $tok.startCharacter,
-                terminated: null,
-                quote: null,
+                //terminated: null,
+                //wrapper: null,
             }],
         })
     }
@@ -250,32 +252,66 @@ export class Tokenizer<ReturnType, ErrorType> {
         return od
     }
 
-    private onQuotedStringBegin(begin: Range, quote: Quote): p.IValue<boolean> {
-        if (DEBUG) console.log(`onQuotedStringBegin`)
-        this.setCurrentToken([CurrentTokenType.QUOTED_STRING, { quotedStringNode: "", start: begin, startCharacter: quote }], begin)
+    private onWrappedStringBegin(begin: Range, quote: WrappedStringType): p.IValue<boolean> {
+        if (DEBUG) console.log(`onWrappedStringBegin`)
+        this.setCurrentToken([CurrentTokenType.QUOTED_STRING, { wrappedStringNode: "", start: begin, type: quote }], begin)
         return p.value(false)
     }
 
-    private onQuotedStringEnd(end: Range, quote: string | null): p.IValue<boolean> {
-        if (DEBUG) console.log(`onQuotedStringEnd`)
+    private onWrappedStringEnd(end: Range, wrapper: string | null): p.IValue<boolean> {
+        if (DEBUG) console.log(`onWrappedStringEnd`)
         if (this.currentToken[0] !== CurrentTokenType.QUOTED_STRING) {
-            throw new TokenizerStackPanicError(`Unexpected unquoted token end`, end)
+            throw new TokenizerStackPanicError(`Unexpected nonwrapped string end`, end)
         }
         const $tok = this.currentToken[1]
-        const value = $tok.quotedStringNode
-        const range = createRangeFromLocations($tok.start.start, getEndLocationFromRange(end))
+        const $ = this.currentToken[1]
 
-        const quote2 = quote === null ? "" : quote
+        const range = createRangeFromLocations($tok.start.start, getEndLocationFromRange(end))
 
         this.unsetCurrentToken(end)
         return this.parser.onData({
-            tokenString: `${quote2}${value}${quote2}`,
+            tokenString: ((): string => {
+                switch ($.type[0]) {
+                    case "apostrophed": {
+                        return `'${$.wrappedStringNode}'`
+                    }
+                    case "multiline": {
+                        return `\`${$.type[1].previousLines.concat([ $.wrappedStringNode]).join("\n")}\``
+                    }
+                    case "quoted": {
+                        return `'${$.wrappedStringNode}'`
+                    }
+                    default:
+                        return assertUnreachable($.type[0])
+                }
+            })(),
             range: range,
-            type: [TokenType.SimpleValue, {
-                value: value,
-                //startCharacter: $tok.startCharacter,
-                terminated: quote !== null,
-                quote: $tok.startCharacter,
+            type: [TokenType.String, {
+                type: ((): SimpleValueType => {
+                    switch ($.type[0]) {
+                        case "apostrophed": {
+                            return ["apostrophed", {
+                                value: $.wrappedStringNode,
+                                terminated: wrapper !== null,
+                            }]
+                        }
+                        case "multiline": {
+                            const $$ = $.type[1]
+                            return ["multiline", {
+                                lines: $$.previousLines.concat([$.wrappedStringNode]),
+                                terminated: wrapper !== null,
+                            }]
+                        }
+                        case "quoted": {
+                            return ["quoted", {
+                                value: $.wrappedStringNode,
+                                terminated: wrapper !== null,
+                            }]
+                        }
+                        default:
+                            return assertUnreachable($.type[0])
+                    }
+                })()
             }],
         })
     }
@@ -345,12 +381,12 @@ export class Tokenizer<ReturnType, ErrorType> {
             }
             case CurrentTokenType.QUOTED_STRING: {
                 const $ = this.currentToken[1]
-                $.quotedStringNode += chunk.substring(begin, end)
+                $.wrappedStringNode += chunk.substring(begin, end)
                 break
             }
             case CurrentTokenType.UNQUOTED_TOKEN: {
                 const $ = this.currentToken[1]
-                $.unquotedTokenNode += chunk.substring(begin, end)
+                $.nonwrappedStringNode += chunk.substring(begin, end)
                 break
             }
             case CurrentTokenType.WHITESPACE: {
@@ -368,14 +404,47 @@ export class Tokenizer<ReturnType, ErrorType> {
 
         this.indentationState = [IndentationState.lineIsVirgin]
 
-        return this.parser.onData({
-            tokenString: tokenString,
-            range: range,
-            type: [TokenType.Overhead, {
-                type: [OverheadTokenType.NewLine, {
-                }],
-            }],
-        })
+
+        switch (this.currentToken[0]) {
+            case CurrentTokenType.LINE_COMMENT: {
+                throw new Error(`unexpected newline`)
+            }
+            case CurrentTokenType.BLOCK_COMMENT: {
+                const $ = this.currentToken[1]
+                throw new Error("IMPLEMENT ME: BLOCK COMMENT NEWLINE")
+                // $.type[1].previousLines.push($.wrappedStringNode)
+                // $.wrappedStringNode = ""
+                return p.value(false)
+            }
+            case CurrentTokenType.NONE: {
+
+                return this.parser.onData({
+                    tokenString: tokenString,
+                    range: range,
+                    type: [TokenType.Overhead, {
+                        type: [OverheadTokenType.NewLine, {
+                        }],
+                    }],
+                })
+            }
+            case CurrentTokenType.QUOTED_STRING: {
+                const $ = this.currentToken[1]
+                if ($.type[0] !== "multiline") {
+                    throw new Error(`unexpected newline`) 
+                }
+                $.type[1].previousLines.push($.wrappedStringNode)
+                $.wrappedStringNode = ""
+                return p.value(false)
+            }
+            case CurrentTokenType.UNQUOTED_TOKEN: {
+                throw new Error(`unexpected newline`)
+            }
+            case CurrentTokenType.WHITESPACE: {
+                throw new Error(`unexpected newline`)
+            }
+            default:
+                return assertUnreachable(this.currentToken[0])
+        }
     }
 }
 

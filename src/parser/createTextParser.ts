@@ -11,7 +11,8 @@ import { TreeEventType } from "./TreeEvent"
 import { TextParserEventConsumer } from "./TextParserEventConsumer"
 import * as Char from "./Characters"
 import { TreeParser, TreeParserError, printTreeParserError } from "./TreeParser"
-import { TokenType, Token, PunctionationData, SimpleValueData, OverheadToken } from "./Token"
+import { TokenType, Token, PunctionationData, StringData, OverheadToken } from "./Token"
+import { SimpleValueType2 } from "../handlers"
 
 const DEBUG = false
 
@@ -160,18 +161,18 @@ export class TextParser<ReturnType, ErrorType> {
     private handleToken(
         token: Token,
         onPunctuation: (data: PunctionationData) => p.IValue<boolean>,
-        onSimpleValue: (simpleValueData: SimpleValueData) => p.IValue<boolean>,
+        onSimpleValue: (simpleValueData: StringData) => p.IValue<boolean>,
     ): p.IValue<boolean> {
         switch (token.type[0]) {
             case TokenType.Overhead: {
                 const $ = token.type[1]
                 return this.onStructureOverheadToken($, token.range)
             }
-            case TokenType.Punctuation: {
+            case TokenType.Structural: {
                 const $ = token.type[1]
                 return onPunctuation($)
             }
-            case TokenType.SimpleValue: {
+            case TokenType.String: {
                 const $ = token.type[1]
                 return onSimpleValue($)
             }
@@ -297,8 +298,31 @@ export class TextParser<ReturnType, ErrorType> {
                         return p.value(false)
                     },
                     simpleValue => {
+
+                        const valueAsString = (($: StringData): string => {
+                            switch ($.type[0]) {
+                                case "quoted": {
+                                    const $$ = $.type[1]
+                                    return $$.value
+                                }
+                                case "apostrophed": {
+                                    const $$ = $.type[1]
+                                    return $$.value
+                                }
+                                case "multiline": {
+                                    const $$ = $.type[1]
+                                    return $$.lines.join("\n")
+                                }
+                                case "nonwrapped": {
+                                    const $$ = $.type[1]
+                                    return $$.value
+                                }
+                                default:
+                                    return assertUnreachable($.type[0])
+                            }
+                        })(simpleValue)
                         this.raiseStructureError([`unexpected data after end`, {
-                            data: simpleValue.value,
+                            data: valueAsString,
                         }], data.range)
                         return p.value(false)
                     }
@@ -330,7 +354,7 @@ export class TextParser<ReturnType, ErrorType> {
             return p.value(false)
         })
     }
-    private processSimpleValueInstanceData(simpleValue: SimpleValueData, range: Range, tokenString: string) {
+    private processSimpleValueInstanceData(simpleValue: StringData, range: Range, tokenString: string) {
 
         const consumer = this.onBodyStart(range.start)
         return consumer.onData({

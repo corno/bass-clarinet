@@ -72,7 +72,7 @@
        "\\u005B": [ null,                91, " ",   "",                 "left square bracket" ],
        "\\u005C": [ null,                92, " ",   "\\\\",             "reverse solidus, backslash" ],
        "\\u005D": [ null,                93, " ",   "",                 "right square bracket" ],    
-       "\\u0060": [ "added",             96, "`",   "\\`",              "Grave Accent" ],
+       "\\u0060": [ "added",             96, "`",   "\\`",              "Grave Accent (backtick)" ],
             
        "\\u0061": [ null,                97, "a",   "",                 "Latin Small Letter A" ],
        "\\u0062": [ null,                98, "b",   "",                 "Latin Small Letter B" ],

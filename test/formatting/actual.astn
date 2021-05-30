@@ -81,7 +81,8 @@
             'superfluous escape of non control character (G clef character)': "𝄞"
             'two-character escape sequence representation of form feed': "\u000C"
             'two-character escape sequence representation of backspace': "\u0008"
-            'unescaped tab in wrapped string': "\t"
+            'unescaped tab in quoted string': "\t"
+            'unescaped tab in multiline string': `	`
         )
     )
 )

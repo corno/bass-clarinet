@@ -1,11 +1,9 @@
-import * as astn from "../src"
-
 export type TestRange = [number?, number?, number?, number?]
 export type TestLocation = [number?, number?]
 
 export type EventDefinition =
-    | ["token", "quotedstring", string, TestRange  | null]
-    | ["token", "unquotedtoken", string, TestRange  | null]
+    | ["token", "wrappedstring", string, TestRange  | null]
+    | ["token", "nonwrappedstring", string, TestRange  | null]
     | ["token", "openarray", string | null, TestRange  | null]
     | ["token", "closearray", string | null, TestRange  | null]
     | ["token", "openobject", string | null, TestRange  | null]
@@ -27,7 +25,6 @@ export type TestDefinition = {
     readonly testHeaders?: boolean
     readonly testForLocation?: boolean
     readonly chunks?: string[]
-    readonly tokenizerOptions?: astn.TokenizerOptions
     readonly events?: EventDefinition[]
     readonly formattedText?: string
 }
@@ -53,8 +50,8 @@ export type DataEvent =
     | "linecomment"
 
     | "number"
-    | "quotedstring"
-    | "unquotedtoken"
+    | "wrappedstring"
+    | "nonwrappedstring"
 
     | "opentaggedunion"
     | "closetaggedunion"

@@ -1,6 +1,15 @@
 import { Location, Range, printRange, printLocation } from "./location"
 
-export type Quote = "'" | "\""
+export type WrappedStringType = 
+| ["apostrophed", {
+
+}]
+| ["quoted", {
+
+}]
+| ["multiline", {
+    previousLines: string[]
+}]
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -13,11 +22,11 @@ export enum PreTokenDataType {
     LineCommentEnd,
     NewLine,
     Punctuation,
-    QuotedStringBegin,
-    QuotedStringEnd,
+    WrappedStringBegin,
+    WrappedStringEnd,
     Snippet,
-    UnquotedTokenBegin,
-    UnquotedTokenEnd,
+    NonWrappedStringBegin,
+    NonWrappedStringEnd,
     WhiteSpaceBegin,
     WhiteSpaceEnd,
 }
@@ -48,25 +57,25 @@ export function printPreTokenData(tokenData: PreToken): string {
             const $ = tokenData.type[1]
             return `Punctuation: '${String.fromCharCode($.char)}' (${printRange($.range)})`
         }
-        case PreTokenDataType.QuotedStringBegin: {
+        case PreTokenDataType.WrappedStringBegin: {
             const $ = tokenData.type[1]
-            return `QuotedStringBegin: '${$.quote}' (${printRange($.range)})`
+            return `WrappedStringBegin: '${$.type}' (${printRange($.range)})`
         }
-        case PreTokenDataType.QuotedStringEnd: {
+        case PreTokenDataType.WrappedStringEnd: {
             const $ = tokenData.type[1]
-            return `QuotedStringEnd: ${$.quote === null ? 'n/a': `'${$.quote}'`} (${printRange($.range)})`
+            return `WrappedStringEnd: ${$.wrapper === null ? 'n/a': `'${$.wrapper}'`} (${printRange($.range)})`
         }
         case PreTokenDataType.Snippet: {
             const $ = tokenData.type[1]
             return `Snippet ${$.begin}-${$.end}`
         }
-        case PreTokenDataType.UnquotedTokenBegin: {
+        case PreTokenDataType.NonWrappedStringBegin: {
             const $ = tokenData.type[1]
-            return `UnquotedTokenBegin (${printLocation($.location)})`
+            return `NonWrappedStringBegin (${printLocation($.location)})`
         }
-        case PreTokenDataType.UnquotedTokenEnd: {
+        case PreTokenDataType.NonWrappedStringEnd: {
             const $ = tokenData.type[1]
-            return `UnquotedTokenEnd (${printLocation($.location)})`
+            return `NonWrappedStringEnd (${printLocation($.location)})`
         }
         case PreTokenDataType.WhiteSpaceBegin: {
             const $ = tokenData.type[1]
@@ -105,23 +114,23 @@ export type PreToken = {
         char: number
         range: Range
     }]
-    | [PreTokenDataType.QuotedStringBegin, {
+    | [PreTokenDataType.WrappedStringBegin, {
         range: Range
-        quote: Quote
+        type: WrappedStringType
     }]
-    | [PreTokenDataType.QuotedStringEnd, {
+    | [PreTokenDataType.WrappedStringEnd, {
         range: Range
-        quote: string | null
+        wrapper: string | null
     }]
     | [PreTokenDataType.Snippet, {
         chunk: string
         begin: number
         end: number
     }]
-    | [PreTokenDataType.UnquotedTokenBegin, {
+    | [PreTokenDataType.NonWrappedStringBegin, {
         location: Location
     }]
-    | [PreTokenDataType.UnquotedTokenEnd, {
+    | [PreTokenDataType.NonWrappedStringEnd, {
         location: Location //| null
     }]
     | [PreTokenDataType.WhiteSpaceBegin, {

@@ -3,7 +3,8 @@
 */
 import * as p from "pareto"
 import * as astn from ".."
-import { ArrayData, OptionData, ObjectData, PropertyData, SimpleValueData2 } from "../handlers"
+import { createSerializedString } from "../formatting"
+import { ArrayData, OptionData, ObjectData, PropertyData, SimpleValueData2, SimpleValueType2 } from "../handlers"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -250,10 +251,10 @@ export type ExpectedProperty<TokenAnnotation, NonTokenAnnotation> = {
         annotation: TokenAnnotation
     }) => astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
     onNotExists: null | (($: {
-            data: ObjectData
-            beginAnnotation: TokenAnnotation
-            endAnnotation: TokenAnnotation
-        }) => void
+        data: ObjectData
+        beginAnnotation: TokenAnnotation
+        endAnnotation: TokenAnnotation
+    }) => void
     ) //if onNotExists is null and the property does not exist, an error will be raised
 }
 
@@ -623,11 +624,11 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
     //                         dataHandler = null
     //                         return dh.object(metaData, comments)
     //                     },
-    //                     // unquotedToken: (value, metaData) => {
+    //                     // nonwrappedString: (value, metaData) => {
     //                     //     if (dataHandler === null) {
     //                     //         return this.raiseError(`expected string`, dataRange)
     //                     //     } else {
-    //                     //         dataHandler.unquotedToken(value, dataRange, dataComments, pauser)
+    //                     //         dataHandler.nonwrappedString(value, dataRange, dataComments, pauser)
     //                     //     }
     //                     // },
     //                     simpleValue: (value, metaData, optionComments) => {
@@ -673,10 +674,10 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
     public createTaggedUnionHandler(
         options: Options<TokenAnnotation, NonTokenAnnotation>,
         onUnexpectedOption?: ($: {
-                tuAnnotation: TokenAnnotation
-                data: OptionData
-                optionAnnotation: TokenAnnotation
-            }
+            tuAnnotation: TokenAnnotation
+            data: OptionData
+            optionAnnotation: TokenAnnotation
+        }
         ) => void,
         onMissingOption?: () => void,
     ): astn.OnTaggedUnion<TokenAnnotation, NonTokenAnnotation> {
@@ -718,7 +719,7 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => p.IValue<boolean>,
     ): astn.OnSimpleValue<TokenAnnotation> {
         return svData => {
-            if (onNull !== undefined && svData.data.value === "null" && svData.data.wrapper[0] === "none") {
+            if (onNull !== undefined && svData.data.type[0] === "nonwrapped" && svData.data.type[1].value === "null") {
                 onNull(svData)
             } else {
                 if (onInvalidType !== undefined && onInvalidType !== null) {
@@ -885,30 +886,24 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         return this.expectSimpleValueImp(
             expectValue,
             svData => {
-                if (svData.data.wrapper[0] !== "none") {
+                const onError = () => {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation)
                     } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation)
+                        this.raiseError(["invalid simple value", { expected: expectValue, found: createSerializedString(svData.data, "", "\\n") }], svData.annotation)
                     }
                     return p.value(false)
                 }
-                switch (svData.data.value) {
-                    case "true": {
-                        return callback(true, svData)
-                    }
-                    case "false": {
-                        return callback(false, svData)
-                    }
-                    default:
-
-                        if (onInvalidType) {
-                            onInvalidType(svData.annotation)
-                        } else {
-                            this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation)
-                        }
-                        return p.value(false)
+                if (svData.data.type[0] !== "nonwrapped") {
+                    return onError()
                 }
+                if (svData.data.type[1].value === "true") {
+                    return callback(true, svData)
+                }
+                if (svData.data.type[1].value === "false") {
+                    return callback(false, svData)
+                }
+                return onError()
             },
             onInvalidType,
         )
@@ -928,26 +923,19 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         return this.expectSimpleValueImp(
             expectValue,
             svData => {
-                if (svData.data.wrapper[0] !== "none") {
+                const isNull = svData.data.type[0] === "nonwrapped"
+                    && svData.data.type[1].value === "null"
+                if (!isNull) {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation)
                     } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation)
+                        this.raiseError(["invalid simple value", { expected: expectValue, found: createSerializedString(svData.data, "", "\\n") }], svData.annotation)
                     }
                     return p.value(false)
                 }
-                if (svData.data.value === "null") {
-                    return callback(svData)
-                } else {
-                    if (onInvalidType) {
-                        onInvalidType(svData.annotation)
-                    } else {
-                        this.raiseError(["invalid simple value", { expected: expectValue, found: svData.data.value }], svData.annotation)
-                    }
-                    return p.value(false)
-                }
+                return callback(svData)
             },
-            onInvalidType
+            onInvalidType,
         )
     }
     public expectValue(
@@ -979,14 +967,21 @@ export class ExpectContext<TokenAnnotation, NonTokenAnnotation> {
         return this.expectSimpleValueImp(
             expectValue,
             svData => {
-                //eslint-disable-next-line
-                const nr = new Number(svData.data.value).valueOf()
-                if (isNaN(nr)) {
+                const onError = () => {
                     if (onInvalidType) {
                         onInvalidType(svData.annotation)
                     } else {
-                        this.raiseError(["not a valid number", { value: svData.data.value }], svData.annotation)
+                        this.raiseError(["not a valid number", { value: createSerializedString(svData.data, "", "\\n") }], svData.annotation)
                     }
+                    return p.value(false)
+                }
+                if (svData.data.type[0] !== "nonwrapped") {
+                    return onError()
+                }
+                //eslint-disable-next-line
+                const nr = new Number(svData.data.type[1].value).valueOf()
+                if (isNaN(nr)) {
+                    return onError()
                 }
                 return callback(nr, svData)
             },

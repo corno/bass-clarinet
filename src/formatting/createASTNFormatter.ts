@@ -1,7 +1,8 @@
 import { Annotater } from "../attachments/createDecorator"
-import { StackContext } from "../handlers"
+import { SimpleValueData2, StackContext } from "../handlers"
 import { NonTokenFormatInstruction, TokenFormatInstruction } from "./FormatInstruction"
-import { createApostrophedString, createBacktickedString, createNonQuotedString, createQuotedString } from "./escapeString"
+import { createSerializedMultilineString, createSerializedApostrophedString, createSerializedNonWrappedString, createSerializedQuotedString } from "./escapeString"
+import { createSerializedString } from "./createSerializedASTNString"
 
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -15,7 +16,7 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
 
     function createIndentation(context: StackContext) {
         let indentation = ``
-        for (let i = 0; i !== context.dictionaryDepth + context.verboseTypeDepth; i += 1) {
+        for (let i = 0; i !== context.dictionaryDepth + context.verboseTypeDepth + + context.listDepth; i += 1) {
             indentation += indentationString
         }
         return indentation
@@ -24,7 +25,7 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
         objectBegin: $ => {
             return {
                 stringBefore: ``,
-                token: `${$.data.type[0] === "verbose type" ? "(": "{"}`,
+                token: `${$.data.type[0] === "verbose type" ? "(" : "{"}`,
                 stringAfter: ``,
             }
         },
@@ -34,10 +35,10 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
                 token: ((): string => {
                     switch ($.objectData.type[0]) {
                         case "verbose type": {
-                            return createApostrophedString($.propertyData.key)
+                            return createSerializedApostrophedString($.propertyData.key)
                         }
                         case "dictionary": {
-                            return createQuotedString($.propertyData.key)
+                            return createSerializedQuotedString($.propertyData.key)
                         }
                         default:
                             return assertUnreachable($.objectData.type[0])
@@ -49,7 +50,7 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
         objectEnd: $ => {
             return {
                 stringBefore: $.isEmpty ? ` ` : `${newline}${createIndentation($.stackContext)}`,
-                token: `${$.data.type[0] === "verbose type" ? ")": "}"}`,
+                token: `${$.data.type[0] === "verbose type" ? ")" : "}"}`,
                 stringAfter: ``,
             }
         },
@@ -57,41 +58,38 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
         arrayBegin: $ => {
             return {
                 stringBefore: ``,
-                token: `${$.data.type[0] === "shorthand type" ? "<": "["}`,
+                token: `${$.data.type[0] === "shorthand type" ? "<" : "["}`,
                 stringAfter: ``,
             }
         },
-        element: () => {
+        element: $ => {
             return {
-                string: ` `,
+                string: $.arrayData.type[0] === "shorthand type"
+                    ? ` `
+                    : `${newline}${createIndentation($.stackContext)}${indentationString}`,
             }
         },
         arrayEnd: $ => {
             return {
-                stringBefore: ` `,
-                token: `${$.data.type[0] === "shorthand type" ? ">": "]"}`,
+                stringBefore: $.data.type[0] === "shorthand type"
+                    ? ` `
+                    : $.isEmpty ? ` ` : `${newline}${createIndentation($.stackContext)}`,
+                token: $.data.type[0] === "shorthand type"
+                    ? `>`
+                    : `]`,
                 stringAfter: ``,
             }
         },
 
         simpleValue: $ => {
+
             return {
                 stringBefore: ``,
-                token: ((): string => {
-                    switch ($.data.wrapper[0]) {
-                        case "backtick": {
-                            return createBacktickedString($.data.value)
-                        }
-                        case "none": {
-                            return createNonQuotedString($.data.value)
-                        }
-                        case "quote": {
-                            return createQuotedString($.data.value)
-                        }
-                        default:
-                            return assertUnreachable($.data.wrapper[0])
-                    }
-                })(),
+                token: createSerializedString(
+                    $.data,
+                    createIndentation($.stackContext),
+                    newline,
+                ),
                 stringAfter: ``,
             }
         },
@@ -106,7 +104,7 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
         option: $ => {
             return {
                 stringBefore: ``,
-                token: createApostrophedString($.data.option),
+                token: createSerializedApostrophedString($.data.option),
                 stringAfter: ` `,
             }
         },

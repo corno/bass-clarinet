@@ -1,28 +1,27 @@
 (
     'correct': (
         'strings': (
+            'multiline string without newlines': `foo`
+            'multiline string with newline': `foo
+            bar
+            baz`
+        )
+        'character escaping': (
             'key with line feed\n': "foo"
             'key with carriage return\r': "foo"
             'key with carriage return and line feed\r\n': "foo"
-            'multiline': (
-                'no newlines': `foo`
-                'newline': `foo
-                bar`
-            )
-        )
-        'character escaping': (
             'solidus': "/"
-            'tab': "\t"
-            'line feed': "\n"
-            'carriage return': "\r"
-            'unescaped tab in multiline string': `  `
+            'tab in quoted string': "\t"
+            'tab in multiline string': `  `
+            'line feed in quoted string': "\n"
+            'carriage return in quoted string': "\r"
         )
-            // 'key with newline\n': `multiline string
-    // foo
-    //     Bar`
         'arrays': (
             'empty list': [ ]
-            'non empty list': [ "foo" "foo" ]
+            'non empty list': [
+                "foo"
+                "foo"
+            ]
             'empty shorthand type': < >
             'non empty shorthand type': < "foo" "foo" >
         )
@@ -37,6 +36,11 @@
     )
     'incorrect': (
         'whitespace': (
+            'multiple keys': "foo" 'on 1 line': "foo"
+            'empty list with newline': [
+            ]
+            'empty object with newline': {
+            }
             'no space in empty list': []
             'no space in empty object': {}
 			'tabs instead of spaces in indentation': "foo"
@@ -47,39 +51,39 @@
             'no space before value':"foo"
         )
         'commas': (
-            'comma between elements': [ "foo", "foo" ]
-            'comma after last elements': [ "foo", ]
+            'comma between elements': < "foo", "foo" >
+            'comma after last elements': < "foo", >
             'comma between properties': "foo",
             'comma after last property': "foo",
         )
         'strings': (
-            `backticked type key`: "foo"
-            'quoted value with escaped apostrophe': "\'"
-            //'backticked value with escaped apostrophe': `\'`
+            `multiline string as type key`: "foo"
+            'quoted string with escaped apostrophe': "\'"
+            'multiline string with escaped apostrophe': `\'`
             'key with escaped string: \"': "foo"
             "qouted type property key": "foo"
             'escaped newline in multiline string': `foo\nfoo`
-            'quoted tagged union option': | "bar" ()
+            'wrapped tagged union option': | "bar" ()
             'backticked tagged union option': | `bar` ()
-            'unquoted tagged union option': | baz ()
-                // 'key with newline\n': `multiline string
-        // foo
-        //     Bar`
+            'nonwrapped tagged union option': | baz ()
+	    
+            'multiline string with wrong indentation': `foo
+        foo`
             'object keys': {
-                `backticked`: "foo"
-                'apostrophed': "foo"
-                unwrapped: "foo"
+                `backticks`: "foo"
+                'apostrophes': "foo"
+                nonwrapped: "foo"
             }
         )
         'character escaping': (
             'using lowercase letters in hexadecimal escape sequence': "\u000c"
             'superfluous escape of solidus': "\/"
-            'superfluous escape of regular character (letter a)': "\u0061"
-            'superfluous escape of regular character (G clef character)': "\uD834\uDD1E"
+            'superfluous escape of non control character (letter a)': "\u0061"
+            'superfluous escape of non control character (G clef character)': "\uD834\uDD1E"
             'two-character escape sequence representation of form feed': "\f"
             'two-character escape sequence representation of backspace': "\b"
-            'unescaped tab in quoted string': "  "
+            'unescaped tab in quoted string': "	"
+	    'unescaped tab in multiline string': `\t`
         )
-
     )
 )

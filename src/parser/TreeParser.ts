@@ -15,7 +15,7 @@ import {
 } from "./TextParserStateTypes"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "./location"
 import { TreeEvent, TreeEventType } from "./TreeEvent"
-import { Token, TokenType, SimpleValueData, PunctionationData } from "./Token"
+import { Token, TokenType, StringData, PunctionationData } from "./Token"
 import * as Char from "./Characters"
 import { TextParserEventConsumer } from "./TextParserEventConsumer"
 
@@ -184,12 +184,12 @@ export class TreeParser<ReturnType, ErrorType> {
                     type: [TreeEventType.Overhead, $],
                 })
             }
-            case TokenType.Punctuation: {
+            case TokenType.Structural: {
                 const $ = token.type[1]
 
                 return this.onPunctuation(token.range, token.tokenString, $, onStackEmpty)
             }
-            case TokenType.SimpleValue: {
+            case TokenType.String: {
                 const $ = token.type[1]
 
                 return this.onSimpleValue(token.range, token.tokenString, $, onStackEmpty)
@@ -198,9 +198,9 @@ export class TreeParser<ReturnType, ErrorType> {
                 return assertUnreachable(token.type[0])
         }
     }
-    private onSimpleValue(range: Range, tokenString: string, data: SimpleValueData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+    private onSimpleValue(range: Range, tokenString: string, data: StringData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
 
-        const y = (data2: SimpleValueData) => {
+        const y = (data2: StringData) => {
             return this.sendEvent({
                 tokenString: tokenString,
                 range: range,

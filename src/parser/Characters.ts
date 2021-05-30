@@ -11,9 +11,10 @@ export const Whitespace = {
     space: 0x20,             // " "
 }
 
-export const QuotedString = {
+export const WrappedString = {
     quotationMark: 0x22,     // "
-    apostrophe: 0x27,     // '
+    apostrophe: 0x27,        // '
+    backtick: 0x60,          // `
     reverseSolidus: 0x5C,    // \
     solidus: 0x2F,           // /
 
@@ -38,4 +39,14 @@ export const Punctuation = {
     closeBracket: 0x5D,      // ]
     openAngleBracket: 0x3C,  // <
     closeAngleBracket: 0x3E, // >
+}
+
+export const UnicodeChars = {
+    "0": 0x30,
+    "9": 0x39,
+    "A": 0x41,
+    "F": 0x46,
+    "a": 0x61,
+    "f": 0x66,
+
 }

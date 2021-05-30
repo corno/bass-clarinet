@@ -1,5 +1,5 @@
 import { Location, Range } from "./location"
-import { Quote } from "./PreToken"
+import { WrappedStringType } from "./PreToken"
 
 export enum TextState {
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,
@@ -57,8 +57,8 @@ export type CurrentToken =
     | [CurrentTokenType.NONE]
     | [CurrentTokenType.LINE_COMMENT, CommentContext]
     | [CurrentTokenType.BLOCK_COMMENT, CommentContext]
-    | [CurrentTokenType.UNQUOTED_TOKEN, UnquotedTokenContext]
-    | [CurrentTokenType.QUOTED_STRING, QuotedStringContext]
+    | [CurrentTokenType.UNQUOTED_TOKEN, NonWrappedStringContext]
+    | [CurrentTokenType.QUOTED_STRING, WrappedStringContext]
     | [CurrentTokenType.WHITESPACE, WhitespaceContext]
 
 
@@ -68,8 +68,8 @@ export type CommentContext = {
     readonly indentation: null | string
 }
 
-export type UnquotedTokenContext = {
-    unquotedTokenNode: string
+export type NonWrappedStringContext = {
+    nonwrappedStringNode: string
     readonly start: Location
 }
 export type WhitespaceContext = {
@@ -88,8 +88,9 @@ export type IndentationData =
     | [IndentationState.lineIsVirgin]
     | [IndentationState.lineIsDitry]
 
-export type QuotedStringContext = {
-    readonly startCharacter: Quote
+export type WrappedStringContext = {
+    readonly type: WrappedStringType
     readonly start: Range
-    quotedStringNode: string
+    wrappedStringNode: string
+
 }
