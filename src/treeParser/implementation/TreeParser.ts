@@ -5,23 +5,50 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
+import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
 import {
-    ObjectState,
-    TaggedUnionState,
-    StackContextType2,
-    ObjectContext,
-    TaggedUnionContext,
-
-} from "../../parser/TextParserStateTypes"
-import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "../../parser/location"
-import { TreeEvent, TreeEventType } from "../../parser/TreeEvent"
-import { Token, TokenType, StringData, PunctionationData } from "../api"
-import * as Char from "../../parser/Characters"
-import { TextParserEventConsumer } from "../../parser/TextParserEventConsumer"
-import { ITreeParser } from "../api"
+    TreeEvent,
+    TreeEventType,
+    TreeParserEventConsumer,
+    TreeParserError,
+    TreeParserErrorType,
+} from "../functions"
+import {
+    Token,
+    TokenType,
+    StringData,
+    PunctionationData,
+    ITreeParser,
+} from "../api"
+import * as Char from "../../Characters"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
+}
+
+
+export enum ObjectState {
+    EXPECTING_OBJECT_VALUE,
+    EXPECTING_KEY,
+}
+export enum TaggedUnionState {
+    EXPECTING_OPTION,
+    EXPECTING_VALUE,
+}
+
+export enum StackContextType2 {
+    ARRAY,
+    OBJECT,
+    TAGGED_UNION,
+}
+
+
+export type TaggedUnionContext = {
+    state: TaggedUnionState
+}
+export type ObjectContext = {
+    state: ObjectState
+    //readonly openChar: number
 }
 
 type StackContext = {
@@ -32,26 +59,6 @@ type StackContext = {
     }]
     | [StackContextType2.OBJECT, ObjectContext]
     | [StackContextType2.TAGGED_UNION, TaggedUnionContext]
-}
-
-export type TreeParserErrorType =
-    | ["unexpected end of document", {
-        "still in":
-        | ["array"]
-        | ["object"]
-        | ["tagged union"]
-    }]
-    | ["unexpected '!'"]
-    | ["not in an object"]
-    | ["not in an array"]
-    | ["missing property value"]
-    | ["expected option"]
-    | ["unknown punctuation", {
-        found: string
-    }]
-
-export type TreeParserError = {
-    type: TreeParserErrorType
 }
 
 export function printTreeParserError(error: TreeParserError): string {
@@ -87,14 +94,14 @@ export function printTreeParserError(error: TreeParserError): string {
 
 export function createTreeParser<ReturnType, ErrorType>(
     onerror: (error: TreeParserError, range: Range) => void,
-    eventsConsumer: TextParserEventConsumer<ReturnType, ErrorType>
+    eventsConsumer: TreeParserEventConsumer<ReturnType, ErrorType>
 ): ITreeParser<ReturnType, ErrorType> {
 
     class TreeParser {
         private readonly stack = new Array<StackContext>()
         private currentContext: StackContext | null = null
         private readonly onerror: (error: TreeParserError, range: Range) => void
-        private readonly eventsConsumer: TextParserEventConsumer<ReturnType, ErrorType>
+        private readonly eventsConsumer: TreeParserEventConsumer<ReturnType, ErrorType>
         constructor(
         ) {
             this.onerror = onerror

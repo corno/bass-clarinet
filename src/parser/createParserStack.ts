@@ -1,24 +1,22 @@
 import * as p from "pareto"
 import {
-    TextParserEventConsumer,
-} from "./TextParserEventConsumer"
-import {
     createTextParser,
-    TextParserError,
-    printTextParserError,
-} from "./createTextParser"
+} from "../textParser"
 import {
     Range,
     Location,
-} from "./location"
+} from "../location"
 import {
     createStreamPreTokenizer,
-} from "./createStreamPreTokenizer"
+} from "../streamPretokenizer"
 import {
     createTokenizer,
-} from "./createTokenizer"
-import { printPreTokenizerError, PreTokenizerError } from "./PreTokenizer"
-import { OverheadToken } from "../treeParser/api"
+} from "../tokenizer"
+import { printPreTokenizerError, PreTokenizerError } from "../pretokenizer"
+import { OverheadToken } from "../treeParser"
+import { TreeParserEventConsumer } from "../treeParser"
+import { printTextParserError } from "../textParser"
+import { TextParserError } from "../textParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -55,8 +53,8 @@ export function printParsingError(error: ParsingError): string {
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).
  */
 export function createParserStack<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => TextParserEventConsumer<null, null>,
-    onInstanceDataStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => TreeParserEventConsumer<null, null>,
+    onInstanceDataStart: (location: Location) => TreeParserEventConsumer<ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },

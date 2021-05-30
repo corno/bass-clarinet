@@ -95,7 +95,7 @@ module.exports = {
         "id-match": "error",
         "max-classes-per-file": [
             "error",
-            1
+            4
         ],
         "max-len": [
             "error",

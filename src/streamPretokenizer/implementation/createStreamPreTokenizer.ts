@@ -4,11 +4,66 @@
     max-classes-per-file: "off",
 */
 import * as p from "pareto"
-import { Range } from "./location"
-import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
-import { Chunk, IPreTokenizer, TokenizerOptions, LocationState, PreTokenizerError, createPreTokenizer } from "./PreTokenizer"
+import { Location, Range } from "../../location"
+import { ITokenStreamConsumer } from "../../parser/ITokenStreamConsumer"
+import {
+    Chunk,
+    IPreTokenizer,
+    TokenizerOptions,
+    createPreTokenizer,
+} from "../../pretokenizer"
+import { PreTokenizerError } from "../../pretokenizer"
+
+import {
+    ILocationState,
+} from "../../pretokenizer"
+import * as Char from "../../Characters"
 
 const DEBUG = false
+
+
+export class LocationState implements ILocationState {
+    private readonly location = {
+        position: -1,
+        column: 0,
+        line: 1,
+    }
+    private readonly spacesPerTab: number
+    constructor(spacesPerTab: number) {
+        this.spacesPerTab = spacesPerTab
+    }
+    public getCurrentLocation(): Location {
+        return {
+            position: this.location.position + 1,
+            line: this.location.line,
+            column: this.location.column + 1,
+        }
+    }
+    public getNextLocation(): Location {
+        return {
+            position: this.location.position + 2,
+            line: this.location.line,
+            column: this.location.column + 2,
+        }
+    }
+    public increase(character: number): void {
+        this.location.position++
+        //set the position
+        switch (character) {
+            case Char.Whitespace.lineFeed:
+                this.location.line++
+                this.location.column = 0
+                break
+            case Char.Whitespace.carriageReturn:
+                break
+            case Char.Whitespace.tab:
+                this.location.column += this.spacesPerTab
+                break
+            default:
+                this.location.column++
+        }
+    }
+}
 
 /**
  *

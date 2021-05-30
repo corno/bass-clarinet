@@ -1,5 +1,5 @@
-import { Location, Range } from "./location"
-import { WrappedStringType } from "./PreToken"
+import { Location, Range } from "../location"
+import { WrappedStringType } from "../pretokenizer"
 
 export enum TextState {
     EXPECTING_SCHEMA_START_OR_ROOT_VALUE,

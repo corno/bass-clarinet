@@ -9,10 +9,7 @@ import {
     createRangeFromSingleLocation,
     Location,
     Range,
-    TextParserEventConsumer,
-    TreeEvent,
-    TreeEventType,
-} from "../parser"
+} from "../location"
 import { createDummyValueHandler } from "./dummyHandlers"
 import {
     RequiredValueHandler,
@@ -24,7 +21,8 @@ import {
     StackContext,
 } from "../handlers"
 import { RangeError } from "../errors"
-import { OverheadTokenType } from "../treeParser/api"
+import { OverheadTokenType, TreeParserEventConsumer } from "../treeParser"
+import { TreeEvent, TreeEventType } from "../treeParser"
 
 const DEBUG = false
 
@@ -881,7 +879,7 @@ export function createStackedParser<ReturnType, ErrorType>(
     valueHandler: ParserRequiredValueHandler,
     onError: (error: StackedDataError, range: Range) => void,
     onEnd: () => p.IUnsafeValue<ReturnType, ErrorType>
-): TextParserEventConsumer<ReturnType, ErrorType> {
+): TreeParserEventConsumer<ReturnType, ErrorType> {
     const overheadState = new OverheadState()
     const semanticState = new SemanticState(valueHandler)
 

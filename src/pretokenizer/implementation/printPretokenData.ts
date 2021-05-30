@@ -1,34 +1,8 @@
-import { Location, Range, printRange, printLocation } from "./location"
-
-export type WrappedStringType =
-    | ["apostrophed", {
-        //
-    }]
-    | ["quoted", {
-        //
-    }]
-    | ["multiline", {
-        previousLines: string[]
-    }]
+import { printRange, printLocation } from "../../location"
+import { PreToken, PreTokenDataType } from "../api"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
-}
-
-export enum PreTokenDataType {
-    BlockCommentBegin,
-    BlockCommentEnd,
-    LineCommentBegin,
-    LineCommentEnd,
-    NewLine,
-    Punctuation,
-    WrappedStringBegin,
-    WrappedStringEnd,
-    Snippet,
-    NonWrappedStringBegin,
-    NonWrappedStringEnd,
-    WhiteSpaceBegin,
-    WhiteSpaceEnd,
 }
 
 export function printPreTokenData(tokenData: PreToken): string {
@@ -96,55 +70,4 @@ export function printPreTokenData(tokenData: PreToken): string {
         default:
             return assertUnreachable(tokenData.type[0])
     }
-}
-
-/**
- * A PreToken is a low level token
- */
-export type PreToken = {
-    type:
-    | [PreTokenDataType.BlockCommentBegin, {
-        range: Range
-    }]
-    | [PreTokenDataType.BlockCommentEnd, {
-        range: Range //| null
-    }]
-    | [PreTokenDataType.LineCommentBegin, {
-        range: Range
-    }]
-    | [PreTokenDataType.LineCommentEnd, {
-        location: Location //| null
-    }]
-    | [PreTokenDataType.NewLine, {
-        range: Range //| null
-    }]
-    | [PreTokenDataType.Punctuation, {
-        char: number
-        range: Range
-    }]
-    | [PreTokenDataType.WrappedStringBegin, {
-        range: Range
-        type: WrappedStringType
-    }]
-    | [PreTokenDataType.WrappedStringEnd, {
-        range: Range
-        wrapper: string | null
-    }]
-    | [PreTokenDataType.Snippet, {
-        chunk: string
-        begin: number
-        end: number
-    }]
-    | [PreTokenDataType.NonWrappedStringBegin, {
-        location: Location
-    }]
-    | [PreTokenDataType.NonWrappedStringEnd, {
-        location: Location //| null
-    }]
-    | [PreTokenDataType.WhiteSpaceBegin, {
-        location: Location
-    }]
-    | [PreTokenDataType.WhiteSpaceEnd, {
-        location: Location //| null
-    }]
 }

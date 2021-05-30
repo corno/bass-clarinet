@@ -2,10 +2,9 @@
 	complexity: off
 */
 import * as p from "pareto"
-import { Range, Location } from "../parser/location"
-import { TreeEventType } from "../parser/TreeEvent"
-import { TextParserEventConsumer } from "../parser"
-import { OverheadTokenType } from "../treeParser/api"
+import { Range, Location } from "../location"
+import { TreeEventType, TreeParserEventConsumer } from "../treeParser"
+import { OverheadTokenType } from "../treeParser"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")
@@ -62,7 +61,7 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onEnd: () => p.IValue<null>,
-): TextParserEventConsumer<null, null> {
+): TreeParserEventConsumer<null, null> {
 	let precedingWhitespace: null | TokenInfo = null
 
 	const stack: Style[] = []
@@ -243,7 +242,7 @@ export function createFormatter(
 		currentRequiredStyle = style
 	}
 
-	const ds: TextParserEventConsumer<null, null> = {
+	const ds: TreeParserEventConsumer<null, null> = {
 
 		onData: data => {
 			switch (data.type[0]) {

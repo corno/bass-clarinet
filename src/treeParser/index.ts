@@ -1,7 +1,7 @@
 export * from "./api"
+export * from "./functions"
 
 export {
     createTreeParser,
-    printTreeParserError,
-    TreeParserError
+    printTreeParserError
 } from "./implementation/TreeParser"

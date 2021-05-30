@@ -1,1 +1,5 @@
-// export * from "./api"
+export * from "./api"
+
+export {
+    createTokenizer
+} from "./implementation/createTokenizer"

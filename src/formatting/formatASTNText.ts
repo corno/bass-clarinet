@@ -3,8 +3,9 @@ import { Annotater, createDecoratedRequiredValue } from "../attachments/createDe
 import { TokenFormatInstruction, NonTokenFormatInstruction } from "./FormatInstruction"
 import { createRequiredValueConcatenator } from "./concatenateFormatInstructions"
 import { createStackedParser, ParserAnnotationData } from "../stackedParser/createStackedParser"
-import { parseString, printParsingError, printRange } from "../parser"
+import { parseString, printParsingError } from "../parser"
 import { createDummyValueHandler } from "../stackedParser/dummyHandlers"
+import { printRange } from "../location"
 
 export function formatASTNText(
     astnText: string,

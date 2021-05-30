@@ -3,22 +3,18 @@
     no-console:"off",
     max-classes-per-file: "off",
 */
-import * as Char from "./Characters"
+import * as Char from "../../Characters"
 import {
     TokenType,
     CurrentToken,
     FoundNewlineCharacterType,
     FoundNewlineCharacter,
 } from "./PreTokenizerStateTypes"
-import { Location, Range, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
-import { PreTokenDataType, PreToken } from "./PreToken"
+import { Range, createRangeFromSingleLocation, createRangeFromLocations } from "../../location"
+import { Chunk, ILocationState, IPreTokenizer, PreToken, PreTokenDataType, PreTokenizerError } from "../api"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
-}
-
-export type TokenizerOptions = {
-    spaces_per_tab?: number //eslint-disable-line
 }
 
 const DEBUG = false
@@ -36,71 +32,6 @@ function getStateDescription(stackContext: CurrentToken | null): string {
         case TokenType.WHITESPACE: return "WHITESPACE"
         default: return assertUnreachable(stackContext[0])
 
-    }
-}
-
-export class Chunk {
-    private currentIndex: number
-    public readonly str: string
-    constructor(str: string) {
-        this.str = str
-        this.currentIndex = -1
-    }
-    lookahead(): number | null {
-        const char = this.str.charCodeAt(this.getIndexOfNextCharacter())
-        return isNaN(char) ? null : char
-    }
-    increaseIndex(): void {
-        this.currentIndex += 1
-    }
-    getIndexOfNextCharacter(): number {
-        return this.currentIndex + 1
-    }
-}
-
-export class LocationState {
-    private readonly location = {
-        position: -1,
-        column: 0,
-        line: 1,
-    }
-    private readonly spacesPerTab: number
-    constructor(spacesPerTab: number) {
-        this.spacesPerTab = spacesPerTab
-    }
-    public getCurrentLocation(): Location {
-        return {
-            position: this.location.position + 1,
-            line: this.location.line,
-            column: this.location.column + 1,
-        }
-    }
-    public getCurrentCharacterRange(): Range {
-        return createRangeFromLocations(this.getCurrentLocation(), this.getNextLocation())
-    }
-    public getNextLocation(): Location {
-        return {
-            position: this.location.position + 2,
-            line: this.location.line,
-            column: this.location.column + 2,
-        }
-    }
-    public increase(character: number): void {
-        this.location.position++
-        //set the position
-        switch (character) {
-            case Char.Whitespace.lineFeed:
-                this.location.line++
-                this.location.column = 0
-                break
-            case Char.Whitespace.carriageReturn:
-                break
-            case Char.Whitespace.tab:
-                this.location.column += this.spacesPerTab
-                break
-            default:
-                this.location.column++
-        }
     }
 }
 
@@ -142,18 +73,8 @@ class Snippet {
     }
 }
 
-export type PreTokenizerError = {
-    type:
-    | ["unterminated block comment"]
-    | ["found dangling slash at the end of the document"]
-    | ["unterminated string"]
-    | ["found dangling slash"]
-    | ["expected hexadecimal digit", {
-        found: string
-    }]
-    | ["expected special character after escape slash", {
-        found: string
-    }]
+function getCurrentCharacterRange(ls: ILocationState): Range {
+    return createRangeFromLocations(ls.getCurrentLocation(), ls.getNextLocation())
 }
 
 export function printPreTokenizerError($: PreTokenizerError): string {
@@ -189,13 +110,9 @@ type OnError = ($: {
     range: Range
 }) => void
 
-export interface IPreTokenizer {
-    handleDanglingToken(): PreToken | null
-    createNextToken(currentChunk: Chunk): null | PreToken
-}
 
 export function createPreTokenizer(
-    locationState: LocationState,
+    locationState: ILocationState,
     onError: OnError,
 ): IPreTokenizer {
 
@@ -203,7 +120,7 @@ export function createPreTokenizer(
     class PreTokenizer {
         public currentTokenType: CurrentToken
         private readonly onError: OnError
-        private readonly locationState: LocationState
+        private readonly locationState: ILocationState
 
         constructor(
         ) {
@@ -325,7 +242,7 @@ export function createPreTokenizer(
                     } else if ($.foundSolidus) {
                         this.onError({
                             error: { type: ["found dangling slash at the end of the document"] },
-                            range: this.locationState.getCurrentCharacterRange(),
+                            range: getCurrentCharacterRange(this.locationState),
                         })
                         return null
                     } else {
@@ -525,7 +442,7 @@ export function createPreTokenizer(
                                 } else {
                                     this.onError({
                                         error: { type: ["found dangling slash"] },
-                                        range: this.locationState.getCurrentCharacterRange(),
+                                        range: getCurrentCharacterRange(this.locationState),
                                     })
                                     $.foundSolidus = null
                                     return {
@@ -605,7 +522,7 @@ export function createPreTokenizer(
                                                 {
                                                     type: [PreTokenDataType.WrappedStringBegin, {
                                                         type: ["apostrophed", {}],
-                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                        range: getCurrentCharacterRange(this.locationState),
                                                     }],
                                                 },
                                             ),
@@ -626,7 +543,7 @@ export function createPreTokenizer(
                                                         type: ["multiline", {
                                                             previousLines: [],
                                                         }],
-                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                        range: getCurrentCharacterRange(this.locationState),
                                                     }],
                                                 },
                                             ),
@@ -645,7 +562,7 @@ export function createPreTokenizer(
                                                 {
                                                     type: [PreTokenDataType.WrappedStringBegin, {
                                                         type: ["quoted", {}],
-                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                        range: getCurrentCharacterRange(this.locationState),
                                                     }],
                                                 },
                                             ),
@@ -688,7 +605,7 @@ export function createPreTokenizer(
                                                 consumeCharacter: true,
                                                 preToken: {
                                                     type: [PreTokenDataType.Punctuation, {
-                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                        range: getCurrentCharacterRange(this.locationState),
                                                         char: nextChar,
                                                     }],
                                                 },
@@ -738,7 +655,7 @@ export function createPreTokenizer(
                                                 consumeCharacter: true,
                                                 preToken: {
                                                     type: [PreTokenDataType.NewLine, {
-                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                        range: getCurrentCharacterRange(this.locationState),
                                                     }],
                                                 },
                                             }
@@ -756,7 +673,7 @@ export function createPreTokenizer(
                                                 consumeCharacter: true,
                                                 preToken: {
                                                     type: [PreTokenDataType.NewLine, {
-                                                        range: this.locationState.getCurrentCharacterRange(),
+                                                        range: getCurrentCharacterRange(this.locationState),
                                                     }],
                                                 },
                                             }
@@ -787,7 +704,7 @@ export function createPreTokenizer(
                                                 found: String.fromCharCode(nextChar),
                                             }],
                                         },
-                                        range: this.locationState.getCurrentCharacterRange(),
+                                        range: getCurrentCharacterRange(this.locationState),
                                     })
                                     return {
                                         consumeCharacter: true,
@@ -810,7 +727,7 @@ export function createPreTokenizer(
                                                 found: String.fromCharCode(nextChar),
                                             }],
                                         },
-                                        range: this.locationState.getCurrentCharacterRange(),
+                                        range: getCurrentCharacterRange(this.locationState),
                                     })
                                 }
                                 const nextCharAsString = String.fromCharCode(nextChar)
@@ -891,7 +808,7 @@ export function createPreTokenizer(
                                      */
 
                                     return snippet.ensureFlushed(() => {
-                                        const rangeInfo = this.locationState.getCurrentCharacterRange()
+                                        const rangeInfo = getCurrentCharacterRange(this.locationState)
 
                                         return {
                                             consumeCharacter: true,
@@ -922,7 +839,7 @@ export function createPreTokenizer(
                                         })
                                     } else {
                                         return snippet.ensureFlushed(() => {
-                                            const rangeInfo = this.locationState.getCurrentCharacterRange()
+                                            const rangeInfo = getCurrentCharacterRange(this.locationState)
                                             this.onError({
                                                 error: { type: ["unterminated string"] },
                                                 range: rangeInfo,

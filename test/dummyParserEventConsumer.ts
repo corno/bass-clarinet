@@ -1,7 +1,7 @@
 import * as p from "pareto"
-import { TextParserEventConsumer } from "../src"
+import { TreeParserEventConsumer } from "../src"
 
-export const dummyParserEventConsumer: TextParserEventConsumer<null, null> = {
+export const dummyParserEventConsumer: TreeParserEventConsumer<null, null> = {
     onData: () => {
         return p.value(false)
     },

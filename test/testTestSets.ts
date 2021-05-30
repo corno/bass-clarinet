@@ -13,7 +13,7 @@ import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
 import { createStreamSplitter } from "../src/createStreamSplitter"
 import { printParsingError, printStackedDataError } from "../src"
-import * as tp from "../src/treeParser/api"
+import * as tp from "../src/treeParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -71,8 +71,8 @@ function outputOverheadToken(out: string[], $: tp.OverheadToken) {
 
 function createOutPutter(
     out: string[]
-): astn.TextParserEventConsumer<null, null> {
-    class OutPutter implements astn.TextParserEventConsumer<null, null> {
+): astn.TreeParserEventConsumer<null, null> {
+    class OutPutter implements astn.TreeParserEventConsumer<null, null> {
         onData(data: astn.TreeEvent) {
             switch (data.type[0]) {
                 case astn.TreeEventType.CloseArray: {
@@ -258,7 +258,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                     assertUnreachable($.type[0])
             }
         }
-        const eventSubscriber: astn.TextParserEventConsumer<null, null> = {
+        const eventSubscriber: astn.TreeParserEventConsumer<null, null> = {
             onData: data => {
                 switch (data.type[0]) {
                     case astn.TreeEventType.CloseArray: {
@@ -384,12 +384,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             )
         }
         const out: string[] = []
-        const schemaDataSubscribers: astn.TextParserEventConsumer<null, null>[] = [
+        const schemaDataSubscribers: astn.TreeParserEventConsumer<null, null>[] = [
             createOutPutter(out),
             eventSubscriber,
             createFormatter(),
         ]
-        const instanceDataSubscribers: astn.TextParserEventConsumer<null, null>[] = [
+        const instanceDataSubscribers: astn.TreeParserEventConsumer<null, null>[] = [
             createOutPutter(out),
             eventSubscriber,
             stackedSubscriber,

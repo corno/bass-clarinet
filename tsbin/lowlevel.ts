@@ -2,7 +2,7 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as fs from "fs"
 import * as astn from "../src"
-import * as tp from "../src/treeParser/api"
+import * as tp from "../src/treeParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -17,7 +17,7 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: astn.TextParserEventConsumer<null, null> = {
+export const parserEventConsumer: astn.TreeParserEventConsumer<null, null> = {
     onData: data => {
         switch (data.type[0]) {
             case astn.TreeEventType.CloseArray: {

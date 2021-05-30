@@ -1,6 +1,6 @@
 
 import * as p from "pareto"
-import { PreToken } from "./PreToken"
-import { Location } from "./location"
+import { Location } from "../location"
+import { PreToken } from "../pretokenizer"
 
 export type ITokenStreamConsumer<ReturnType, ErrorType> = p.IUnsafeStreamConsumer<PreToken, Location, ReturnType, ErrorType>

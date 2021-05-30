@@ -9,12 +9,13 @@ import {
     IndentationState,
     IndentationData,
     WhitespaceContext,
-} from "./TextParserStateTypes"
-import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "./location"
-import { PreTokenDataType, PreToken, WrappedStringType } from "./PreToken"
-import { TokenType, Token, OverheadTokenType, StringType } from "../treeParser/api"
-import { RangeError } from "../errors"
-import { ITokenStreamConsumer } from "./ITokenStreamConsumer"
+} from "../../parser/TextParserStateTypes"
+import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "../../location"
+import { TokenType, OverheadTokenType, StringType } from "../../treeParser"
+import { RangeError } from "../../errors"
+import { ITokenStreamConsumer } from "../../parser/ITokenStreamConsumer"
+import { TokenConsumer } from "../api"
+import { PreToken, PreTokenDataType, WrappedStringType } from "../../pretokenizer"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -27,12 +28,6 @@ class TokenizerStackPanicError extends RangeError {
         super(`stack panic: ${message}`, range)
     }
 }
-
-export interface TokenConsumer<ReturnType, ErrorType> {
-    onData(token: Token): p.IValue<boolean>
-    onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType>
-}
-
 
 export function createTokenizer<ReturnType, ErrorType>(
     parser: TokenConsumer<ReturnType, ErrorType>,

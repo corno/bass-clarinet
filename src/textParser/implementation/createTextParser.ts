@@ -5,15 +5,14 @@
 import * as p from "pareto"
 import {
     TextState,
-} from "./TextParserStateTypes"
-import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "./location"
-import { TreeEventType } from "./TreeEvent"
-import { TextParserEventConsumer } from "./TextParserEventConsumer"
-import * as Char from "./Characters"
-import { createTreeParser, TreeParserError, printTreeParserError } from "../treeParser"
-import { TokenType, Token, PunctionationData, StringData, OverheadToken } from "../treeParser/api"
-import { TokenConsumer } from "./createTokenizer"
-import { ITreeParser } from "../treeParser/api"
+} from "../../parser/TextParserStateTypes"
+import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
+import * as Char from "../../Characters"
+import { createTreeParser, printTreeParserError, TreeParserEventConsumer, TreeEventType } from "../../treeParser"
+import { TokenType, Token, PunctionationData, StringData, OverheadToken } from "../../treeParser"
+import { TokenConsumer } from "../../tokenizer"
+import { ITreeParser } from "../../treeParser"
+import { TextErrorType, TextParserError } from "../api"
 
 const DEBUG = false
 
@@ -39,21 +38,6 @@ export type RootContext<ReturnType, ErrorType> = {
     }]
 }
 
-type TextErrorType =
-    | ["expected the schema start (!) or root value"]
-    | ["expected the schema"]
-    | ["expected rootvalue"]
-    | ["unexpected data after end", {
-        data: string
-    }]
-
-export type TextParserError = {
-    type:
-    | ["body", TreeParserError]
-    | ["structure", {
-        type: TextErrorType
-    }]
-}
 
 export function printTextParserError(error: TextParserError): string {
     switch (error.type[0]) {
@@ -98,8 +82,8 @@ export function printTextParserError(error: TextParserError): string {
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
 export function createTextParser<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => TextParserEventConsumer<null, null>,
-    onInstanceDataStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => TreeParserEventConsumer<null, null>,
+    onInstanceDataStart: (location: Location) => TreeParserEventConsumer<ReturnType, ErrorType>,
     onerror: (error: TextParserError, range: Range) => void,
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
 ): TokenConsumer<ReturnType, ErrorType> {

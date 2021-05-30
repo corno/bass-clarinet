@@ -1,23 +1,21 @@
 import * as p from "pareto"
 import * as p20 from "pareto-20"
 import {
-    TextParserEventConsumer,
-} from "./TextParserEventConsumer"
-import {
     OverheadToken,
-} from "../treeParser/api"
+} from "../treeParser"
 import {
     Range,
     Location,
-} from "./location"
+} from "../location"
 import {
     createParserStack, ParsingError,
 } from "./createParserStack"
+import { TreeParserEventConsumer } from "../treeParser"
 
 export function parseString<ReturnType, ErrorType>(
     data: string,
-    onSchemaDataStart: (range: Range) => TextParserEventConsumer<null, null>,
-    onInstanceDataStart: (location: Location) => TextParserEventConsumer<ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => TreeParserEventConsumer<null, null>,
+    onInstanceDataStart: (location: Location) => TreeParserEventConsumer<ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },
