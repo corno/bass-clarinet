@@ -1,4 +1,4 @@
-import { ExpectedToken, ExpectErrorValue, ExpectErrorValueType } from "../interfaces/IExpectContext";
+import { ExpectedToken, ExpectErrorValue, ExpectErrorValueType } from "../../interfaces/IExpectContext";
 
 export type ExpectErrorHandler<TokenAnnotation> = ($: {
     issue: ExpectError

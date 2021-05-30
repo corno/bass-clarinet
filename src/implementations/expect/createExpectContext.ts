@@ -13,7 +13,7 @@ import {
 } from "../../interfaces/IExpectContext"
 import {
     ExpectError, ExpectErrorHandler, OnDuplicateEntry, Severity,
-} from "../functions"
+} from "./functions"
 import { createSerializedString } from "../../formatting"
 import { ArrayData, OptionData, ObjectData, PropertyData, StringValueData } from "../../interfaces/handlers"
 

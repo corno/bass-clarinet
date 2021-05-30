@@ -9,22 +9,22 @@ import {
     createRangeFromSingleLocation,
     Location,
     Range,
-} from "../location"
+} from "../../location"
 import {
     createDummyValueHandler,
 } from "../dummyHandlers"
 import {
     StringValueDataType,
     StackContext,
-} from "../interfaces/handlers"
+} from "../../interfaces/handlers"
 import {
     RangeError,
-} from "../errors"
+} from "../../errors"
 import {
     TreeParserEventConsumer,
     TreeEvent,
     TreeEventType,
-} from "../implementations/treeParser"
+} from "../treeParser"
 import {
     BeforeContextData,
     ContextData,
@@ -34,9 +34,9 @@ import {
     ParserTaggedUnionHandler,
     ParserValueHandler,
     Comment,
-} from "./api"
+} from "../../interfaces/ParserAnnotationData"
 import { StackedDataError } from "./functions"
-import { OverheadTokenType } from "../interfaces/ITreeParser"
+import { OverheadTokenType } from "../../interfaces/ITreeParser"
 
 const DEBUG = false
 

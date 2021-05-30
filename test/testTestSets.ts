@@ -11,7 +11,7 @@ import * as chai from "chai"
 import { ownJSONTests } from "./data/ownJSONTestset"
 import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
-import { createStreamSplitter } from "../src/createStreamSplitter"
+import { createStreamSplitter } from "../src/implementations/createStreamSplitter"
 import { printParsingError, printStackedDataError } from "../src"
 import * as tp from "../src/interfaces/ITreeParser"
 

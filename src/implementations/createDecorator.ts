@@ -1,6 +1,6 @@
 import * as p from "pareto"
-import * as h from "./interfaces/handlers";
-import { Annotater } from "./interfaces/IAnnotater";
+import * as h from "../interfaces/handlers";
+import { Annotater } from "../interfaces/IAnnotater";
 
 
 export function createDecoratedValue<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>(
