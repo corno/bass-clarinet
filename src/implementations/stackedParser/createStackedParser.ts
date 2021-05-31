@@ -6,59 +6,56 @@
 */
 import * as p from "pareto"
 import {
-    createRangeFromSingleLocation,
-    Range,
-} from "../../location"
-import {
     createDummyValueHandler,
 } from "../dummyHandlers"
 import {
+    ArrayHandler,
+    ObjectHandler,
+    RequiredValueHandler,
     StackContext,
+    TaggedUnionHandler,
+    TreeHandler,
+    ValueHandler,
 } from "../../interfaces/handlers"
 import {
-    RangeError,
-} from "../../errors"
-import {
-    EndData,
     ITreeParserEventConsumer,
     TreeEvent,
     TreeEventType,
 } from "../../interfaces/ITreeParserEventConsumer"
-import {
-    BeforeContextData,
-    ContextData,
-    ParserArrayHandler,
-    ParserObjectHandler,
-    ParserRequiredValueHandler,
-    ParserTaggedUnionHandler,
-    ParserValueHandler,
-    Comment,
-    ParserTreeHandler,
-} from "../../interfaces/ParserAnnotationData"
+// import {
+//     BeforeContextData,
+//     ContextData,
+//     ParserArrayHandler,
+//     ParserObjectHandler,
+//     ParserRequiredValueHandler,
+//     ParserTaggedUnionHandler,
+//     ParserValueHandler,
+//     Comment,
+//     ParserTreeHandler,
+// } from "../../interfaces/ParserAnnotationData"
 import { StackedDataError } from "./functionTypes"
-import { OverheadTokenType } from "../../interfaces/ITreeParser"
 
 const DEBUG = false
 
-class StackedDataSubscriberPanic extends RangeError {
-    constructor(message: string, range: Range) {
-        super(`stack panic: ${message}`, range)
+class StackedDataSubscriberPanic<Annotation> extends Error {
+    constructor(message: string, _annotation: Annotation) {
+        super(`stack panic: ${message}`)
     }
 }
 
-type TaggedUnionState =
+type TaggedUnionState<TokenAnnotation, NonTokenAnnotation> =
     | ["expecting option", {
     }]
-    | ["expecting value", ParserRequiredValueHandler]
+    | ["expecting value", RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>]
 
 
-type ContextType =
+type ContextType<TokenAnnotation, NonTokenAnnotation> =
     | ["object", {
         type:
         | ["dictionary"]
         | ["verbose type"]
-        readonly objectHandler: ParserObjectHandler
-        propertyHandler: null | ParserRequiredValueHandler
+        readonly objectHandler: ObjectHandler<TokenAnnotation, NonTokenAnnotation>
+        propertyHandler: null | RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
         foundProperties: boolean
     }]
     | ["array", {
@@ -66,43 +63,43 @@ type ContextType =
         | ["list"]
         | ["shorthand type"]
         foundElements: boolean
-        readonly arrayHandler: ParserArrayHandler
+        readonly arrayHandler: ArrayHandler<TokenAnnotation, NonTokenAnnotation>
     }]
     | ["taggedunion", {
-        readonly handler: ParserTaggedUnionHandler
-        state: TaggedUnionState
+        readonly handler: TaggedUnionHandler<TokenAnnotation, NonTokenAnnotation>
+        state: TaggedUnionState<TokenAnnotation, NonTokenAnnotation>
     }]
 
-function raiseError(onError: (error: StackedDataError, range: Range) => void, error: StackedDataError, range: Range) {
-    onError(error, range)
+function raiseError<Annotation>(onError: (error: StackedDataError, annotation: Annotation) => void, error: StackedDataError, annotation: Annotation) {
+    onError(error, annotation)
 }
 
-class CommentState {
-    private comments: Comment[] = []
-    flush(): BeforeContextData {
-        const bcd: BeforeContextData = {
-            comments: this.comments,
-        }
-        this.comments = []
-        return bcd
-    }
-    onCommend(comment: Comment) {
-        this.comments.push(comment)
-    }
-}
+// class CommentState {
+//     private comments: Comment[] = []
+//     flush(): BeforeContextData {
+//         const bcd: BeforeContextData = {
+//             comments: this.comments,
+//         }
+//         this.comments = []
+//         return bcd
+//     }
+//     onCommend(comment: Comment) {
+//         this.comments.push(comment)
+//     }
+// }
 
 
-class SemanticState {
-    currentContext: ContextType | null = null
-    private readonly stack: (ContextType | null)[] = []
+class SemanticState<Annotation> {
+    currentContext: ContextType<Annotation, null> | null = null
+    private readonly stack: (ContextType<Annotation, null> | null)[] = []
     private dictionaryDepth = 0
     private verboseTypeDepth = 0
     private listDepth = 0
     private shorthandTypeDepth = 0
     private taggedUnionDepth = 0
-    public treeHandler: ParserTreeHandler | null //becomes null when processed
+    public treeHandler: TreeHandler<Annotation, null> | null //becomes null when processed
 
-    constructor(treeHandler: ParserTreeHandler) {
+    constructor(treeHandler: TreeHandler<Annotation, null>) {
         this.treeHandler = treeHandler
     }
     public createStackContext(): StackContext {
@@ -114,10 +111,10 @@ class SemanticState {
             taggedUnionDepth: this.taggedUnionDepth,
         }
     }
-    public pop(range: Range) {
+    public pop(annotation: Annotation) {
 
         if (this.currentContext === null) {
-            throw new StackedDataSubscriberPanic("unexpected end of stack", range)
+            throw new StackedDataSubscriberPanic("unexpected end of stack", annotation)
         }
         switch (this.currentContext[0]) {
             case "array": {
@@ -161,12 +158,12 @@ class SemanticState {
         }
         const previousContext = this.stack.pop()
         if (previousContext === undefined) {
-            throw new StackedDataSubscriberPanic("unexpected end of stack", range)
+            throw new StackedDataSubscriberPanic("unexpected end of stack", annotation)
         } else {
             if (previousContext !== null && previousContext[0] === "taggedunion") {
                 const taggedUnion = previousContext[1]
                 if (taggedUnion.state[0] !== "expecting value") {
-                    throw new StackedDataSubscriberPanic("unexpected tagged union state", range)
+                    throw new StackedDataSubscriberPanic("unexpected tagged union state", annotation)
                 }
                 taggedUnion.handler.end({
                     annotation: null,
@@ -175,7 +172,7 @@ class SemanticState {
             this.currentContext = previousContext
         }
     }
-    public push(newContext: ContextType) {
+    public push(newContext: ContextType<Annotation, null>) {
         this.stack.push(this.currentContext)
         this.currentContext = newContext
         switch (newContext[0]) {
@@ -219,7 +216,7 @@ class SemanticState {
                 assertUnreachable(newContext[0])
         }
     }
-    public wrapupValue(range: Range): void {
+    public wrapupValue(annotation: Annotation): void {
         if (this.currentContext === null) {
             this.treeHandler = null
         } else {
@@ -235,8 +232,8 @@ class SemanticState {
                     if (this.currentContext[1].state[0] !== "expecting value") {
                         //error is already reported by parser
                     } else {
-                        this.pop(range)
-                        this.wrapupValue(range)
+                        this.pop(annotation)
+                        this.wrapupValue(annotation)
                     }
                     break
                 }
@@ -245,7 +242,7 @@ class SemanticState {
             }
         }
     }
-    public initValueHandler(): ParserValueHandler {
+    public initValueHandler(): ValueHandler<Annotation, null> {
         if (this.currentContext === null) {
             const th = this.treeHandler
             if (th === null) {
@@ -292,36 +289,30 @@ class SemanticState {
         }
     }
 }
+
 type EventData = {
-    beforeContextData: BeforeContextData
-    handler: (contextData: ContextData) => p.IValue<boolean>
+    handler: () => p.IValue<boolean>
 }
 
 type ProcessResult =
     | ["event", EventData]
-    | ["whitespace", {
-        value: string
-    }]
-    | ["comment", {
-        comment: Comment
-    }]
+    // | ["comment", {
+    //     comment: Comment
+    // }]
     | ["other"]
-    | ["newline"]
 
 
-function processParserEvent(
-    data: TreeEvent,
-    semanticState: SemanticState,
-    overheadState: CommentState,
-    onError: (error: StackedDataError, range: Range) => void,
+function processParserEvent<Annotation>(
+    data: TreeEvent<Annotation>,
+    semanticState: SemanticState<Annotation>,
+    onError: (error: StackedDataError, annotation: Annotation) => void,
 ): ProcessResult {
 
 
     switch (data.type[0]) {
         case TreeEventType.CloseArray: {
             return ["event", {
-                beforeContextData: overheadState.flush(),
-                handler: contextData => {
+                handler: () => {
                     unwindLoop: while (true) {
                         if (semanticState.currentContext === null) {
                             break unwindLoop
@@ -334,25 +325,25 @@ function processParserEvent(
                             case "object": {
                                 const $$2 = semanticState.currentContext[1]
                                 if ($$2.propertyHandler !== null) {
-                                    raiseError(onError, ["missing property data"], data.annotation.range)
+                                    raiseError(onError, ["missing property data"], data.annotation)
                                     $$2.propertyHandler.missing()
                                     $$2.propertyHandler = null
                                 }
-                                raiseError(onError, ["missing object close"], data.annotation.range)
-                                semanticState.pop(data.annotation.range)
-                                semanticState.wrapupValue(data.annotation.range)
+                                raiseError(onError, ["missing object close"], data.annotation)
+                                semanticState.pop(data.annotation)
+                                semanticState.wrapupValue(data.annotation)
                                 break
                             }
                             case "taggedunion": {
                                 //const $ = state.currentContext[1]
                                 if (semanticState.currentContext[1].state[0] === "expecting value") {
                                     semanticState.currentContext[1].state[1].missing()
-                                    raiseError(onError, ["missing tagged union value"], data.annotation.range)
+                                    raiseError(onError, ["missing tagged union value"], data.annotation)
                                 } else {
-                                    raiseError(onError, ["missing tagged union option and value"], data.annotation.range)
+                                    raiseError(onError, ["missing tagged union option and value"], data.annotation)
                                 }
-                                semanticState.pop(data.annotation.range)
-                                semanticState.wrapupValue(data.annotation.range)
+                                semanticState.pop(data.annotation)
+                                semanticState.wrapupValue(data.annotation)
                                 break
                             }
                             default:
@@ -360,23 +351,15 @@ function processParserEvent(
                         }
                     }
                     if (semanticState.currentContext === null || semanticState.currentContext[0] !== "array") {
-                        raiseError(onError, ["unexpected end of array"], data.annotation.range)
+                        raiseError(onError, ["unexpected end of array"], data.annotation)
                         return p.value(false)
                     } else {
                         const $$ = semanticState.currentContext[1]
                         switch ($$.type[0]) {
                             case "list": {
-                                if (data.annotation.tokenString !== "]") {
-                                    raiseError(onError, ["unmatched list close"], data.annotation.range)
-
-                                }
                                 break
                             }
                             case "shorthand type": {
-                                if (data.annotation.tokenString !== ">") {
-                                    raiseError(onError, ["unmatched shorthand type close"], data.annotation.range)
-
-                                }
 
                                 break
                             }
@@ -384,15 +367,11 @@ function processParserEvent(
                                 assertUnreachable($$.type[0])
                         }
                         $$.arrayHandler.arrayEnd({
-                            annotation: {
-                                tokenString: data.annotation.tokenString,
-                                range: data.annotation.range,
-                                contextData: contextData,
-                            },
+                            annotation: data.annotation,
                             stackContext: semanticState.createStackContext(),
                         })
-                        semanticState.pop(data.annotation.range)
-                        semanticState.wrapupValue(data.annotation.range)
+                        semanticState.pop(data.annotation)
+                        semanticState.wrapupValue(data.annotation)
                         return p.value(false)
                     }
                 },
@@ -400,8 +379,7 @@ function processParserEvent(
         }
         case TreeEventType.CloseObject: {
             return ["event", {
-                beforeContextData: overheadState.flush(),
-                handler: contextData => {
+                handler: () => {
                     unwindLoop: while (true) {
                         if (semanticState.currentContext === null) {
                             break unwindLoop
@@ -409,9 +387,9 @@ function processParserEvent(
                         switch (semanticState.currentContext[0]) {
                             case "array": {
                                 //const $ = state.currentContext[1]
-                                raiseError(onError, ["missing array close"], data.annotation.range)
-                                semanticState.pop(data.annotation.range)
-                                semanticState.wrapupValue(data.annotation.range)
+                                raiseError(onError, ["missing array close"], data.annotation)
+                                semanticState.pop(data.annotation)
+                                semanticState.wrapupValue(data.annotation)
                                 break
                             }
                             case "object": {
@@ -422,12 +400,12 @@ function processParserEvent(
                                 //const $ = state.currentContext[1]
                                 if (semanticState.currentContext[1].state[0] === "expecting value") {
                                     semanticState.currentContext[1].state[1].missing()
-                                    raiseError(onError, ["missing tagged union value"], data.annotation.range)
+                                    raiseError(onError, ["missing tagged union value"], data.annotation)
                                 } else {
-                                    raiseError(onError, ["missing tagged union option and value"], data.annotation.range)
+                                    raiseError(onError, ["missing tagged union option and value"], data.annotation)
                                 }
-                                semanticState.pop(data.annotation.range)
-                                semanticState.wrapupValue(data.annotation.range)
+                                semanticState.pop(data.annotation)
+                                semanticState.wrapupValue(data.annotation)
                                 break
                             }
                             default:
@@ -435,29 +413,10 @@ function processParserEvent(
                         }
                     }
                     if (semanticState.currentContext === null || semanticState.currentContext[0] !== "object") {
-                        raiseError(onError, ["unexpected end of object"], data.annotation.range)
+                        raiseError(onError, ["unexpected end of object"], data.annotation)
                         return p.value(false)
                     } else {
                         const $$ = semanticState.currentContext[1]
-                        switch ($$.type[0]) {
-                            case "dictionary": {
-                                if (data.annotation.tokenString !== "}") {
-                                    raiseError(onError, ["unmatched dictionary close"], data.annotation.range)
-
-                                }
-                                break
-                            }
-                            case "verbose type": {
-                                if (data.annotation.tokenString !== ")") {
-                                    raiseError(onError, ["unmatched verbose type close"], data.annotation.range)
-
-                                }
-
-                                break
-                            }
-                            default:
-                                assertUnreachable($$.type[0])
-                        }
                         if ($$.propertyHandler !== null) {
                             //was in the middle of processing a property
                             //the key was parsed, but the data was not
@@ -465,45 +424,31 @@ function processParserEvent(
                             $$.propertyHandler = null
                         }
                         $$.objectHandler.objectEnd({
-                            annotation: {
-                                tokenString: data.annotation.tokenString,
-                                range: data.annotation.range,
-                                contextData: contextData,
-                            },
+                            annotation: data.annotation,
                             stackContext: semanticState.createStackContext(),
                         })
-                        semanticState.pop(data.annotation.range)
-                        semanticState.wrapupValue(data.annotation.range)
+                        semanticState.pop(data.annotation)
+                        semanticState.wrapupValue(data.annotation)
                         return p.value(false)
                     }
 
                 },
             }]
         }
-        case TreeEventType.Colon: {
-            return ["other"]
-        }
-        case TreeEventType.Comma: {
-            return ["other"]
-        }
         case TreeEventType.OpenArray: {
+            const $ = data.type[1]
             return ["event", {
-                beforeContextData: overheadState.flush(),
-                handler: contextData => {
+                handler: () => {
                     const arrayHandler = semanticState.initValueHandler().array({
                         data: {
-                            type: data.annotation.tokenString === "<" ? ["shorthand type"] : ["list"],
+                            type: $.type[0] === "shorthand type" ? ["shorthand type"] : ["list"],
                         },
-                        annotation: {
-                            tokenString: data.annotation.tokenString,
-                            range: data.annotation.range,
-                            contextData: contextData,
-                        },
+                        annotation: data.annotation,
                         stackContext: semanticState.createStackContext(),
                     })
                     semanticState.push(["array", {
                         foundElements: false,
-                        type: data.annotation.tokenString === "<" ? ["shorthand type"] : ["list"],
+                        type: $.type[0] === "shorthand type" ? ["shorthand type"] : ["list"],
                         arrayHandler: arrayHandler,
                     }])
                     return p.value(false)
@@ -511,58 +456,28 @@ function processParserEvent(
             }]
         }
         case TreeEventType.OpenObject: {
+            const $ = data.type[1]
+
             return ["event", {
-                beforeContextData: overheadState.flush(),
-                handler: contextData => {
+                handler: () => {
                     const vh = semanticState.initValueHandler()
 
                     const objectHandler = vh.object({
                         data: {
-                            type: data.annotation.tokenString === "(" ? ["verbose type"] : ["dictionary"],
+                            type: $.type[0] === "verbose type" ? ["verbose type"] : ["dictionary"],
                         },
-                        annotation: {
-                            tokenString: data.annotation.tokenString,
-                            range: data.annotation.range,
-                            contextData: contextData,
-                        },
+                        annotation: data.annotation,
                         stackContext: semanticState.createStackContext(),
                     })
                     semanticState.push(["object", {
                         foundProperties: false,
-                        type: data.annotation.tokenString === "(" ? ["verbose type"] : ["dictionary"],
+                        type: $.type[0] === "verbose type" ? ["verbose type"] : ["dictionary"],
                         objectHandler: objectHandler,
                         propertyHandler: null,
                     }])
                     return p.value(false)
                 },
             }]
-        }
-        case TreeEventType.Overhead: {
-            const $ = data.type[1]
-            switch ($.type[0]) {
-                case OverheadTokenType.Comment: {
-                    const $$ = $.type[1]
-                    return ["comment", {
-                        comment: {
-                            text: $$.comment,
-                            type: $$.type,
-                            indent: null, //FIX get the right indent info
-                            outerRange: data.annotation.range,
-                            innerRange: $$.innerRange,
-                        },
-                    }]
-                }
-                case OverheadTokenType.NewLine: {
-                    return ["newline"]
-                }
-                case OverheadTokenType.WhiteSpace: {
-                    return ["whitespace", {
-                        value: data.annotation.tokenString,
-                    }]
-                }
-                default:
-                    return assertUnreachable($.type[0])
-            }
         }
 
         case TreeEventType.StringValue: {
@@ -586,19 +501,14 @@ function processParserEvent(
                 }
             })()
             return ["event", {
-                beforeContextData: overheadState.flush(),
-                handler: contextData => {
+                handler: () => {
 
-                    function onStringValue(vh: ParserValueHandler, cd: ContextData): p.IValue<boolean> {
+                    function onStringValue(vh: ValueHandler<Annotation, null>): p.IValue<boolean> {
                         //if (DEBUG) { console.log("on string", $.value) }
-                        semanticState.wrapupValue(data.annotation.range)
+                        semanticState.wrapupValue(data.annotation)
                         return vh.string({
                             data: $,
-                            annotation: {
-                                tokenString: valueAsString,
-                                range: data.annotation.range,
-                                contextData: cd,
-                            },
+                            annotation: data.annotation,
                             stackContext: semanticState.createStackContext(),
 
                         })
@@ -608,7 +518,7 @@ function processParserEvent(
                         const vh = semanticState.treeHandler !== null
                             ? semanticState.treeHandler.root.exists
                             : createDummyValueHandler() //unexpected, ignore
-                        return onStringValue(vh, contextData)
+                        return onStringValue(vh)
                     }
                     switch (semanticState.currentContext[0]) {
                         case "array": {
@@ -623,7 +533,7 @@ function processParserEvent(
                                     stackContext: semanticState.createStackContext(),
                                     annotation: null,
                                 }),
-                                contextData)
+                                )
                         }
                         case "object": {
                             const $$ = semanticState.currentContext[1]
@@ -632,7 +542,7 @@ function processParserEvent(
                                 return p.value(false)
                             } else {
                                 const $$$ = $$.propertyHandler
-                                return onStringValue($$$.exists, contextData)
+                                return onStringValue($$$.exists)
                             }
                         }
                         case "taggedunion": {
@@ -645,18 +555,14 @@ function processParserEvent(
                                         data: {
                                             option: valueAsString,
                                         },
-                                        annotation: {
-                                            tokenString: valueAsString,
-                                            range: data.annotation.range,
-                                            contextData: contextData,
-                                        },
+                                        annotation: data.annotation,
                                         stackContext: semanticState.createStackContext(),
                                     })]
                                     return p.value(false)
                                 }
                                 case "expecting value": {
                                     const $$$ = $$.state[1]
-                                    return onStringValue($$$.exists, contextData)
+                                    return onStringValue($$$.exists)
                                 }
                                 default:
                                     return assertUnreachable($$.state[0])
@@ -672,8 +578,7 @@ function processParserEvent(
             const $ = data.type[1]
 
             return ["event", {
-                beforeContextData: overheadState.flush(),
-                handler: contextData => {
+                handler: () => {
 
                     if (semanticState.currentContext === null) {
                         console.error("HANDLE KEY BEFORE TREE")
@@ -693,11 +598,7 @@ function processParserEvent(
                                     data: {
                                         key: $.name,
                                     },
-                                    annotation: {
-                                        tokenString: $.name,
-                                        range: data.annotation.range,
-                                        contextData: contextData,
-                                    },
+                                    annotation: data.annotation,
                                     stackContext: semanticState.createStackContext(),
                                 }).mapResult(propHandler => {
                                     $$.propertyHandler = propHandler
@@ -717,11 +618,7 @@ function processParserEvent(
                                         data: {
                                             option: $.name,
                                         },
-                                        annotation: {
-                                            tokenString: $.name,
-                                            range: data.annotation.range,
-                                            contextData: contextData,
-                                        },
+                                        annotation: data.annotation,
                                         stackContext: semanticState.createStackContext(),
                                     })]
                                     return p.value(false)
@@ -744,15 +641,10 @@ function processParserEvent(
         case TreeEventType.TaggedUnion: {
             if (DEBUG) { console.log("on open tagged union") }
             return ["event", {
-                beforeContextData: overheadState.flush(),
-                handler: contextData => {
+                handler: () => {
                     semanticState.push(["taggedunion", {
                         handler: semanticState.initValueHandler().taggedUnion({
-                            annotation: {
-                                tokenString: data.annotation.tokenString,
-                                range: data.annotation.range,
-                                contextData: contextData,
-                            },
+                            annotation: data.annotation,
                             stackContext: semanticState.createStackContext(),
                         }),
                         state: ["expecting option", {
@@ -773,34 +665,26 @@ function processParserEvent(
  * and
  * 'onopenarray' with 'onclosearray'
  */
-export function createStackedParser<ReturnType, ErrorType>(
-    valueHandler: ParserTreeHandler,
-    onError: (error: StackedDataError, range: Range) => void,
+export function createStackedParser<Annotation, ReturnType, ErrorType>(
+    valueHandler: TreeHandler<Annotation, null>,
+    onError: (error: StackedDataError, annotation: Annotation) => void,
     onEnd: () => p.IUnsafeValue<ReturnType, ErrorType>
-): ITreeParserEventConsumer<ReturnType, ErrorType> {
-    const overheadState = new CommentState()
+): ITreeParserEventConsumer<Annotation, ReturnType, ErrorType> {
     const semanticState = new SemanticState(valueHandler)
 
     let cachedEvent: null | EventData = null
 
 
     return {
-        onData: (data: TreeEvent): p.IValue<boolean> => {
+        onData: (data: TreeEvent<Annotation>): p.IValue<boolean> => {
             function flush(
                 gqe: EventData,
                 lineCommentAfter: Comment | null,
                 after: () => p.IValue<boolean>
             ) {
-                function flushContextData(before: BeforeContextData): ContextData {
-                    const contextData: ContextData = {
-                        before: before,
-                        lineCommentAfter: lineCommentAfter,
-                        indentation: data.annotation.indentation,
-                    }
-                    return contextData
-                }
 
-                return gqe.handler(flushContextData(gqe.beforeContextData)).mapResult(_abortRequested => {
+
+                return gqe.handler().mapResult(_abortRequested => {
                     return after()
                 })
             }
@@ -815,20 +699,20 @@ export function createStackedParser<ReturnType, ErrorType>(
                 }
 
             }
-            const processedParserEvent = processParserEvent(data, semanticState, overheadState, onError)
+            const processedParserEvent = processParserEvent(data, semanticState, onError)
 
             switch (processedParserEvent[0]) {
-                case "comment": {
-                    const $ = processedParserEvent[1]
-                    if ($.comment.type === "line" && cachedEvent !== null) {
-                        const res = flush(cachedEvent, $.comment, () => p.value(false))
-                        cachedEvent = null
-                        return res
-                    } else {
-                        overheadState.onCommend($.comment)
-                        return p.value(false)
-                    }
-                }
+                // case "comment": {
+                //     const $ = processedParserEvent[1]
+                //     if ($.comment.type === "line" && cachedEvent !== null) {
+                //         const res = flush(cachedEvent, $.comment, () => p.value(false))
+                //         cachedEvent = null
+                //         return res
+                //     } else {
+                //         overheadState.onCommend($.comment)
+                //         return p.value(false)
+                //     }
+                // }
                 case "event": {
                     return flushPossibleQueuedEvent(() => {
 
@@ -840,41 +724,17 @@ export function createStackedParser<ReturnType, ErrorType>(
                 }
                 case "other": {
 
-                    //const $ = odr[1]
 
                     return p.value(false)
 
-                }
-                case "whitespace": {
-                    //const $ = processedParserEvent[1]
-
-                    return p.value(false)
-                }
-                case "newline": {
-                    return flushPossibleQueuedEvent(() => {
-
-                        //const $ = odr[1]
-                        return p.value(false)
-
-                    })
                 }
                 default:
                     return assertUnreachable(processedParserEvent[0])
             }
         },
-        onEnd: (aborted: boolean, endData: EndData): p.IUnsafeValue<ReturnType, ErrorType> => {
-            function flushContextData(before: BeforeContextData): ContextData {
-                const contextData: ContextData = {
-                    before: before,
-                    lineCommentAfter: null,
-
-                    indentation: endData.indentation,
-                }
-                return contextData
-            }
+        onEnd: (aborted: boolean, endAnnotation: Annotation): p.IUnsafeValue<ReturnType, ErrorType> => {
             function onEnd2() {
 
-                const range = createRangeFromSingleLocation(endData.location)
                 if (!aborted) {
                     unwindLoop: while (true) {
                         if (semanticState.currentContext === null) {
@@ -887,9 +747,9 @@ export function createStackedParser<ReturnType, ErrorType>(
                         }
                         switch (semanticState.currentContext[0]) {
                             case "array": {
-                                raiseError(onError, ["unexpected end of document", { "still in": ["array"] }], range)
-                                semanticState.pop(range)
-                                semanticState.wrapupValue(range)
+                                raiseError(onError, ["unexpected end of document", { "still in": ["array"] }], endAnnotation)
+                                semanticState.pop(endAnnotation)
+                                semanticState.wrapupValue(endAnnotation)
                                 break
                             }
                             case "object": {
@@ -898,9 +758,9 @@ export function createStackedParser<ReturnType, ErrorType>(
                                     $.propertyHandler.missing()
                                     $.propertyHandler = null
                                 }
-                                raiseError(onError, ["unexpected end of document", { "still in": ["object"] }], range)
-                                semanticState.pop(range)
-                                semanticState.wrapupValue(range)
+                                raiseError(onError, ["unexpected end of document", { "still in": ["object"] }], endAnnotation)
+                                semanticState.pop(endAnnotation)
+                                semanticState.wrapupValue(endAnnotation)
                                 break
                             }
                             case "taggedunion": {
@@ -921,9 +781,9 @@ export function createStackedParser<ReturnType, ErrorType>(
                                     default:
                                         assertUnreachable($.state[0])
                                 }
-                                raiseError(onError, ["unexpected end of document", { "still in": ["tagged union"] }], range)
-                                semanticState.pop(range)
-                                semanticState.wrapupValue(range)
+                                raiseError(onError, ["unexpected end of document", { "still in": ["tagged union"] }], endAnnotation)
+                                semanticState.pop(endAnnotation)
+                                semanticState.wrapupValue(endAnnotation)
 
                                 break
                             }
@@ -939,7 +799,7 @@ export function createStackedParser<ReturnType, ErrorType>(
             } else {
                 const gqe = cachedEvent
                 cachedEvent = null
-                return gqe.handler(flushContextData(gqe.beforeContextData)).try(_abortRequested => {
+                return gqe.handler().try(_abortRequested => {
                     return onEnd2()
                 })
             }

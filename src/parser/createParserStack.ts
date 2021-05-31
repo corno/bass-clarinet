@@ -17,6 +17,7 @@ import { ITreeParserEventConsumer } from "../interfaces/ITreeParserEventConsumer
 import { printTextParserError } from "../implementations/textParser"
 import { TextParserError } from "../implementations/textParser"
 import { OverheadToken } from "../interfaces/ITreeParser"
+import { ParserAnnotationData } from "../interfaces"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -53,8 +54,8 @@ export function printParsingError(error: ParsingError): string {
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).
  */
 export function createParserStack<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => ITreeParserEventConsumer<null, null>,
-    onInstanceDataStart: (location: Location) => ITreeParserEventConsumer<ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => ITreeParserEventConsumer<ParserAnnotationData, null, null>,
+    onInstanceDataStart: (location: Location) => ITreeParserEventConsumer<ParserAnnotationData, ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },

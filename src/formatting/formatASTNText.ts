@@ -21,7 +21,7 @@ export function formatASTNText(
         astnText,
         _range => {
             write(formatter.onSchemaHeader())
-            return createStackedParser<null, null>(
+            return createStackedParser<ParserAnnotationData, null, null>(
                 createDecoratedTree(
                     formatter.schemaFormatter,
                     createTreeConcatenator(write),
@@ -38,7 +38,7 @@ export function formatASTNText(
             )
         },
         () => {
-            const datasubscriber = createStackedParser<null, null>(
+            const datasubscriber = createStackedParser<ParserAnnotationData, null, null>(
                 createDecoratedTree(
                     formatter.bodyFormatter,
                     createTreeConcatenator(write),

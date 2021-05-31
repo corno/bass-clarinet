@@ -29,10 +29,10 @@ export type BeforeContextData = {
 export type ContextData = {
     before: BeforeContextData
     lineCommentAfter: null | Comment
-    indentation: string
 }
 
 export type ParserAnnotationData = {
+    indentation: string
     tokenString: string
     contextData: ContextData
     range: Range

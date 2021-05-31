@@ -10,7 +10,7 @@ import { ITreeParserEventConsumer, TreeEventType } from "../../interfaces/ITreeP
 import { TextErrorType, TextParserError } from "./functionTypes"
 import { ITreeParser, OverheadToken, PunctionationData, StringData, Token, TokenType } from "../../interfaces/ITreeParser"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
-import { StringValueDataType } from "../../interfaces"
+import { ParserAnnotationData, StringValueDataType } from "../../interfaces"
 
 const DEBUG = false
 
@@ -58,11 +58,41 @@ type RootContext<ReturnType, ErrorType> = {
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
 export function createTextParser<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => ITreeParserEventConsumer<null, null>,
-    onInstanceDataStart: (location: Location) => ITreeParserEventConsumer<ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => ITreeParserEventConsumer<ParserAnnotationData, null, null>,
+    onInstanceDataStart: (location: Location) => ITreeParserEventConsumer<ParserAnnotationData, ReturnType, ErrorType>,
     onerror: (error: TextParserError, range: Range) => void,
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
 ): TokenConsumer<ReturnType, ErrorType> {
+
+    function createAnnotation(token: Token): ParserAnnotationData {
+        return {
+            tokenString: token.tokenString,
+            indentation: "",
+            range: token.range,
+            contextData: {
+                before: {
+                    comments: [],
+                },
+                lineCommentAfter: null,
+            },
+
+        }
+    }
+
+    function createEndAnnotation2(location: Location): ParserAnnotationData {
+        return {
+            tokenString: "",
+            indentation: "",
+            range: createRangeFromSingleLocation(location),
+            contextData: {
+                before: {
+                    comments: [],
+                },
+                lineCommentAfter: null,
+            },
+
+        }
+    }
     class TextParser {
         private readonly rootContext: RootContext<ReturnType, ErrorType> = { state: [TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE] }
         /*
@@ -72,25 +102,23 @@ export function createTextParser<ReturnType, ErrorType>(
 
             const range = createRangeFromSingleLocation(location)
 
+            function createEndAnnotation() {
+                return createEndAnnotation2(location)
+            }
+
             switch (this.rootContext.state[0]) {
                 case TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: {
                     //const $ = this.rootContext.state[1]
 
                     this.raiseStructureError(["expected the schema start (!) or root value"], range)
 
-                    return onInstanceDataStart(location).onEnd(aborted, {
-                        location: location,
-                        indentation: "",
-                    })
+                    return onInstanceDataStart(location).onEnd(aborted, createEndAnnotation())
                 }
                 case TextState.EXPECTING_SCHEMA: {
                     //const $ = this.rootContext.state[1]
 
                     this.raiseStructureError(["expected the schema"], range)
-                    return onInstanceDataStart(location).onEnd(aborted, {
-                        location: location,
-                        indentation: "",
-                    })
+                    return onInstanceDataStart(location).onEnd(aborted, createEndAnnotation())
                 }
                 case TextState.PROCESSING_SCHEMA: {
                     const $ = this.rootContext.state[1]
@@ -104,20 +132,14 @@ export function createTextParser<ReturnType, ErrorType>(
                         }
                     ).try(() => {
                         //this.raiseError("incomplete schema", range)
-                        return onInstanceDataStart(location).onEnd(aborted, {
-                            location: location,
-                            indentation: "",
-                        })
+                        return onInstanceDataStart(location).onEnd(aborted, createEndAnnotation())
                     })
                 }
                 case TextState.EXPECTING_BODY: {
                     //const $ = this.rootContext.state[1]
                     this.raiseStructureError(["expected rootvalue"], range)
 
-                    return onInstanceDataStart(location).onEnd(aborted, {
-                        location: location,
-                        indentation: "",
-                    })
+                    return onInstanceDataStart(location).onEnd(aborted, createEndAnnotation())
                 }
                 case TextState.PROCESSING_BODY: {
                     const $ = this.rootContext.state[1]
@@ -170,7 +192,7 @@ export function createTextParser<ReturnType, ErrorType>(
                             }
                         },
                         string => {
-                            return this.processStringInstanceData(string, data.range, data.tokenString)
+                            return this.processStringInstanceData(string, data)
                         }
                     )
                 }
@@ -208,12 +230,7 @@ export function createTextParser<ReturnType, ErrorType>(
                         stringData => {
                             const consumer = onSchemaDataStart(data.range)
                             return consumer.onData({
-                                annotation: {
-                                    tokenString: data.tokenString,
-                                    indentation: "",
-                                    range: data.range,
-
-                                },
+                                annotation: createAnnotation(data),
                                 type: [TreeEventType.StringValue, {
 
                                     type: ((): StringValueDataType => {
@@ -249,13 +266,9 @@ export function createTextParser<ReturnType, ErrorType>(
                                     })(),
                                 }],
                             }).mapResult(() => {
-
                                 this.rootContext.state = [TextState.EXPECTING_BODY, {
                                 }]
-                                return consumer.onEnd(false, {
-                                    location: getEndLocationFromRange(data.range),
-                                    indentation: "",
-                                }).reworkAndCatch(
+                                return consumer.onEnd(false, createEndAnnotation2(getEndLocationFromRange(data.range))).reworkAndCatch(
                                     () => {
                                         return p.value(false)
                                     },
@@ -291,7 +304,7 @@ export function createTextParser<ReturnType, ErrorType>(
                             return this.processComplexValueInstanceData(data, data.range)
                         },
                         string => {
-                            return this.processStringInstanceData(string, data.range, data.tokenString)
+                            return this.processStringInstanceData(string, data)
                         }
                     )
                 }
@@ -369,16 +382,11 @@ export function createTextParser<ReturnType, ErrorType>(
                 return p.value(false)
             })
         }
-        private processStringInstanceData(data2: StringData, range: Range, tokenString: string) {
+        private processStringInstanceData(data2: StringData, token: Token) {
 
-            const consumer = onInstanceDataStart(range.start)
+            const consumer = onInstanceDataStart(token.range.start)
             return consumer.onData({
-                annotation: {
-                    tokenString: tokenString,
-                    indentation: "",
-                    range: range,
-
-                },
+                annotation: createAnnotation(token),
                 type: [TreeEventType.StringValue, {
                     type: ((): StringValueDataType => {
                         switch (data2.type[0]) {
@@ -414,10 +422,7 @@ export function createTextParser<ReturnType, ErrorType>(
                 }],
             }).mapResult(() => {
                 this.rootContext.state = [TextState.EXPECTING_END, {
-                    result: consumer.onEnd(false, {
-                        location: getEndLocationFromRange(range),
-                        indentation: "",
-                    }),
+                    result: consumer.onEnd(false, createAnnotation(token)),
                 }]
                 return p.value(false)
             })

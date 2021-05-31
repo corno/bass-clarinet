@@ -11,6 +11,10 @@ export type TreeParserErrorType =
         | ["tagged union"]
     }]
     | ["unexpected '!'"]
+    | ["invalid dictionary close"]
+    | ["invalid verbose type close"]
+    | ["invalid list close"]
+    | ["invalid shorthand type close"]
     | ["not in an object"]
     | ["not in an array"]
     | ["missing property value"]
@@ -23,7 +27,7 @@ export type TreeParserError = {
     type: TreeParserErrorType
 }
 
-export type CreateTreeParser<ReturnType, ErrorType> = (
+export type CreateTreeParser<Annotation, ReturnType, ErrorType> = (
     onerror: (error: TreeParserError, range: Range) => void,
-    eventsConsumer: ITreeParserEventConsumer<ReturnType, ErrorType>
+    eventsConsumer: ITreeParserEventConsumer<Annotation, ReturnType, ErrorType>
 ) => ITreeParser<ReturnType, ErrorType>

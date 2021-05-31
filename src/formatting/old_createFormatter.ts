@@ -2,9 +2,9 @@
 	complexity: off
 */
 import * as p from "pareto"
-import { OverheadTokenType } from "../interfaces/ITreeParser"
 import { Range, Location } from "../location"
 import { TreeEventType, ITreeParserEventConsumer } from "../interfaces/ITreeParserEventConsumer"
+import { ParserAnnotationData } from "../interfaces"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")
@@ -61,13 +61,12 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onEnd: () => p.IValue<null>,
-): ITreeParserEventConsumer<null, null> {
+): ITreeParserEventConsumer<ParserAnnotationData, null, null> {
 	let precedingWhitespace: null | TokenInfo = null
 
 	const stack: Style[] = []
 	let currentRequiredStyle: Style | null = Style.root
 	let precedingToken: PrecedingToken = [PrecedingTokenType.nothing]
-	let precededByLineComment = false
 	let indentLevel = 0
 
 	function push() {
@@ -99,54 +98,6 @@ export function createFormatter(
 
 	function ensureIndentation(location: Location) {
 		insertOrReplacePrecedingWhiteSpace(location, createExpectedIndentation())
-	}
-
-	function comment(
-		location: Location
-	) {
-		switch (precedingToken[0]) {
-			case PrecedingTokenType.colon: {
-				ensureSpaceBefore(location)
-				break
-			}
-			case PrecedingTokenType.inlineBlockComment: {
-				ensureSpaceBefore(location)
-				break
-			}
-			case PrecedingTokenType.other: {
-				ensureSpaceBefore(location)
-				break
-			}
-			case PrecedingTokenType.nothing: {
-				break
-			}
-			case PrecedingTokenType.option: {
-				ensureSpaceBefore(location)
-				break
-			}
-			case PrecedingTokenType.newLine: {
-				ensureIndentation(location)
-				break
-			}
-			case PrecedingTokenType.pipe: {
-				ensureSpaceBefore(location)
-				break
-			}
-			default:
-				assertUnreachable(precedingToken[0])
-		}
-		precedingWhitespace = null
-	}
-
-	function punctuation(
-	) {
-		if (precedingToken[0] === PrecedingTokenType.newLine && !precedingToken[1].precededByLineComment) {
-			del(precedingToken[1].token.range)
-		}
-		if (precedingWhitespace) {
-			del(precedingWhitespace.range)
-		}
-		precedingWhitespace = null
 	}
 
 	function semanticToken(
@@ -242,7 +193,7 @@ export function createFormatter(
 		currentRequiredStyle = style
 	}
 
-	const ds: ITreeParserEventConsumer<null, null> = {
+	const ds: ITreeParserEventConsumer<ParserAnnotationData, null, null> = {
 
 		onData: data => {
 			switch (data.type[0]) {
@@ -256,16 +207,6 @@ export function createFormatter(
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case TreeEventType.Colon: {
-					punctuation()
-					precedingToken = [PrecedingTokenType.colon]
-					break
-				}
-				case TreeEventType.Comma: {
-					punctuation()
-					precedingToken = [PrecedingTokenType.other]
-					break
-				}
 				case TreeEventType.OpenArray: {
 					semanticToken(data.annotation.range.start)
 					push()
@@ -276,119 +217,6 @@ export function createFormatter(
 					semanticToken(data.annotation.range.start)
 					push()
 					precedingToken = [PrecedingTokenType.other]
-					break
-				}
-				case TreeEventType.Overhead: {
-					const $ = data.type[1]
-					switch ($.type[0]) {
-						case OverheadTokenType.Comment: {
-							const $$ = $.type[1]
-							switch ($$.type) {
-								case "block": {
-
-									comment(data.annotation.range.start)
-									{
-										// const ei = createExpectedIndentation()
-										// const splitted = $$.comment.split("\n")
-										// const properlyIndentedBlockComment = splitted.map((line, index) => {
-										// 	if ($$.indentation !== null) {
-										// 		if (line.startsWith($$.indentation)) {
-										// 			line = line.substr($$.indentation.length)
-										// 		}
-										// 	}
-										// 	if (index === 0) {
-										// 		//the first line, never indent
-										// 		return line.trimRight()
-										// 	}
-										// 	if (index === splitted.length - 1) {
-										// 		//last line, always indent
-										// 		return ei + line.trimRight()
-										// 	}
-										// 	//not the last line. Only indent if it has content.
-										// 	return (ei + line).trimRight()
-										// }).join("\n")
-									}
-									precedingToken = (precedingToken[0] === PrecedingTokenType.newLine)
-										? [PrecedingTokenType.other]
-										: [PrecedingTokenType.inlineBlockComment]
-									break
-								}
-								case "line": {
-									comment(data.annotation.range.start)
-									precededByLineComment = true
-									break
-								}
-								default:
-									assertUnreachable($$.type[0])
-							}
-
-							break
-						}
-						case OverheadTokenType.NewLine: {
-							//const $ = data[1]
-							if (precedingWhitespace !== null) {
-								del(precedingWhitespace.range)
-								precedingWhitespace = null
-							}
-							function startBlock() {
-								if (currentRequiredStyle === null) {
-									currentRequiredStyle = Style.block
-									indentLevel += 1
-								}
-							}
-							switch (precedingToken[0]) {
-								case PrecedingTokenType.colon: {
-									del(data.annotation.range)
-									break
-								}
-								case PrecedingTokenType.inlineBlockComment: {
-									del(data.annotation.range)
-									break
-								}
-								case PrecedingTokenType.newLine: {
-
-									del(data.annotation.range)
-									break
-								}
-								case PrecedingTokenType.nothing: {
-									break
-								}
-								case PrecedingTokenType.other: {
-									startBlock()
-									break
-								}
-								case PrecedingTokenType.option: {
-									startBlock()
-									break
-								}
-								case PrecedingTokenType.pipe: {
-									startBlock()
-									break
-								}
-								default:
-									assertUnreachable(precedingToken[0])
-							}
-							precedingToken = [PrecedingTokenType.newLine, {
-								token: {
-									value: "\n",
-									range: data.annotation.range,
-								},
-								precededByLineComment: precededByLineComment,
-							}]
-							precededByLineComment = false
-							break
-						}
-						case OverheadTokenType.WhiteSpace: {
-							const $$ = $.type[1]
-							precedingWhitespace = {
-								range: data.annotation.range,
-								value: $$.value,
-							}
-							break
-						}
-						default:
-							assertUnreachable($.type[0])
-					}
 					break
 				}
 				case TreeEventType.StringValue: {

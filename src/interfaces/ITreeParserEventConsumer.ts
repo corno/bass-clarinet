@@ -1,7 +1,5 @@
 import * as p from "pareto"
-import { OverheadToken } from "./ITreeParser";
-import { Location, Range } from "../location"
-import { StringValueData } from "./handlers";
+import { ArrayData, ObjectData, StringValueData } from "./handlers";
 
 export enum TreeEventType {
     CloseArray,
@@ -17,20 +15,13 @@ export enum TreeEventType {
     TaggedUnion,
 }
 
-export type TreeEvent = {
-    annotation: {
-        tokenString: string
-        indentation: string
-        range: Range
-    }
+export type TreeEvent<Annotation> = {
+    annotation: Annotation
     type:
     | [TreeEventType.CloseArray]
     | [TreeEventType.CloseObject]
-    | [TreeEventType.Colon]
-    | [TreeEventType.Comma]
-    | [TreeEventType.OpenArray]
-    | [TreeEventType.OpenObject]
-    | [TreeEventType.Overhead, OverheadToken]
+    | [TreeEventType.OpenArray, ArrayData]
+    | [TreeEventType.OpenObject, ObjectData]
     | [TreeEventType.StringValue, StringValueData]
     | [TreeEventType.Identifier, {
         name: string
@@ -40,11 +31,6 @@ export type TreeEvent = {
     }]
 }
 
-export type EndData = {
-    location: Location
-    indentation: string
-}
-
 
 /**
  * a TextParserEventConsumer is a IStreamConsumer.
@@ -52,4 +38,4 @@ export type EndData = {
  * at the end, the location of the last character is sent ('Location').
  * The ReturnType and ErrorType are determined by the specific implementation.
  */
-export type ITreeParserEventConsumer<ReturnType, ErrorType> = p.IUnsafeStreamConsumer<TreeEvent, EndData, ReturnType, ErrorType>
+export type ITreeParserEventConsumer<Annotation, ReturnType, ErrorType> = p.IUnsafeStreamConsumer<TreeEvent<Annotation>, Annotation, ReturnType, ErrorType>

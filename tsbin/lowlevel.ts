@@ -2,7 +2,7 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as fs from "fs"
 import * as astn from "../src"
-import * as tp from "../src/interfaces/ITreeParser"
+import { ParserAnnotationData } from "../src"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -17,7 +17,7 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: astn.ITreeParserEventConsumer<null, null> = {
+export const parserEventConsumer: astn.ITreeParserEventConsumer<ParserAnnotationData, null, null> = {
     onData: data => {
         switch (data.type[0]) {
             case astn.TreeEventType.CloseArray: {
@@ -30,16 +30,6 @@ export const parserEventConsumer: astn.ITreeParserEventConsumer<null, null> = {
                 //place your code here
                 break
             }
-            case astn.TreeEventType.Colon: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
-            case astn.TreeEventType.Comma: {
-                //const $ = data.type[1]
-                //place your code here
-                break
-            }
             case astn.TreeEventType.OpenArray: {
                 //const $ = data.type[1]
                 //place your code here
@@ -48,29 +38,6 @@ export const parserEventConsumer: astn.ITreeParserEventConsumer<null, null> = {
             case astn.TreeEventType.OpenObject: {
                 //const $ = data.type[1]
                 //place your code here
-                break
-            }
-            case astn.TreeEventType.Overhead: {
-                const $ = data.type[1]
-                switch ($.type[0]) {
-                    case tp.OverheadTokenType.Comment: {
-                        //const $ = data.type[1]
-                        //place your code here
-                        break
-                    }
-                    case tp.OverheadTokenType.NewLine: {
-                        //const $ = data.type[1]
-                        //place your code here
-                        break
-                    }
-                    case tp.OverheadTokenType.WhiteSpace: {
-                        //const $ = data.type[1]
-                        //place your code here
-                        break
-                    }
-                    default:
-                        assertUnreachable($.type[0])
-                }
                 break
             }
             case astn.TreeEventType.StringValue: {

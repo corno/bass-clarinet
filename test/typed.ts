@@ -84,10 +84,10 @@ describe('typed', () => {
                                     }
                                 ),
                             },
-                            (err, range) => {
-                                const end = astn.getEndLocationFromRange(range)
+                            (err, annotation) => {
+                                const end = astn.getEndLocationFromRange(annotation.range)
 
-                                foundErrors.push(["stacked error", err[0], range.start.line, range.start.column, end.line, end.column])
+                                foundErrors.push(["stacked error", err[0], annotation.range.start.line, annotation.range.start.column, end.line, end.column])
                             },
                             () => {
                                 //do nothing with end
