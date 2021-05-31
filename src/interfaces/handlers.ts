@@ -38,6 +38,10 @@ export type OptionData = {
     option: string
 }
 
+export type EmptyData = {
+    //
+}
+
 export type StackContext = {
     dictionaryDepth: number
     verboseTypeDepth: number
@@ -46,68 +50,34 @@ export type StackContext = {
     taggedUnionDepth: number
 }
 
+export type Parameters<Data, Annotation> = {
+    data: Data
+    annotation: Annotation
+    stackContext: StackContext
+}
+
 
 export interface ObjectHandler<TokenAnnotation, NonTokenAnnotation> {
-    property: ($: {
-        data: PropertyData
-        annotation: TokenAnnotation
-        stackContext: StackContext
-    }) => p.IValue<RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>>
-    objectEnd: ($: {
-        annotation: TokenAnnotation
-        stackContext: StackContext
-    }) => p.IValue<null>
+    property: ($: Parameters<PropertyData, TokenAnnotation>) => p.IValue<RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>>
+    objectEnd: ($: Parameters<EmptyData, TokenAnnotation>) => p.IValue<null>
 }
 
 export interface ArrayHandler<TokenAnnotation, NonTokenAnnotation> {
-    element: ($: {
-        data: ElementData
-        stackContext: StackContext
-        annotation: NonTokenAnnotation
-    }) => ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    arrayEnd: ($: {
-        annotation: TokenAnnotation
-        stackContext: StackContext
-    }) => p.IValue<null>
+    element: ($: Parameters<ElementData, NonTokenAnnotation>) => ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    arrayEnd: ($: Parameters<EmptyData, TokenAnnotation>) => p.IValue<null>
 }
 
 export interface TaggedUnionHandler<TokenAnnotation, NonTokenAnnotation> {
     option: OnOption<TokenAnnotation, NonTokenAnnotation>
     missingOption: () => void
-    end: ($: {
-        annotation: NonTokenAnnotation
-    }) => void
+    end: ($: Parameters<EmptyData, NonTokenAnnotation>) => void
 }
-export type OnObject<TokenAnnotation, NonTokenAnnotation> = ($: {
-    data: ObjectData
-    annotation: TokenAnnotation
-    stackContext: StackContext
-}) => ObjectHandler<TokenAnnotation, NonTokenAnnotation>
 
-export type OnArray<TokenAnnotation, NonTokenAnnotation> = ($: {
-    data: ArrayData
-    annotation: TokenAnnotation
-    stackContext: StackContext
-}) => ArrayHandler<TokenAnnotation, NonTokenAnnotation>
-
-export type OnString<TokenAnnotation> = ($: {
-    data: StringValueData
-    annotation: TokenAnnotation
-    stackContext: StackContext
-}) => p.IValue<boolean>
-
-
-export type OnTaggedUnion<TokenAnnotation, NonTokenAnnotation> = ($: {
-    annotation: TokenAnnotation
-    stackContext: StackContext
-}) => TaggedUnionHandler<TokenAnnotation, NonTokenAnnotation>
-
-export type OnOption<TokenAnnotation, NonTokenAnnotation> = ($: {
-    data: OptionData
-    annotation: TokenAnnotation
-    stackContext: StackContext
-}) => RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
-
+export type OnObject<TokenAnnotation, NonTokenAnnotation> = ($: Parameters<ObjectData, TokenAnnotation>) => ObjectHandler<TokenAnnotation, NonTokenAnnotation>
+export type OnArray<TokenAnnotation, NonTokenAnnotation> = ($: Parameters<ArrayData, TokenAnnotation>) => ArrayHandler<TokenAnnotation, NonTokenAnnotation>
+export type OnString<TokenAnnotation> = ($: Parameters<StringValueData, TokenAnnotation>) => p.IValue<boolean>
+export type OnTaggedUnion<TokenAnnotation, NonTokenAnnotation> = ($: Parameters<EmptyData, TokenAnnotation>) => TaggedUnionHandler<TokenAnnotation, NonTokenAnnotation>
+export type OnOption<TokenAnnotation, NonTokenAnnotation> = ($: Parameters<OptionData, TokenAnnotation>) => RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
 export type OnMissing = () => void
 
 export interface RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
