@@ -24,12 +24,12 @@ import {
 
 export type BeforeContextData = {
     comments: Comment[]
-    indentation: string | null
 }
 
 export type ContextData = {
     before: BeforeContextData
     lineCommentAfter: null | Comment
+    indentation: string
 }
 
 export type ParserAnnotationData = {

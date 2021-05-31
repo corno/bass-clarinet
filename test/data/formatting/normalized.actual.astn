@@ -6,8 +6,8 @@
         'strings': (
             'multiline string without newlines': `foo`
             'multiline string with newline': `foo
-            bar
-            baz`
+                        bar
+                        baz`
         )
         'character escaping': (
             'key with line feed\n': "foo"

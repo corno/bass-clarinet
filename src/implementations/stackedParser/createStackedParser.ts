@@ -7,20 +7,19 @@
 import * as p from "pareto"
 import {
     createRangeFromSingleLocation,
-    Location,
     Range,
 } from "../../location"
 import {
     createDummyValueHandler,
 } from "../dummyHandlers"
 import {
-    StringValueDataType,
     StackContext,
 } from "../../interfaces/handlers"
 import {
     RangeError,
 } from "../../errors"
 import {
+    EndData,
     ITreeParserEventConsumer,
     TreeEvent,
     TreeEventType,
@@ -78,36 +77,17 @@ function raiseError(onError: (error: StackedDataError, range: Range) => void, er
     onError(error, range)
 }
 
-class OverheadState {
+class CommentState {
     private comments: Comment[] = []
-    private indentation = ""
-    private lineIsDirty = false
     flush(): BeforeContextData {
         const bcd: BeforeContextData = {
             comments: this.comments,
-            indentation: this.indentation,
         }
         this.comments = []
-        this.lineIsDirty = false
         return bcd
-    }
-    setLineDirty() {
-        this.lineIsDirty = true
     }
     onCommend(comment: Comment) {
         this.comments.push(comment)
-    }
-    onWhitespace(value: string) {
-        if (!this.lineIsDirty) {
-            this.indentation = value
-        }
-    }
-    onNewline() {
-        this.indentation = ""
-        this.lineIsDirty = false
-    }
-    getIndentation() {
-        return this.indentation
     }
 }
 
@@ -332,7 +312,7 @@ type ProcessResult =
 function processParserEvent(
     data: TreeEvent,
     semanticState: SemanticState,
-    overheadState: OverheadState,
+    overheadState: CommentState,
     onError: (error: StackedDataError, range: Range) => void,
 ): ProcessResult {
 
@@ -585,33 +565,17 @@ function processParserEvent(
             }
         }
 
-            function trimStringLines(lines: string[], indentation: string) {
-                return lines.map((line, index) => {
-                    if (index === 0) { //the first line needs no trimming
-                        return line
-                    }
-                    if (line.startsWith(indentation)) {
-                        return line.substr(indentation.length)
-                    }
-                    return line
-                })
-            }
-        case TreeEventType.String: {
+        case TreeEventType.StringValue: {
             const $ = data.type[1]
-
             const valueAsString = ((): string => {
                 switch ($.type[0]) {
                     case "quoted": {
                         const $$ = $.type[1]
                         return $$.value
                     }
-                    case "apostrophed": {
-                        const $$ = $.type[1]
-                        return $$.value
-                    }
                     case "multiline": {
                         const $$ = $.type[1]
-                        return trimStringLines($$.lines, overheadState.getIndentation()).join("\n")
+                        return $$.lines.join("\n")
                     }
                     case "nonwrapped": {
                         const $$ = $.type[1]
@@ -625,44 +589,11 @@ function processParserEvent(
                 beforeContextData: overheadState.flush(),
                 handler: contextData => {
 
-                    function onString(vh: ParserValueHandler, cd: ContextData): p.IValue<boolean> {
+                    function onStringValue(vh: ParserValueHandler, cd: ContextData): p.IValue<boolean> {
                         //if (DEBUG) { console.log("on string", $.value) }
                         semanticState.wrapupValue(data.range)
                         return vh.string({
-                            data: {
-                                type: ((): StringValueDataType => {
-                                    switch ($.type[0]) {
-                                        case "quoted": {
-                                            const $$ = $.type[1]
-                                            return ["quoted", {
-                                                value: $$.value,
-                                            }]
-                                        }
-                                        case "apostrophed": {
-                                            const $$ = $.type[1]
-                                            //strings with apostrophes are not canonical
-                                            return ["quoted", {
-                                                value: $$.value,
-                                            }]
-                                        }
-                                        case "multiline": {
-                                            const $$ = $.type[1]
-
-                                            return ["multiline", {
-                                                lines: trimStringLines($$.lines, overheadState.getIndentation()),
-                                            }]
-                                        }
-                                        case "nonwrapped": {
-                                            const $$ = $.type[1]
-                                            return ["nonwrapped", {
-                                                value: $$.value,
-                                            }]
-                                        }
-                                        default:
-                                            return assertUnreachable($.type[0])
-                                    }
-                                })(),
-                            },
+                            data: $,
                             annotation: {
                                 tokenString: valueAsString,
                                 range: data.range,
@@ -676,15 +607,15 @@ function processParserEvent(
                         //handle case when root value was already processed
                         const vh = semanticState.treeHandler !== null
                             ? semanticState.treeHandler.root.exists
-                            : createDummyValueHandler()
-                        return onString(vh, contextData)
+                            : createDummyValueHandler() //unexpected, ignore
+                        return onStringValue(vh, contextData)
                     }
                     switch (semanticState.currentContext[0]) {
                         case "array": {
                             const $ = semanticState.currentContext[1]
                             const isFirst = !$.foundElements
                             $.foundElements = true
-                            return onString(
+                            return onStringValue(
                                 $.arrayHandler.element({
                                     data: {
                                         isFirst: isFirst,
@@ -697,30 +628,11 @@ function processParserEvent(
                         case "object": {
                             const $$ = semanticState.currentContext[1]
                             if ($$.propertyHandler === null) {
-                                if (semanticState.currentContext[0] !== "object") {
-                                    raiseError(onError, ["unexpected key"], data.range)
-                                    return p.value(false)
-                                } else {
-                                    const $$$ = semanticState.currentContext[1]
-                                    $$$.foundProperties = true
-                                    return $$.objectHandler.property({
-                                        data: {
-                                            key: valueAsString,
-                                        },
-                                        annotation: {
-                                            tokenString: valueAsString,
-                                            range: data.range,
-                                            contextData: contextData,
-                                        },
-                                        stackContext: semanticState.createStackContext(),
-                                    }).mapResult(propHandler => {
-                                        $$.propertyHandler = propHandler
-                                        return p.value(false)
-                                    })
-                                }
+                                console.error("HANDLE MISSING KEY")
+                                return p.value(false)
                             } else {
                                 const $$$ = $$.propertyHandler
-                                return onString($$$.exists, contextData)
+                                return onStringValue($$$.exists, contextData)
                             }
                         }
                         case "taggedunion": {
@@ -744,7 +656,7 @@ function processParserEvent(
                                 }
                                 case "expecting value": {
                                     const $$$ = $$.state[1]
-                                    return onString($$$.exists, contextData)
+                                    return onStringValue($$$.exists, contextData)
                                 }
                                 default:
                                     return assertUnreachable($$.state[0])
@@ -756,6 +668,79 @@ function processParserEvent(
                 },
             }]
         }
+        case TreeEventType.Identifier: {
+            const $ = data.type[1]
+
+            return ["event", {
+                beforeContextData: overheadState.flush(),
+                handler: contextData => {
+
+                    if (semanticState.currentContext === null) {
+                        console.error("HANDLE KEY BEFORE TREE")
+                        return p.value(false)
+                    }
+                    switch (semanticState.currentContext[0]) {
+                        case "array": {
+                            console.error("HANDLE KEY IN ARRAY")
+                            return p.value(false)
+                        }
+                        case "object": {
+                            const $$ = semanticState.currentContext[1]
+                            if ($$.propertyHandler === null) {
+                                const $$$ = semanticState.currentContext[1]
+                                $$$.foundProperties = true
+                                return $$.objectHandler.property({
+                                    data: {
+                                        key: $.name,
+                                    },
+                                    annotation: {
+                                        tokenString: $.name,
+                                        range: data.range,
+                                        contextData: contextData,
+                                    },
+                                    stackContext: semanticState.createStackContext(),
+                                }).mapResult(propHandler => {
+                                    $$.propertyHandler = propHandler
+                                    return p.value(false)
+                                })
+                            } else {
+                                console.error("HANDLE MISSING PROPERTY VALUE")
+                                return p.value(false)
+                            }
+                        }
+                        case "taggedunion": {
+                            const $$ = semanticState.currentContext[1]
+                            switch ($$.state[0]) {
+                                case "expecting option": {
+                                    //const $$$ = $$.state[1]
+                                    $$.state = ["expecting value", $$.handler.option({
+                                        data: {
+                                            option: $.name,
+                                        },
+                                        annotation: {
+                                            tokenString: $.name,
+                                            range: data.range,
+                                            contextData: contextData,
+                                        },
+                                        stackContext: semanticState.createStackContext(),
+                                    })]
+                                    return p.value(false)
+                                }
+                                case "expecting value": {
+                                    console.error("HANDLE DOUBLE OPTION")
+                                    return p.value(false)
+                                }
+                                default:
+                                    return assertUnreachable($$.state[0])
+                            }
+                        }
+                        default:
+                            return assertUnreachable(semanticState.currentContext[0])
+                    }
+                },
+            }]
+        }
+
         case TreeEventType.TaggedUnion: {
             if (DEBUG) { console.log("on open tagged union") }
             return ["event", {
@@ -793,7 +778,7 @@ export function createStackedParser<ReturnType, ErrorType>(
     onError: (error: StackedDataError, range: Range) => void,
     onEnd: () => p.IUnsafeValue<ReturnType, ErrorType>
 ): ITreeParserEventConsumer<ReturnType, ErrorType> {
-    const overheadState = new OverheadState()
+    const overheadState = new CommentState()
     const semanticState = new SemanticState(valueHandler)
 
     let cachedEvent: null | EventData = null
@@ -810,6 +795,7 @@ export function createStackedParser<ReturnType, ErrorType>(
                     const contextData: ContextData = {
                         before: before,
                         lineCommentAfter: lineCommentAfter,
+                        indentation: data.indentation,
                     }
                     return contextData
                 }
@@ -834,7 +820,6 @@ export function createStackedParser<ReturnType, ErrorType>(
             switch (processedParserEvent[0]) {
                 case "comment": {
                     const $ = processedParserEvent[1]
-                    overheadState.setLineDirty()
                     if ($.comment.type === "line" && cachedEvent !== null) {
                         const res = flush(cachedEvent, $.comment, () => p.value(false))
                         cachedEvent = null
@@ -849,7 +834,6 @@ export function createStackedParser<ReturnType, ErrorType>(
 
                         const $ = processedParserEvent[1]
                         cachedEvent = $
-                        overheadState.setLineDirty()
                         return p.value(false)
 
                     })
@@ -857,14 +841,12 @@ export function createStackedParser<ReturnType, ErrorType>(
                 case "other": {
 
                     //const $ = odr[1]
-                    overheadState.setLineDirty()
 
                     return p.value(false)
 
                 }
                 case "whitespace": {
-                    const $ = processedParserEvent[1]
-                    overheadState.onWhitespace($.value)
+                    //const $ = processedParserEvent[1]
 
                     return p.value(false)
                 }
@@ -872,7 +854,6 @@ export function createStackedParser<ReturnType, ErrorType>(
                     return flushPossibleQueuedEvent(() => {
 
                         //const $ = odr[1]
-                        overheadState.onNewline()
                         return p.value(false)
 
                     })
@@ -881,17 +862,19 @@ export function createStackedParser<ReturnType, ErrorType>(
                     return assertUnreachable(processedParserEvent[0])
             }
         },
-        onEnd: (aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> => {
+        onEnd: (aborted: boolean, endData: EndData): p.IUnsafeValue<ReturnType, ErrorType> => {
             function flushContextData(before: BeforeContextData): ContextData {
                 const contextData: ContextData = {
                     before: before,
                     lineCommentAfter: null,
+
+                    indentation: endData.indentation,
                 }
                 return contextData
             }
             function onEnd2() {
 
-                const range = createRangeFromSingleLocation(location)
+                const range = createRangeFromSingleLocation(endData.location)
                 if (!aborted) {
                     unwindLoop: while (true) {
                         if (semanticState.currentContext === null) {

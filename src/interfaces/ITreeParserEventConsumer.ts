@@ -1,6 +1,7 @@
 import * as p from "pareto"
-import { OverheadToken, StringData } from "./ITreeParser";
+import { OverheadToken } from "./ITreeParser";
 import { Location, Range } from "../location"
+import { StringValueData } from "./handlers";
 
 export enum TreeEventType {
     CloseArray,
@@ -10,12 +11,15 @@ export enum TreeEventType {
     OpenArray,
     OpenObject,
     Overhead,
-    String,
+    StringValue,
+    Identifier,
+    Option,
     TaggedUnion,
 }
 
 export type TreeEvent = {
     tokenString: string
+    indentation: string
     range: Range
     type:
     | [TreeEventType.CloseArray]
@@ -25,10 +29,18 @@ export type TreeEvent = {
     | [TreeEventType.OpenArray]
     | [TreeEventType.OpenObject]
     | [TreeEventType.Overhead, OverheadToken]
-    | [TreeEventType.String, StringData]
+    | [TreeEventType.StringValue, StringValueData]
+    | [TreeEventType.Identifier, {
+        name: string
+    }]
     | [TreeEventType.TaggedUnion, {
         //
     }]
+}
+
+export type EndData = {
+    location: Location
+    indentation: string
 }
 
 
@@ -38,4 +50,4 @@ export type TreeEvent = {
  * at the end, the location of the last character is sent ('Location').
  * The ReturnType and ErrorType are determined by the specific implementation.
  */
- export type ITreeParserEventConsumer<ReturnType, ErrorType> = p.IUnsafeStreamConsumer<TreeEvent, Location, ReturnType, ErrorType>
+ export type ITreeParserEventConsumer<ReturnType, ErrorType> = p.IUnsafeStreamConsumer<TreeEvent, EndData, ReturnType, ErrorType>

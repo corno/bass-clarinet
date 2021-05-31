@@ -1012,7 +1012,7 @@ export const ownJSONTests: TestDefinitions = {
     },
     "wrong block formatting": {
         text: '[ \n"",""]',
-        formattedText: '[\n    "",\n    ""\n]',
+        formattedText: '[\n    "",\n    "" ]',
         testHeaders: true,
         events: [
             ["instance data start"],

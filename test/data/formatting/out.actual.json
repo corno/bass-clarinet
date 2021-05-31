@@ -1,0 +1,81 @@
+{
+    "correct": {
+        "strings": {
+            "multiline string without newlines": "foo",
+            "multiline string with newline": "foo\r\n            bar\r\n            baz"
+        },
+        "character escaping": {
+            "key with line feed\n": "foo",
+            "key with carriage return\r": "foo",
+            "key with carriage return and line feed\r\n": "foo",
+            "solidus": "/",
+            "tab in quoted string": "\t",
+            "tab in multiline string": "  ",
+            "line feed in quoted string": "\n",
+            "carriage return in quoted string": "\r"
+        },
+        "arrays": {
+            "empty list": [ ],
+            "non empty list": [ "foo", "foo" ],
+            "empty shorthand type": [ ],
+            "non empty shorthand type": [ "foo", "foo" ]
+        },
+        "objects": {
+            "empty dictionary": { },
+            "non empty dictionary": {
+                "correct property": "foo"
+            },
+            "empty verbose type": { }
+        },
+        "tagged union": [ "bar", { } ]
+    },
+    "incorrect": {
+        "whitespace": {
+            "multiple keys": "foo",
+            "on 1 line": "foo",
+            "empty list with newline": [ ],
+            "empty object with newline": { },
+            "no space in empty list": [ ],
+            "no space in empty object": { },
+            "tabs instead of spaces in indentation": "foo",
+            "tab instead of space before value": "foo",
+            "space before colon": "foo",
+            "space before newline": "foo",
+            "wrong indentation": "foo",
+            "no space before value": "foo"
+        },
+        "commas": {
+            "comma between elements": [ "foo", "foo" ],
+            "comma after last elements": [ "foo" ],
+            "comma between properties": "foo",
+            "comma after last property": "foo"
+        },
+        "strings": {
+            "multiline string as type key": "foo",
+            "quoted string with escaped apostrophe": "'",
+            "multiline string with escaped apostrophe": "'",
+            "key with escaped string: \"": "foo",
+            "qouted type property key": "foo",
+            "escaped newline in multiline string": "foo\r\nfoo",
+            "wrapped tagged union option": [ "bar", { } ],
+            "backticked tagged union option": [ "bar", { } ],
+            "nonwrapped tagged union option": [ "baz", { } ],
+            "multiline string with wrong indentation": "foo\r\n        foo",
+            "object keys": {
+                "backticks": "foo",
+                "apostrophes": "foo",
+                "nonwrapped": "foo"
+            }
+        },
+        "character escaping": {
+            "using lowercase letters in hexadecimal escape sequence": "\u000C",
+            "superfluous escape of solidus": "/",
+            "superfluous escape of non control character (letter a)": "a",
+            "superfluous escape of non control character (G clef character)": "𝄞",
+            "two-character escape sequence representation of form feed": "\u000C",
+            "two-character escape sequence representation of backspace": "\u0008",
+            "unescaped tab in quoted string": "\t",
+            "unescaped tab in multiline string": "\t"
+        }
+    }
+}

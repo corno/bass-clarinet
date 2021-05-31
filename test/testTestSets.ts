@@ -101,7 +101,18 @@ function createOutPutter(
                     outputOverheadToken(out, $)
                     break
                 }
-                case astn.TreeEventType.String: {
+                case astn.TreeEventType.StringValue: {
+                    //const $ = data.type[1]
+
+                    //FIX FIX FIX
+                    // out.push(astn.createSerializedString(
+                    //     $,
+                    //     "   ",
+                    //     "\r\n",
+                    // ))
+                    break
+                }
+                case astn.TreeEventType.Identifier: {
                     //const $ = data.type[1]
 
                     //FIX FIX FIX
@@ -294,16 +305,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                         onOverheadTokenEvent($, data.range)
                         break
                     }
-                    case astn.TreeEventType.String: {
+                    case astn.TreeEventType.StringValue: {
                         const $ = data.type[1]
                         switch ($.type[0]) {
-                            case "apostrophed": {
-                                const $$ = $.type[1]
-                                if (DEBUG) console.log("found wrapped string")
-                                actualEvents.push(["token", "wrappedstring", $$.value, getRange(test.testForLocation, data.range)])
-
-                                break
-                            }
                             case "multiline": {
                                 const $$ = $.type[1]
                                 if (DEBUG) console.log("found wrapped string")
@@ -330,6 +334,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                         }
                         break
                     }
+                    case astn.TreeEventType.Identifier: {
+                        const $ = data.type[1]
+                        actualEvents.push(["token", "wrappedstring", $.name, getRange(test.testForLocation, data.range)])
+                        break
+                    }
                     case astn.TreeEventType.TaggedUnion: {
                         //const $ = data.type[1]
 
@@ -342,9 +351,9 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 }
                 return p.value(false)
             },
-            onEnd: (_aborted, location): p.IUnsafeValue<null, null> => {
+            onEnd: (_aborted, endData): p.IUnsafeValue<null, null> => {
                 if (DEBUG) console.log("found end")
-                actualEvents.push(["end", getLocation(test.testForLocation, location)])
+                actualEvents.push(["end", getLocation(test.testForLocation, endData.location)])
                 return p.success(null)
             },
         }

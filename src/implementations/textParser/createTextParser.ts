@@ -10,6 +10,7 @@ import { ITreeParserEventConsumer, TreeEventType } from "../../interfaces/ITreeP
 import { TextErrorType, TextParserError } from "./functionTypes"
 import { ITreeParser, OverheadToken, PunctionationData, StringData, Token, TokenType } from "../../interfaces/ITreeParser"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
+import { StringValueDataType } from "../../interfaces"
 
 const DEBUG = false
 
@@ -77,13 +78,19 @@ export function createTextParser<ReturnType, ErrorType>(
 
                     this.raiseStructureError(["expected the schema start (!) or root value"], range)
 
-                    return onInstanceDataStart(location).onEnd(aborted, location)
+                    return onInstanceDataStart(location).onEnd(aborted, {
+                        location: location,
+                        indentation: "",
+                    })
                 }
                 case TextState.EXPECTING_SCHEMA: {
                     //const $ = this.rootContext.state[1]
 
                     this.raiseStructureError(["expected the schema"], range)
-                    return onInstanceDataStart(location).onEnd(aborted, location)
+                    return onInstanceDataStart(location).onEnd(aborted, {
+                        location: location,
+                        indentation: "",
+                    })
                 }
                 case TextState.PROCESSING_SCHEMA: {
                     const $ = this.rootContext.state[1]
@@ -97,14 +104,20 @@ export function createTextParser<ReturnType, ErrorType>(
                         }
                     ).try(() => {
                         //this.raiseError("incomplete schema", range)
-                        return onInstanceDataStart(location).onEnd(aborted, location)
+                        return onInstanceDataStart(location).onEnd(aborted,  {
+                            location: location,
+                            indentation: "",
+                        })
                     })
                 }
                 case TextState.EXPECTING_BODY: {
                     //const $ = this.rootContext.state[1]
                     this.raiseStructureError(["expected rootvalue"], range)
 
-                    return onInstanceDataStart(location).onEnd(aborted, location)
+                    return onInstanceDataStart(location).onEnd(aborted, {
+                        location: location,
+                        indentation: "",
+                    })
                 }
                 case TextState.PROCESSING_BODY: {
                     const $ = this.rootContext.state[1]
@@ -192,17 +205,54 @@ export function createTextParser<ReturnType, ErrorType>(
                                 )
                             })
                         },
-                        string => {
+                        stringData => {
                             const consumer = onSchemaDataStart(data.range)
                             return consumer.onData({
                                 tokenString: data.tokenString,
+                                indentation: "",
                                 range: data.range,
-                                type: [TreeEventType.String, string],
+                                type: [TreeEventType.StringValue, {
+
+                                    type: ((): StringValueDataType => {
+                                        switch (stringData.type[0]) {
+                                            case "multiline": {
+                                                const $ = stringData.type[1]
+                                                return ["multiline", {
+                                                    lines: $.lines,
+                                                }]
+                                            }
+                                            case "apostrophed": {
+                                                //CAST TO QUOTED
+                                                const $ = stringData.type[1]
+                                                return ["quoted", {
+                                                    value: $.value,
+                                                }]
+                                            }
+                                            case "nonwrapped": {
+                                                const $ = stringData.type[1]
+                                                return ["nonwrapped", {
+                                                    value: $.value,
+                                                }]
+                                            }
+                                            case "quoted": {
+                                                const $ = stringData.type[1]
+                                                return ["quoted", {
+                                                    value: $.value,
+                                                }]
+                                            }
+                                            default:
+                                                return assertUnreachable(stringData.type[0])
+                                        }
+                                    })(),
+                                }],
                             }).mapResult(() => {
 
                                 this.rootContext.state = [TextState.EXPECTING_BODY, {
                                 }]
-                                return consumer.onEnd(false, getEndLocationFromRange(data.range)).reworkAndCatch(
+                                return consumer.onEnd(false, {
+                                    location: getEndLocationFromRange(data.range),
+                                    indentation: "",
+                                }).reworkAndCatch(
                                     () => {
                                         return p.value(false)
                                     },
@@ -316,16 +366,52 @@ export function createTextParser<ReturnType, ErrorType>(
                 return p.value(false)
             })
         }
-        private processStringInstanceData(string: StringData, range: Range, tokenString: string) {
+        private processStringInstanceData(data2: StringData, range: Range, tokenString: string) {
 
             const consumer = onInstanceDataStart(range.start)
             return consumer.onData({
                 tokenString: tokenString,
+                indentation: "",
                 range: range,
-                type: [TreeEventType.String, string],
+                type: [TreeEventType.StringValue, {
+                    type: ((): StringValueDataType => {
+                        switch (data2.type[0]) {
+                            case "multiline": {
+                                const $ = data2.type[1]
+                                return ["multiline", {
+                                    lines: $.lines,
+                                }]
+                            }
+                            case "apostrophed": {
+                                //CAST TO QUOTED
+                                const $ = data2.type[1]
+                                return ["quoted", {
+                                    value: $.value,
+                                }]
+                            }
+                            case "nonwrapped": {
+                                const $ = data2.type[1]
+                                return ["nonwrapped", {
+                                    value: $.value,
+                                }]
+                            }
+                            case "quoted": {
+                                const $ = data2.type[1]
+                                return ["quoted", {
+                                    value: $.value,
+                                }]
+                            }
+                            default:
+                                return assertUnreachable(data2.type[0])
+                        }
+                    })(),
+                }],
             }).mapResult(() => {
                 this.rootContext.state = [TextState.EXPECTING_END, {
-                    result: consumer.onEnd(false, getEndLocationFromRange(range)),
+                    result: consumer.onEnd(false, {
+                        location: getEndLocationFromRange(range),
+                        indentation: "",
+                    }),
                 }]
                 return p.value(false)
             })

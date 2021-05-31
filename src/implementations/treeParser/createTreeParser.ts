@@ -10,6 +10,7 @@ import {
     TreeEvent,
     TreeEventType,
     ITreeParserEventConsumer,
+    EndData,
 } from "../../interfaces/ITreeParserEventConsumer"
 import {
     TreeParserError,
@@ -21,8 +22,10 @@ import {
     StringData,
     PunctionationData,
     ITreeParser,
+    OverheadTokenType,
 } from "../../interfaces/ITreeParser"
 import * as Char from "../../Characters"
+import { StringValueDataType } from "../../interfaces"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -68,34 +71,57 @@ export function createTreeParser<ReturnType, ErrorType>(
     eventsConsumer: ITreeParserEventConsumer<ReturnType, ErrorType>
 ): ITreeParser<ReturnType, ErrorType> {
 
+
+    class IndentationState {
+        private indentation = ""
+        private lineIsDirty = false
+        setLineDirty() {
+            this.lineIsDirty = true
+        }
+        onWhitespace(value: string) {
+            if (!this.lineIsDirty) {
+                this.indentation = value
+            }
+        }
+        onNewline() {
+            this.indentation = ""
+            this.lineIsDirty = false
+        }
+        getIndentation() {
+            return this.indentation
+        }
+    }
+
+    const indentationState = new IndentationState()
+
+    function createEndData(location: Location): EndData {
+        return {
+            indentation: indentationState.getIndentation(),
+            location: location,
+        }
+    }
+
     class TreeParser {
         private readonly stack = new Array<StackContext>()
         private currentContext: StackContext | null = null
-        private readonly onerror: (error: TreeParserError, range: Range) => void
-        private readonly eventsConsumer: ITreeParserEventConsumer<ReturnType, ErrorType>
-        constructor(
-        ) {
-            this.onerror = onerror
-            this.eventsConsumer = eventsConsumer
-        }
         private reportUnexpectedStackContext(stackContext: StackContext, location: Location) {
             const range = createRangeFromSingleLocation(location)
             switch (stackContext.type[0]) {
                 case StackContextType2.ARRAY: {
                     //const $ = stackContext.type[1]
-                    this.onerror({ type: ["unexpected end of document", { "still in": ["array"] }] }, range)
+                    onerror({ type: ["unexpected end of document", { "still in": ["array"] }] }, range)
 
                     break
                 }
                 case StackContextType2.OBJECT: {
                     //const $ = stackContext.type[1]
-                    this.onerror({ type: ["unexpected end of document", { "still in": ["object"] }] }, range)
+                    onerror({ type: ["unexpected end of document", { "still in": ["object"] }] }, range)
 
                     break
                 }
                 case StackContextType2.TAGGED_UNION: {
                     //const $ = stackContext.type[1]
-                    this.onerror({ type: ["unexpected end of document", { "still in": ["tagged union"] }] }, range)
+                    onerror({ type: ["unexpected end of document", { "still in": ["tagged union"] }] }, range)
 
                     break
                 }
@@ -118,7 +144,7 @@ export function createTreeParser<ReturnType, ErrorType>(
                     }
                 }
             }
-            return this.eventsConsumer.onEnd(aborted, location)
+            return eventsConsumer.onEnd(aborted, createEndData(location))
         }
         public pushContext(context: StackContext): void {
             //if (DEBUG) console.log(`pushed context ${this.getCurrentContext().getDescription()}>${context.getDescription()}`)
@@ -130,7 +156,7 @@ export function createTreeParser<ReturnType, ErrorType>(
         public popContext(range: Range, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
             const popped = this.stack.pop()
             if (popped === undefined) {
-                return onStackEmpty(this.eventsConsumer.onEnd(false, getEndLocationFromRange(range)))
+                return onStackEmpty(eventsConsumer.onEnd(false, createEndData(getEndLocationFromRange(range))))
             } else {
                 //if (DEBUG) console.log(`popped context ${popped.getDescription()}<${this.getCurrentContext().getDescription()}`)
                 this.currentContext = popped
@@ -159,8 +185,27 @@ export function createTreeParser<ReturnType, ErrorType>(
             switch (token.type[0]) {
                 case TokenType.Overhead: {
                     const $ = token.type[1]
+                    switch ($.type[0]) {
+                        case OverheadTokenType.Comment: {
+                            indentationState.setLineDirty()
+                            break
+                        }
+                        case OverheadTokenType.NewLine: {
+                            indentationState.onNewline()
 
+                            break
+                        }
+                        case OverheadTokenType.WhiteSpace: {
+                            const $$ = $.type[1]
+                            indentationState.onWhitespace($$.value)
+
+                            break
+                        }
+                        default:
+                            assertUnreachable($.type[0])
+                    }
                     return this.sendEvent({
+                        indentation: indentationState.getIndentation(),
                         tokenString: token.tokenString,
                         range: token.range,
                         type: [TreeEventType.Overhead, $],
@@ -168,35 +213,84 @@ export function createTreeParser<ReturnType, ErrorType>(
                 }
                 case TokenType.Structural: {
                     const $ = token.type[1]
-
+                    indentationState.setLineDirty()
                     return this.onPunctuation(token.range, token.tokenString, $, onStackEmpty)
                 }
                 case TokenType.String: {
                     const $ = token.type[1]
-
+                    indentationState.setLineDirty()
                     return this.onString(token.range, token.tokenString, $, onStackEmpty)
                 }
                 default:
                     return assertUnreachable(token.type[0])
             }
         }
-        private onString(range: Range, tokenString: string, data: StringData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+        private onString(
+            range: Range,
+            tokenString: string,
+            data: StringData,
+            onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
 
-            const y = (data2: StringData) => {
-                return this.sendEvent({
-                    tokenString: tokenString,
-                    range: range,
-                    type: [TreeEventType.String, data2],
-                })
-            }
 
             if (this.currentContext === null) {
-                return onStackEmpty(this.eventsConsumer.onEnd(false, getEndLocationFromRange(range)))
+                return onStackEmpty(eventsConsumer.onEnd(false, createEndData(getEndLocationFromRange(range))))
             } else {
+                const sendStringValue = (data2: StringData) => {
 
+                    function trimStringLines(lines: string[], indentation: string) {
+                        return lines.map((line, index) => {
+                            if (index === 0) { //the first line needs no trimming
+                                return line
+                            }
+                            if (line.startsWith(indentation)) {
+                                return line.substr(indentation.length)
+                            }
+                            return line
+                        })
+                    }
+
+                    return this.sendEvent({
+                        indentation: indentationState.getIndentation(),
+                        tokenString: tokenString,
+                        range: range,
+                        type: [TreeEventType.StringValue, {
+                            type: ((): StringValueDataType => {
+                                switch (data2.type[0]) {
+                                    case "multiline": {
+                                        const $ = data2.type[1]
+                                        return ["multiline", {
+                                            lines: trimStringLines($.lines, indentationState.getIndentation()),
+                                        }]
+                                    }
+                                    case "apostrophed": {
+                                        //CAST TO QUOTED
+                                        const $ = data2.type[1]
+                                        return ["quoted", {
+                                            value: $.value,
+                                        }]
+                                    }
+                                    case "nonwrapped": {
+                                        const $ = data2.type[1]
+                                        return ["nonwrapped", {
+                                            value: $.value,
+                                        }]
+                                    }
+                                    case "quoted": {
+                                        const $ = data2.type[1]
+                                        return ["quoted", {
+                                            value: $.value,
+                                        }]
+                                    }
+                                    default:
+                                        return assertUnreachable(data2.type[0])
+                                }
+                            })(),
+                        }],
+                    })
+                }
                 switch (this.currentContext.type[0]) {
                     case StackContextType2.ARRAY: {
-                        return y(data)
+                        return sendStringValue(data)
                     }
                     case StackContextType2.OBJECT: {
                         const $$ = this.currentContext.type[1]
@@ -204,12 +298,44 @@ export function createTreeParser<ReturnType, ErrorType>(
                         switch ($$.state) {
                             case ObjectState.EXPECTING_KEY:
                                 $$.state = ObjectState.EXPECTING_OBJECT_VALUE
-                                return y(data)
+
+                                return this.sendEvent({
+                                    indentation: indentationState.getIndentation(),
+                                    tokenString: tokenString,
+                                    range: range,
+                                    type: [TreeEventType.Identifier, {
+                                        name: ((): string => {
+                                            switch (data.type[0]) {
+                                                case "multiline": {
+                                                    //CAST TO APOSTROPHED
+                                                    const $ = data.type[1]
+                                                    return $.lines.join("\n")
+                                                }
+                                                case "apostrophed": {
+                                                    const $ = data.type[1]
+                                                    return $.value
+                                                }
+                                                case "nonwrapped": {
+                                                    //CAST TO APOSTROPHED
+                                                    const $ = data.type[1]
+                                                    return $.value
+                                                }
+                                                case "quoted": {
+                                                    //CAST TO APOSTROPHED
+                                                    const $ = data.type[1]
+                                                    return $.value
+                                                }
+                                                default:
+                                                    return assertUnreachable(data.type[0])
+                                            }
+                                        })(),
+                                    }],
+                                })
 
                             case ObjectState.EXPECTING_OBJECT_VALUE:
 
                                 $$.state = ObjectState.EXPECTING_KEY
-                                return y(data)
+                                return sendStringValue(data)
 
                             default:
                                 return assertUnreachable($$.state)
@@ -221,9 +347,43 @@ export function createTreeParser<ReturnType, ErrorType>(
                         switch ($$.state) {
                             case TaggedUnionState.EXPECTING_OPTION:
                                 $$.state = TaggedUnionState.EXPECTING_VALUE
-                                return y(data)
+
+                                return this.sendEvent({
+                                    indentation: indentationState.getIndentation(),
+
+                                    tokenString: tokenString,
+                                    range: range,
+                                    type: [TreeEventType.Identifier, {
+                                        name: ((): string => {
+                                            switch (data.type[0]) {
+                                                case "multiline": {
+                                                    //CAST TO APOSTROPHED
+                                                    const $ = data.type[1]
+                                                    return $.lines.join("\n")
+                                                }
+                                                case "apostrophed": {
+                                                    const $ = data.type[1]
+                                                    return $.value
+                                                }
+                                                case "nonwrapped": {
+                                                    //CAST TO APOSTROPHED
+                                                    const $ = data.type[1]
+                                                    return $.value
+                                                }
+                                                case "quoted": {
+                                                    //CAST TO APOSTROPHED
+                                                    const $ = data.type[1]
+                                                    return $.value
+                                                }
+                                                default:
+                                                    return assertUnreachable(data.type[0])
+                                            }
+                                        })(),
+                                    }],
+                                })
                             case TaggedUnionState.EXPECTING_VALUE: {
-                                return y(data).mapResult(() => {
+
+                                return sendStringValue(data).mapResult(() => {
                                     return this.popContext(range, onStackEmpty)
                                 })
                             }
@@ -250,6 +410,8 @@ export function createTreeParser<ReturnType, ErrorType>(
                 case Char.Punctuation.comma:
                     //
                     return this.sendEvent({
+                        indentation: indentationState.getIndentation(),
+
                         tokenString: tokenString,
                         range: range,
                         type: [TreeEventType.Comma],
@@ -265,6 +427,8 @@ export function createTreeParser<ReturnType, ErrorType>(
                 case Char.Punctuation.colon:
                     //
                     return this.sendEvent({
+                        indentation: indentationState.getIndentation(),
+
                         tokenString: tokenString,
                         range: range,
                         type: [TreeEventType.Colon],
@@ -292,6 +456,8 @@ export function createTreeParser<ReturnType, ErrorType>(
             return this.onComplexValue(range).mapResult(() => {
                 this.pushContext({ range: range, type: [StackContextType2.TAGGED_UNION, taggedUnion] })
                 return this.sendEvent({
+                    indentation: indentationState.getIndentation(),
+
                     tokenString: "|",
                     range: range,
                     type: [TreeEventType.TaggedUnion, {
@@ -301,7 +467,7 @@ export function createTreeParser<ReturnType, ErrorType>(
             })
         }
         private sendEvent(data: TreeEvent): p.IValue<boolean> {
-            return this.eventsConsumer.onData(data)
+            return eventsConsumer.onData(data)
         }
         private onObjectOpen(openCharacter: "(" | "{", range: Range): p.IValue<boolean> {
             return this.onComplexValue(range).mapResult(() => {
@@ -311,6 +477,8 @@ export function createTreeParser<ReturnType, ErrorType>(
                 }
                 this.pushContext({ range: range, type: [StackContextType2.OBJECT, obj] })
                 return this.sendEvent({
+                    indentation: indentationState.getIndentation(),
+
                     tokenString: openCharacter,
                     range: range,
                     type: [TreeEventType.OpenObject],
@@ -320,6 +488,8 @@ export function createTreeParser<ReturnType, ErrorType>(
         }
         private onObjectClose(closeCharacter: ")" | "}", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
             return this.sendEvent({
+                indentation: indentationState.getIndentation(),
+
                 tokenString: closeCharacter,
                 range: range,
                 type: [TreeEventType.CloseObject],
@@ -343,6 +513,8 @@ export function createTreeParser<ReturnType, ErrorType>(
                     }],
                 })
                 return this.sendEvent({
+                    indentation: indentationState.getIndentation(),
+
                     tokenString: openCharacter,
                     range: range,
                     type: [TreeEventType.OpenArray],
@@ -353,6 +525,8 @@ export function createTreeParser<ReturnType, ErrorType>(
         private onArrayClose(closeCharacter: "]" | ">", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>) {
 
             return this.sendEvent({
+                indentation: indentationState.getIndentation(),
+
                 tokenString: closeCharacter,
                 range: range,
                 type: [TreeEventType.CloseArray],
@@ -406,7 +580,7 @@ export function createTreeParser<ReturnType, ErrorType>(
         }
         private raiseError(message: TreeParserErrorType, range: Range) {
             //if (DEBUG) { console.log("error raised:", message, printRange(range)) }
-            this.onerror(
+            onerror(
                 {
                     type: message,
                 },

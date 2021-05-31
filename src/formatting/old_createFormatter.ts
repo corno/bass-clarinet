@@ -288,26 +288,25 @@ export function createFormatter(
 
 									comment(data.range.start)
 									{
-										const ei = createExpectedIndentation()
-										const splitted = $$.comment.split("\n")
-										const properlyIndentedBlockComment = splitted.map((line, index) => {
-											if ($$.indentation !== null) {
-												if (line.startsWith($$.indentation)) {
-													line = line.substr($$.indentation.length)
-												}
-											}
-											if (index === 0) {
-												//the first line, never indent
-												return line.trimRight()
-											}
-											if (index === splitted.length - 1) {
-												//last line, always indent
-												return ei + line.trimRight()
-											}
-											//not the last line. Only indent if it has content.
-											return (ei + line).trimRight()
-										}).join("\n")
-										replace($$.innerRange, properlyIndentedBlockComment)
+										// const ei = createExpectedIndentation()
+										// const splitted = $$.comment.split("\n")
+										// const properlyIndentedBlockComment = splitted.map((line, index) => {
+										// 	if ($$.indentation !== null) {
+										// 		if (line.startsWith($$.indentation)) {
+										// 			line = line.substr($$.indentation.length)
+										// 		}
+										// 	}
+										// 	if (index === 0) {
+										// 		//the first line, never indent
+										// 		return line.trimRight()
+										// 	}
+										// 	if (index === splitted.length - 1) {
+										// 		//last line, always indent
+										// 		return ei + line.trimRight()
+										// 	}
+										// 	//not the last line. Only indent if it has content.
+										// 	return (ei + line).trimRight()
+										// }).join("\n")
 									}
 									precedingToken = (precedingToken[0] === PrecedingTokenType.newLine)
 										? [PrecedingTokenType.other]
@@ -392,13 +391,19 @@ export function createFormatter(
 					}
 					break
 				}
-				case TreeEventType.String: {
+				case TreeEventType.StringValue: {
+					semanticToken(data.range.start)
+					precedingToken = [PrecedingTokenType.option]
+					break
+				}
+				case TreeEventType.Identifier: {
 					semanticToken(data.range.start)
 					if (precedingToken[0] === PrecedingTokenType.pipe) {
 						precedingToken = [PrecedingTokenType.option]
 					} else {
 						precedingToken = [PrecedingTokenType.other]
 					}
+
 					break
 				}
 				case TreeEventType.TaggedUnion: {
