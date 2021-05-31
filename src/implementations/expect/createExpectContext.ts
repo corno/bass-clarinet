@@ -554,7 +554,6 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
     onDuplicateEntry: OnDuplicateEntry,
 ): IExpectContext<TokenAnnotation, NonTokenAnnotation> {
 
-
     function raiseWarning(issue: ExpectError, annotation: TokenAnnotation): void {
         warningHandler({
             issue: issue,
@@ -570,7 +569,6 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
         duplicateEntrySeverity,
         onDuplicateEntry,
     )
-
 
     function expectStringImp(
         expected: ExpectErrorValue,
@@ -588,11 +586,11 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
         }
     }
 
-    class ExpectContext implements IExpectContext<TokenAnnotation, NonTokenAnnotation> {
-        public expectValue(
-            onValue: astn.ValueHandler<TokenAnnotation, NonTokenAnnotation>,
-            onMissing?: () => void,
-        ): astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
+    return {
+        expectValue: (
+            onValue,
+            onMissing,
+        ) => {
             return {
                 exists: onValue,
                 missing: onMissing
@@ -601,11 +599,9 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                         //
                     },
             }
-        }
+        },
 
-        public expectNothing(
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        expectNothing: onInvalidType => {
             const expectValue: ExpectErrorValue = {
                 "type": "nothing",
                 "null allowed": false,
@@ -616,33 +612,23 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                 string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType),
                 taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
             }
-        }
-        public expectString(
-            callback: ($: {
-                data: StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-            onNull?: ($: {
-                data: astn.StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        },
+        expectString: (
+            callback,
+            onInvalidType,
+            onNull,
+        ) => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "string",
                 "null allowed": onNull !== undefined,
             }
             return expectStringImp(expectValue, callback, onInvalidType)
-        }
-        public expectBoolean(
-            callback: ($: {
-                value: boolean
-                data: StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        },
+        expectBoolean: (
+            callback,
+            onInvalidType,
+        ) => {
             const expectValue: ExpectErrorValue = {
                 "type": "boolean",
                 "null allowed": false,
@@ -681,14 +667,11 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                 },
                 onInvalidType,
             )
-        }
-        public expectNull(
-            callback: ($: {
-                data: StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        },
+        expectNull: (
+            callback,
+            onInvalidType,
+        ) => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "null",
@@ -713,19 +696,12 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                 },
                 onInvalidType,
             )
-        }
-        public expectNumber(
-            callback: ($: {
-                value: number
-                data: StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-            onNull?: ($: {
-                data: astn.StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        },
+        expectNumber: (
+            callback,
+            onInvalidType,
+            onNull,
+        ) => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "number",
@@ -760,19 +736,12 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                 },
                 onInvalidType
             )
-        }
-        public expectQuotedString(
-            callback: ($: {
-                value: string
-                data: StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-            onNull?: ($: {
-                data: astn.StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        },
+        expectQuotedString: (
+            callback,
+            onInvalidType,
+            onNull,
+        ) => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "quoted string",
@@ -802,21 +771,13 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                 },
                 onInvalidType
             )
-        }
-        public expectDictionary(
-            onBegin: ($: {
-                data: ObjectData
-                annotation: TokenAnnotation
-            }) => void,
-            onProperty: ($: {
-                data: PropertyData
-                annotation: TokenAnnotation
-            }) => astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
-            onEnd: ($: {
-                annotation: TokenAnnotation
-            }) => void,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        },
+        expectDictionary: (
+            onBegin,
+            onProperty,
+            onEnd,
+            onInvalidType,
+        ) => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "dictionary",
@@ -828,27 +789,15 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                 string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType),
                 taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
             }
-        }
-        public expectType(
-            expectedProperties: ExpectedProperties<TokenAnnotation, NonTokenAnnotation> = {},
-            onBegin?: ($: {
-                data: ObjectData
-                annotation: TokenAnnotation
-            }) => void,
-            onEnd?: ($: {
-                hasErrors: boolean
-                annotation: TokenAnnotation
-            }) => void,
-            onUnexpectedProperty?: ($: {
-                data: PropertyData
-                annotation: TokenAnnotation
-            }) => astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-            onNull?: ($: {
-                data: StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        },
+        expectType: (
+            expectedProperties,
+            onBegin,
+            onEnd,
+            onUnexpectedProperty,
+            onInvalidType,
+            onNull,
+        ) => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "number",
@@ -865,18 +814,13 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                 string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
                 taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
             }
-        }
-        public expectList(
-            onBegin: ($: {
-                data: ArrayData
-                annotation: TokenAnnotation
-            }) => void,
-            onElement: () => astn.ValueHandler<TokenAnnotation, NonTokenAnnotation>,
-            onEnd: ($: {
-                annotation: TokenAnnotation
-            }) => void,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        },
+        expectList: (
+            onBegin,
+            onElement,
+            onEnd,
+            onInvalidType,
+        ) => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "list",
@@ -888,22 +832,14 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                 string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType),
                 taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
             }
-        }
-        public expectShorthandType(
-            expectedElements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>,
-            onBegin?: ($: {
-                data: ArrayData
-                annotation: TokenAnnotation
-            }) => void,
-            onEnd?: ($: {
-                annotation: TokenAnnotation
-            }) => void,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-            onNull?: ($: {
-                data: StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        },
+        expectShorthandType: (
+            expectedElements,
+            onBegin,
+            onEnd,
+            onInvalidType,
+            onNull,
+        ) => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "shorthand type",
@@ -915,36 +851,19 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                 string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
                 taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
             }
-        }
+        },
 
-        public expectTypeOrShorthandType(
-            expectedProperties: ExpectedProperties<TokenAnnotation, NonTokenAnnotation> = {},
-            expectedElements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>,
-            onTypeBegin?: ($: {
-                data: ObjectData
-                annotation: TokenAnnotation
-            }) => void,
-            onTypeEnd?: ($: {
-                hasErrors: boolean
-                annotation: TokenAnnotation
-            }) => void,
-            onUnexpectedProperty?: ($: {
-                data: PropertyData
-                annotation: TokenAnnotation
-            }) => astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
-            onShorthandTypeBegin?: ($: {
-                data: ArrayData
-                annotation: TokenAnnotation
-            }) => void,
-            onShorthandTypeEnd?: ($: {
-                annotation: TokenAnnotation
-            }) => void,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-            onNull?: ($: {
-                data: StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        expectTypeOrShorthandType: (
+            expectedProperties,
+            expectedElements,
+            onTypeBegin,
+            onTypeEnd,
+            onUnexpectedProperty,
+            onShorthandTypeBegin,
+            onShorthandTypeEnd,
+            onInvalidType,
+            onNull,
+        ) => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "type or shorthand type",
@@ -961,21 +880,14 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                 string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
                 taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
             }
-        }
-        public expectTaggedUnion(
-            options: Options<TokenAnnotation, NonTokenAnnotation>,
-            onUnexpectedOption?: ($: {
-                tuAnnotation: TokenAnnotation
-                data: OptionData
-                optionAnnotation: TokenAnnotation
-            }) => void,
-            onMissingOption?: () => void,
-            onInvalidType?: OnInvalidType<TokenAnnotation>,
-            onNull?: ($: {
-                data: StringValueData
-                annotation: TokenAnnotation
-            }) => p.IValue<boolean>,
-        ): astn.ValueHandler<TokenAnnotation, NonTokenAnnotation> {
+        },
+        expectTaggedUnion: (
+            options,
+            onUnexpectedOption,
+            onMissingOption,
+            onInvalidType,
+            onNull,
+        ) => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "tagged union",
@@ -991,21 +903,6 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                     onMissingOption,
                 ),
             }
-        }
-        // /**
-        //  * this parses values in the form of `| "option" <data value>` or `[ "option", <data value> ]`
-        //  * @param callback
-        //  */
-        // public expectTaggedUnionOrArraySurrogate(
-        //     options: Options
-        // ): bc.ValueHandler {
-        //     return {
-        //         array: createContext.createTaggedUnionSurrogateHandler(options),
-        //         object: createContext.createUnexpectedObjectHandler("tagged union"),
-        //         string: createContext.createUnexpectedStringHandler("tagged union"),
-        //         taggedUnion: createContext.createTaggedUnionHandler(options),
-        //     }
-        // }
+        },
     }
-    return new ExpectContext()
 }
