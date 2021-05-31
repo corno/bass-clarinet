@@ -334,25 +334,25 @@ function processParserEvent(
                             case "object": {
                                 const $$2 = semanticState.currentContext[1]
                                 if ($$2.propertyHandler !== null) {
-                                    raiseError(onError, ["missing property data"], data.range)
+                                    raiseError(onError, ["missing property data"], data.annotation.range)
                                     $$2.propertyHandler.missing()
                                     $$2.propertyHandler = null
                                 }
-                                raiseError(onError, ["missing object close"], data.range)
-                                semanticState.pop(data.range)
-                                semanticState.wrapupValue(data.range)
+                                raiseError(onError, ["missing object close"], data.annotation.range)
+                                semanticState.pop(data.annotation.range)
+                                semanticState.wrapupValue(data.annotation.range)
                                 break
                             }
                             case "taggedunion": {
                                 //const $ = state.currentContext[1]
                                 if (semanticState.currentContext[1].state[0] === "expecting value") {
                                     semanticState.currentContext[1].state[1].missing()
-                                    raiseError(onError, ["missing tagged union value"], data.range)
+                                    raiseError(onError, ["missing tagged union value"], data.annotation.range)
                                 } else {
-                                    raiseError(onError, ["missing tagged union option and value"], data.range)
+                                    raiseError(onError, ["missing tagged union option and value"], data.annotation.range)
                                 }
-                                semanticState.pop(data.range)
-                                semanticState.wrapupValue(data.range)
+                                semanticState.pop(data.annotation.range)
+                                semanticState.wrapupValue(data.annotation.range)
                                 break
                             }
                             default:
@@ -360,21 +360,21 @@ function processParserEvent(
                         }
                     }
                     if (semanticState.currentContext === null || semanticState.currentContext[0] !== "array") {
-                        raiseError(onError, ["unexpected end of array"], data.range)
+                        raiseError(onError, ["unexpected end of array"], data.annotation.range)
                         return p.value(false)
                     } else {
                         const $$ = semanticState.currentContext[1]
                         switch ($$.type[0]) {
                             case "list": {
-                                if (data.tokenString !== "]") {
-                                    raiseError(onError, ["unmatched list close"], data.range)
+                                if (data.annotation.tokenString !== "]") {
+                                    raiseError(onError, ["unmatched list close"], data.annotation.range)
 
                                 }
                                 break
                             }
                             case "shorthand type": {
-                                if (data.tokenString !== ">") {
-                                    raiseError(onError, ["unmatched shorthand type close"], data.range)
+                                if (data.annotation.tokenString !== ">") {
+                                    raiseError(onError, ["unmatched shorthand type close"], data.annotation.range)
 
                                 }
 
@@ -385,14 +385,14 @@ function processParserEvent(
                         }
                         $$.arrayHandler.arrayEnd({
                             annotation: {
-                                tokenString: data.tokenString,
-                                range: data.range,
+                                tokenString: data.annotation.tokenString,
+                                range: data.annotation.range,
                                 contextData: contextData,
                             },
                             stackContext: semanticState.createStackContext(),
                         })
-                        semanticState.pop(data.range)
-                        semanticState.wrapupValue(data.range)
+                        semanticState.pop(data.annotation.range)
+                        semanticState.wrapupValue(data.annotation.range)
                         return p.value(false)
                     }
                 },
@@ -409,9 +409,9 @@ function processParserEvent(
                         switch (semanticState.currentContext[0]) {
                             case "array": {
                                 //const $ = state.currentContext[1]
-                                raiseError(onError, ["missing array close"], data.range)
-                                semanticState.pop(data.range)
-                                semanticState.wrapupValue(data.range)
+                                raiseError(onError, ["missing array close"], data.annotation.range)
+                                semanticState.pop(data.annotation.range)
+                                semanticState.wrapupValue(data.annotation.range)
                                 break
                             }
                             case "object": {
@@ -422,12 +422,12 @@ function processParserEvent(
                                 //const $ = state.currentContext[1]
                                 if (semanticState.currentContext[1].state[0] === "expecting value") {
                                     semanticState.currentContext[1].state[1].missing()
-                                    raiseError(onError, ["missing tagged union value"], data.range)
+                                    raiseError(onError, ["missing tagged union value"], data.annotation.range)
                                 } else {
-                                    raiseError(onError, ["missing tagged union option and value"], data.range)
+                                    raiseError(onError, ["missing tagged union option and value"], data.annotation.range)
                                 }
-                                semanticState.pop(data.range)
-                                semanticState.wrapupValue(data.range)
+                                semanticState.pop(data.annotation.range)
+                                semanticState.wrapupValue(data.annotation.range)
                                 break
                             }
                             default:
@@ -435,21 +435,21 @@ function processParserEvent(
                         }
                     }
                     if (semanticState.currentContext === null || semanticState.currentContext[0] !== "object") {
-                        raiseError(onError, ["unexpected end of object"], data.range)
+                        raiseError(onError, ["unexpected end of object"], data.annotation.range)
                         return p.value(false)
                     } else {
                         const $$ = semanticState.currentContext[1]
                         switch ($$.type[0]) {
                             case "dictionary": {
-                                if (data.tokenString !== "}") {
-                                    raiseError(onError, ["unmatched dictionary close"], data.range)
+                                if (data.annotation.tokenString !== "}") {
+                                    raiseError(onError, ["unmatched dictionary close"], data.annotation.range)
 
                                 }
                                 break
                             }
                             case "verbose type": {
-                                if (data.tokenString !== ")") {
-                                    raiseError(onError, ["unmatched verbose type close"], data.range)
+                                if (data.annotation.tokenString !== ")") {
+                                    raiseError(onError, ["unmatched verbose type close"], data.annotation.range)
 
                                 }
 
@@ -466,14 +466,14 @@ function processParserEvent(
                         }
                         $$.objectHandler.objectEnd({
                             annotation: {
-                                tokenString: data.tokenString,
-                                range: data.range,
+                                tokenString: data.annotation.tokenString,
+                                range: data.annotation.range,
                                 contextData: contextData,
                             },
                             stackContext: semanticState.createStackContext(),
                         })
-                        semanticState.pop(data.range)
-                        semanticState.wrapupValue(data.range)
+                        semanticState.pop(data.annotation.range)
+                        semanticState.wrapupValue(data.annotation.range)
                         return p.value(false)
                     }
 
@@ -492,18 +492,18 @@ function processParserEvent(
                 handler: contextData => {
                     const arrayHandler = semanticState.initValueHandler().array({
                         data: {
-                            type: data.tokenString === "<" ? ["shorthand type"] : ["list"],
+                            type: data.annotation.tokenString === "<" ? ["shorthand type"] : ["list"],
                         },
                         annotation: {
-                            tokenString: data.tokenString,
-                            range: data.range,
+                            tokenString: data.annotation.tokenString,
+                            range: data.annotation.range,
                             contextData: contextData,
                         },
                         stackContext: semanticState.createStackContext(),
                     })
                     semanticState.push(["array", {
                         foundElements: false,
-                        type: data.tokenString === "<" ? ["shorthand type"] : ["list"],
+                        type: data.annotation.tokenString === "<" ? ["shorthand type"] : ["list"],
                         arrayHandler: arrayHandler,
                     }])
                     return p.value(false)
@@ -518,18 +518,18 @@ function processParserEvent(
 
                     const objectHandler = vh.object({
                         data: {
-                            type: data.tokenString === "(" ? ["verbose type"] : ["dictionary"],
+                            type: data.annotation.tokenString === "(" ? ["verbose type"] : ["dictionary"],
                         },
                         annotation: {
-                            tokenString: data.tokenString,
-                            range: data.range,
+                            tokenString: data.annotation.tokenString,
+                            range: data.annotation.range,
                             contextData: contextData,
                         },
                         stackContext: semanticState.createStackContext(),
                     })
                     semanticState.push(["object", {
                         foundProperties: false,
-                        type: data.tokenString === "(" ? ["verbose type"] : ["dictionary"],
+                        type: data.annotation.tokenString === "(" ? ["verbose type"] : ["dictionary"],
                         objectHandler: objectHandler,
                         propertyHandler: null,
                     }])
@@ -547,7 +547,7 @@ function processParserEvent(
                             text: $$.comment,
                             type: $$.type,
                             indent: null, //FIX get the right indent info
-                            outerRange: data.range,
+                            outerRange: data.annotation.range,
                             innerRange: $$.innerRange,
                         },
                     }]
@@ -557,7 +557,7 @@ function processParserEvent(
                 }
                 case OverheadTokenType.WhiteSpace: {
                     return ["whitespace", {
-                        value: data.tokenString,
+                        value: data.annotation.tokenString,
                     }]
                 }
                 default:
@@ -591,12 +591,12 @@ function processParserEvent(
 
                     function onStringValue(vh: ParserValueHandler, cd: ContextData): p.IValue<boolean> {
                         //if (DEBUG) { console.log("on string", $.value) }
-                        semanticState.wrapupValue(data.range)
+                        semanticState.wrapupValue(data.annotation.range)
                         return vh.string({
                             data: $,
                             annotation: {
                                 tokenString: valueAsString,
-                                range: data.range,
+                                range: data.annotation.range,
                                 contextData: cd,
                             },
                             stackContext: semanticState.createStackContext(),
@@ -647,7 +647,7 @@ function processParserEvent(
                                         },
                                         annotation: {
                                             tokenString: valueAsString,
-                                            range: data.range,
+                                            range: data.annotation.range,
                                             contextData: contextData,
                                         },
                                         stackContext: semanticState.createStackContext(),
@@ -695,7 +695,7 @@ function processParserEvent(
                                     },
                                     annotation: {
                                         tokenString: $.name,
-                                        range: data.range,
+                                        range: data.annotation.range,
                                         contextData: contextData,
                                     },
                                     stackContext: semanticState.createStackContext(),
@@ -719,7 +719,7 @@ function processParserEvent(
                                         },
                                         annotation: {
                                             tokenString: $.name,
-                                            range: data.range,
+                                            range: data.annotation.range,
                                             contextData: contextData,
                                         },
                                         stackContext: semanticState.createStackContext(),
@@ -749,8 +749,8 @@ function processParserEvent(
                     semanticState.push(["taggedunion", {
                         handler: semanticState.initValueHandler().taggedUnion({
                             annotation: {
-                                tokenString: data.tokenString,
-                                range: data.range,
+                                tokenString: data.annotation.tokenString,
+                                range: data.annotation.range,
                                 contextData: contextData,
                             },
                             stackContext: semanticState.createStackContext(),
@@ -795,7 +795,7 @@ export function createStackedParser<ReturnType, ErrorType>(
                     const contextData: ContextData = {
                         before: before,
                         lineCommentAfter: lineCommentAfter,
-                        indentation: data.indentation,
+                        indentation: data.annotation.indentation,
                     }
                     return contextData
                 }

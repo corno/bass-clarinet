@@ -247,12 +247,12 @@ export function createFormatter(
 		onData: data => {
 			switch (data.type[0]) {
 				case TreeEventType.CloseArray: {
-					closeToken(data.range.start)
+					closeToken(data.annotation.range.start)
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
 				case TreeEventType.CloseObject: {
-					closeToken(data.range.start)
+					closeToken(data.annotation.range.start)
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
@@ -267,13 +267,13 @@ export function createFormatter(
 					break
 				}
 				case TreeEventType.OpenArray: {
-					semanticToken(data.range.start)
+					semanticToken(data.annotation.range.start)
 					push()
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
 				case TreeEventType.OpenObject: {
-					semanticToken(data.range.start)
+					semanticToken(data.annotation.range.start)
 					push()
 					precedingToken = [PrecedingTokenType.other]
 					break
@@ -286,7 +286,7 @@ export function createFormatter(
 							switch ($$.type) {
 								case "block": {
 
-									comment(data.range.start)
+									comment(data.annotation.range.start)
 									{
 										// const ei = createExpectedIndentation()
 										// const splitted = $$.comment.split("\n")
@@ -314,7 +314,7 @@ export function createFormatter(
 									break
 								}
 								case "line": {
-									comment(data.range.start)
+									comment(data.annotation.range.start)
 									precededByLineComment = true
 									break
 								}
@@ -338,16 +338,16 @@ export function createFormatter(
 							}
 							switch (precedingToken[0]) {
 								case PrecedingTokenType.colon: {
-									del(data.range)
+									del(data.annotation.range)
 									break
 								}
 								case PrecedingTokenType.inlineBlockComment: {
-									del(data.range)
+									del(data.annotation.range)
 									break
 								}
 								case PrecedingTokenType.newLine: {
 
-									del(data.range)
+									del(data.annotation.range)
 									break
 								}
 								case PrecedingTokenType.nothing: {
@@ -371,7 +371,7 @@ export function createFormatter(
 							precedingToken = [PrecedingTokenType.newLine, {
 								token: {
 									value: "\n",
-									range: data.range,
+									range: data.annotation.range,
 								},
 								precededByLineComment: precededByLineComment,
 							}]
@@ -381,7 +381,7 @@ export function createFormatter(
 						case OverheadTokenType.WhiteSpace: {
 							const $$ = $.type[1]
 							precedingWhitespace = {
-								range: data.range,
+								range: data.annotation.range,
 								value: $$.value,
 							}
 							break
@@ -392,12 +392,12 @@ export function createFormatter(
 					break
 				}
 				case TreeEventType.StringValue: {
-					semanticToken(data.range.start)
+					semanticToken(data.annotation.range.start)
 					precedingToken = [PrecedingTokenType.option]
 					break
 				}
 				case TreeEventType.Identifier: {
-					semanticToken(data.range.start)
+					semanticToken(data.annotation.range.start)
 					if (precedingToken[0] === PrecedingTokenType.pipe) {
 						precedingToken = [PrecedingTokenType.option]
 					} else {
@@ -407,7 +407,7 @@ export function createFormatter(
 					break
 				}
 				case TreeEventType.TaggedUnion: {
-					semanticToken(data.range.start)
+					semanticToken(data.annotation.range.start)
 					precedingToken = [PrecedingTokenType.pipe]
 					break
 				}

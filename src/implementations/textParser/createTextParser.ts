@@ -104,7 +104,7 @@ export function createTextParser<ReturnType, ErrorType>(
                         }
                     ).try(() => {
                         //this.raiseError("incomplete schema", range)
-                        return onInstanceDataStart(location).onEnd(aborted,  {
+                        return onInstanceDataStart(location).onEnd(aborted, {
                             location: location,
                             indentation: "",
                         })
@@ -208,9 +208,12 @@ export function createTextParser<ReturnType, ErrorType>(
                         stringData => {
                             const consumer = onSchemaDataStart(data.range)
                             return consumer.onData({
-                                tokenString: data.tokenString,
-                                indentation: "",
-                                range: data.range,
+                                annotation: {
+                                    tokenString: data.tokenString,
+                                    indentation: "",
+                                    range: data.range,
+
+                                },
                                 type: [TreeEventType.StringValue, {
 
                                     type: ((): StringValueDataType => {
@@ -370,9 +373,12 @@ export function createTextParser<ReturnType, ErrorType>(
 
             const consumer = onInstanceDataStart(range.start)
             return consumer.onData({
-                tokenString: tokenString,
-                indentation: "",
-                range: range,
+                annotation: {
+                    tokenString: tokenString,
+                    indentation: "",
+                    range: range,
+
+                },
                 type: [TreeEventType.StringValue, {
                     type: ((): StringValueDataType => {
                         switch (data2.type[0]) {

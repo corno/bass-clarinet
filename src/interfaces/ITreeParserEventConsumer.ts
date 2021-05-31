@@ -18,9 +18,11 @@ export enum TreeEventType {
 }
 
 export type TreeEvent = {
-    tokenString: string
-    indentation: string
-    range: Range
+    annotation: {
+        tokenString: string
+        indentation: string
+        range: Range
+    }
     type:
     | [TreeEventType.CloseArray]
     | [TreeEventType.CloseObject]
@@ -50,4 +52,4 @@ export type EndData = {
  * at the end, the location of the last character is sent ('Location').
  * The ReturnType and ErrorType are determined by the specific implementation.
  */
- export type ITreeParserEventConsumer<ReturnType, ErrorType> = p.IUnsafeStreamConsumer<TreeEvent, EndData, ReturnType, ErrorType>
+export type ITreeParserEventConsumer<ReturnType, ErrorType> = p.IUnsafeStreamConsumer<TreeEvent, EndData, ReturnType, ErrorType>

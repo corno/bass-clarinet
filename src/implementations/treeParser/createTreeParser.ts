@@ -205,9 +205,12 @@ export function createTreeParser<ReturnType, ErrorType>(
                             assertUnreachable($.type[0])
                     }
                     return this.sendEvent({
-                        indentation: indentationState.getIndentation(),
-                        tokenString: token.tokenString,
-                        range: token.range,
+                        annotation: {
+                            indentation: indentationState.getIndentation(),
+                            tokenString: token.tokenString,
+                            range: token.range,
+
+                        },
                         type: [TreeEventType.Overhead, $],
                     })
                 }
@@ -250,9 +253,12 @@ export function createTreeParser<ReturnType, ErrorType>(
                     }
 
                     return this.sendEvent({
-                        indentation: indentationState.getIndentation(),
-                        tokenString: tokenString,
-                        range: range,
+                        annotation: {
+                            indentation: indentationState.getIndentation(),
+                            tokenString: tokenString,
+                            range: range,
+
+                        },
                         type: [TreeEventType.StringValue, {
                             type: ((): StringValueDataType => {
                                 switch (data2.type[0]) {
@@ -300,9 +306,12 @@ export function createTreeParser<ReturnType, ErrorType>(
                                 $$.state = ObjectState.EXPECTING_OBJECT_VALUE
 
                                 return this.sendEvent({
-                                    indentation: indentationState.getIndentation(),
-                                    tokenString: tokenString,
-                                    range: range,
+                                    annotation: {
+                                        indentation: indentationState.getIndentation(),
+                                        tokenString: tokenString,
+                                        range: range,
+
+                                    },
                                     type: [TreeEventType.Identifier, {
                                         name: ((): string => {
                                             switch (data.type[0]) {
@@ -349,10 +358,13 @@ export function createTreeParser<ReturnType, ErrorType>(
                                 $$.state = TaggedUnionState.EXPECTING_VALUE
 
                                 return this.sendEvent({
-                                    indentation: indentationState.getIndentation(),
+                                    annotation: {
+                                        indentation: indentationState.getIndentation(),
 
-                                    tokenString: tokenString,
-                                    range: range,
+                                        tokenString: tokenString,
+                                        range: range,
+
+                                    },
                                     type: [TreeEventType.Identifier, {
                                         name: ((): string => {
                                             switch (data.type[0]) {
@@ -410,10 +422,13 @@ export function createTreeParser<ReturnType, ErrorType>(
                 case Char.Punctuation.comma:
                     //
                     return this.sendEvent({
-                        indentation: indentationState.getIndentation(),
+                        annotation: {
+                            indentation: indentationState.getIndentation(),
 
-                        tokenString: tokenString,
-                        range: range,
+                            tokenString: tokenString,
+                            range: range,
+
+                        },
                         type: [TreeEventType.Comma],
                     })
                 case Char.Punctuation.openAngleBracket:
@@ -427,10 +442,13 @@ export function createTreeParser<ReturnType, ErrorType>(
                 case Char.Punctuation.colon:
                     //
                     return this.sendEvent({
-                        indentation: indentationState.getIndentation(),
+                        annotation: {
+                            indentation: indentationState.getIndentation(),
 
-                        tokenString: tokenString,
-                        range: range,
+                            tokenString: tokenString,
+                            range: range,
+
+                        },
                         type: [TreeEventType.Colon],
                     })
                 case Char.Punctuation.openBrace:
@@ -456,10 +474,13 @@ export function createTreeParser<ReturnType, ErrorType>(
             return this.onComplexValue(range).mapResult(() => {
                 this.pushContext({ range: range, type: [StackContextType2.TAGGED_UNION, taggedUnion] })
                 return this.sendEvent({
-                    indentation: indentationState.getIndentation(),
+                    annotation: {
+                        indentation: indentationState.getIndentation(),
 
-                    tokenString: "|",
-                    range: range,
+                        tokenString: "|",
+                        range: range,
+
+                    },
                     type: [TreeEventType.TaggedUnion, {
                     }],
                 })
@@ -477,10 +498,13 @@ export function createTreeParser<ReturnType, ErrorType>(
                 }
                 this.pushContext({ range: range, type: [StackContextType2.OBJECT, obj] })
                 return this.sendEvent({
-                    indentation: indentationState.getIndentation(),
+                    annotation: {
+                        indentation: indentationState.getIndentation(),
 
-                    tokenString: openCharacter,
-                    range: range,
+                        tokenString: openCharacter,
+                        range: range,
+
+                    },
                     type: [TreeEventType.OpenObject],
                 })
 
@@ -488,10 +512,13 @@ export function createTreeParser<ReturnType, ErrorType>(
         }
         private onObjectClose(closeCharacter: ")" | "}", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
             return this.sendEvent({
-                indentation: indentationState.getIndentation(),
+                annotation: {
+                    indentation: indentationState.getIndentation(),
 
-                tokenString: closeCharacter,
-                range: range,
+                    tokenString: closeCharacter,
+                    range: range,
+
+                },
                 type: [TreeEventType.CloseObject],
             }).mapResult(() => {
                 if (this.currentContext === null || this.currentContext.type[0] !== StackContextType2.OBJECT) {
@@ -513,10 +540,13 @@ export function createTreeParser<ReturnType, ErrorType>(
                     }],
                 })
                 return this.sendEvent({
-                    indentation: indentationState.getIndentation(),
+                    annotation: {
+                        indentation: indentationState.getIndentation(),
 
-                    tokenString: openCharacter,
-                    range: range,
+                        tokenString: openCharacter,
+                        range: range,
+
+                    },
                     type: [TreeEventType.OpenArray],
                 })
 
@@ -525,10 +555,13 @@ export function createTreeParser<ReturnType, ErrorType>(
         private onArrayClose(closeCharacter: "]" | ">", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>) {
 
             return this.sendEvent({
-                indentation: indentationState.getIndentation(),
+                annotation: {
+                    indentation: indentationState.getIndentation(),
 
-                tokenString: closeCharacter,
-                range: range,
+                    tokenString: closeCharacter,
+                    range: range,
+
+                },
                 type: [TreeEventType.CloseArray],
             }).mapResult(() => {
                 if (this.currentContext === null || this.currentContext.type[0] !== StackContextType2.ARRAY) {

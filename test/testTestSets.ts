@@ -73,11 +73,11 @@ function createOutPutter(
         onData(data: astn.TreeEvent) {
             switch (data.type[0]) {
                 case astn.TreeEventType.CloseArray: {
-                    out.push(data.tokenString)
+                    out.push(data.annotation.tokenString)
                     break
                 }
                 case astn.TreeEventType.CloseObject: {
-                    out.push(data.tokenString)
+                    out.push(data.annotation.tokenString)
                     break
                 }
                 case astn.TreeEventType.Colon: {
@@ -89,11 +89,11 @@ function createOutPutter(
                     break
                 }
                 case astn.TreeEventType.OpenArray: {
-                    out.push(data.tokenString)
+                    out.push(data.annotation.tokenString)
                     break
                 }
                 case astn.TreeEventType.OpenObject: {
-                    out.push(data.tokenString)
+                    out.push(data.annotation.tokenString)
                     break
                 }
                 case astn.TreeEventType.Overhead: {
@@ -276,12 +276,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 switch (data.type[0]) {
                     case astn.TreeEventType.CloseArray: {
                         if (DEBUG) console.log("found close array")
-                        actualEvents.push(["token", "closearray", data.tokenString, getRange(test.testForLocation, data.range)])
+                        actualEvents.push(["token", "closearray", data.annotation.tokenString, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
                     case astn.TreeEventType.CloseObject: {
                         if (DEBUG) console.log("found close object")
-                        actualEvents.push(["token", "closeobject", data.tokenString, getRange(test.testForLocation, data.range)])
+                        actualEvents.push(["token", "closeobject", data.annotation.tokenString, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
                     case astn.TreeEventType.Colon: {
@@ -292,17 +292,17 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                     }
                     case astn.TreeEventType.OpenArray: {
                         if (DEBUG) console.log("found open array")
-                        actualEvents.push(["token", "openarray", data.tokenString, getRange(test.testForLocation, data.range)])
+                        actualEvents.push(["token", "openarray", data.annotation.tokenString, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
                     case astn.TreeEventType.OpenObject: {
                         if (DEBUG) console.log("found open object")
-                        actualEvents.push(["token", "openobject", data.tokenString, getRange(test.testForLocation, data.range)])
+                        actualEvents.push(["token", "openobject", data.annotation.tokenString, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
                     case astn.TreeEventType.Overhead: {
                         const $ = data.type[1]
-                        onOverheadTokenEvent($, data.range)
+                        onOverheadTokenEvent($, data.annotation.range)
                         break
                     }
                     case astn.TreeEventType.StringValue: {
@@ -311,21 +311,21 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                             case "multiline": {
                                 const $$ = $.type[1]
                                 if (DEBUG) console.log("found wrapped string")
-                                actualEvents.push(["token", "wrappedstring", $$.lines.join("\\n"), getRange(test.testForLocation, data.range)])
+                                actualEvents.push(["token", "wrappedstring", $$.lines.join("\\n"), getRange(test.testForLocation, data.annotation.range)])
 
                                 break
                             }
                             case "quoted": {
                                 const $$ = $.type[1]
                                 if (DEBUG) console.log("found wrapped string")
-                                actualEvents.push(["token", "wrappedstring", $$.value, getRange(test.testForLocation, data.range)])
+                                actualEvents.push(["token", "wrappedstring", $$.value, getRange(test.testForLocation, data.annotation.range)])
 
                                 break
                             }
                             case "nonwrapped": {
                                 const $$ = $.type[1]
                                 if (DEBUG) console.log("found nonwrapped string")
-                                actualEvents.push(["token", "nonwrappedstring", $$.value, getRange(test.testForLocation, data.range)])
+                                actualEvents.push(["token", "nonwrappedstring", $$.value, getRange(test.testForLocation, data.annotation.range)])
 
                                 break
                             }
@@ -336,14 +336,14 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                     }
                     case astn.TreeEventType.Identifier: {
                         const $ = data.type[1]
-                        actualEvents.push(["token", "wrappedstring", $.name, getRange(test.testForLocation, data.range)])
+                        actualEvents.push(["token", "wrappedstring", $.name, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
                     case astn.TreeEventType.TaggedUnion: {
                         //const $ = data.type[1]
 
                         if (DEBUG) console.log("found open tagged union")
-                        actualEvents.push(["token", "opentaggedunion", getRange(test.testForLocation, data.range)])
+                        actualEvents.push(["token", "opentaggedunion", getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
                     default:
