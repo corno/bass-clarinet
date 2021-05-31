@@ -75,164 +75,164 @@ export type Options<TokenAnnotation, NonTokenAnnotation> = {
 }
 
 export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
-    expectValue(
-        onValue: h.ValueHandler<TokenAnnotation, NonTokenAnnotation>,
-        onMissing?: () => void,
-    ): h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectValue($: {
+        handler: h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+        onMissing?: () => void
+    }): h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
 
-    expectNothing(
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectString(
+    expectNothing($: {
+        onInvalidType?: OnInvalidType<TokenAnnotation>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectString($: {
         callback: ($: {
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
+        }) => p.IValue<boolean>
+        onInvalidType?: OnInvalidType<TokenAnnotation>
         onNull?: ($: {
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectBoolean(
+        }) => p.IValue<boolean>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectBoolean($: {
         callback: ($: {
             value: boolean
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectNull(
+        }) => p.IValue<boolean>
+        onInvalidType?: OnInvalidType<TokenAnnotation>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectNull($: {
         callback: ($: {
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectNumber(
+        }) => p.IValue<boolean>
+        onInvalidType?: OnInvalidType<TokenAnnotation>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectNumber($: {
         callback: ($: {
             value: number
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
+        }) => p.IValue<boolean>
+        onInvalidType?: OnInvalidType<TokenAnnotation>
         onNull?: ($: {
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectQuotedString(
+        }) => p.IValue<boolean>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectQuotedString($: {
         callback: ($: {
             value: string
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
+        }) => p.IValue<boolean>
+        onInvalidType?: OnInvalidType<TokenAnnotation>
         onNull?: ($: {
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectDictionary(
+        }) => p.IValue<boolean>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectDictionary($: {
         onBegin: ($: {
             data: h.ObjectData
             annotation: TokenAnnotation
-        }) => void,
+        }) => void
         onProperty: ($: {
             data: h.PropertyData
             annotation: TokenAnnotation
-        }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
+        }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
         onEnd: ($: {
             annotation: TokenAnnotation
-        }) => void,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectType(
-        expectedProperties: ExpectedProperties<TokenAnnotation, NonTokenAnnotation>,
+        }) => void
+        onInvalidType?: OnInvalidType<TokenAnnotation>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectType($: {
+        properties?: ExpectedProperties<TokenAnnotation, NonTokenAnnotation>
         onBegin?: ($: {
             data: h.ObjectData
             annotation: TokenAnnotation
-        }) => void,
+        }) => void
         onEnd?: ($: {
             hasErrors: boolean
             annotation: TokenAnnotation
-        }) => void,
+        }) => void
         onUnexpectedProperty?: ($: {
             data: h.PropertyData
             annotation: TokenAnnotation
-        }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
+        }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
+        onInvalidType?: OnInvalidType<TokenAnnotation>
         onNull?: ($: {
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectList(
+        }) => p.IValue<boolean>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectList($: {
         onBegin: ($: {
             data: h.ArrayData
             annotation: TokenAnnotation
-        }) => void,
-        onElement: () => h.ValueHandler<TokenAnnotation, NonTokenAnnotation>,
+        }) => void
+        onElement: () => h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
         onEnd: ($: {
             annotation: TokenAnnotation
-        }) => void,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectShorthandType(
-        expectedElements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>,
+        }) => void
+        onInvalidType?: OnInvalidType<TokenAnnotation>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectShorthandType($: {
+        elements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>
         onBegin?: ($: {
             data: h.ArrayData
             annotation: TokenAnnotation
-        }) => void,
+        }) => void
         onEnd?: ($: {
             annotation: TokenAnnotation
-        }) => void,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
+        }) => void
+        onInvalidType?: OnInvalidType<TokenAnnotation>
         onNull?: ($: {
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectTypeOrShorthandType(
-        expectedProperties: ExpectedProperties<TokenAnnotation, NonTokenAnnotation>,
-        expectedElements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>,
+        }) => p.IValue<boolean>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectTypeOrShorthandType($: {
+        properties: ExpectedProperties<TokenAnnotation, NonTokenAnnotation>
+        elements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>
         onTypeBegin?: ($: {
             data: h.ObjectData
             annotation: TokenAnnotation
-        }) => void,
+        }) => void
         onTypeEnd?: ($: {
             hasErrors: boolean
             annotation: TokenAnnotation
-        }) => void,
+        }) => void
         onUnexpectedProperty?: ($: {
             data: h.PropertyData
             annotation: TokenAnnotation
-        }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
+        }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
         onShorthandTypeBegin?: ($: {
             data: h.ArrayData
             annotation: TokenAnnotation
-        }) => void,
+        }) => void
         onShorthandTypeEnd?: ($: {
             annotation: TokenAnnotation
-        }) => void,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
+        }) => void
+        onInvalidType?: OnInvalidType<TokenAnnotation>
         onNull?: ($: {
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-    expectTaggedUnion(
-        options: Options<TokenAnnotation, NonTokenAnnotation>,
+        }) => p.IValue<boolean>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+    expectTaggedUnion($: {
+        options: Options<TokenAnnotation, NonTokenAnnotation>
         onUnexpectedOption?: ($: {
             tuAnnotation: TokenAnnotation
             data: h.OptionData
             optionAnnotation: TokenAnnotation
-        }) => void,
-        onMissingOption?: () => void,
-        onInvalidType?: OnInvalidType<TokenAnnotation>,
+        }) => void
+        onMissingOption?: () => void
+        onInvalidType?: OnInvalidType<TokenAnnotation>
         onNull?: ($: {
             data: h.StringValueData
             annotation: TokenAnnotation
-        }) => p.IValue<boolean>,
-    ): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
+        }) => p.IValue<boolean>
+    }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
 }

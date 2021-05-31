@@ -119,12 +119,12 @@ describe('typed', () => {
         doTest(
             'duplicate entry',
             `{ "a": (), "a": () }`,
-            expect => expect.expectValue(
-                expect.expectDictionary(
-                    () => {
+            expect => expect.expectValue({
+                handler: expect.expectDictionary({
+                    onBegin: () => {
                         //
                     },
-                    () => {
+                    onProperty: () => {
                         return {
                             exists: expect.expectType({}),
                             missing: () => {
@@ -132,11 +132,11 @@ describe('typed', () => {
                             },
                         }
                     },
-                    () => {
+                    onEnd: () => {
                         //
                     },
-                )
-            ),
+                })
+            }),
             [
                 ["expect warning", "duplicate entry: 'a'", 1, 12, 1, 15],
             ]
@@ -248,34 +248,28 @@ describe('typed', () => {
         doTest(
             'tagged union',
             `( "a": | "foo" () )`,
-            expect => expect.expectValue(
-                expect.expectType(
-                    {
+            expect => expect.expectValue({
+                handler: expect.expectType({
+                    properties: {
                         a: {
                             onExists: () => {
                                 return {
-                                    exists: expect.expectTaggedUnion(
-                                        {
+                                    exists: expect.expectTaggedUnion({
+                                        options: {
                                             foo: () => {
                                                 return {
-                                                    exists: expect.expectType(
-                                                        {
+                                                    exists: expect.expectType({
+                                                        properties: {
                                                             //
                                                         },
-                                                    ),
+                                                    }),
                                                     missing: () => {
                                                         //
                                                     },
                                                 }
                                             },
                                         },
-                                        () => {
-                                            //
-                                        },
-                                        () => {
-                                            //
-                                        },
-                                    ),
+                                    }),
                                     missing: () => {
                                         //
                                     },
@@ -284,21 +278,21 @@ describe('typed', () => {
                             onNotExists: null,
                         },
                     },
-                ),
-            ),
+                }),
+            }),
             []
         )
         doTest(
             'invalid tagged union',
             `( "a": | "foo" )`,
-            (expect, addError) => expect.expectValue(
-                expect.expectType(
-                    {
+            (expect, addError) => expect.expectValue({
+                handler: expect.expectType({
+                    properties: {
                         a: {
                             onExists: (): astn.RequiredValueHandler<astn.ParserAnnotationData, null> => {
                                 return {
-                                    exists: expect.expectTaggedUnion(
-                                        {
+                                    exists: expect.expectTaggedUnion({
+                                        options: {
                                             foo: () => {
                                                 return {
                                                     exists: expect.expectType({}),
@@ -308,7 +302,7 @@ describe('typed', () => {
                                                 }
                                             },
                                         },
-                                    ),
+                                    }),
                                     missing: () => {
                                         //
                                     },
@@ -319,11 +313,8 @@ describe('typed', () => {
                             },
                         },
                     },
-                    () => {
-                        //
-                    },
-                ),
-            ),
+                }),
+            }),
             [
                 ["parser error", "not in an object", 1, 16, 1, 17],
                 ["parser error", "unexpected end of document, still in tagged union", 1, 17, 1, 17],

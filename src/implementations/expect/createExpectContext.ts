@@ -42,7 +42,7 @@ interface ICreateContext<TokenAnnotation, NonTokenAnnotation> {
         }) => void,
     ): h.OnObject<TokenAnnotation, NonTokenAnnotation>
     createTypeHandler(
-        expectedProperties: ExpectedProperties<TokenAnnotation, NonTokenAnnotation>,
+        expectedProperties?: ExpectedProperties<TokenAnnotation, NonTokenAnnotation>,
         onBegin?: ($: {
             data: h.ObjectData
             annotation: TokenAnnotation
@@ -198,6 +198,7 @@ function createCreateContext<TokenAnnotation, NonTokenAnnotation>(
             }
         },
         createTypeHandler: (expectedProperties, onBegin, onEnd, onUnexpectedProperty) => {
+            const properties = expectedProperties ? expectedProperties : {}
             return data => {
 
                 if (data.data.type[0] !== "verbose type") {
@@ -211,12 +212,12 @@ function createCreateContext<TokenAnnotation, NonTokenAnnotation>(
                 return {
                     property: propertyData => {
                         const onProperty = (): astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> => {
-                            const expected = expectedProperties[propertyData.data.key]
+                            const expected = properties[propertyData.data.key]
                             if (expected === undefined) {
                                 hasErrors = true
                                 raiseWarning(["unexpected property", {
                                     "found key": propertyData.data.key,
-                                    "valid keys": Object.keys(expectedProperties).sort(),
+                                    "valid keys": Object.keys(properties).sort(),
                                 }], propertyData.annotation)
                                 if (onUnexpectedProperty !== undefined) {
                                     return onUnexpectedProperty(propertyData)
@@ -266,9 +267,9 @@ function createCreateContext<TokenAnnotation, NonTokenAnnotation>(
                         return p.value(vh)
                     },
                     objectEnd: endData => {
-                        Object.keys(expectedProperties).forEach(epName => {
+                        Object.keys(properties).forEach(epName => {
                             if (!foundProperies.includes(epName)) {
-                                const ep = expectedProperties[epName]
+                                const ep = properties[epName]
                                 if (ep.onNotExists === null) {
                                     raiseError(["missing property", { name: epName }], data.annotation)//FIX print location properly
                                     hasErrors = true
@@ -546,8 +547,6 @@ function createCreateContext<TokenAnnotation, NonTokenAnnotation>(
 export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
     errorHandler: ExpectErrorHandler<TokenAnnotation>,
     warningHandler: ExpectErrorHandler<TokenAnnotation>,
-    //createDummyArrayHandler: (range: bc.Range, data: bc.ArrayOpenData, contextData: bc.ContextData) => bc.ArrayHandler,
-    //createDummyObjectHandler: (range: bc.Range, data: bc.ArrayOpenData, contextData: bc.ContextData) => bc.ObjectHandler,
     createDummyPropertyHandler: CreateDummyOnProperty<TokenAnnotation, NonTokenAnnotation>,
     createDummyValueHandler: () => astn.ValueHandler<TokenAnnotation, NonTokenAnnotation>,
     duplicateEntrySeverity: Severity,
@@ -587,91 +586,78 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
     }
 
     return {
-        expectValue: (
-            onValue,
-            onMissing,
-        ) => {
+        expectValue: $ => {
             return {
-                exists: onValue,
-                missing: onMissing
-                    ? onMissing
+                exists: $.handler,
+                missing: $.onMissing
+                    ? $.onMissing
                     : (): void => {
                         //
                     },
             }
         },
 
-        expectNothing: onInvalidType => {
+        expectNothing: $ => {
             const expectValue: ExpectErrorValue = {
                 "type": "nothing",
                 "null allowed": false,
             }
             return {
-                array: createContext.createUnexpectedArrayHandler(expectValue, onInvalidType),
-                object: createContext.createUnexpectedObjectHandler(expectValue, onInvalidType),
-                string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType),
-                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
+                array: createContext.createUnexpectedArrayHandler(expectValue, $.onInvalidType),
+                object: createContext.createUnexpectedObjectHandler(expectValue, $.onInvalidType),
+                string: createContext.createUnexpectedStringHandler(expectValue, $.onInvalidType),
+                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, $.onInvalidType),
             }
         },
-        expectString: (
-            callback,
-            onInvalidType,
-            onNull,
-        ) => {
+        expectString: $ => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "string",
-                "null allowed": onNull !== undefined,
+                "null allowed": $.onNull !== undefined,
             }
-            return expectStringImp(expectValue, callback, onInvalidType)
+            return expectStringImp(expectValue, $.callback, $.onInvalidType)
         },
-        expectBoolean: (
-            callback,
-            onInvalidType,
-        ) => {
+        expectBoolean: $ => {
             const expectValue: ExpectErrorValue = {
                 "type": "boolean",
                 "null allowed": false,
             }
             return expectStringImp(
                 expectValue,
-                $ => {
+                $$ => {
                     const onError = () => {
-                        if (onInvalidType) {
-                            onInvalidType({
-                                annotation: $.annotation,
+                        if ($.onInvalidType) {
+                            $.onInvalidType({
+                                annotation: $$.annotation,
                             })
                         } else {
-                            raiseWarning(["invalid string", { expected: expectValue, found: createSerializedString($.data, "", "\\n") }], $.annotation)
+                            raiseWarning(["invalid string", { expected: expectValue, found: createSerializedString($$.data, "", "\\n") }], $$.annotation)
                         }
                         return p.value(false)
                     }
-                    if ($.data.type[0] !== "nonwrapped") {
+                    if ($$.data.type[0] !== "nonwrapped") {
                         return onError()
                     }
-                    if ($.data.type[1].value === "true") {
-                        return callback({
+                    if ($$.data.type[1].value === "true") {
+                        return $.callback({
                             value: true,
-                            data: $.data,
-                            annotation: $.annotation,
+                            data: $$.data,
+                            annotation: $$.annotation,
                         })
                     }
-                    if ($.data.type[1].value === "false") {
-                        return callback({
+                    if ($$.data.type[1].value === "false") {
+                        return $.callback({
                             value: false,
-                            data: $.data,
-                            annotation: $.annotation,
+                            data: $$.data,
+                            annotation: $$.annotation,
                         })
                     }
                     return onError()
                 },
-                onInvalidType,
+                $.onInvalidType,
             )
         },
-        expectNull: (
-            callback,
-            onInvalidType,
-        ) => {
+        expectNull: $ => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "null",
@@ -679,228 +665,181 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
             }
             return expectStringImp(
                 expectValue,
-                $ => {
-                    const isNull = $.data.type[0] === "nonwrapped"
-                        && $.data.type[1].value === "null"
+                $$ => {
+                    const isNull = $$.data.type[0] === "nonwrapped"
+                        && $$.data.type[1].value === "null"
                     if (!isNull) {
-                        if (onInvalidType) {
-                            onInvalidType({
-                                annotation: $.annotation,
+                        if ($.onInvalidType) {
+                            $.onInvalidType({
+                                annotation: $$.annotation,
                             })
                         } else {
-                            raiseWarning(["invalid string", { expected: expectValue, found: createSerializedString($.data, "", "\\n") }], $.annotation)
+                            raiseWarning(["invalid string", { expected: expectValue, found: createSerializedString($$.data, "", "\\n") }], $$.annotation)
                         }
                         return p.value(false)
                     }
-                    return callback($)
+                    return $.callback($$)
                 },
-                onInvalidType,
+                $.onInvalidType,
             )
         },
-        expectNumber: (
-            callback,
-            onInvalidType,
-            onNull,
-        ) => {
+        expectNumber: $ => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "number",
-                "null allowed": onNull !== undefined,
+                "null allowed": $.onNull !== undefined,
             }
             return expectStringImp(
                 expectValue,
-                $ => {
+                $$ => {
                     const onError = () => {
-                        if (onInvalidType) {
-                            onInvalidType({
-                                annotation: $.annotation,
+                        if ($.onInvalidType) {
+                            $.onInvalidType({
+                                annotation: $$.annotation,
                             })
                         } else {
-                            raiseWarning(["not a valid number", { value: createSerializedString($.data, "", "\\n") }], $.annotation)
+                            raiseWarning(["not a valid number", { value: createSerializedString($$.data, "", "\\n") }], $$.annotation)
                         }
                         return p.value(false)
                     }
-                    if ($.data.type[0] !== "nonwrapped") {
+                    if ($$.data.type[0] !== "nonwrapped") {
                         return onError()
                     }
                     //eslint-disable-next-line
-                    const nr = new Number($.data.type[1].value).valueOf()
+                    const nr = new Number($$.data.type[1].value).valueOf()
                     if (isNaN(nr)) {
                         return onError()
                     }
-                    return callback({
+                    return $.callback({
                         value: nr,
-                        data: $.data,
-                        annotation: $.annotation,
+                        data: $$.data,
+                        annotation: $$.annotation,
                     })
                 },
-                onInvalidType
+                $.onInvalidType
             )
         },
-        expectQuotedString: (
-            callback,
-            onInvalidType,
-            onNull,
-        ) => {
+        expectQuotedString: $ => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "quoted string",
-                "null allowed": onNull !== undefined,
+                "null allowed": $.onNull !== undefined,
             }
             return expectStringImp(
                 expectValue,
-                $ => {
+                $$ => {
                     const onError = () => {
-                        if (onInvalidType) {
-                            onInvalidType({
-                                annotation: $.annotation,
+                        if ($.onInvalidType) {
+                            $.onInvalidType({
+                                annotation: $$.annotation,
                             })
                         } else {
-                            raiseWarning(["not a quoted string", {}], $.annotation)
+                            raiseWarning(["not a quoted string", {}], $$.annotation)
                         }
                         return p.value(false)
                     }
-                    if ($.data.type[0] !== "quoted") {
+                    if ($$.data.type[0] !== "quoted") {
                         return onError()
                     }
-                    return callback({
-                        value: $.data.type[1].value,
-                        data: $.data,
-                        annotation: $.annotation,
+                    return $.callback({
+                        value: $$.data.type[1].value,
+                        data: $$.data,
+                        annotation: $$.annotation,
                     })
                 },
-                onInvalidType
+                $.onInvalidType
             )
         },
-        expectDictionary: (
-            onBegin,
-            onProperty,
-            onEnd,
-            onInvalidType,
-        ) => {
+        expectDictionary: $ => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "dictionary",
                 "null allowed": false,
             }
             return {
-                array: createContext.createUnexpectedArrayHandler(expectValue, onInvalidType),
-                object: createContext.createDictionaryHandler(onProperty, onBegin, onEnd),
-                string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType),
-                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
+                array: createContext.createUnexpectedArrayHandler(expectValue, $.onInvalidType),
+                object: createContext.createDictionaryHandler($.onProperty, $.onBegin, $.onEnd),
+                string: createContext.createUnexpectedStringHandler(expectValue, $.onInvalidType),
+                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, $.onInvalidType),
             }
         },
-        expectType: (
-            expectedProperties,
-            onBegin,
-            onEnd,
-            onUnexpectedProperty,
-            onInvalidType,
-            onNull,
-        ) => {
+        expectType: $ => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "number",
-                "null allowed": onNull !== undefined,
+                "null allowed": $.onNull !== undefined,
             }
             return {
-                array: createContext.createUnexpectedArrayHandler(expectValue, onInvalidType),
+                array: createContext.createUnexpectedArrayHandler(expectValue, $.onInvalidType),
                 object: createContext.createTypeHandler(
-                    expectedProperties,
-                    onBegin,
-                    onEnd,
-                    onUnexpectedProperty
+                    $.properties,
+                    $.onBegin,
+                    $.onEnd,
+                    $.onUnexpectedProperty
                 ),
-                string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
-                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
+                string: createContext.createUnexpectedStringHandler(expectValue, $.onInvalidType, $.onNull),
+                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, $.onInvalidType),
             }
         },
-        expectList: (
-            onBegin,
-            onElement,
-            onEnd,
-            onInvalidType,
-        ) => {
+        expectList: $ => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "list",
                 "null allowed": false,
             }
             return {
-                array: createContext.createListHandler(onElement, onBegin, onEnd),
-                object: createContext.createUnexpectedObjectHandler(expectValue, onInvalidType),
-                string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType),
-                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
+                array: createContext.createListHandler($.onElement, $.onBegin, $.onEnd),
+                object: createContext.createUnexpectedObjectHandler(expectValue, $.onInvalidType),
+                string: createContext.createUnexpectedStringHandler(expectValue, $.onInvalidType),
+                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, $.onInvalidType),
             }
         },
-        expectShorthandType: (
-            expectedElements,
-            onBegin,
-            onEnd,
-            onInvalidType,
-            onNull,
-        ) => {
+        expectShorthandType: $ => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "shorthand type",
-                "null allowed": onNull !== undefined,
+                "null allowed": $.onNull !== undefined,
             }
             return {
-                array: createContext.createShorthandTypeHandler(expectedElements, onBegin, onEnd),
-                object: createContext.createUnexpectedObjectHandler(expectValue, onInvalidType),
-                string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
-                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
+                array: createContext.createShorthandTypeHandler($.elements, $.onBegin, $.onEnd),
+                object: createContext.createUnexpectedObjectHandler(expectValue, $.onInvalidType),
+                string: createContext.createUnexpectedStringHandler(expectValue, $.onInvalidType, $.onNull),
+                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, $.onInvalidType),
             }
         },
 
-        expectTypeOrShorthandType: (
-            expectedProperties,
-            expectedElements,
-            onTypeBegin,
-            onTypeEnd,
-            onUnexpectedProperty,
-            onShorthandTypeBegin,
-            onShorthandTypeEnd,
-            onInvalidType,
-            onNull,
-        ) => {
+        expectTypeOrShorthandType: $ => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "type or shorthand type",
-                "null allowed": onNull !== undefined,
+                "null allowed": $.onNull !== undefined,
             }
             return {
-                array: createContext.createShorthandTypeHandler(expectedElements, onShorthandTypeBegin, onShorthandTypeEnd),
+                array: createContext.createShorthandTypeHandler($.elements, $.onShorthandTypeBegin, $.onShorthandTypeEnd),
                 object: createContext.createTypeHandler(
-                    expectedProperties,
-                    onTypeBegin,
-                    onTypeEnd,
-                    onUnexpectedProperty
+                    $.properties,
+                    $.onTypeBegin,
+                    $.onTypeEnd,
+                    $.onUnexpectedProperty
                 ),
-                string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
-                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, onInvalidType),
+                string: createContext.createUnexpectedStringHandler(expectValue, $.onInvalidType, $.onNull),
+                taggedUnion: createContext.createUnexpectedTaggedUnionHandler(expectValue, $.onInvalidType),
             }
         },
-        expectTaggedUnion: (
-            options,
-            onUnexpectedOption,
-            onMissingOption,
-            onInvalidType,
-            onNull,
-        ) => {
+        expectTaggedUnion: $ => {
 
             const expectValue: ExpectErrorValue = {
                 "type": "tagged union",
-                "null allowed": onNull !== undefined,
+                "null allowed": $.onNull !== undefined,
             }
             return {
-                array: createContext.createUnexpectedArrayHandler(expectValue, onInvalidType),
-                object: createContext.createUnexpectedObjectHandler(expectValue, onInvalidType),
-                string: createContext.createUnexpectedStringHandler(expectValue, onInvalidType, onNull),
+                array: createContext.createUnexpectedArrayHandler(expectValue, $.onInvalidType),
+                object: createContext.createUnexpectedObjectHandler(expectValue, $.onInvalidType),
+                string: createContext.createUnexpectedStringHandler(expectValue, $.onInvalidType, $.onNull),
                 taggedUnion: createContext.createTaggedUnionHandler(
-                    options,
-                    onUnexpectedOption,
-                    onMissingOption,
+                    $.options,
+                    $.onUnexpectedOption,
+                    $.onMissingOption,
                 ),
             }
         },

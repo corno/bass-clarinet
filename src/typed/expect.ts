@@ -167,13 +167,13 @@ export function createRequiredValueHandler<TokenAnnotation, NonTokenAnnotation>(
     context: IExpectContext<TokenAnnotation, NonTokenAnnotation>,
     valueType: ValueType<TokenAnnotation, NonTokenAnnotation>,
 ): astn.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
-    return context.expectValue(
-        createValueHandler(
+    return context.expectValue({
+        handler: createValueHandler(
             context,
             valueType,
         ),
-        valueType[2]?.onMissing
-    )
+        onMissing: valueType[2]?.onMissing,
+    })
 }
 
 export function createValueHandler<TokenAnnotation, NonTokenAnnotation>(
@@ -202,74 +202,74 @@ export function createValueHandler<TokenAnnotation, NonTokenAnnotation>(
         case "boolean": {
             const $1 = valueType[1]
             const $2 = valueType[2]
-            return context.expectBoolean(
-                $1,
-                $2?.onInvalidType,
-            )
+            return context.expectBoolean({
+                callback: $1,
+                onInvalidType: $2?.onInvalidType,
+            })
         }
         case "dicionary": {
             const $1 = valueType[1]
             const $2 = valueType[2]
-            return context.expectDictionary(
-                $2.onBegin,
-                propertyData => {
+            return context.expectDictionary({
+                onBegin: $2.onBegin,
+                onProperty: propertyData => {
                     return createRequiredValueHandler(
                         context,
                         $1(propertyData),
                     )
                 },
-                $2.onEnd,
-                $2.onInvalidType,
-            )
+                onEnd: $2.onEnd,
+                onInvalidType: $2.onInvalidType,
+            })
         }
         case "list": {
             const $1 = valueType[1]
             const $2 = valueType[2]
-            return context.expectList(
-                $2.onBegin,
-                () => {
+            return context.expectList({
+                onBegin: $2.onBegin,
+                onElement: () => {
                     return createValueHandler(context, $1)
                 },
-                $2.onEnd,
-                $2.onInvalidType,
-            )
+                onEnd: $2.onEnd,
+                onInvalidType: $2.onInvalidType,
+            })
         }
         case "null": {
             const $1 = valueType[1]
             const $2 = valueType[2]
 
-            return context.expectNull(
-                $1,
-                $2?.onInvalidType,
-            )
+            return context.expectNull({
+                callback: $1,
+                onInvalidType: $2?.onInvalidType,
+            })
         }
         case "number": {
             const $1 = valueType[1]
             const $2 = valueType[2]
 
-            return context.expectNumber(
-                $1,
-                $2?.onInvalidType,
-            )
+            return context.expectNumber({
+                callback: $1,
+                onInvalidType: $2?.onInvalidType,
+            })
         }
         case "string": {
             const $1 = valueType[1]
             const $2 = valueType[2]
 
-            return context.expectString(
-                $1,
-                $2?.onInvalidType,
-            )
+            return context.expectString({
+                callback: $1,
+                onInvalidType: $2?.onInvalidType,
+            })
         }
         case "tagged union": {
             const $1 = valueType[1]
             const $2 = valueType[2]
-            return context.expectTaggedUnion(
-                $1,
-                $2?.onUnexpectedOption,
-                $2?.onMissingOption,
-                $2?.onInvalidType,
-            )
+            return context.expectTaggedUnion({
+                options: $1,
+                onUnexpectedOption: $2?.onUnexpectedOption,
+                onMissingOption: $2?.onMissingOption,
+                onInvalidType: $2?.onInvalidType,
+            })
         }
         case "type": {
             const $1 = valueType[1]
@@ -295,13 +295,13 @@ export function createValueHandler<TokenAnnotation, NonTokenAnnotation>(
                     }
                 }
             })
-            return context.expectType(
-                props,
-                $2?.onBegin,
-                $2?.onEnd,
-                $2?.onUnexpectedProperty,
-                $2?.onInvalidType,
-            )
+            return context.expectType({
+                properties: props,
+                onBegin: $2?.onBegin,
+                onEnd: $2?.onEnd,
+                onUnexpectedProperty: $2?.onUnexpectedProperty,
+                onInvalidType: $2?.onInvalidType,
+            })
         }
         default:
             return assertUnreachable(valueType[0])
