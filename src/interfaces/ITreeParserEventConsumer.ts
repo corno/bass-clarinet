@@ -4,14 +4,10 @@ import { ArrayData, ObjectData, StringValueData } from "./handlers";
 export enum TreeEventType {
     CloseArray,
     CloseObject,
-    Colon,
-    Comma,
     OpenArray,
     OpenObject,
-    Overhead,
     StringValue,
     Identifier,
-    Option,
     TaggedUnion,
 }
 
