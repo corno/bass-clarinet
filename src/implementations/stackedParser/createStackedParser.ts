@@ -18,10 +18,9 @@ import {
     ValueHandler,
 } from "../../interfaces/handlers"
 import {
-    ITreeParserEventConsumer,
-    TreeEvent,
-    TreeEventType,
-} from "../../interfaces/ITreeParserEventConsumer"
+    ITreeBuilder,
+    TreeBuilderEvent,
+} from "../../interfaces/ITreeBuilder"
 // import {
 //     BeforeContextData,
 //     ContextData,
@@ -303,14 +302,14 @@ type ProcessResult =
 
 
 function processParserEvent<Annotation>(
-    data: TreeEvent<Annotation>,
+    data: TreeBuilderEvent<Annotation>,
     semanticState: SemanticState<Annotation>,
     onError: (error: StackedDataError, annotation: Annotation) => void,
 ): ProcessResult {
 
 
     switch (data.type[0]) {
-        case TreeEventType.CloseArray: {
+        case "close array": {
             return ["event", {
                 handler: () => {
                     unwindLoop: while (true) {
@@ -377,7 +376,7 @@ function processParserEvent<Annotation>(
                 },
             }]
         }
-        case TreeEventType.CloseObject: {
+        case "close object": {
             return ["event", {
                 handler: () => {
                     unwindLoop: while (true) {
@@ -435,7 +434,7 @@ function processParserEvent<Annotation>(
                 },
             }]
         }
-        case TreeEventType.OpenArray: {
+        case "open array": {
             const $ = data.type[1]
             return ["event", {
                 handler: () => {
@@ -455,7 +454,7 @@ function processParserEvent<Annotation>(
                 },
             }]
         }
-        case TreeEventType.OpenObject: {
+        case "open object": {
             const $ = data.type[1]
 
             return ["event", {
@@ -480,7 +479,7 @@ function processParserEvent<Annotation>(
             }]
         }
 
-        case TreeEventType.StringValue: {
+        case "string value": {
             const $ = data.type[1]
             const valueAsString = ((): string => {
                 switch ($.type[0]) {
@@ -574,7 +573,7 @@ function processParserEvent<Annotation>(
                 },
             }]
         }
-        case TreeEventType.Identifier: {
+        case "identifier": {
             const $ = data.type[1]
 
             return ["event", {
@@ -638,7 +637,7 @@ function processParserEvent<Annotation>(
             }]
         }
 
-        case TreeEventType.TaggedUnion: {
+        case "tagged union": {
             if (DEBUG) { console.log("on open tagged union") }
             return ["event", {
                 handler: () => {
@@ -669,14 +668,14 @@ export function createStackedParser<Annotation, ReturnType, ErrorType>(
     valueHandler: TreeHandler<Annotation, null>,
     onError: (error: StackedDataError, annotation: Annotation) => void,
     onEnd: () => p.IUnsafeValue<ReturnType, ErrorType>
-): ITreeParserEventConsumer<Annotation, ReturnType, ErrorType> {
+): ITreeBuilder<Annotation, ReturnType, ErrorType> {
     const semanticState = new SemanticState(valueHandler)
 
     let cachedEvent: null | EventData = null
 
 
     return {
-        onData: (data: TreeEvent<Annotation>): p.IValue<boolean> => {
+        onData: (data: TreeBuilderEvent<Annotation>): p.IValue<boolean> => {
             function flush(
                 gqe: EventData,
                 lineCommentAfter: Comment | null,

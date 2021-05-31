@@ -3,7 +3,7 @@
 */
 import * as p from "pareto"
 import { Range, Location } from "../location"
-import { TreeEventType, ITreeParserEventConsumer } from "../interfaces/ITreeParserEventConsumer"
+import { ITreeBuilder } from "../interfaces/ITreeBuilder"
 import { ParserAnnotationData } from "../interfaces"
 
 function assertUnreachable(_x: never) {
@@ -61,7 +61,7 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onEnd: () => p.IValue<null>,
-): ITreeParserEventConsumer<ParserAnnotationData, null, null> {
+): ITreeBuilder<ParserAnnotationData, null, null> {
 	let precedingWhitespace: null | TokenInfo = null
 
 	const stack: Style[] = []
@@ -193,38 +193,38 @@ export function createFormatter(
 		currentRequiredStyle = style
 	}
 
-	const ds: ITreeParserEventConsumer<ParserAnnotationData, null, null> = {
+	const ds: ITreeBuilder<ParserAnnotationData, null, null> = {
 
 		onData: data => {
 			switch (data.type[0]) {
-				case TreeEventType.CloseArray: {
+				case "close array": {
 					closeToken(data.annotation.range.start)
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case TreeEventType.CloseObject: {
+				case "close object": {
 					closeToken(data.annotation.range.start)
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case TreeEventType.OpenArray: {
+				case "open array": {
 					semanticToken(data.annotation.range.start)
 					push()
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case TreeEventType.OpenObject: {
+				case "open object": {
 					semanticToken(data.annotation.range.start)
 					push()
 					precedingToken = [PrecedingTokenType.other]
 					break
 				}
-				case TreeEventType.StringValue: {
+				case "string value": {
 					semanticToken(data.annotation.range.start)
 					precedingToken = [PrecedingTokenType.option]
 					break
 				}
-				case TreeEventType.Identifier: {
+				case "identifier": {
 					semanticToken(data.annotation.range.start)
 					if (precedingToken[0] === PrecedingTokenType.pipe) {
 						precedingToken = [PrecedingTokenType.option]
@@ -234,7 +234,7 @@ export function createFormatter(
 
 					break
 				}
-				case TreeEventType.TaggedUnion: {
+				case "tagged union": {
 					semanticToken(data.annotation.range.start)
 					precedingToken = [PrecedingTokenType.pipe]
 					break

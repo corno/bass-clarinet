@@ -7,14 +7,14 @@ import {
 import {
     createParserStack, ParsingError,
 } from "./createParserStack"
-import { ITreeParserEventConsumer } from "../interfaces/ITreeParserEventConsumer"
+import { ITreeBuilder } from "../interfaces/ITreeBuilder"
 import { OverheadToken } from "../interfaces/ITreeParser"
 import { ParserAnnotationData } from "../interfaces"
 
 export function parseString<ReturnType, ErrorType>(
     data: string,
-    onSchemaDataStart: (range: Range) => ITreeParserEventConsumer<ParserAnnotationData, null, null>,
-    onInstanceDataStart: (location: Location) => ITreeParserEventConsumer<ParserAnnotationData, ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => ITreeBuilder<ParserAnnotationData, null, null>,
+    onInstanceDataStart: (location: Location) => ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },

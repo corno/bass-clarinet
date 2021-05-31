@@ -7,9 +7,8 @@
 import * as p from "pareto"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
 import {
-    TreeEventType,
-    ITreeParserEventConsumer,
-} from "../../interfaces/ITreeParserEventConsumer"
+    ITreeBuilder,
+} from "../../interfaces/ITreeBuilder"
 import {
     TreeParserError,
     TreeParserErrorType,
@@ -23,7 +22,7 @@ import {
     OverheadTokenType,
 } from "../../interfaces/ITreeParser"
 import * as Char from "../../Characters"
-import { ParserAnnotationData, StringValueDataType } from "../../interfaces"
+import { ParserAnnotationData, TreeBuilderStringValueDataType } from "../../interfaces"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -75,7 +74,7 @@ type StackContext = {
 
 export function createTreeParser<ReturnType, ErrorType>(
     onerror: (error: TreeParserError, range: Range) => void,
-    eventsConsumer: ITreeParserEventConsumer<ParserAnnotationData, ReturnType, ErrorType>
+    eventsConsumer: ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>
 ): ITreeParser<ReturnType, ErrorType> {
 
 
@@ -288,8 +287,8 @@ export function createTreeParser<ReturnType, ErrorType>(
 
                     return eventsConsumer.onData({
                         annotation: createAnnotation(tokenString, range),
-                        type: [TreeEventType.StringValue, {
-                            type: ((): StringValueDataType => {
+                        type: ["string value", {
+                            type: ((): TreeBuilderStringValueDataType => {
                                 switch (data2.type[0]) {
                                     case "multiline": {
                                         const $ = data2.type[1]
@@ -336,7 +335,7 @@ export function createTreeParser<ReturnType, ErrorType>(
 
                                 return eventsConsumer.onData({
                                     annotation: createAnnotation(tokenString, range),
-                                    type: [TreeEventType.Identifier, {
+                                    type: ["identifier", {
                                         name: ((): string => {
                                             switch (data.type[0]) {
                                                 case "multiline": {
@@ -383,7 +382,7 @@ export function createTreeParser<ReturnType, ErrorType>(
 
                                 return eventsConsumer.onData({
                                     annotation: createAnnotation(tokenString, range),
-                                    type: [TreeEventType.Identifier, {
+                                    type: ["identifier", {
                                         name: ((): string => {
                                             switch (data.type[0]) {
                                                 case "multiline": {
@@ -475,7 +474,7 @@ export function createTreeParser<ReturnType, ErrorType>(
                 this.pushContext({ range: range, type: [StackContextType2.TAGGED_UNION, taggedUnion] })
                 return eventsConsumer.onData({
                     annotation: createAnnotation("|", range),
-                    type: [TreeEventType.TaggedUnion, {
+                    type: ["tagged union", {
                     }],
                 })
 
@@ -492,7 +491,7 @@ export function createTreeParser<ReturnType, ErrorType>(
                 })
                 return eventsConsumer.onData({
                     annotation: createAnnotation(openCharacter, range),
-                    type: [TreeEventType.OpenObject, {
+                    type: ["open object", {
                         type: openCharacter === "(" ? ["verbose type"] : ["dictionary"],
                     }],
                 })
@@ -502,7 +501,7 @@ export function createTreeParser<ReturnType, ErrorType>(
         private onObjectClose(closeCharacter: ")" | "}", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
             return eventsConsumer.onData({
                 annotation: createAnnotation(closeCharacter, range),
-                type: [TreeEventType.CloseObject],
+                type: ["close object"],
             }).mapResult(() => {
                 if (currentContext === null || currentContext.type[0] !== StackContextType2.OBJECT) {
                     raiseError(["not in an object"], range)
@@ -541,7 +540,7 @@ export function createTreeParser<ReturnType, ErrorType>(
                 })
                 return eventsConsumer.onData({
                     annotation: createAnnotation(openCharacter, range),
-                    type: [TreeEventType.OpenArray, {
+                    type: ["open array", {
                         type: openCharacter === "<" ? ["shorthand type"] : ["list"],
 
                     }],
@@ -553,7 +552,7 @@ export function createTreeParser<ReturnType, ErrorType>(
 
             return eventsConsumer.onData({
                 annotation: createAnnotation(closeCharacter, range),
-                type: [TreeEventType.CloseArray],
+                type: ["close array"],
             }).mapResult(() => {
                 if (currentContext === null || currentContext.type[0] !== StackContextType2.ARRAY) {
                     raiseError(["not in an array"], range)

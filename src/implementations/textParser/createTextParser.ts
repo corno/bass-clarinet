@@ -6,11 +6,11 @@ import * as p from "pareto"
 import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
 import * as Char from "../../Characters"
 import { createTreeParser } from "../treeParser"
-import { ITreeParserEventConsumer, TreeEventType } from "../../interfaces/ITreeParserEventConsumer"
+import { ITreeBuilder } from "../../interfaces/ITreeBuilder"
 import { TextErrorType, TextParserError } from "./functionTypes"
 import { ITreeParser, OverheadToken, PunctionationData, StringData, Token, TokenType } from "../../interfaces/ITreeParser"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
-import { ParserAnnotationData, StringValueDataType } from "../../interfaces"
+import { ParserAnnotationData, TreeBuilderStringValueDataType } from "../../interfaces"
 
 const DEBUG = false
 
@@ -58,8 +58,8 @@ type RootContext<ReturnType, ErrorType> = {
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
 export function createTextParser<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => ITreeParserEventConsumer<ParserAnnotationData, null, null>,
-    onInstanceDataStart: (location: Location) => ITreeParserEventConsumer<ParserAnnotationData, ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => ITreeBuilder<ParserAnnotationData, null, null>,
+    onInstanceDataStart: (location: Location) => ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>,
     onerror: (error: TextParserError, range: Range) => void,
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
 ): TokenConsumer<ReturnType, ErrorType> {
@@ -231,9 +231,9 @@ export function createTextParser<ReturnType, ErrorType>(
                             const consumer = onSchemaDataStart(data.range)
                             return consumer.onData({
                                 annotation: createAnnotation(data),
-                                type: [TreeEventType.StringValue, {
+                                type: ["string value", {
 
-                                    type: ((): StringValueDataType => {
+                                    type: ((): TreeBuilderStringValueDataType => {
                                         switch (stringData.type[0]) {
                                             case "multiline": {
                                                 const $ = stringData.type[1]
@@ -387,8 +387,8 @@ export function createTextParser<ReturnType, ErrorType>(
             const consumer = onInstanceDataStart(token.range.start)
             return consumer.onData({
                 annotation: createAnnotation(token),
-                type: [TreeEventType.StringValue, {
-                    type: ((): StringValueDataType => {
+                type: ["string value", {
+                    type: ((): TreeBuilderStringValueDataType => {
                         switch (data2.type[0]) {
                             case "multiline": {
                                 const $ = data2.type[1]

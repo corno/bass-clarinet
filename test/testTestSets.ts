@@ -133,30 +133,30 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 return p.success<null, null>(null)
             }
         )
-        const eventSubscriber: astn.ITreeParserEventConsumer<ParserAnnotationData, null, null> = {
+        const eventSubscriber: astn.ITreeBuilder<ParserAnnotationData, null, null> = {
             onData: data => {
                 switch (data.type[0]) {
-                    case astn.TreeEventType.CloseArray: {
+                    case "close array": {
                         if (DEBUG) console.log("found close array")
                         actualEvents.push(["token", "closearray", data.annotation.tokenString, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
-                    case astn.TreeEventType.CloseObject: {
+                    case "close object": {
                         if (DEBUG) console.log("found close object")
                         actualEvents.push(["token", "closeobject", data.annotation.tokenString, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
-                    case astn.TreeEventType.OpenArray: {
+                    case "open array": {
                         if (DEBUG) console.log("found open array")
                         actualEvents.push(["token", "openarray", data.annotation.tokenString, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
-                    case astn.TreeEventType.OpenObject: {
+                    case "open object": {
                         if (DEBUG) console.log("found open object")
                         actualEvents.push(["token", "openobject", data.annotation.tokenString, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
-                    case astn.TreeEventType.StringValue: {
+                    case "string value": {
                         const $ = data.type[1]
                         switch ($.type[0]) {
                             case "multiline": {
@@ -185,12 +185,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                         }
                         break
                     }
-                    case astn.TreeEventType.Identifier: {
+                    case "identifier": {
                         const $ = data.type[1]
                         actualEvents.push(["token", "wrappedstring", $.name, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
-                    case astn.TreeEventType.TaggedUnion: {
+                    case "tagged union": {
                         //const $ = data.type[1]
 
                         if (DEBUG) console.log("found open tagged union")
@@ -246,11 +246,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             )
         }
         const out: string[] = []
-        const schemaDataSubscribers: astn.ITreeParserEventConsumer<ParserAnnotationData, null, null>[] = [
+        const schemaDataSubscribers: astn.ITreeBuilder<ParserAnnotationData, null, null>[] = [
             eventSubscriber,
             createFormatter(),
         ]
-        const instanceDataSubscribers: astn.ITreeParserEventConsumer<ParserAnnotationData, null, null>[] = [
+        const instanceDataSubscribers: astn.ITreeBuilder<ParserAnnotationData, null, null>[] = [
             eventSubscriber,
             stackedSubscriber,
             createFormatter(),

@@ -17,42 +17,42 @@ if (path === undefined) {
 
 const dataAsString = fs.readFileSync(path, { encoding: "utf-8" })
 
-export const parserEventConsumer: astn.ITreeParserEventConsumer<ParserAnnotationData, null, null> = {
+export const parserEventConsumer: astn.ITreeBuilder<ParserAnnotationData, null, null> = {
     onData: data => {
         switch (data.type[0]) {
-            case astn.TreeEventType.CloseArray: {
+            case "close array": {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case astn.TreeEventType.CloseObject: {
+            case "close object": {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case astn.TreeEventType.OpenArray: {
+            case "open array": {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case astn.TreeEventType.OpenObject: {
+            case "open object": {
                 //const $ = data.type[1]
                 //place your code here
                 break
             }
-            case astn.TreeEventType.StringValue: {
-                //const $ = data.type[1]
-                //place your code here
-                //in strict JSON, the value is a string, a number, null, true or false
-                break
-            }
-            case astn.TreeEventType.Identifier: {
+            case "string value": {
                 //const $ = data.type[1]
                 //place your code here
                 //in strict JSON, the value is a string, a number, null, true or false
                 break
             }
-            case astn.TreeEventType.TaggedUnion: {
+            case "identifier": {
+                //const $ = data.type[1]
+                //place your code here
+                //in strict JSON, the value is a string, a number, null, true or false
+                break
+            }
+            case "tagged union": {
                 //const $ = data.type[1]
                 //place your code here
                 break

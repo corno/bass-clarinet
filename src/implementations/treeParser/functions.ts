@@ -1,5 +1,5 @@
 import { ITreeParser } from "../../interfaces/ITreeParser";
-import { ITreeParserEventConsumer } from "../../interfaces/ITreeParserEventConsumer";
+import { ITreeBuilder } from "../../interfaces/ITreeBuilder";
 import {  Range } from "../../location"
 
 
@@ -29,5 +29,5 @@ export type TreeParserError = {
 
 export type CreateTreeParser<Annotation, ReturnType, ErrorType> = (
     onerror: (error: TreeParserError, range: Range) => void,
-    eventsConsumer: ITreeParserEventConsumer<Annotation, ReturnType, ErrorType>
+    eventsConsumer: ITreeBuilder<Annotation, ReturnType, ErrorType>
 ) => ITreeParser<ReturnType, ErrorType>

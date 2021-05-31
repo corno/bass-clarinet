@@ -1,7 +1,7 @@
 import * as p from "pareto"
-import { ITreeParserEventConsumer, ParserAnnotationData } from "../src"
+import { ITreeBuilder, ParserAnnotationData } from "../src"
 
-export const dummyParserEventConsumer: ITreeParserEventConsumer<ParserAnnotationData, null, null> = {
+export const dummyParserEventConsumer: ITreeBuilder<ParserAnnotationData, null, null> = {
     onData: () => {
         return p.value(false)
     },
