@@ -134,7 +134,7 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => p.IValue<boolean>
     }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
     expectDictionary($: {
-        onBegin: ($: {
+        onBegin?: ($: {
             data: h.ObjectData
             annotation: TokenAnnotation
         }) => void
@@ -142,7 +142,7 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
             data: h.PropertyData
             annotation: TokenAnnotation
         }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
-        onEnd: ($: {
+        onEnd?: ($: {
             annotation: TokenAnnotation
         }) => void
         onInvalidType?: OnInvalidType<TokenAnnotation>
@@ -168,18 +168,18 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => p.IValue<boolean>
     }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
     expectList($: {
-        onBegin: ($: {
+        onBegin?: ($: {
             data: h.ArrayData
             annotation: TokenAnnotation
         }) => void
         onElement: () => h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
-        onEnd: ($: {
+        onEnd?: ($: {
             annotation: TokenAnnotation
         }) => void
         onInvalidType?: OnInvalidType<TokenAnnotation>
     }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
     expectShorthandType($: {
-        elements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>
+        elements?: ExpectedElements<TokenAnnotation, NonTokenAnnotation>
         onBegin?: ($: {
             data: h.ArrayData
             annotation: TokenAnnotation
@@ -194,8 +194,8 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => p.IValue<boolean>
     }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
     expectTypeOrShorthandType($: {
-        properties: ExpectedProperties<TokenAnnotation, NonTokenAnnotation>
-        elements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>
+        properties?: ExpectedProperties<TokenAnnotation, NonTokenAnnotation>
+        elements?: ExpectedElements<TokenAnnotation, NonTokenAnnotation>
         onTypeBegin?: ($: {
             data: h.ObjectData
             annotation: TokenAnnotation
@@ -222,7 +222,7 @@ export interface IExpectContext<TokenAnnotation, NonTokenAnnotation> {
         }) => p.IValue<boolean>
     }): h.ValueHandler<TokenAnnotation, NonTokenAnnotation>
     expectTaggedUnion($: {
-        options: Options<TokenAnnotation, NonTokenAnnotation>
+        options?: Options<TokenAnnotation, NonTokenAnnotation>
         onUnexpectedOption?: ($: {
             tuAnnotation: TokenAnnotation
             data: h.OptionData

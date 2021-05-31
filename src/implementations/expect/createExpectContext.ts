@@ -57,7 +57,7 @@ interface ICreateContext<TokenAnnotation, NonTokenAnnotation> {
         }) => h.RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>,
     ): h.OnObject<TokenAnnotation, NonTokenAnnotation>
     createShorthandTypeHandler(
-        expectedElements: ExpectedElements<TokenAnnotation, NonTokenAnnotation>,
+        expectedElements?: ExpectedElements<TokenAnnotation, NonTokenAnnotation>,
         onBegin?: ($: {
             data: h.ArrayData
             annotation: TokenAnnotation
@@ -77,7 +77,7 @@ interface ICreateContext<TokenAnnotation, NonTokenAnnotation> {
         }) => void,
     ): h.OnArray<TokenAnnotation, NonTokenAnnotation>
     createTaggedUnionHandler(
-        options: Options<TokenAnnotation, NonTokenAnnotation>,
+        options?: Options<TokenAnnotation, NonTokenAnnotation>,
         onUnexpectedOption?: ($: {
             tuAnnotation: TokenAnnotation
             data: h.OptionData
@@ -299,6 +299,7 @@ function createCreateContext<TokenAnnotation, NonTokenAnnotation>(
             onBegin,
             onEnd,
         ) => {
+            const elements = expectedElements ? expectedElements : []
             return typeData => {
                 if (onBegin) {
                     onBegin(typeData)
@@ -309,7 +310,7 @@ function createCreateContext<TokenAnnotation, NonTokenAnnotation>(
                 let index = 0
                 return {
                     element: () => {
-                        const ee = expectedElements[index]
+                        const ee = elements[index]
                         index++
                         if (ee === undefined) {
                             const dvh = createDummyValueHandler()
@@ -336,15 +337,15 @@ function createCreateContext<TokenAnnotation, NonTokenAnnotation>(
                         }
                     },
                     arrayEnd: endData => {
-                        const missing = expectedElements.length - index
+                        const missing = elements.length - index
                         if (missing > 0) {
                             raiseError(['elements missing', {
-                                names: expectedElements.map(ee => {
+                                names: elements.map(ee => {
                                     return ee.name
                                 }),
                             }], endData.annotation)
-                            for (let i = index; i !== expectedElements.length; i += 1) {
-                                const ee = expectedElements[i]
+                            for (let i = index; i !== elements.length; i += 1) {
+                                const ee = elements[i]
                                 ee.getHandler().missing()
                             }
                         }
@@ -390,11 +391,11 @@ function createCreateContext<TokenAnnotation, NonTokenAnnotation>(
                 return {
                     option: optionData => {
 
-                        const optionHandler = options[optionData.data.option]
+                        const optionHandler = options ? options[optionData.data.option] : undefined
                         if (optionHandler === undefined) {
                             raiseError(["unknown option", {
                                 "found": optionData.data.option,
-                                "valid options": Object.keys(options),
+                                "valid options": options ? Object.keys(options) : [],
                             }], optionData.annotation)
                             if (onUnexpectedOption !== undefined) {
                                 onUnexpectedOption({
