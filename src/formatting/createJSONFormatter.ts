@@ -15,7 +15,10 @@ export function createJSONFormatter<TokenAnnotation, NonTokenAnnotation>(
 ): Formatter<TokenAnnotation, NonTokenAnnotation> {
     return {
         onSchemaHeader: () => {
-            return "! "
+            return ``
+        },
+        onAfterSchema: () => {
+            return ``
         },
         schemaFormatter: createOmittingFormatter(),
         bodyFormatter: createJSONFormatter2(indentationString, newline),

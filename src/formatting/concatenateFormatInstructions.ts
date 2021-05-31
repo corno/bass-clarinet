@@ -70,7 +70,7 @@ function createValueConcatenator(
     }
 }
 
-export function createRequiredValueConcatenator(
+function createRequiredValueConcatenator(
     writer: (str: string) => void
 ): astn.RequiredValueHandler<TokenFormatInstruction, NonTokenFormatInstruction> {
     return {

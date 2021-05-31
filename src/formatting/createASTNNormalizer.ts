@@ -19,6 +19,9 @@ export function createASTNNormalizer<TokenAnnotation, NonTokenAnnotation>(
         onSchemaHeader: () => {
             return "! "
         },
+        onAfterSchema: () => {
+            return newline
+        },
         schemaFormatter: createASTNNormalizer2(indentationString, newline),
         bodyFormatter: createASTNNormalizer2(indentationString, newline),
     }

@@ -20,7 +20,7 @@ export function formatASTNText(
     return parseString(
         astnText,
         _range => {
-            formatter.onSchemaHeader()
+            write(formatter.onSchemaHeader())
             return createStackedParser<null, null>(
                 createDecoratedTree(
                     formatter.schemaFormatter,
@@ -30,6 +30,7 @@ export function formatASTNText(
                     //
                 },
                 () => {
+                    write(formatter.onAfterSchema())
                     //onEnd
                     //no need to return an value, we're only here for the side effects, so return 'null'
                     return p.success(null)
