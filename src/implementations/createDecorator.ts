@@ -42,6 +42,7 @@ export function createDecoratedValue<InTokenAnnotation, InNonTokenAnnotation, Ou
                 },
                 objectEnd: $$ => {
                     return ds.objectEnd({
+                        data: {},
                         annotation: annotater.objectEnd({
                             source: $$.annotation,
                             data: $.data,
@@ -85,6 +86,7 @@ export function createDecoratedValue<InTokenAnnotation, InNonTokenAnnotation, Ou
                 },
                 arrayEnd: $$ => {
                     return ds.arrayEnd({
+                        data: {},
                         annotation: annotater.arrayEnd({
                             source: $$.annotation,
                             data: $.data,
@@ -109,6 +111,7 @@ export function createDecoratedValue<InTokenAnnotation, InNonTokenAnnotation, Ou
         },
         taggedUnion: $ => {
             const ds = downstream.taggedUnion({
+                data: {},
                 annotation: annotater.taggedUnionBegin({
                     source: $.annotation,
                     stackContext: $.stackContext,
@@ -135,10 +138,12 @@ export function createDecoratedValue<InTokenAnnotation, InNonTokenAnnotation, Ou
                 },
                 end: $$ => {
                     return ds.end({
+                        data: {},
                         annotation: annotater.taggedUnionEnd({
                             source: $$.annotation,
                             stackContext: $.stackContext,
                         }),
+                        stackContext: $.stackContext,
                     })
                 },
             }

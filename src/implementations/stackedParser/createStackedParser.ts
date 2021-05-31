@@ -165,6 +165,8 @@ class SemanticState<Annotation> {
                     throw new StackedDataSubscriberPanic("unexpected tagged union state", annotation)
                 }
                 taggedUnion.handler.end({
+                    data: {},
+                    stackContext: this.createStackContext(),
                     annotation: null,
                 })
             }
@@ -366,6 +368,7 @@ function processParserEvent<Annotation>(
                                 assertUnreachable($$.type[0])
                         }
                         $$.arrayHandler.arrayEnd({
+                            data: {},
                             annotation: data.annotation,
                             stackContext: semanticState.createStackContext(),
                         })
@@ -423,6 +426,7 @@ function processParserEvent<Annotation>(
                             $$.propertyHandler = null
                         }
                         $$.objectHandler.objectEnd({
+                            data: {},
                             annotation: data.annotation,
                             stackContext: semanticState.createStackContext(),
                         })
@@ -643,6 +647,7 @@ function processParserEvent<Annotation>(
                 handler: () => {
                     semanticState.push(["taggedunion", {
                         handler: semanticState.initValueHandler().taggedUnion({
+                            data: {},
                             annotation: data.annotation,
                             stackContext: semanticState.createStackContext(),
                         }),
