@@ -1,5 +1,5 @@
 import { printTreeParserError } from "../treeParser"
-import { TextParserError } from "./functions"
+import { TextParserError } from "./functionTypes"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

@@ -7,7 +7,7 @@ import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSi
 import * as Char from "../../Characters"
 import { createTreeParser } from "../treeParser"
 import { ITreeParserEventConsumer, TreeEventType } from "../../interfaces/ITreeParserEventConsumer"
-import { TextErrorType, TextParserError } from "./functions"
+import { TextErrorType, TextParserError } from "./functionTypes"
 import { ITreeParser, OverheadToken, PunctionationData, StringData, Token, TokenType } from "../../interfaces/ITreeParser"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
 

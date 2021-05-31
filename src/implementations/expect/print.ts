@@ -4,7 +4,7 @@ import {
 } from "../../interfaces/IExpectContext"
 import {
     ExpectError,
-} from "./functions"
+} from "./functionTypes"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

@@ -1,10 +1,10 @@
 import * as p from "pareto"
-import { createDecoratedRequiredValue } from "../implementations/createDecorator"
+import { createDecoratedTree } from "../implementations/createDecorator"
 import { TokenFormatInstruction, NonTokenFormatInstruction } from "./FormatInstruction"
 import { createRequiredValueConcatenator } from "./concatenateFormatInstructions"
 import { createStackedParser } from "../implementations/stackedParser"
 import { parseString, printParsingError } from "../parser"
-import { createDummyValueHandler } from "../implementations/dummyHandlers"
+import { createDummyTreeHandler } from "../implementations/dummyHandlers"
 import { printRange } from "../location"
 import { Annotater } from "../interfaces/IAnnotater"
 import { ParserAnnotationData } from "../interfaces/ParserAnnotationData"
@@ -23,12 +23,7 @@ export function formatASTNText(
         astnText,
         _range => {
             return createStackedParser<null, null>(
-                {
-                    exists: createDummyValueHandler(),
-                    missing: () => {
-                        //
-                    },
-                },
+                createDummyTreeHandler(),
                 _error => {
                     //
                 },
@@ -41,7 +36,7 @@ export function formatASTNText(
         },
         () => {
             const datasubscriber = createStackedParser<null, null>(
-                createDecoratedRequiredValue(
+                createDecoratedTree(
                     formatter,
                     createRequiredValueConcatenator(write),
                 ),

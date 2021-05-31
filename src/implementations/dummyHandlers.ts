@@ -1,5 +1,5 @@
 import * as p from "pareto"
-import { ArrayHandler, ObjectHandler, RequiredValueHandler, TaggedUnionHandler, ValueHandler } from "../interfaces/handlers"
+import { ArrayHandler, ObjectHandler, RequiredValueHandler, TaggedUnionHandler, TreeHandler, ValueHandler } from "../interfaces/handlers"
 
 export function createDummyRequiredValueHandler<TokenAnnotation, NonTokenAnnotation>(): RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
     return {
@@ -50,5 +50,11 @@ export function createDummyObjectHandler<TokenAnnotation, NonTokenAnnotation>():
         objectEnd: () => {
             return p.value(null)
         },
+    }
+}
+
+export function createDummyTreeHandler<TokenAnnotation, NonTokenAnnotation>(): TreeHandler<TokenAnnotation, NonTokenAnnotation> {
+    return {
+        root: createDummyRequiredValueHandler(),
     }
 }

@@ -145,6 +145,7 @@ export function createDecoratedValue<InTokenAnnotation, InNonTokenAnnotation, Ou
         },
     }
 }
+
 export function createDecoratedRequiredValue<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>(
     annotater: Annotater<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>,
     downstream: h.RequiredValueHandler<OutTokenAnnotation, OutNonTokenAnnotation>,
@@ -152,5 +153,14 @@ export function createDecoratedRequiredValue<InTokenAnnotation, InNonTokenAnnota
     return {
         exists: createDecoratedValue(downstream.exists, annotater),
         missing: () => downstream.missing(),
+    }
+}
+
+export function createDecoratedTree<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>(
+    annotater: Annotater<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>,
+    downstream: h.RequiredValueHandler<OutTokenAnnotation, OutNonTokenAnnotation>,
+): h.TreeHandler<InTokenAnnotation, InNonTokenAnnotation> {
+    return {
+        root: createDecoratedRequiredValue(annotater, downstream),
     }
 }

@@ -18,6 +18,7 @@ import {
     ObjectHandler,
     RequiredValueHandler,
     TaggedUnionHandler,
+    TreeHandler,
     ValueHandler,
 } from "./handlers"
 
@@ -37,6 +38,7 @@ export type ParserAnnotationData = {
     range: Range
 }
 
+export type ParserTreeHandler = TreeHandler<ParserAnnotationData, null>
 export type ParserRequiredValueHandler = RequiredValueHandler<ParserAnnotationData, null>
 export type ParserValueHandler = ValueHandler<ParserAnnotationData, null>
 export type ParserObjectHandler = ObjectHandler<ParserAnnotationData, null>

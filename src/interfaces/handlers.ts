@@ -115,6 +115,10 @@ export interface RequiredValueHandler<TokenAnnotation, NonTokenAnnotation> {
     missing: OnMissing
 }
 
+export interface TreeHandler<TokenAnnotation, NonTokenAnnotation> {
+    root: RequiredValueHandler<TokenAnnotation, NonTokenAnnotation>
+}
+
 export interface ValueHandler<TokenAnnotation, NonTokenAnnotation> {
     object: OnObject<TokenAnnotation, NonTokenAnnotation>
     array: OnArray<TokenAnnotation, NonTokenAnnotation>

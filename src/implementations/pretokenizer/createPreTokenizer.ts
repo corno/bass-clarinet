@@ -9,7 +9,7 @@ import { Range, createRangeFromSingleLocation, createRangeFromLocations } from "
 import { IChunk, ILocationState, IPreTokenizer } from "../../interfaces/IPreTokenizer"
 import { Location } from "../../location"
 import { PreToken, PreTokenDataType } from "../../interfaces/IPreTokenStreamConsumer"
-import { PreTokenizerError } from "./functions"
+import { PreTokenizerError } from "./functionTypes"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

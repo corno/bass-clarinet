@@ -172,6 +172,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 },
             }
         }
+        function createTestTreeHandler(): astn.ParserTreeHandler {
+            return {
+                root: createTestRequiredValueHandler(),
+            }
+        }
         function createTestValueHandler(): astn.ParserValueHandler {
             return {
                 array: () => {
@@ -217,7 +222,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
         }
 
         const stackedSubscriber = astn.createStackedParser(
-            createTestRequiredValueHandler(),
+            createTestTreeHandler(),
             error => {
 
                 actualEvents.push(["stacked error", astn.printStackedDataError(error)])

@@ -1,4 +1,4 @@
-export * from "./functions"
+export * from "./functionTypes"
 
 export { printExpectError } from "./print"
 export { printExpectErrorValueType } from "./print"

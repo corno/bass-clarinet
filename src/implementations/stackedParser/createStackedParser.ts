@@ -34,8 +34,9 @@ import {
     ParserTaggedUnionHandler,
     ParserValueHandler,
     Comment,
+    ParserTreeHandler,
 } from "../../interfaces/ParserAnnotationData"
-import { StackedDataError } from "./functions"
+import { StackedDataError } from "./functionTypes"
 import { OverheadTokenType } from "../../interfaces/ITreeParser"
 
 const DEBUG = false
@@ -119,10 +120,10 @@ class SemanticState {
     private listDepth = 0
     private shorthandTypeDepth = 0
     private taggedUnionDepth = 0
-    public rootValueHandler: ParserRequiredValueHandler | null //becomes null when processed
+    public treeHandler: ParserTreeHandler | null //becomes null when processed
 
-    constructor(valueHandler: ParserRequiredValueHandler) {
-        this.rootValueHandler = valueHandler
+    constructor(treeHandler: ParserTreeHandler) {
+        this.treeHandler = treeHandler
     }
     public createStackContext(): StackContext {
         return {
@@ -240,7 +241,7 @@ class SemanticState {
     }
     public wrapupValue(range: Range): void {
         if (this.currentContext === null) {
-            this.rootValueHandler = null
+            this.treeHandler = null
         } else {
             switch (this.currentContext[0]) {
                 case "array": {
@@ -266,14 +267,14 @@ class SemanticState {
     }
     public initValueHandler(): ParserValueHandler {
         if (this.currentContext === null) {
-            const vh = this.rootValueHandler
-            if (vh === null) {
+            const th = this.treeHandler
+            if (th === null) {
                 //expected end of document
                 //error is already reported by parser
                 return createDummyValueHandler()
 
             }
-            return vh.exists
+            return th.root.exists
         } else {
             switch (this.currentContext[0]) {
                 case "array": {
@@ -673,8 +674,8 @@ function processParserEvent(
                     }
                     if (semanticState.currentContext === null) {
                         //handle case when root value was already processed
-                        const vh = semanticState.rootValueHandler !== null
-                            ? semanticState.rootValueHandler.exists
+                        const vh = semanticState.treeHandler !== null
+                            ? semanticState.treeHandler.root.exists
                             : createDummyValueHandler()
                         return onString(vh, contextData)
                     }
@@ -788,7 +789,7 @@ function processParserEvent(
  * 'onopenarray' with 'onclosearray'
  */
 export function createStackedParser<ReturnType, ErrorType>(
-    valueHandler: ParserRequiredValueHandler,
+    valueHandler: ParserTreeHandler,
     onError: (error: StackedDataError, range: Range) => void,
     onEnd: () => p.IUnsafeValue<ReturnType, ErrorType>
 ): ITreeParserEventConsumer<ReturnType, ErrorType> {
@@ -895,9 +896,9 @@ export function createStackedParser<ReturnType, ErrorType>(
                     unwindLoop: while (true) {
                         if (semanticState.currentContext === null) {
 
-                            if (semanticState.rootValueHandler !== null) {
-                                semanticState.rootValueHandler.missing()
-                                semanticState.rootValueHandler = null
+                            if (semanticState.treeHandler !== null) {
+                                semanticState.treeHandler.root.missing()
+                                semanticState.treeHandler = null
                             }
                             break unwindLoop
                         }

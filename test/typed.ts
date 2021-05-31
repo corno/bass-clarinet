@@ -76,12 +76,14 @@ describe('typed', () => {
                             astn.OnDuplicateEntry.ignore,
                         )
                         return astn.createStackedParser(
-                            callback(
-                                expect,
-                                errorLine => {
-                                    foundErrors.push(errorLine)
-                                }
-                            ),
+                            {
+                                root: callback(
+                                    expect,
+                                    errorLine => {
+                                        foundErrors.push(errorLine)
+                                    }
+                                ),
+                            },
                             (err, range) => {
                                 const end = astn.getEndLocationFromRange(range)
 
