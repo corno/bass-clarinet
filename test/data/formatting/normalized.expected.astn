@@ -1,4 +1,6 @@
 (
+    'the schema': "foo"
+)(
     'correct': (
         'strings': (
             'multiline string without newlines': `foo`

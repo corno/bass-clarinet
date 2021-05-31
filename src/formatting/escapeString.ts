@@ -2,10 +2,9 @@
 export function createSerializedMultilineString(
     lines: string[],
     indentation: string,
-    newline: string
 ): string {
     //don't escape tabs, newlines!
-    return `\`${lines.map((line, index) => `${index === 0 ? "" : indentation}${escapeCharacters(line, false, "`")}`).join(newline)}\``
+    return `\`${lines.map((line, index) => `${index === 0 ? "" : indentation}${escapeCharacters(line, false, "`")}`).join("")}\``
 }
 
 export function createSerializedApostrophedString(str: string): string {

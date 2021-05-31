@@ -1,4 +1,8 @@
-import { createJSONFormatter } from "../src/formatting/createJSONFormatter";
+import {
+    createJSONFormatter,
+} from "../src/formatting";
 import { formatCLI } from "./formatCLI";
 
-formatCLI(createJSONFormatter("   ", "\r\n"))
+formatCLI(
+    createJSONFormatter("   ", "\r\n"),
+)

@@ -1,12 +1,11 @@
 import * as p from "pareto"
 import * as fs from "fs"
 import * as stream from "stream"
-import { TokenFormatInstruction, NonTokenFormatInstruction } from "../src/formatting/FormatInstruction"
 import { formatASTNText, ParserAnnotationData } from "../src"
-import { Annotater } from "../src/interfaces/IAnnotater"
+import { Formatter } from "../src/formatting/Formatter"
 
 export function formatCLI(
-    formatter: Annotater<ParserAnnotationData, null, TokenFormatInstruction, NonTokenFormatInstruction>
+    formatter: Formatter<ParserAnnotationData, null>,
 ): void {
 
     const [, , sourcePath, targetPath] = process.argv

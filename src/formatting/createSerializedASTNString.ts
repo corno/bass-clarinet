@@ -8,7 +8,6 @@ function assertUnreachable<RT>(_x: never): RT {
 export function createSerializedString(
     data: StringValueData,
     indentation: string,
-    newline: string,
 ): string {
     switch (data.type[0]) {
         case "multiline": {
@@ -16,7 +15,6 @@ export function createSerializedString(
             return createSerializedMultilineString(
                 $$.lines,
                 indentation,
-                newline,
             )
         }
         case "nonwrapped": {

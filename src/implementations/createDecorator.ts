@@ -158,9 +158,9 @@ export function createDecoratedRequiredValue<InTokenAnnotation, InNonTokenAnnota
 
 export function createDecoratedTree<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>(
     annotater: Annotater<InTokenAnnotation, InNonTokenAnnotation, OutTokenAnnotation, OutNonTokenAnnotation>,
-    downstream: h.RequiredValueHandler<OutTokenAnnotation, OutNonTokenAnnotation>,
+    downstream: h.TreeHandler<OutTokenAnnotation, OutNonTokenAnnotation>,
 ): h.TreeHandler<InTokenAnnotation, InNonTokenAnnotation> {
     return {
-        root: createDecoratedRequiredValue(annotater, downstream),
+        root: createDecoratedRequiredValue(annotater, downstream.root),
     }
 }

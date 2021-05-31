@@ -1,21 +1,37 @@
 import { Annotater } from "../interfaces/IAnnotater"
-import {  StackContext } from "../interfaces/handlers"
+import { StackContext } from "../interfaces/handlers"
 import { NonTokenFormatInstruction, TokenFormatInstruction } from "./FormatInstruction"
 import { createSerializedApostrophedString, createSerializedQuotedString } from "./escapeString"
 import { createSerializedString } from "./createSerializedASTNString"
+import { Formatter } from "./Formatter"
 
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
+
+export function createASTNNormalizer<TokenAnnotation, NonTokenAnnotation>(
+    indentationString: string,
+    newline: string,
+): Formatter<TokenAnnotation, NonTokenAnnotation> {
+    return {
+        onSchemaHeader: () => {
+            return "! "
+        },
+        schemaFormatter: createASTNNormalizer2(indentationString, newline),
+        bodyFormatter: createASTNNormalizer2(indentationString, newline),
+    }
+
+}
+
+function createASTNNormalizer2<TokenAnnotation, NonTokenAnnotation>(
     indentationString: string,
     newline: string,
 ): Annotater<TokenAnnotation, NonTokenAnnotation, TokenFormatInstruction, NonTokenFormatInstruction> {
 
     function createIndentation(context: StackContext) {
-        let indentation = ``
+        let indentation = newline
         for (let i = 0; i !== context.dictionaryDepth + context.verboseTypeDepth + + context.listDepth; i += 1) {
             indentation += indentationString
         }
@@ -31,7 +47,7 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
         },
         property: $ => {
             return {
-                stringBefore: `${newline}${createIndentation($.stackContext)}${indentationString}`,
+                stringBefore: `${createIndentation($.stackContext)}${indentationString}`,
                 token: ((): string => {
                     switch ($.objectData.type[0]) {
                         case "verbose type": {
@@ -49,7 +65,7 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
         },
         objectEnd: $ => {
             return {
-                stringBefore: $.isEmpty ? ` ` : `${newline}${createIndentation($.stackContext)}`,
+                stringBefore: $.isEmpty ? ` ` : `${createIndentation($.stackContext)}`,
                 token: `${$.data.type[0] === "verbose type" ? ")" : "}"}`,
                 stringAfter: ``,
             }
@@ -66,14 +82,14 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
             return {
                 string: $.arrayData.type[0] === "shorthand type"
                     ? ` `
-                    : `${newline}${createIndentation($.stackContext)}${indentationString}`,
+                    : `${createIndentation($.stackContext)}${indentationString}`,
             }
         },
         arrayEnd: $ => {
             return {
                 stringBefore: $.data.type[0] === "shorthand type"
                     ? ` `
-                    : $.isEmpty ? ` ` : `${newline}${createIndentation($.stackContext)}`,
+                    : $.isEmpty ? ` ` : `${createIndentation($.stackContext)}`,
                 token: $.data.type[0] === "shorthand type"
                     ? `>`
                     : `]`,
@@ -82,13 +98,11 @@ export function createASTNFormatter<TokenAnnotation, NonTokenAnnotation>(
         },
 
         stringValue: $ => {
-
             return {
                 stringBefore: ``,
                 token: createSerializedString(
                     $.data,
                     createIndentation($.stackContext),
-                    newline,
                 ),
                 stringAfter: ``,
             }

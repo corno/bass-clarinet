@@ -1,17 +1,15 @@
 import * as p from "pareto"
 import { createDecoratedTree } from "../implementations/createDecorator"
-import { TokenFormatInstruction, NonTokenFormatInstruction } from "./FormatInstruction"
-import { createRequiredValueConcatenator } from "./concatenateFormatInstructions"
+import { createTreeConcatenator } from "./concatenateFormatInstructions"
 import { createStackedParser } from "../implementations/stackedParser"
 import { parseString, printParsingError } from "../parser"
-import { createDummyTreeHandler } from "../implementations/dummyHandlers"
 import { printRange } from "../location"
-import { Annotater } from "../interfaces/IAnnotater"
-import { ParserAnnotationData } from "../interfaces/ParserAnnotationData"
+import { Formatter } from "./Formatter"
+import { ParserAnnotationData } from "../interfaces"
 
 export function formatASTNText(
     astnText: string,
-    formatter: Annotater<ParserAnnotationData, null, TokenFormatInstruction, NonTokenFormatInstruction>,
+    formatter: Formatter<ParserAnnotationData, null>,
     consumer: p.IStreamConsumer<string, null, null>,
 ): p.IValue<null> {
 
@@ -22,8 +20,12 @@ export function formatASTNText(
     return parseString(
         astnText,
         _range => {
+            formatter.onSchemaHeader()
             return createStackedParser<null, null>(
-                createDummyTreeHandler(),
+                createDecoratedTree(
+                    formatter.schemaFormatter,
+                    createTreeConcatenator(write),
+                ),
                 _error => {
                     //
                 },
@@ -37,8 +39,8 @@ export function formatASTNText(
         () => {
             const datasubscriber = createStackedParser<null, null>(
                 createDecoratedTree(
-                    formatter,
-                    createRequiredValueConcatenator(write),
+                    formatter.bodyFormatter,
+                    createTreeConcatenator(write),
                 ),
                 error => {
                     console.error("FOUND STACKED DATA ERROR", error)

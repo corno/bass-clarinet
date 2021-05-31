@@ -1,4 +1,6 @@
-import { createASTNFormatter } from "../src/formatting/createASTNFormatter";
+import * as astn from "../src"
 import { formatCLI } from "./formatCLI";
 
-formatCLI(createASTNFormatter("    ", "\r\n"))
+formatCLI(
+    astn.createASTNNormalizer("    ", "\r\n")
+)

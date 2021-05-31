@@ -80,3 +80,11 @@ export function createRequiredValueConcatenator(
         },
     }
 }
+
+export function createTreeConcatenator(
+    writer: (str: string) => void
+): astn.TreeHandler<TokenFormatInstruction, NonTokenFormatInstruction> {
+    return {
+        root: createRequiredValueConcatenator(writer),
+    }
+}

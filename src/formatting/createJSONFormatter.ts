@@ -2,12 +2,27 @@ import { Annotater } from "../interfaces/IAnnotater"
 import { StackContext } from "../interfaces/handlers"
 import { NonTokenFormatInstruction, TokenFormatInstruction } from "./FormatInstruction"
 import { createSerializedNonWrappedString, createSerializedQuotedString } from "./escapeString"
+import { Formatter } from "./Formatter"
+import { createOmittingFormatter } from "./createOmittingFormatter"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
 export function createJSONFormatter<TokenAnnotation, NonTokenAnnotation>(
+    indentationString: string,
+    newline: string,
+): Formatter<TokenAnnotation, NonTokenAnnotation> {
+    return {
+        onSchemaHeader: () => {
+            return "! "
+        },
+        schemaFormatter: createOmittingFormatter(),
+        bodyFormatter: createJSONFormatter2(indentationString, newline),
+    }
+}
+
+function createJSONFormatter2<TokenAnnotation, NonTokenAnnotation>(
     indentationString: string,
     newline: string,
 ): Annotater<TokenAnnotation, NonTokenAnnotation, TokenFormatInstruction, NonTokenFormatInstruction> {

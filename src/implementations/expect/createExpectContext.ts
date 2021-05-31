@@ -632,7 +632,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                                 annotation: $$.annotation,
                             })
                         } else {
-                            raiseWarning(["invalid string", { expected: expectValue, found: createSerializedString($$.data, "", "\\n") }], $$.annotation)
+                            raiseWarning(["invalid string", { expected: expectValue, found: createSerializedString($$.data, "") }], $$.annotation)
                         }
                         return p.value(false)
                     }
@@ -675,7 +675,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                                 annotation: $$.annotation,
                             })
                         } else {
-                            raiseWarning(["invalid string", { expected: expectValue, found: createSerializedString($$.data, "", "\\n") }], $$.annotation)
+                            raiseWarning(["invalid string", { expected: expectValue, found: createSerializedString($$.data, "") }], $$.annotation)
                         }
                         return p.value(false)
                     }
@@ -699,7 +699,7 @@ export function createExpectContext<TokenAnnotation, NonTokenAnnotation>(
                                 annotation: $$.annotation,
                             })
                         } else {
-                            raiseWarning(["not a valid number", { value: createSerializedString($$.data, "", "\\n") }], $$.annotation)
+                            raiseWarning(["not a valid number", { value: createSerializedString($$.data, "") }], $$.annotation)
                         }
                         return p.value(false)
                     }
