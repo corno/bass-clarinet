@@ -2,8 +2,8 @@ import * as p from "pareto"
 import * as core from "astn-core"
 
 import { parseString, printParsingError } from "../parser"
-import { printRange } from "../location"
-import { ParserAnnotationData } from "../interfaces"
+import { printRange } from "../../generic/location"
+import { ParserAnnotationData } from "../../interfaces"
 
 export function formatASTNText(
     astnText: string,
@@ -32,7 +32,9 @@ export function formatASTNText(
                     //onEnd
                     //no need to return an value, we're only here for the side effects, so return 'null'
                     return p.success(null)
-                }
+                },
+
+                core.createDummyValueHandler,
             )
         },
         () => {
@@ -48,7 +50,9 @@ export function formatASTNText(
                     //onEnd
                     //no need to return an value, we're only here for the side effects, so return 'null'
                     return p.success(null)
-                }
+                },
+
+                core.createDummyValueHandler,
             )
             return datasubscriber
         },

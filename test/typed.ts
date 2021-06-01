@@ -74,6 +74,7 @@ describe('typed', () => {
                             core.createDummyValueHandler,
                             core.Severity.warning,
                             core.OnDuplicateEntry.ignore,
+                            core.createSerializedString,
                         )
                         return core.createStackedParser(
                             {
@@ -93,6 +94,8 @@ describe('typed', () => {
                                 //do nothing with end
                                 return p.success(null)
                             },
+
+                            core.createDummyValueHandler,
                         )
                     },
                     (error, range) => {
@@ -135,7 +138,7 @@ describe('typed', () => {
                     onEnd: () => {
                         //
                     },
-                })
+                }),
             }),
             [
                 ["expect warning", "duplicate entry: 'a'", 1, 12, 1, 15],

@@ -1,6 +1,6 @@
 
 import * as p from "pareto"
-import { Location, Range } from "../location"
+import { Location, Range } from "../generic/location"
 
 export type WrappedStringType =
     | ["apostrophed", {

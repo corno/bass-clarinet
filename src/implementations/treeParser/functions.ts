@@ -1,6 +1,6 @@
 import * as core from "astn-core"
 import { ITreeParser } from "../../interfaces/ITreeParser";
-import {  Range } from "../../location"
+import {  Range } from "../../generic/location"
 
 
 export type TreeParserErrorType =

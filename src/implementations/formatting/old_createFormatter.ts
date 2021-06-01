@@ -3,8 +3,8 @@
 */
 import * as p from "pareto"
 import * as core from "astn-core"
-import { Range, Location } from "../location"
-import { ParserAnnotationData } from "../interfaces"
+import { Range, Location } from "../../generic/location"
+import { ParserAnnotationData } from "../../interfaces"
 
 function assertUnreachable(_x: never) {
 	throw new Error("unreachable")

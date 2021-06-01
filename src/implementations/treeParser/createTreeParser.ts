@@ -6,7 +6,7 @@
 */
 import * as p from "pareto"
 import * as core from "astn-core"
-import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
+import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "../../generic/location"
 import {
     TreeParserError,
     TreeParserErrorType,
@@ -19,7 +19,7 @@ import {
     ITreeParser,
     OverheadTokenType,
 } from "../../interfaces/ITreeParser"
-import * as Char from "../../Characters"
+import * as Char from "../../generic/characters"
 import { ParserAnnotationData } from "../../interfaces"
 
 function assertUnreachable<RT>(_x: never): RT {

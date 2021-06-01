@@ -4,12 +4,12 @@ import * as core from "astn-core"
 import {
     Range,
     Location,
-} from "../location"
+} from "../../generic/location"
 import {
     createParserStack, ParsingError,
 } from "./createParserStack"
-import { OverheadToken } from "../interfaces/ITreeParser"
-import { ParserAnnotationData } from "../interfaces"
+import { OverheadToken } from "../../interfaces/ITreeParser"
+import { ParserAnnotationData } from "../../interfaces"
 
 export function parseString<ReturnType, ErrorType>(
     data: string,

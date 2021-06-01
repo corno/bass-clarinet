@@ -4,8 +4,8 @@
 */
 import * as p from "pareto"
 import * as core from "astn-core"
-import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
-import * as Char from "../../Characters"
+import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../generic/location"
+import * as Char from "../../generic/characters"
 import { createTreeParser } from "../treeParser"
 import { TextErrorType, TextParserError } from "./functionTypes"
 import { ITreeParser, OverheadToken, PunctionationData, StringData, Token, TokenType } from "../../interfaces/ITreeParser"

@@ -1,6 +1,6 @@
-import { Location } from "../location"
+import { Location } from "../generic/location"
 import { PreToken } from "./IPreTokenStreamConsumer"
-//import { Char } from "../Characters"
+
 
 export interface ILocationState {
     getCurrentLocation(): Location

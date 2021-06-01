@@ -2,22 +2,22 @@ import * as p from "pareto"
 import * as core from "astn-core"
 import {
     createTextParser,
-} from "../implementations/textParser"
+} from "../textParser"
 import {
     Range,
     Location,
-} from "../location"
+} from "../../generic/location"
 import {
     createStreamPreTokenizer,
-} from "../implementations/streamPretokenizer"
+} from "../streamPretokenizer"
 import {
     createTokenizer,
-} from "../implementations/tokenizer"
-import { printPreTokenizerError, PreTokenizerError } from "../implementations/pretokenizer"
-import { printTextParserError } from "../implementations/textParser"
-import { TextParserError } from "../implementations/textParser"
-import { OverheadToken } from "../interfaces/ITreeParser"
-import { ParserAnnotationData } from "../interfaces"
+} from "../tokenizer"
+import { printPreTokenizerError, PreTokenizerError } from "../pretokenizer"
+import { printTextParserError } from "../textParser"
+import { TextParserError } from "../textParser"
+import { OverheadToken } from "../../interfaces/ITreeParser"
+import { ParserAnnotationData } from "../../interfaces"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")

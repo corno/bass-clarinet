@@ -133,7 +133,8 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             },
             () => {
                 return p.success<null, null>(null)
-            }
+            },
+            core.createDummyValueHandler
         )
         const eventSubscriber: core.ITreeBuilder<ParserAnnotationData, null, null> = {
             onData: data => {

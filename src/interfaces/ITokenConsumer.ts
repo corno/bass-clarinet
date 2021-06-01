@@ -1,5 +1,5 @@
 import * as p from "pareto"
-import { Location } from "../location"
+import { Location } from "../generic/location"
 import { Token } from "./ITreeParser"
 
 export interface TokenConsumer<ReturnType, ErrorType> {

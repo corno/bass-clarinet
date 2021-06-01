@@ -3,8 +3,8 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
-import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "../../location"
-import { RangeError } from "../../errors"
+import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation, createRangeFromLocations } from "../../generic/location"
+import { RangeError } from "../../generic/errors"
 import { IPreTokenStreamConsumer } from "../../interfaces/IPreTokenStreamConsumer"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
 import { PreToken, PreTokenDataType, WrappedStringType } from "../../interfaces/IPreTokenStreamConsumer"

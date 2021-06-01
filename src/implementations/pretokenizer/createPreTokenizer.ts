@@ -3,11 +3,11 @@
     no-console:"off",
     max-classes-per-file: "off",
 */
-import * as Char from "../../Characters"
+import * as Char from "../../generic/characters"
 
-import { Range, createRangeFromSingleLocation, createRangeFromLocations } from "../../location"
+import { Range, createRangeFromSingleLocation, createRangeFromLocations } from "../../generic/location"
 import { IChunk, ILocationState, IPreTokenizer } from "../../interfaces/IPreTokenizer"
-import { Location } from "../../location"
+import { Location } from "../../generic/location"
 import { PreToken, PreTokenDataType } from "../../interfaces/IPreTokenStreamConsumer"
 import { PreTokenizerError } from "./functionTypes"
 

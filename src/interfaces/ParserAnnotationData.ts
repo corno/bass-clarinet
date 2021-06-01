@@ -1,6 +1,6 @@
 import {
     Range,
-} from "../location"
+} from "../generic/location"
 
 
 export type Comment = {

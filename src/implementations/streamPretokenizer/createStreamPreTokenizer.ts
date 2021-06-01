@@ -4,7 +4,7 @@
     max-classes-per-file: "off",
 */
 import * as p from "pareto"
-import { Location, Range } from "../../location"
+import { Location, Range } from "../../generic/location"
 import { IPreTokenStreamConsumer } from "../../interfaces/IPreTokenStreamConsumer"
 import {
     TokenizerOptions,
@@ -18,7 +18,7 @@ import {
 } from "../../interfaces/IPreTokenizer"
 import { PreTokenizerError } from "../pretokenizer"
 
-import * as Char from "../../Characters"
+import * as Char from "../../generic/characters"
 
 const DEBUG = false
 
