@@ -1,5 +1,5 @@
 export * from "./IPreTokenStreamConsumer"
 export * from "./IPreTokenizer"
 export * from "./ITokenConsumer"
-export * from "./ITreeBuilder"
+export * from "./ITreeParser"
 export * from "./ParserAnnotationData"
