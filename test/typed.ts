@@ -6,8 +6,8 @@ import * as p from "pareto"
 import * as p20 from "pareto-20"
 import { describe } from "mocha"
 import * as chai from "chai"
+import * as core from "astn-core"
 import * as astn from "../src"
-import { IExpectContext } from "../src/interfaces/IExpectContext"
 
 //const selectedJSONTests: string[] = ["two keys"]
 //const selectedExtensionTests: string[] = []
@@ -34,7 +34,7 @@ describe('typed', () => {
             testName: string,
             data: string,
             callback: (
-                expect: IExpectContext<astn.ParserAnnotationData, null>,
+                expect: core.IExpectContext<astn.ParserAnnotationData, null>,
                 addError: (errorLine: ErrorLine) => void
             ) => astn.ParserRequiredValueHandler,
             expectedErrors: ErrorLine[]
@@ -43,11 +43,11 @@ describe('typed', () => {
             it(testName, () => {
                 const foundErrors: ErrorLine[] = []
                 const onWarning = ($: {
-                    issue: astn.ExpectError
+                    issue: core.ExpectError
                     annotation: astn.ParserAnnotationData
                 }) => {
                     const end = astn.getEndLocationFromRange($.annotation.range)
-                    foundErrors.push(["expect warning", astn.printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
+                    foundErrors.push(["expect warning", core.printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
                 }
                 const streamTokenizer = astn.createParserStack(
                     () => {
@@ -64,18 +64,18 @@ describe('typed', () => {
                     },
                     () => {
 
-                        const expect = astn.createExpectContext<astn.ParserAnnotationData, null>(
+                        const expect = core.createExpectContext<astn.ParserAnnotationData, null>(
                             $ => {
                                 const end = astn.getEndLocationFromRange($.annotation.range)
-                                foundErrors.push(["expect error", astn.printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
+                                foundErrors.push(["expect error", core.printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
                             },
                             onWarning,
-                            astn.createDummyValueHandler,
-                            astn.createDummyValueHandler,
-                            astn.Severity.warning,
-                            astn.OnDuplicateEntry.ignore,
+                            core.createDummyValueHandler,
+                            core.createDummyValueHandler,
+                            core.Severity.warning,
+                            core.OnDuplicateEntry.ignore,
                         )
-                        return astn.createStackedParser(
+                        return core.createStackedParser(
                             {
                                 root: callback(
                                     expect,
@@ -144,10 +144,10 @@ describe('typed', () => {
         doTest(
             'duplicate property',
             `( "a": 42, "a": 42 )`,
-            expect => astn.createRequiredValueHandler(
+            expect => core.createRequiredValueHandler(
                 expect,
                 ["type", {
-                    a: (): astn.ValueType<astn.ParserAnnotationData, null> => {
+                    a: (): core.ValueType<astn.ParserAnnotationData, null> => {
                         return ["number", () => {
                             return p.value(false)
                         }]
@@ -162,12 +162,12 @@ describe('typed', () => {
             'unexpected boolean',
 
             `( "a": true )`,
-            (expect, addError) => astn.createRequiredValueHandler(
+            (expect, addError) => core.createRequiredValueHandler(
                 expect,
                 [
                     "type",
                     {
-                        a: (): astn.ValueType<astn.ParserAnnotationData, null> => {
+                        a: (): core.ValueType<astn.ParserAnnotationData, null> => {
                             return [
                                 "number",
                                 () => {
@@ -193,12 +193,12 @@ describe('typed', () => {
         doTest(
             'unexpected empty type',
             `( )`,
-            (expect, addError) => astn.createRequiredValueHandler(
+            (expect, addError) => core.createRequiredValueHandler(
                 expect,
                 [
                     "type",
                     {
-                        a: (): astn.ValueType<astn.ParserAnnotationData, null> => {
+                        a: (): core.ValueType<astn.ParserAnnotationData, null> => {
                             return [
                                 "number",
                                 () => {
@@ -223,7 +223,7 @@ describe('typed', () => {
         doTest(
             'unexpected object',
             `{ }`,
-            (expect, _addError) => astn.createRequiredValueHandler(
+            (expect, _addError) => core.createRequiredValueHandler(
                 expect,
                 [
                     "list",
@@ -289,7 +289,7 @@ describe('typed', () => {
                 handler: expect.expectType({
                     properties: {
                         a: {
-                            onExists: (): astn.RequiredValueHandler<astn.ParserAnnotationData, null> => {
+                            onExists: (): core.RequiredValueHandler<astn.ParserAnnotationData, null> => {
                                 return {
                                     exists: expect.expectTaggedUnion({
                                         options: {

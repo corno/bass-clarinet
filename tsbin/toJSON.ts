@@ -1,6 +1,6 @@
 import {
     createJSONFormatter,
-} from "../src/formatting";
+} from "astn-core";
 import { formatCLI } from "./formatCLI";
 
 formatCLI(

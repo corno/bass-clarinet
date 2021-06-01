@@ -1,11 +1,11 @@
 import * as p from "pareto"
 import * as fs from "fs"
 import * as stream from "stream"
+import * as core from "astn-core"
 import { formatASTNText, ParserAnnotationData } from "../src"
-import { Formatter } from "../src/formatting/Formatter"
 
 export function formatCLI(
-    formatter: Formatter<ParserAnnotationData, null>,
+    formatter: core.Formatter<ParserAnnotationData, null>,
 ): void {
 
     const [, , sourcePath, targetPath] = process.argv

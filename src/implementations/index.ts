@@ -1,11 +1,5 @@
 export * from "./pretokenizer"
-export * from "./stackedParser"
 export * from "./streamPretokenizer"
 export * from "./textParser"
 export * from "./tokenizer"
 export * from "./treeParser"
-export * from "./createDecorator"
-export * from "./createStreamSplitter"
-
-export * from "./dummyHandlers"
-export * from "./expect"

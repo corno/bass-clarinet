@@ -1,15 +1,13 @@
 import * as p from "pareto"
-import { createDecoratedTree } from "../implementations/createDecorator"
-import { createTreeConcatenator } from "./concatenateFormatInstructions"
-import { createStackedParser } from "../implementations/stackedParser"
+import * as core from "astn-core"
+
 import { parseString, printParsingError } from "../parser"
 import { printRange } from "../location"
-import { Formatter } from "./Formatter"
 import { ParserAnnotationData } from "../interfaces"
 
 export function formatASTNText(
     astnText: string,
-    formatter: Formatter<ParserAnnotationData, null>,
+    formatter: core.Formatter<ParserAnnotationData, null>,
     consumer: p.IStreamConsumer<string, null, null>,
 ): p.IValue<null> {
 
@@ -21,10 +19,10 @@ export function formatASTNText(
         astnText,
         _range => {
             write(formatter.onSchemaHeader())
-            return createStackedParser<ParserAnnotationData, null, null>(
-                createDecoratedTree(
+            return core.createStackedParser<ParserAnnotationData, null, null>(
+                core.createDecoratedTree(
                     formatter.schemaFormatter,
-                    createTreeConcatenator(write),
+                    core.createTreeConcatenator(write),
                 ),
                 _error => {
                     //
@@ -38,10 +36,10 @@ export function formatASTNText(
             )
         },
         () => {
-            const datasubscriber = createStackedParser<ParserAnnotationData, null, null>(
-                createDecoratedTree(
+            const datasubscriber = core.createStackedParser<ParserAnnotationData, null, null>(
+                core.createDecoratedTree(
                     formatter.bodyFormatter,
-                    createTreeConcatenator(write),
+                    core.createTreeConcatenator(write),
                 ),
                 error => {
                     console.error("FOUND STACKED DATA ERROR", error)

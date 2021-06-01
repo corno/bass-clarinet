@@ -3,13 +3,14 @@ import * as p from "pareto"
 import * as fs from "fs"
 import * as chai from "chai"
 import * as astn from "../src"
+import * as core from "astn-core"
 
 const dir = "./test/data/formatting/"
 
 const dataIn = fs.readFileSync(dir + "in.astn", { encoding: "utf-8" })
 
 function format(
-    formatter: astn.Formatter<astn.ParserAnnotationData, null>,
+    formatter: core.Formatter<astn.ParserAnnotationData, null>,
     outBasename: string,
     outExtension: string
 ): Promise<null | void> {
@@ -43,9 +44,9 @@ function format(
 
 describe('formatting', () => {
     it("normalized ASTN", () => {
-        return format(astn.createASTNNormalizer<astn.ParserAnnotationData, null>("    ", "\r\n"), "normalized", "astn")
+        return format(core.createASTNNormalizer<astn.ParserAnnotationData, null>("    ", "\r\n"), "normalized", "astn")
     })
     it("JSON", () => {
-        return format(astn.createJSONFormatter<astn.ParserAnnotationData, null>("    ", "\r\n"), "out", "json")
+        return format(core.createJSONFormatter<astn.ParserAnnotationData, null>("    ", "\r\n"), "out", "json")
     })
 })

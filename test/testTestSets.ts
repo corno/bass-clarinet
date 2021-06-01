@@ -6,6 +6,8 @@
 import * as p from "pareto"
 import * as p20 from "pareto-20"
 import * as astn from "../src"
+import * as core from "astn-core"
+
 import { describe } from "mocha"
 import * as chai from "chai"
 import { ownJSONTests } from "./data/ownJSONTestset"
@@ -123,11 +125,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             }
         }
 
-        const stackedSubscriber = astn.createStackedParser(
+        const stackedSubscriber = core.createStackedParser(
             createTestTreeHandler(),
             error => {
 
-                actualEvents.push(["stacked error", astn.printStackedDataError(error)])
+                actualEvents.push(["stacked error", core.printStackedDataError(error)])
             },
             () => {
                 return p.success<null, null>(null)
@@ -282,13 +284,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 headerSubscribers.forEach(s => {
                     s.onSchemaDataStart(range)
                 })
-                return astn.createStreamSplitter(schemaDataSubscribers)
+                return core.createStreamSplitter(schemaDataSubscribers)
             },
             location => {
                 headerSubscribers.forEach(s => {
                     s.onInstanceDataStart(location)
                 })
-                return astn.createStreamSplitter(instanceDataSubscribers)
+                return core.createStreamSplitter(instanceDataSubscribers)
             },
             (error, _location) => {
                 if (DEBUG) console.log("found error")

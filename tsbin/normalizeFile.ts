@@ -1,6 +1,6 @@
-import * as astn from "../src"
+import * as core from "astn-core"
 import { formatCLI } from "./formatCLI";
 
 formatCLI(
-    astn.createASTNNormalizer("    ", "\r\n")
+    core.createASTNNormalizer("    ", "\r\n")
 )
