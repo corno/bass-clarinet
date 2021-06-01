@@ -1,4 +1,5 @@
 import * as p from "pareto"
+import * as core from "astn-core"
 import {
     createTextParser,
 } from "../implementations/textParser"
@@ -13,7 +14,6 @@ import {
     createTokenizer,
 } from "../implementations/tokenizer"
 import { printPreTokenizerError, PreTokenizerError } from "../implementations/pretokenizer"
-import { ITreeBuilder } from "../interfaces/ITreeBuilder"
 import { printTextParserError } from "../implementations/textParser"
 import { TextParserError } from "../implementations/textParser"
 import { OverheadToken } from "../interfaces/ITreeParser"
@@ -54,8 +54,8 @@ export function printParsingError(error: ParsingError): string {
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).
  */
 export function createParserStack<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => ITreeBuilder<ParserAnnotationData, null, null>,
-    onInstanceDataStart: (location: Location) => ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => core.ITreeBuilder<ParserAnnotationData, null, null>,
+    onInstanceDataStart: (location: Location) => core.ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },

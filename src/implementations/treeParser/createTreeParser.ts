@@ -5,10 +5,8 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
+import * as core from "astn-core"
 import { Location, Range, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
-import {
-    ITreeBuilder,
-} from "../../interfaces/ITreeBuilder"
 import {
     TreeParserError,
     TreeParserErrorType,
@@ -22,7 +20,7 @@ import {
     OverheadTokenType,
 } from "../../interfaces/ITreeParser"
 import * as Char from "../../Characters"
-import { ParserAnnotationData, TreeBuilderStringValueDataType } from "../../interfaces"
+import { ParserAnnotationData } from "../../interfaces"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -74,7 +72,7 @@ type StackContext = {
 
 export function createTreeParser<ReturnType, ErrorType>(
     onerror: (error: TreeParserError, range: Range) => void,
-    eventsConsumer: ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>
+    eventsConsumer: core.ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>
 ): ITreeParser<ReturnType, ErrorType> {
 
 
@@ -288,7 +286,7 @@ export function createTreeParser<ReturnType, ErrorType>(
                     return eventsConsumer.onData({
                         annotation: createAnnotation(tokenString, range),
                         type: ["string value", {
-                            type: ((): TreeBuilderStringValueDataType => {
+                            type: ((): core.TreeBuilderStringValueDataType => {
                                 switch (data2.type[0]) {
                                     case "multiline": {
                                         const $ = data2.type[1]

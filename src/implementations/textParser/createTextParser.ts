@@ -3,14 +3,14 @@
     max-classes-per-file:"off",
 */
 import * as p from "pareto"
+import * as core from "astn-core"
 import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSingleLocation } from "../../location"
 import * as Char from "../../Characters"
 import { createTreeParser } from "../treeParser"
-import { ITreeBuilder } from "../../interfaces/ITreeBuilder"
 import { TextErrorType, TextParserError } from "./functionTypes"
 import { ITreeParser, OverheadToken, PunctionationData, StringData, Token, TokenType } from "../../interfaces/ITreeParser"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
-import { ParserAnnotationData, TreeBuilderStringValueDataType } from "../../interfaces"
+import { ParserAnnotationData } from "../../interfaces"
 
 const DEBUG = false
 
@@ -58,8 +58,8 @@ type RootContext<ReturnType, ErrorType> = {
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
 export function createTextParser<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => ITreeBuilder<ParserAnnotationData, null, null>,
-    onInstanceDataStart: (location: Location) => ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => core.ITreeBuilder<ParserAnnotationData, null, null>,
+    onInstanceDataStart: (location: Location) => core.ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>,
     onerror: (error: TextParserError, range: Range) => void,
     onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean>,
 ): TokenConsumer<ReturnType, ErrorType> {
@@ -233,7 +233,7 @@ export function createTextParser<ReturnType, ErrorType>(
                                 annotation: createAnnotation(data),
                                 type: ["string value", {
 
-                                    type: ((): TreeBuilderStringValueDataType => {
+                                    type: ((): core.TreeBuilderStringValueDataType => {
                                         switch (stringData.type[0]) {
                                             case "multiline": {
                                                 const $ = stringData.type[1]
@@ -388,7 +388,7 @@ export function createTextParser<ReturnType, ErrorType>(
             return consumer.onData({
                 annotation: createAnnotation(token),
                 type: ["string value", {
-                    type: ((): TreeBuilderStringValueDataType => {
+                    type: ((): core.TreeBuilderStringValueDataType => {
                         switch (data2.type[0]) {
                             case "multiline": {
                                 const $ = data2.type[1]

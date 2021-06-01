@@ -2,8 +2,8 @@
 	complexity: off
 */
 import * as p from "pareto"
+import * as core from "astn-core"
 import { Range, Location } from "../location"
-import { ITreeBuilder } from "../interfaces/ITreeBuilder"
 import { ParserAnnotationData } from "../interfaces"
 
 function assertUnreachable(_x: never) {
@@ -61,7 +61,7 @@ export function createFormatter(
 		newValue: string,
 	) => void,
 	onEnd: () => p.IValue<null>,
-): ITreeBuilder<ParserAnnotationData, null, null> {
+): core.ITreeBuilder<ParserAnnotationData, null, null> {
 	let precedingWhitespace: null | TokenInfo = null
 
 	const stack: Style[] = []
@@ -193,7 +193,7 @@ export function createFormatter(
 		currentRequiredStyle = style
 	}
 
-	const ds: ITreeBuilder<ParserAnnotationData, null, null> = {
+	const ds: core.ITreeBuilder<ParserAnnotationData, null, null> = {
 
 		onData: data => {
 			switch (data.type[0]) {

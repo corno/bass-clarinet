@@ -1,5 +1,6 @@
 import * as p from "pareto"
 import * as p20 from "pareto-20"
+import * as core from "astn-core"
 import {
     Range,
     Location,
@@ -7,14 +8,13 @@ import {
 import {
     createParserStack, ParsingError,
 } from "./createParserStack"
-import { ITreeBuilder } from "../interfaces/ITreeBuilder"
 import { OverheadToken } from "../interfaces/ITreeParser"
 import { ParserAnnotationData } from "../interfaces"
 
 export function parseString<ReturnType, ErrorType>(
     data: string,
-    onSchemaDataStart: (range: Range) => ITreeBuilder<ParserAnnotationData, null, null>,
-    onInstanceDataStart: (location: Location) => ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>,
+    onSchemaDataStart: (range: Range) => core.ITreeBuilder<ParserAnnotationData, null, null>,
+    onInstanceDataStart: (location: Location) => core.ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },

@@ -135,7 +135,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 return p.success<null, null>(null)
             }
         )
-        const eventSubscriber: astn.ITreeBuilder<ParserAnnotationData, null, null> = {
+        const eventSubscriber: core.ITreeBuilder<ParserAnnotationData, null, null> = {
             onData: data => {
                 switch (data.type[0]) {
                     case "close array": {
@@ -248,11 +248,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             )
         }
         const out: string[] = []
-        const schemaDataSubscribers: astn.ITreeBuilder<ParserAnnotationData, null, null>[] = [
+        const schemaDataSubscribers: core.ITreeBuilder<ParserAnnotationData, null, null>[] = [
             eventSubscriber,
             createFormatter(),
         ]
-        const instanceDataSubscribers: astn.ITreeBuilder<ParserAnnotationData, null, null>[] = [
+        const instanceDataSubscribers: core.ITreeBuilder<ParserAnnotationData, null, null>[] = [
             eventSubscriber,
             stackedSubscriber,
             createFormatter(),

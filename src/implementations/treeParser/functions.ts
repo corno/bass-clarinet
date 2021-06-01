@@ -1,5 +1,5 @@
+import * as core from "astn-core"
 import { ITreeParser } from "../../interfaces/ITreeParser";
-import { ITreeBuilder } from "../../interfaces/ITreeBuilder";
 import {  Range } from "../../location"
 
 
@@ -29,5 +29,5 @@ export type TreeParserError = {
 
 export type CreateTreeParser<Annotation, ReturnType, ErrorType> = (
     onerror: (error: TreeParserError, range: Range) => void,
-    eventsConsumer: ITreeBuilder<Annotation, ReturnType, ErrorType>
+    eventsConsumer: core.ITreeBuilder<Annotation, ReturnType, ErrorType>
 ) => ITreeParser<ReturnType, ErrorType>
