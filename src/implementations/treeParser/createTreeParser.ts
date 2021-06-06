@@ -116,19 +116,19 @@ export function createTreeParser<ReturnType, ErrorType>(
         switch (stackContext.type[0]) {
             case StackContextType2.ARRAY: {
                 //const $ = stackContext.type[1]
-                onerror({ type: ["unexpected end of document", { "still in": ["array"] }] }, range)
+                onerror({ type: ["unexpected end of text", { "still in": ["array"] }] }, range)
 
                 break
             }
             case StackContextType2.OBJECT: {
                 //const $ = stackContext.type[1]
-                onerror({ type: ["unexpected end of document", { "still in": ["object"] }] }, range)
+                onerror({ type: ["unexpected end of text", { "still in": ["object"] }] }, range)
 
                 break
             }
             case StackContextType2.TAGGED_UNION: {
                 //const $ = stackContext.type[1]
-                onerror({ type: ["unexpected end of document", { "still in": ["tagged union"] }] }, range)
+                onerror({ type: ["unexpected end of text", { "still in": ["tagged union"] }] }, range)
 
                 break
             }

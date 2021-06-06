@@ -4,7 +4,7 @@ import {  Range } from "../../generic/location"
 
 
 export type TreeParserErrorType =
-    | ["unexpected end of document", {
+    | ["unexpected end of text", {
         "still in":
         | ["array"]
         | ["object"]

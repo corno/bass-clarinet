@@ -6,7 +6,7 @@
 
 It was forked from `clarinet` but the API has been changed significantly.
 In addition to the port to TypeScript, the following changes have been made:
-* The parser was made as robust as possible. It will try to continue parsing after an unexpected event. This is useful for editors as documents will often be in an invalid state during editing.
+* The parser was made as robust as possible. It will try to continue parsing after an unexpected event. This is useful for editors as texts will often be in an invalid state during editing.
 * `onopenobject` no longer includes the first key
 * `JSONTestSuite` is added to the test set. All tests pass.
 * line and column information is fixed
@@ -24,7 +24,7 @@ In addition to the port to TypeScript, the following changes have been made:
   * tagged unions
   * tokenizer option: `spaces_per_tab`
 * stream support has been dropped for now. Can be added back upon request
-* There is an 'ExpectContext' class that helps processing documents that should conform to an expected structure.
+* There is an 'ExpectContext' class that helps processing texts that should conform to an expected structure.
 
 the parser contained in this `ASTN Toolkit` is a sax-like streaming parser for ASTN (and JSON). just like you shouldn't use `sax` when you need `dom` you shouldn't use `astn` when you need `JSON.parse`.
 

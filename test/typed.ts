@@ -149,11 +149,21 @@ describe('typed', () => {
             `( "a": 42, "a": 42 )`,
             expect => core.createRequiredValueHandler(
                 expect,
-                ["type", {
-                    a: (): core.ValueType<astn.ParserAnnotationData, null> => {
-                        return ["number", () => {
-                            return p.value(false)
-                        }]
+                ["verbose type", {
+                    properties: {
+                        a: {
+                            onExists: () => {
+                                return core.createRequiredValueHandler(
+                                    expect,
+                                    ["number", {
+                                        callback: () => {
+                                            return p.value(false)
+                                        },
+                                    }]
+                                )
+                            },
+                            onNotExists: null,
+                        },
                     },
                 }]
             ),
@@ -168,22 +178,26 @@ describe('typed', () => {
             (expect, addError) => core.createRequiredValueHandler(
                 expect,
                 [
-                    "type",
+                    "verbose type",
                     {
-                        a: (): core.ValueType<astn.ParserAnnotationData, null> => {
-                            return [
-                                "number",
-                                () => {
-                                    //console.log(value)
-                                    return p.value(false)
+                        properties: {
+                            a: {
+                                onExists: () => {
+                                    return core.createRequiredValueHandler(
+                                        expect,
+                                        ["number", {
+                                            callback: () => {
+                                                return p.value(false)
+                                            },
+                                            onInvalidType: () => {
+                                                //addError(["stacked error", err.rangeLessMessage, $.start.line, $.start.column, $.end.line, $.end.column])
+                                                addError(["invalid type", "TBD", 0, 0, 0, 0])
+                                            },
+                                        }]
+                                    )
                                 },
-                                {
-                                    onInvalidType: () => {
-                                        //addError(["stacked error", err.rangeLessMessage, $.start.line, $.start.column, $.end.line, $.end.column])
-                                        addError(["invalid type", "TBD", 0, 0, 0, 0])
-                                    },
-                                },
-                            ]
+                                onNotExists: null,
+                            },
                         },
                     },
                 ]
@@ -199,22 +213,26 @@ describe('typed', () => {
             (expect, addError) => core.createRequiredValueHandler(
                 expect,
                 [
-                    "type",
+                    "verbose type",
                     {
-                        a: (): core.ValueType<astn.ParserAnnotationData, null> => {
-                            return [
-                                "number",
-                                () => {
-                                    //console.log(value)
-                                    return p.value(false)
+                        properties: {
+                            a: {
+                                onExists: () => {
+                                    return core.createRequiredValueHandler(
+                                        expect,
+                                        ["number", {
+                                            callback: () => {
+                                                return p.value(false)
+                                            },
+                                            onInvalidType: () => {
+                                                //addError(["stacked error", err.rangeLessMessage, $.start.line, $.start.column, $.end.line, $.end.column])
+                                                addError(["invalid type", "TBD", 0, 0, 0, 0])
+                                            },
+                                        }]
+                                    )
                                 },
-                                {
-                                    onInvalidType: () => {
-                                        //addError(["stacked error", err.rangeLessMessage, $.start.line, $.start.column, $.end.line, $.end.column])
-                                        addError(["invalid type", "TBD", 0, 0, 0, 0])
-                                    },
-                                },
-                            ]
+                                onNotExists: null,
+                            },
                         },
                     },
                 ]
@@ -230,15 +248,16 @@ describe('typed', () => {
                 expect,
                 [
                     "list",
-                    ["number", () => {
-                        return p.value(false)
-                    }],
                     {
-                        onBegin: () => {
-                            //
-                        },
-                        onEnd: () => {
-                            //
+                        onElement: () => {
+                            return core.createValueHandler(
+                                expect,
+                                ["number", {
+                                    callback: () => {
+                                        return p.value(false)
+                                    },
+                                }],
+                            )
                         },
                     },
                 ]
@@ -320,8 +339,8 @@ describe('typed', () => {
             }),
             [
                 ["parser error", "not in an object", 1, 16, 1, 17],
-                ["parser error", "unexpected end of document, still in tagged union", 1, 17, 1, 17],
-                ["parser error", "unexpected end of document, still in object", 1, 17, 1, 17],
+                ["parser error", "unexpected end of text, still in tagged union", 1, 17, 1, 17],
+                ["parser error", "unexpected end of text, still in object", 1, 17, 1, 17],
                 ["missing", "TBD", 0, 0, 0, 0],
                 ["stacked error", "missing tagged union value", 1, 16, 1, 17],
             ]

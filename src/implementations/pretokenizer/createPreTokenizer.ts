@@ -261,7 +261,7 @@ export function createPreTokenizer(
                         }
                     } else if ($.foundSolidus) {
                         this.onError({
-                            error: { type: ["found dangling slash at the end of the document"] },
+                            error: { type: ["found dangling slash at the end of the text"] },
                             range: getCurrentCharacterRange(this.locationState),
                         })
                         return null

@@ -51,7 +51,7 @@ type RootContext<ReturnType, ErrorType> = {
  * for this reason it has 2 type parameters:
  * -ReturnType: The type if parsing went succesful
  * -ErrorType: The type if the parsing produced an unexpected error
- * @param onSchemaDataStart a document can contain schema data. If this is the case, this callback will be called.
+ * @param onSchemaDataStart a text can contain schema data. If this is the case, this callback will be called.
  * it enables the consuming code to prepare for the instance data. It cannot produce a result itself, hence the type parameters are null and null
  * @param onInstanceDataStart when the instance data starts, this callback is called and a TextParserEventConsumer should be returned. This consumer will also produce the final resulting type
  * @param onerror a handler for when a parsing error occurs
@@ -143,7 +143,7 @@ export function createTextParser<ReturnType, ErrorType>(
                 }
                 case TextState.PROCESSING_BODY: {
                     const $ = this.rootContext.state[1]
-                    //this.raiseError("incomplete document", range)
+                    //this.raiseError("incomplete text", range)
 
                     return $.treeParser.forceEnd(aborted, location)
                 }

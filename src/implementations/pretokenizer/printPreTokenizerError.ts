@@ -18,8 +18,8 @@ export function printPreTokenizerError($: PreTokenizerError): string {
         case "found dangling slash": {
             return `found dangling slash`
         }
-        case "found dangling slash at the end of the document": {
-            return `found dangling slash at the end of the document`
+        case "found dangling slash at the end of the text": {
+            return `found dangling slash at the end of the text`
         }
         case "unterminated block comment": {
             return `unterminated block comment`

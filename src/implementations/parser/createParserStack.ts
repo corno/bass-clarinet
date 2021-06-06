@@ -47,8 +47,8 @@ export function printParsingError(error: ParsingError): string {
 
 /**
  * the top level function for this package.
- * @param onSchemaDataStart a callback that should provide a handler for the (optional) schema part of the document
- * @param onInstanceDataStart a callback that must provide a handler for the instance data part of the document
+ * @param onSchemaDataStart a callback that should provide a handler for the (optional) schema part of the text
+ * @param onInstanceDataStart a callback that must provide a handler for the instance data part of the text
  * @param onTokenizerError an optional callback for when a tokenizer error occurs.
  * @param onParserError an optional callback for when a parser error occurs.
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).

@@ -35,7 +35,7 @@ enum CurrentTokenType {
     BLOCK_COMMENT,
     QUOTED_STRING,
     NONE,
-    UNQUOTED_TOKEN,
+    NONWRAPPED_STRING,
     WHITESPACE,
 }
 
@@ -52,7 +52,7 @@ type CurrentToken =
     | [CurrentTokenType.NONE]
     | [CurrentTokenType.LINE_COMMENT, CommentContext]
     | [CurrentTokenType.BLOCK_COMMENT, CommentContext]
-    | [CurrentTokenType.UNQUOTED_TOKEN, NonWrappedStringContext]
+    | [CurrentTokenType.NONWRAPPED_STRING, NonWrappedStringContext]
     | [CurrentTokenType.QUOTED_STRING, WrappedStringContext]
     | [CurrentTokenType.WHITESPACE, WhitespaceContext]
 
@@ -237,13 +237,13 @@ export function createTokenizer<ReturnType, ErrorType>(
 
             this.indentationState = [IndentationState.lineIsDitry]
 
-            this.setCurrentToken([CurrentTokenType.UNQUOTED_TOKEN, { nonwrappedStringNode: "", start: location }], createRangeFromSingleLocation(location))
+            this.setCurrentToken([CurrentTokenType.NONWRAPPED_STRING, { nonwrappedStringNode: "", start: location }], createRangeFromSingleLocation(location))
             return p.value(false)
         }
         private onNonWrappedStringEnd(location: Location): p.IValue<boolean> {
             if (DEBUG) console.log(`onNonWrappedStringEnd`)
 
-            if (this.currentToken[0] !== CurrentTokenType.UNQUOTED_TOKEN) {
+            if (this.currentToken[0] !== CurrentTokenType.NONWRAPPED_STRING) {
                 throw new TokenizerStackPanicError(`Unexpected nonwrapped string end`, createRangeFromSingleLocation(location))
             }
             const $ = this.currentToken[1]
@@ -430,7 +430,7 @@ export function createTokenizer<ReturnType, ErrorType>(
                     $.wrappedStringNode += chunk.substring(begin, end)
                     break
                 }
-                case CurrentTokenType.UNQUOTED_TOKEN: {
+                case CurrentTokenType.NONWRAPPED_STRING: {
                     const $ = this.currentToken[1]
                     $.nonwrappedStringNode += chunk.substring(begin, end)
                     break
@@ -481,7 +481,7 @@ export function createTokenizer<ReturnType, ErrorType>(
                     $.wrappedStringNode = ""
                     return p.value(false)
                 }
-                case CurrentTokenType.UNQUOTED_TOKEN: {
+                case CurrentTokenType.NONWRAPPED_STRING: {
                     throw new Error(`unexpected newline`)
                 }
                 case CurrentTokenType.WHITESPACE: {

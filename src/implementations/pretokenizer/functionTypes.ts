@@ -8,7 +8,7 @@ export type TokenizerOptions = {
 export type PreTokenizerError = {
     type:
     | ["unterminated block comment"]
-    | ["found dangling slash at the end of the document"]
+    | ["found dangling slash at the end of the text"]
     | ["unterminated string"]
     | ["found dangling slash"]
     | ["expected hexadecimal digit", {

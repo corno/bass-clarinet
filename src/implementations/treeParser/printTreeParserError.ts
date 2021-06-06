@@ -40,9 +40,9 @@ export function printTreeParserError(error: TreeParserError): string {
         case "unexpected '!'": {
             return `unexpected '!'`
         }
-        case "unexpected end of document": {
+        case "unexpected end of text": {
             const $ = error.type[1]
-            return `unexpected end of document, still in ${$["still in"][0]}`
+            return `unexpected end of text, still in ${$["still in"][0]}`
         }
         case "unknown punctuation": {
             const $ = error.type[1]
