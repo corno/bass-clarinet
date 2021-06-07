@@ -20,24 +20,16 @@ export function formatCLI(
         process.exit(1)
     }
 
-    const writeStream: p.IStreamConsumer<string, null, null> = {
-        onData: str => {
-            ws.write(str)
-            return p.value(false)
-        },
-        onEnd: () => {
-            ws.end()
-            return p.value(null)
-        },
-    }
-
     const dataAsString = fs.readFileSync(sourcePath, { encoding: "utf-8" })
     formatASTNText(
         dataAsString,
         formatter,
-        writeStream,
+        str => {
+            ws.write(str)
+        },
     ).handle(
         () => {
+            ws.end()
             //nothing to do
         }
     )

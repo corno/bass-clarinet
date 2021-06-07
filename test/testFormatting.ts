@@ -1,5 +1,4 @@
 // import * as fs from "fs"
-import * as p from "pareto"
 import * as fs from "fs"
 import * as chai from "chai"
 import * as astn from "../src"
@@ -17,22 +16,14 @@ function format(
 
     let actualOut = ""
 
-    const writeStream: p.IStreamConsumer<string, null, null> = {
-        onData: str => {
-            actualOut += str
-            return p.value(false)
-        },
-        onEnd: () => {
-            return p.value(null)
-        },
-    }
-
     const expectedOut = fs.readFileSync(dir + outBasename + ".expected." + outExtension, { encoding: "utf-8" })
 
     return astn.formatASTNText(
         dataIn,
         formatter,
-        writeStream,
+        str => {
+            actualOut += str
+        },
     ).convertToNativePromise().then(() => {
         if (actualOut !== expectedOut) {
             fs.writeFileSync(dir + outBasename + ".actual." + outExtension, actualOut, { encoding: "utf-8" })

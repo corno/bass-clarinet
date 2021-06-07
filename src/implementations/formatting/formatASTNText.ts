@@ -8,12 +8,8 @@ import { ParserAnnotationData } from "../../interfaces"
 export function formatASTNText(
     astnText: string,
     formatter: core.Formatter<ParserAnnotationData, null>,
-    consumer: p.IStreamConsumer<string, null, null>,
+    write: (str: string) => void,
 ): p.IValue<null> {
-
-    function write(str: string) {
-        consumer.onData(str)
-    }
 
     return parseString(
         astnText,
@@ -64,12 +60,12 @@ export function formatASTNText(
         () => {
             write("\r\n")
             //we're only here for the side effects, so no need to handle the error
-            return consumer.onEnd(false, null)
+            return p.value(null)
         },
         () => {
             write("\r\n")
             //we're only here for the side effects, so no need to handle the result (which is 'null' anyway)
-            return consumer.onEnd(false, null)
+            return p.value(null)
         }
     )
 }
