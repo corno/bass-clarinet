@@ -129,7 +129,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             createTestTreeHandler(),
             error => {
 
-                actualEvents.push(["stacked error", core.printStackedDataError(error)])
+                actualEvents.push(["stacked error", core.printStackedDataError(error.type)])
             },
             () => {
                 return p.success<null, null>(null)

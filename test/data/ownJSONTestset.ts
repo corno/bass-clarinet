@@ -118,9 +118,9 @@ export const ownJSONTests: TestDefinitions = {
             //["validationerror", "did not expect a colon"],
             ["token", "wrappedstring", "baz", null],
             ["token", "closeobject", "}", null],
+            ["stacked error", "missing value"],
             ["parsingerror", "missing property value"],
             ["end", null],
-            ["stacked error", "missing value"],
         ],
     },
     "three byte utf8": {
@@ -178,9 +178,9 @@ export const ownJSONTests: TestDefinitions = {
             ["token", "openobject", "{", null],
             ["token", "wrappedstring", "foo", null],
             ["token", "closeobject", "}", null],
+            ["stacked error", "missing value"],
             ["parsingerror", "missing property value"],
             ["end", null],
-            ["stacked error", "missing value"],
         ],
     },
     "foobar": {
