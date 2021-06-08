@@ -338,11 +338,11 @@ describe('typed', () => {
                 }),
             }),
             [
+                ["missing", "TBD", 0, 0, 0, 0],
+                ["stacked error", "missing tagged union value", 1, 16, 1, 17],
                 ["parser error", "not in an object", 1, 16, 1, 17],
                 ["parser error", "unexpected end of text, still in tagged union", 1, 17, 1, 17],
                 ["parser error", "unexpected end of text, still in object", 1, 17, 1, 17],
-                ["missing", "TBD", 0, 0, 0, 0],
-                ["stacked error", "missing tagged union value", 1, 16, 1, 17],
             ]
         )
     })
