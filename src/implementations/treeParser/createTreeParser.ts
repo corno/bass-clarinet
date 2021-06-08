@@ -333,7 +333,7 @@ export function createTreeParser<ReturnType, ErrorType>(
 
                                 return eventsConsumer.onData({
                                     annotation: createAnnotation(tokenString, range),
-                                    type: ["identifier", {
+                                    type: ["key", {
                                         name: ((): string => {
                                             switch (data.type[0]) {
                                                 case "multiline": {
@@ -380,7 +380,7 @@ export function createTreeParser<ReturnType, ErrorType>(
 
                                 return eventsConsumer.onData({
                                     annotation: createAnnotation(tokenString, range),
-                                    type: ["identifier", {
+                                    type: ["option", {
                                         name: ((): string => {
                                             switch (data.type[0]) {
                                                 case "multiline": {

@@ -188,7 +188,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                         }
                         break
                     }
-                    case "identifier": {
+                    case "key": {
+                        const $ = data.type[1]
+                        actualEvents.push(["token", "wrappedstring", $.name, getRange(test.testForLocation, data.annotation.range)])
+                        break
+                    }
+                    case "option": {
                         const $ = data.type[1]
                         actualEvents.push(["token", "wrappedstring", $.name, getRange(test.testForLocation, data.annotation.range)])
                         break

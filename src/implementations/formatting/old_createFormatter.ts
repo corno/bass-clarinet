@@ -224,14 +224,14 @@ export function createFormatter(
 					precedingToken = [PrecedingTokenType.option]
 					break
 				}
-				case "identifier": {
+				case "key": {
 					semanticToken(data.annotation.range.start)
-					if (precedingToken[0] === PrecedingTokenType.pipe) {
-						precedingToken = [PrecedingTokenType.option]
-					} else {
-						precedingToken = [PrecedingTokenType.other]
-					}
-
+					precedingToken = [PrecedingTokenType.other]
+					break
+				}
+				case "option": {
+					semanticToken(data.annotation.range.start)
+					precedingToken = [PrecedingTokenType.option]
 					break
 				}
 				case "tagged union": {
