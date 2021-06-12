@@ -65,7 +65,7 @@
   },
   "license": "BSD-2-Clause",
   "dependencies": {
-    "astn-core": "^0.1.19",
+    "astn-core": "^0.1.20",
     "fountain-pen": "^3.5.4",
     "pareto": "^0.51.1"
   },
