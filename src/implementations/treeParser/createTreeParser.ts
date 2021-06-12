@@ -497,7 +497,7 @@ export function createTreeParser<ReturnType, ErrorType>(
         private onObjectClose(closeCharacter: ")" | "}", range: Range, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
             return eventsConsumer.onData({
                 annotation: createAnnotation(closeCharacter, range),
-                type: ["close object"],
+                type: ["close object", {}],
             }).mapResult(() => {
                 if (currentContext === null || currentContext.type[0] !== StackContextType2.OBJECT) {
                     raiseError(["not in an object"], range)
@@ -548,7 +548,7 @@ export function createTreeParser<ReturnType, ErrorType>(
 
             return eventsConsumer.onData({
                 annotation: createAnnotation(closeCharacter, range),
-                type: ["close array"],
+                type: ["close array", {}],
             }).mapResult(() => {
                 if (currentContext === null || currentContext.type[0] !== StackContextType2.ARRAY) {
                     raiseError(["not in an array"], range)

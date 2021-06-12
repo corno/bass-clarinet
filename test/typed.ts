@@ -85,7 +85,7 @@ describe('typed', () => {
                                     }
                                 ),
                             },
-                            err=> {
+                            err => {
                                 const end = astn.getEndLocationFromRange(err.annotation.range)
 
                                 foundErrors.push(["stacked error", err.type[0], err.annotation.range.start.line, err.annotation.range.start.column, end.line, end.column])
@@ -122,24 +122,29 @@ describe('typed', () => {
         doTest(
             'duplicate entry',
             `{ "a": (), "a": () }`,
-            expect => expect.expectValue({
-                handler: expect.expectDictionary({
-                    onBegin: () => {
+            expect => {
+                return {
+                    exists: expect.expectDictionary({
+                        onBegin: () => {
+                            //
+                        },
+                        onProperty: () => {
+                            return {
+                                exists: expect.expectType({}),
+                                missing: () => {
+                                    //
+                                },
+                            }
+                        },
+                        onEnd: () => {
+                            //
+                        },
+                    }),
+                    missing: () => {
                         //
                     },
-                    onProperty: () => {
-                        return {
-                            exists: expect.expectType({}),
-                            missing: () => {
-                                //
-                            },
-                        }
-                    },
-                    onEnd: () => {
-                        //
-                    },
-                }),
-            }),
+                }
+            },
             [
                 ["expect warning", "duplicate entry: 'a'", 1, 12, 1, 15],
             ]
@@ -270,73 +275,83 @@ describe('typed', () => {
         doTest(
             'tagged union',
             `( "a": | "foo" () )`,
-            expect => expect.expectValue({
-                handler: expect.expectType({
-                    properties: {
-                        a: {
-                            onExists: () => {
-                                return {
-                                    exists: expect.expectTaggedUnion({
-                                        options: {
-                                            foo: () => {
-                                                return {
-                                                    exists: expect.expectType({
-                                                        properties: {
+            expect => {
+                return {
+                    missing: () => {
+                        //
+                    },
+                    exists: expect.expectType({
+                        properties: {
+                            a: {
+                                onExists: () => {
+                                    return {
+                                        exists: expect.expectTaggedUnion({
+                                            options: {
+                                                foo: () => {
+                                                    return {
+                                                        exists: expect.expectType({
+                                                            properties: {
+                                                                //
+                                                            },
+                                                        }),
+                                                        missing: () => {
                                                             //
                                                         },
-                                                    }),
-                                                    missing: () => {
-                                                        //
-                                                    },
-                                                }
+                                                    }
+                                                },
                                             },
+                                        }),
+                                        missing: () => {
+                                            //
                                         },
-                                    }),
-                                    missing: () => {
-                                        //
-                                    },
-                                }
+                                    }
+                                },
+                                onNotExists: null,
                             },
-                            onNotExists: null,
                         },
-                    },
-                }),
-            }),
+                    }),
+                }
+            },
             []
         )
         doTest(
             'invalid tagged union',
             `( "a": | "foo" )`,
-            (expect, addError) => expect.expectValue({
-                handler: expect.expectType({
-                    properties: {
-                        a: {
-                            onExists: (): core.RequiredValueHandler<astn.ParserAnnotationData, null> => {
-                                return {
-                                    exists: expect.expectTaggedUnion({
-                                        options: {
-                                            foo: () => {
-                                                return {
-                                                    exists: expect.expectType({}),
-                                                    missing: () => {
-                                                        addError(["missing", "TBD", 0, 0, 0, 0])
-                                                    },
-                                                }
+            (expect, addError) => {
+                return {
+                    missing: () => {
+                        //
+                    },
+                    exists: expect.expectType({
+                        properties: {
+                            a: {
+                                onExists: (): core.RequiredValueHandler<astn.ParserAnnotationData, null> => {
+                                    return {
+                                        exists: expect.expectTaggedUnion({
+                                            options: {
+                                                foo: () => {
+                                                    return {
+                                                        exists: expect.expectType({}),
+                                                        missing: () => {
+                                                            addError(["missing", "TBD", 0, 0, 0, 0])
+                                                        },
+                                                    }
+                                                },
                                             },
+                                        }),
+                                        missing: () => {
+                                            //
                                         },
-                                    }),
-                                    missing: () => {
-                                        //
-                                    },
-                                }
-                            },
-                            onNotExists: () => {
-                                //
+                                    }
+                                },
+                                onNotExists: () => {
+                                    //
+                                },
                             },
                         },
-                    },
-                }),
-            }),
+                    }),
+                }
+            },
             [
                 ["missing", "TBD", 0, 0, 0, 0],
                 ["stacked error", "missing tagged union value", 1, 16, 1, 17],
