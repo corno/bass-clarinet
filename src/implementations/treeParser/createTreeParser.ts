@@ -14,10 +14,11 @@ import {
 import {
     Token,
     TokenType,
-    StringData,
+    SimpleStringData,
     PunctionationData,
     ITreeParser,
     OverheadTokenType,
+    MultilineStringData,
 } from "../../interfaces/ITreeParser"
 import * as Char from "../../generic/characters"
 import { ParserAnnotationData } from "../../interfaces"
@@ -250,26 +251,31 @@ export function createTreeParser<ReturnType, ErrorType>(
                     indentationState.setLineDirty()
                     return this.onPunctuation(token.range, token.tokenString, $, onStackEmpty)
                 }
-                case TokenType.String: {
+                case TokenType.SimpleString: {
                     const $ = token.type[1]
                     indentationState.setLineDirty()
-                    return this.onString(token.range, token.tokenString, $, onStackEmpty)
+                    return this.onSimpleString(token.range, token.tokenString, $, onStackEmpty)
+                }
+                case TokenType.MultilineString: {
+                    const $ = token.type[1]
+                    indentationState.setLineDirty()
+                    return this.onMultilineString(token.range, token.tokenString, $, onStackEmpty)
                 }
                 default:
                     return assertUnreachable(token.type[0])
             }
         }
-        private onString(
+        private onMultilineString(
             range: Range,
             tokenString: string,
-            data: StringData,
+            data: MultilineStringData,
             onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
 
 
             if (currentContext === null) {
                 return onStackEmpty(eventsConsumer.onEnd(false, createAnnotation(tokenString, range)))
             } else {
-                const sendStringValue = (data2: StringData) => {
+                const sendStringValue = (data2: MultilineStringData) => {
 
                     function trimStringLines(lines: string[], indentation: string) {
                         return lines.map((line, index) => {
@@ -285,36 +291,87 @@ export function createTreeParser<ReturnType, ErrorType>(
 
                     return eventsConsumer.onData({
                         annotation: createAnnotation(tokenString, range),
-                        type: ["string value", {
-                            type: ((): core.TreeBuilderStringValueDataType => {
-                                switch (data2.type[0]) {
-                                    case "multiline": {
-                                        const $ = data2.type[1]
-                                        return ["multiline", {
-                                            lines: trimStringLines($.lines, indentationState.getIndentation()),
+                        type: ["multiline string", {
+                            lines: trimStringLines(data2.lines, indentationState.getIndentation()),
+                        }],
+                    })
+                }
+                switch (currentContext.type[0]) {
+                    case StackContextType2.ARRAY: {
+                        return sendStringValue(data)
+                    }
+                    case StackContextType2.OBJECT: {
+                        const $$ = currentContext.type[1]
+
+                        switch ($$.state) {
+                            case ObjectState.EXPECTING_KEY:
+
+                                raiseError(["expected key"], range)
+                                return p.value(false)
+
+                            case ObjectState.EXPECTING_OBJECT_VALUE:
+
+                                $$.state = ObjectState.EXPECTING_KEY
+                                return sendStringValue(data)
+
+                            default:
+                                return assertUnreachable($$.state)
+                        }
+                    }
+                    case StackContextType2.TAGGED_UNION: {
+                        const $$ = currentContext.type[1]
+
+                        switch ($$.state) {
+                            case TaggedUnionState.EXPECTING_OPTION:
+                                raiseError(["expected option"], range)
+                                return p.value(false)
+                            case TaggedUnionState.EXPECTING_VALUE: {
+                                return sendStringValue(data).mapResult(() => {
+                                    return this.popContext(range, onStackEmpty)
+                                })
+                            }
+                            default:
+                                return assertUnreachable($$.state)
+                        }
+                    }
+                    default:
+                        return assertUnreachable(currentContext.type[0])
+                }
+            }
+
+        }
+        private onSimpleString(
+            range: Range,
+            tokenString: string,
+            data: SimpleStringData,
+            onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+
+
+            if (currentContext === null) {
+                return onStackEmpty(eventsConsumer.onEnd(false, createAnnotation(tokenString, range)))
+            } else {
+                const sendStringValue = (data2: SimpleStringData) => {
+
+                    return eventsConsumer.onData({
+                        annotation: createAnnotation(tokenString, range),
+                        type: ["simple string", {
+                            value: data.value,
+                            wrapping: ((): core.TreeBuilderWrappingType => {
+                                switch (data2.wrapping[0]) {
+                                    case "apostrophe": {
+                                        return ["apostrophe", {
                                         }]
                                     }
-                                    case "apostrophed": {
-                                        //CAST TO QUOTED
-                                        const $ = data2.type[1]
-                                        return ["quoted", {
-                                            value: $.value,
+                                    case "none": {
+                                        return ["none", {
                                         }]
                                     }
-                                    case "nonwrapped": {
-                                        const $ = data2.type[1]
-                                        return ["nonwrapped", {
-                                            value: $.value,
-                                        }]
-                                    }
-                                    case "quoted": {
-                                        const $ = data2.type[1]
-                                        return ["quoted", {
-                                            value: $.value,
+                                    case "quote": {
+                                        return ["quote", {
                                         }]
                                     }
                                     default:
-                                        return assertUnreachable(data2.type[0])
+                                        return assertUnreachable(data2.wrapping[0])
                                 }
                             })(),
                         }],
@@ -331,36 +388,7 @@ export function createTreeParser<ReturnType, ErrorType>(
                             case ObjectState.EXPECTING_KEY:
                                 $$.state = ObjectState.EXPECTING_OBJECT_VALUE
 
-                                return eventsConsumer.onData({
-                                    annotation: createAnnotation(tokenString, range),
-                                    type: ["key", {
-                                        name: ((): string => {
-                                            switch (data.type[0]) {
-                                                case "multiline": {
-                                                    //CAST TO APOSTROPHED
-                                                    const $ = data.type[1]
-                                                    return $.lines.join("\n")
-                                                }
-                                                case "apostrophed": {
-                                                    const $ = data.type[1]
-                                                    return $.value
-                                                }
-                                                case "nonwrapped": {
-                                                    //CAST TO APOSTROPHED
-                                                    const $ = data.type[1]
-                                                    return $.value
-                                                }
-                                                case "quoted": {
-                                                    //CAST TO APOSTROPHED
-                                                    const $ = data.type[1]
-                                                    return $.value
-                                                }
-                                                default:
-                                                    return assertUnreachable(data.type[0])
-                                            }
-                                        })(),
-                                    }],
-                                })
+                                return sendStringValue(data)
 
                             case ObjectState.EXPECTING_OBJECT_VALUE:
 
@@ -377,37 +405,7 @@ export function createTreeParser<ReturnType, ErrorType>(
                         switch ($$.state) {
                             case TaggedUnionState.EXPECTING_OPTION:
                                 $$.state = TaggedUnionState.EXPECTING_VALUE
-
-                                return eventsConsumer.onData({
-                                    annotation: createAnnotation(tokenString, range),
-                                    type: ["option", {
-                                        name: ((): string => {
-                                            switch (data.type[0]) {
-                                                case "multiline": {
-                                                    //CAST TO APOSTROPHED
-                                                    const $ = data.type[1]
-                                                    return $.lines.join("\n")
-                                                }
-                                                case "apostrophed": {
-                                                    const $ = data.type[1]
-                                                    return $.value
-                                                }
-                                                case "nonwrapped": {
-                                                    //CAST TO APOSTROPHED
-                                                    const $ = data.type[1]
-                                                    return $.value
-                                                }
-                                                case "quoted": {
-                                                    //CAST TO APOSTROPHED
-                                                    const $ = data.type[1]
-                                                    return $.value
-                                                }
-                                                default:
-                                                    return assertUnreachable(data.type[0])
-                                            }
-                                        })(),
-                                    }],
-                                })
+                                return sendStringValue(data)
                             case TaggedUnionState.EXPECTING_VALUE: {
 
                                 return sendStringValue(data).mapResult(() => {

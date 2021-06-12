@@ -106,7 +106,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                     }
 
                 },
-                string: () => {
+                simpleString: () => {
+                    return p.value(false)
+                },
+                multilineString: () => {
                     return p.value(false)
                 },
                 taggedUnion: () => {
@@ -159,43 +162,15 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                         actualEvents.push(["token", "openobject", data.annotation.tokenString, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
-                    case "string value": {
+                    case "multiline string": {
                         const $ = data.type[1]
-                        switch ($.type[0]) {
-                            case "multiline": {
-                                const $$ = $.type[1]
-                                if (DEBUG) console.log("found wrapped string")
-                                actualEvents.push(["token", "wrappedstring", $$.lines.join("\\n"), getRange(test.testForLocation, data.annotation.range)])
-
-                                break
-                            }
-                            case "quoted": {
-                                const $$ = $.type[1]
-                                if (DEBUG) console.log("found wrapped string")
-                                actualEvents.push(["token", "wrappedstring", $$.value, getRange(test.testForLocation, data.annotation.range)])
-
-                                break
-                            }
-                            case "nonwrapped": {
-                                const $$ = $.type[1]
-                                if (DEBUG) console.log("found nonwrapped string")
-                                actualEvents.push(["token", "nonwrappedstring", $$.value, getRange(test.testForLocation, data.annotation.range)])
-
-                                break
-                            }
-                            default:
-                                assertUnreachable($.type[0])
-                        }
+                        if (DEBUG) console.log("found wrapped string")
+                        actualEvents.push(["token", "multiline string", $.lines.join("\\n"), getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
-                    case "key": {
+                    case "simple string": {
                         const $ = data.type[1]
-                        actualEvents.push(["token", "wrappedstring", $.name, getRange(test.testForLocation, data.annotation.range)])
-                        break
-                    }
-                    case "option": {
-                        const $ = data.type[1]
-                        actualEvents.push(["token", "wrappedstring", $.name, getRange(test.testForLocation, data.annotation.range)])
+                        actualEvents.push(["token", "simple string", $.value, getRange(test.testForLocation, data.annotation.range)])
                         break
                     }
                     case "tagged union": {
@@ -216,52 +191,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 return p.success(null)
             },
         }
-
-        let formattedText = test.text
-        let offset = 0
-
-        function createFormatter() {
-            return astn.createFormatter(
-                "    ",
-                (range, newValue) => {
-                    formattedText =
-                        formattedText.substr(0, offset + range.start.position) +
-                        newValue +
-                        formattedText.substr(offset + astn.getEndLocationFromRange(range).position)
-                    offset +=
-                        + newValue.length
-                        - range.length
-                },
-                range => {
-                    formattedText =
-                        formattedText.substr(0, offset + range.start.position) +
-                        formattedText.substr(offset + range.start.position + range.length)
-                    offset +=
-                        - range.length
-                },
-                (location, value) => {
-                    formattedText =
-                        formattedText.substr(0, offset + location.position) +
-                        value +
-                        formattedText.substr(offset + location.position)
-                    offset += value.length
-                },
-                () => {
-
-                    return p.value(null)
-
-                },
-            )
-        }
         const out: string[] = []
         const schemaDataSubscribers: core.ITreeBuilder<ParserAnnotationData, null, null>[] = [
             eventSubscriber,
-            createFormatter(),
         ]
         const instanceDataSubscribers: core.ITreeBuilder<ParserAnnotationData, null, null>[] = [
             eventSubscriber,
             stackedSubscriber,
-            createFormatter(),
         ]
         const headerSubscribers: HeaderSubscriber[] = [
             {

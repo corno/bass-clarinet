@@ -40,19 +40,13 @@ export const parserEventConsumer: core.ITreeBuilder<astn.ParserAnnotationData, n
                 //place your code here
                 break
             }
-            case "string value": {
+            case "simple string": {
                 //const $ = data.type[1]
                 //place your code here
                 //in strict JSON, the value is a string, a number, null, true or false
                 break
             }
-            case "key": {
-                //const $ = data.type[1]
-                //place your code here
-                //in strict JSON, the value is a string, a number, null, true or false
-                break
-            }
-            case "option": {
+            case "multiline string": {
                 //const $ = data.type[1]
                 //place your code here
                 //in strict JSON, the value is a string, a number, null, true or false

@@ -10,6 +10,9 @@ export function printTreeParserError(error: TreeParserError): string {
         case "expected option": {
             return `expected option`
         }
+        case "expected key": {
+            return `expected key`
+        }
         case "missing property value": {
             return `missing property value`
         }

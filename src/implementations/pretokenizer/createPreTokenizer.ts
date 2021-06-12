@@ -541,7 +541,7 @@ export function createPreTokenizer(
                                                 }],
                                                 {
                                                     type: [PreTokenDataType.WrappedStringBegin, {
-                                                        type: ["apostrophed", {}],
+                                                        type: ["apostrophe", {}],
                                                         range: getCurrentCharacterRange(this.locationState),
                                                     }],
                                                 },
@@ -581,7 +581,7 @@ export function createPreTokenizer(
                                                 }],
                                                 {
                                                     type: [PreTokenDataType.WrappedStringBegin, {
-                                                        type: ["quoted", {}],
+                                                        type: ["quote", {}],
                                                         range: getCurrentCharacterRange(this.locationState),
                                                     }],
                                                 },

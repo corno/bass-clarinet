@@ -8,7 +8,7 @@ import { RangeError } from "../../generic/errors"
 import { IPreTokenStreamConsumer } from "../../interfaces/IPreTokenStreamConsumer"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
 import { PreToken, PreTokenDataType, WrappedStringType } from "../../interfaces/IPreTokenStreamConsumer"
-import { OverheadTokenType, StringType, TokenType } from "../../interfaces/ITreeParser"
+import { OverheadTokenType, TokenType } from "../../interfaces/ITreeParser"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -255,9 +255,9 @@ export function createTokenizer<ReturnType, ErrorType>(
             return this.parser.onData({
                 tokenString: "",
                 range: range,
-                type: [TokenType.String, {
-                    type: ["nonwrapped", {
-                        value: value,
+                type: [TokenType.SimpleString, {
+                    value: value,
+                    wrapping: ["none", {
                     }],
                     //startCharacter: $tok.startCharacter,
                     //terminated: null,
@@ -315,51 +315,46 @@ export function createTokenizer<ReturnType, ErrorType>(
             const range = createRangeFromLocations($tok.start.start, getEndLocationFromRange(end))
 
             this.unsetCurrentToken(end)
-            return this.parser.onData({
-                tokenString: ((): string => {
-                    switch ($.type[0]) {
-                        case "apostrophed": {
-                            return `'${$.wrappedStringNode}'`
-                        }
-                        case "multiline": {
-                            return `\`${$.type[1].previousLines.concat([$.wrappedStringNode]).join("\n")}\``
-                        }
-                        case "quoted": {
-                            return `'${$.wrappedStringNode}'`
-                        }
-                        default:
-                            return assertUnreachable($.type[0])
-                    }
-                })(),
-                range: range,
-                type: [TokenType.String, {
-                    type: ((): StringType => {
-                        switch ($.type[0]) {
-                            case "apostrophed": {
-                                return ["apostrophed", {
-                                    value: $.wrappedStringNode,
-                                    terminated: wrapper !== null,
-                                }]
-                            }
-                            case "multiline": {
-                                const $$ = $.type[1]
-                                return ["multiline", {
-                                    lines: $$.previousLines.concat([$.wrappedStringNode]),
-                                    terminated: wrapper !== null,
-                                }]
-                            }
-                            case "quoted": {
-                                return ["quoted", {
-                                    value: $.wrappedStringNode,
-                                    terminated: wrapper !== null,
-                                }]
-                            }
-                            default:
-                                return assertUnreachable($.type[0])
-                        }
-                    })(),
-                }],
-            })
+
+            switch ($.type[0]) {
+                case "apostrophe": {
+                    return this.parser.onData({
+                        tokenString: `'${$.wrappedStringNode}'`,
+                        range: range,
+                        type: [TokenType.SimpleString, {
+                            value: $.wrappedStringNode,
+                            wrapping: ["apostrophe", {
+                                terminated: wrapper !== null,
+                            }],
+                        }],
+                    })
+                }
+                case "multiline": {
+                    const $$ = $.type[1]
+                    return this.parser.onData({
+                        tokenString: `\`${$.type[1].previousLines.concat([$.wrappedStringNode]).join("\n")}\``,
+                        range: range,
+                        type: [TokenType.MultilineString, {
+                            lines: $$.previousLines.concat([$.wrappedStringNode]),
+                            terminated: wrapper !== null,
+                        }],
+                    })
+                }
+                case "quote": {
+                    return this.parser.onData({
+                        tokenString: `'${$.wrappedStringNode}'`,
+                        range: range,
+                        type: [TokenType.SimpleString, {
+                            value: $.wrappedStringNode,
+                            wrapping: ["quote", {
+                                terminated: wrapper !== null,
+                            }],
+                        }],
+                    })
+                }
+                default:
+                    return assertUnreachable($.type[0])
+            }
         }
         private onLineCommentBegin(range: Range): p.IValue<boolean> {
             if (DEBUG) console.log(`onLineCommentBegin`)

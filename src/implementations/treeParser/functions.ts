@@ -19,6 +19,7 @@ export type TreeParserErrorType =
     | ["not in an array"]
     | ["missing property value"]
     | ["expected option"]
+    | ["expected key"]
     | ["unknown punctuation", {
         found: string
     }]

@@ -59,20 +59,17 @@
             'comma after last property': "foo",
         )
         'strings': (
-            `multiline string as type key`: "foo"
             'quoted string with escaped apostrophe': "\'"
             'multiline string with escaped apostrophe': `\'`
             'key with escaped string: \"': "foo"
             "qouted type property key": "foo"
             'escaped newline in multiline string': `foo\nfoo`
             'wrapped tagged union option': | "bar" ()
-            'backticked tagged union option': | `bar` ()
             'nonwrapped tagged union option': | baz ()
 	    
             'multiline string with wrong indentation': `foo
         foo`
             'object keys': {
-                `backticks`: "foo"
                 'apostrophes': "foo"
                 nonwrapped: "foo"
             }

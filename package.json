@@ -51,7 +51,7 @@
     "testOwnSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/testTestSets.js",
     "testFormatting": "tsc && node ./node_modules/mocha/bin/mocha dist/test/testFormatting.js",
     "testJSONTestSuite": "tsc && node ./node_modules/mocha/bin/mocha dist/test/JSONTestSuite.js",
-    "update2latest": "ncu -u --packageFile package.json && nsi",
+    "update2latest": "ncu -u --packageFile package.json && nsi && tsc",
     "update2latestAndPublishMinor": "npm run validatePublishReadiness && npm run update2latest && npm run test && git commit -am \"u2l\" && npm run pubMin",
     "update2latestAndPublishPath": "npm run validatePublishReadiness && npm run update2latest && npm run test && git commit -am \"u2l\" && npm run pubPatch"
   },
@@ -65,7 +65,7 @@
   },
   "license": "BSD-2-Clause",
   "dependencies": {
-    "astn-core": "^0.1.13",
+    "astn-core": "^0.1.18",
     "fountain-pen": "^3.5.4",
     "pareto": "^0.51.1"
   },

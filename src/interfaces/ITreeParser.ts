@@ -1,26 +1,24 @@
 import * as p from "pareto"
 import { Location, Range } from "../generic/location"
 
-export type StringType =
-    | ["multiline", {
-        lines: string[]
+export type Wrapping =
+    | ["quote", {
         terminated: boolean
     }]
-    | ["quoted", {
-        value: string
+    | ["apostrophe", {
         terminated: boolean
     }]
-    | ["apostrophed", {
-        value: string
-        terminated: boolean
-    }]
-    | ["nonwrapped", {
-        value: string
-
+    | ["none", {
     }]
 
-export type StringData = {
-    type: StringType
+export type SimpleStringData = {
+    wrapping: Wrapping
+    value: string
+}
+
+export type MultilineStringData = {
+    lines: string[]
+    terminated: boolean
 }
 
 export type WhiteSpaceData = {
@@ -55,7 +53,8 @@ export type OverheadToken = {
 export enum TokenType {
     Overhead,
     Structural,
-    String,
+    SimpleString,
+    MultilineString,
 }
 
 
@@ -65,7 +64,8 @@ export type Token = {
     type:
     | [TokenType.Overhead, OverheadToken]
     | [TokenType.Structural, PunctionationData]
-    | [TokenType.String, StringData]
+    | [TokenType.SimpleString, SimpleStringData]
+    | [TokenType.MultilineString, MultilineStringData]
 }
 export interface ITreeParser<ReturnType, ErrorType> {
     forceEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType>

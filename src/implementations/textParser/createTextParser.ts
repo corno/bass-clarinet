@@ -8,7 +8,7 @@ import { Location, Range, printRange, getEndLocationFromRange, createRangeFromSi
 import * as Char from "../../generic/characters"
 import { createTreeParser } from "../treeParser"
 import { TextErrorType, TextParserError } from "./functionTypes"
-import { ITreeParser, OverheadToken, PunctionationData, StringData, Token, TokenType } from "../../interfaces/ITreeParser"
+import { ITreeParser, MultilineStringData, OverheadToken, PunctionationData, SimpleStringData, Token, TokenType } from "../../interfaces/ITreeParser"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
 import { ParserAnnotationData } from "../../interfaces"
 
@@ -158,7 +158,8 @@ export function createTextParser<ReturnType, ErrorType>(
         private handleToken(
             token: Token,
             onPunctuation: (data: PunctionationData) => p.IValue<boolean>,
-            onString: (stringData: StringData) => p.IValue<boolean>,
+            onSimpleString: (stringData: SimpleStringData) => p.IValue<boolean>,
+            onMultilineString: (stringData: MultilineStringData) => p.IValue<boolean>,
         ): p.IValue<boolean> {
             switch (token.type[0]) {
                 case TokenType.Overhead: {
@@ -169,9 +170,13 @@ export function createTextParser<ReturnType, ErrorType>(
                     const $ = token.type[1]
                     return onPunctuation($)
                 }
-                case TokenType.String: {
+                case TokenType.SimpleString: {
                     const $ = token.type[1]
-                    return onString($)
+                    return onSimpleString($)
+                }
+                case TokenType.MultilineString: {
+                    const $ = token.type[1]
+                    return onMultilineString($)
                 }
                 default:
                     return assertUnreachable(token.type[0])
@@ -188,11 +193,14 @@ export function createTextParser<ReturnType, ErrorType>(
                                     this.rootContext.state = [TextState.EXPECTING_SCHEMA]
                                     return p.value(false)
                                 default:
-                                    return this.processComplexValueInstanceData(data, data.range)
+                                    return this.processComplexValueBodyData(data, data.range)
                             }
                         },
                         string => {
-                            return this.processStringInstanceData(string, data)
+                            return this.processSimpleStringBodyData(string, data)
+                        },
+                        string => {
+                            return this.processMultilineStringBodyData(string, data)
                         }
                     )
                 }
@@ -231,39 +239,9 @@ export function createTextParser<ReturnType, ErrorType>(
                             const consumer = onSchemaDataStart(data.range)
                             return consumer.onData({
                                 annotation: createAnnotation(data),
-                                type: ["string value", {
-
-                                    type: ((): core.TreeBuilderStringValueDataType => {
-                                        switch (stringData.type[0]) {
-                                            case "multiline": {
-                                                const $ = stringData.type[1]
-                                                return ["multiline", {
-                                                    lines: $.lines,
-                                                }]
-                                            }
-                                            case "apostrophed": {
-                                                //CAST TO QUOTED
-                                                const $ = stringData.type[1]
-                                                return ["quoted", {
-                                                    value: $.value,
-                                                }]
-                                            }
-                                            case "nonwrapped": {
-                                                const $ = stringData.type[1]
-                                                return ["nonwrapped", {
-                                                    value: $.value,
-                                                }]
-                                            }
-                                            case "quoted": {
-                                                const $ = stringData.type[1]
-                                                return ["quoted", {
-                                                    value: $.value,
-                                                }]
-                                            }
-                                            default:
-                                                return assertUnreachable(stringData.type[0])
-                                        }
-                                    })(),
+                                type: ["simple string", {
+                                    value: stringData.value,
+                                    wrapping: stringData.wrapping,
                                 }],
                             }).mapResult(() => {
                                 this.rootContext.state = [TextState.EXPECTING_BODY, {
@@ -277,7 +255,27 @@ export function createTextParser<ReturnType, ErrorType>(
                                     },
                                 )
                             })
-                        }
+                        },
+                        stringData => {
+                            const consumer = onSchemaDataStart(data.range)
+                            return consumer.onData({
+                                annotation: createAnnotation(data),
+                                type: ["multiline string", {
+                                    lines: stringData.lines,
+                                }],
+                            }).mapResult(() => {
+                                this.rootContext.state = [TextState.EXPECTING_BODY, {
+                                }]
+                                return consumer.onEnd(false, createEndAnnotation2(getEndLocationFromRange(data.range))).reworkAndCatch(
+                                    () => {
+                                        return p.value(false)
+                                    },
+                                    () => {
+                                        return p.value(false)
+                                    },
+                                )
+                            })
+                        },
                     )
                 }
                 case TextState.PROCESSING_SCHEMA: {
@@ -301,11 +299,14 @@ export function createTextParser<ReturnType, ErrorType>(
                     return this.handleToken(
                         data,
                         _punctuation => {
-                            return this.processComplexValueInstanceData(data, data.range)
+                            return this.processComplexValueBodyData(data, data.range)
                         },
                         string => {
-                            return this.processStringInstanceData(string, data)
-                        }
+                            return this.processSimpleStringBodyData(string, data)
+                        },
+                        string => {
+                            return this.processMultilineStringBodyData(string, data)
+                        },
                     )
                 }
                 case TextState.PROCESSING_BODY: {
@@ -326,41 +327,24 @@ export function createTextParser<ReturnType, ErrorType>(
                             return p.value(false)
                         },
                         string => {
-
-                            const valueAsString = (($: StringData): string => {
-                                switch ($.type[0]) {
-                                    case "quoted": {
-                                        const $$ = $.type[1]
-                                        return $$.value
-                                    }
-                                    case "apostrophed": {
-                                        const $$ = $.type[1]
-                                        return $$.value
-                                    }
-                                    case "multiline": {
-                                        const $$ = $.type[1]
-                                        return $$.lines.join("\n")
-                                    }
-                                    case "nonwrapped": {
-                                        const $$ = $.type[1]
-                                        return $$.value
-                                    }
-                                    default:
-                                        return assertUnreachable($.type[0])
-                                }
-                            })(string)
                             this.raiseStructureError([`unexpected data after end`, {
-                                data: valueAsString,
+                                data: string.value,
                             }], data.range)
                             return p.value(false)
-                        }
+                        },
+                        string => {
+                            this.raiseStructureError([`unexpected data after end`, {
+                                data: string.lines.join("\n"),
+                            }], data.range)
+                            return p.value(false)
+                        },
                     )
                 }
                 default:
                     return assertUnreachable(this.rootContext.state[0])
             }
         }
-        private processComplexValueInstanceData(data: Token, range: Range) {
+        private processComplexValueBodyData(data: Token, range: Range) {
             const bp = createTreeParser(
                 (error, errorRange) => {
                     onerror(
@@ -382,43 +366,30 @@ export function createTextParser<ReturnType, ErrorType>(
                 return p.value(false)
             })
         }
-        private processStringInstanceData(data2: StringData, token: Token) {
+        private processSimpleStringBodyData(data2: SimpleStringData, token: Token) {
 
             const consumer = onInstanceDataStart(token.range.start)
             return consumer.onData({
                 annotation: createAnnotation(token),
-                type: ["string value", {
-                    type: ((): core.TreeBuilderStringValueDataType => {
-                        switch (data2.type[0]) {
-                            case "multiline": {
-                                const $ = data2.type[1]
-                                return ["multiline", {
-                                    lines: $.lines,
-                                }]
-                            }
-                            case "apostrophed": {
-                                //CAST TO QUOTED
-                                const $ = data2.type[1]
-                                return ["quoted", {
-                                    value: $.value,
-                                }]
-                            }
-                            case "nonwrapped": {
-                                const $ = data2.type[1]
-                                return ["nonwrapped", {
-                                    value: $.value,
-                                }]
-                            }
-                            case "quoted": {
-                                const $ = data2.type[1]
-                                return ["quoted", {
-                                    value: $.value,
-                                }]
-                            }
-                            default:
-                                return assertUnreachable(data2.type[0])
-                        }
-                    })(),
+                type: ["simple string", {
+                    value: data2.value,
+                    wrapping: data2.wrapping,
+                }],
+            }).mapResult(() => {
+                this.rootContext.state = [TextState.EXPECTING_END, {
+                    result: consumer.onEnd(false, createAnnotation(token)),
+                }]
+                return p.value(false)
+            })
+
+        }
+        private processMultilineStringBodyData(data2: MultilineStringData, token: Token) {
+            const consumer = onInstanceDataStart(token.range.start)
+            return consumer.onData({
+                annotation: createAnnotation(token),
+                type: ["multiline string", {
+                    lines: data2.lines,
+
                 }],
             }).mapResult(() => {
                 this.rootContext.state = [TextState.EXPECTING_END, {

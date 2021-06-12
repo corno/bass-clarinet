@@ -35,9 +35,9 @@ export function printPreTokenData(tokenData: PreToken): string {
             const $ = tokenData.type[1]
             const wrapper = ((): string => {
                 switch ($.type[0]) {
-                    case "apostrophed": return "'"
+                    case "apostrophe": return "'"
                     case "multiline": return "`"
-                    case "quoted": return "\""
+                    case "quote": return "\""
                     default: return assertUnreachable($.type[0])
                 }
             })()
