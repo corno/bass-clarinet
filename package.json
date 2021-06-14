@@ -69,6 +69,7 @@
     "fountain-pen": "^3.5.4",
     "pareto": "^0.51.1"
   },
+  "type": "module",
   "bin": {
     "astn-normalize": "bin/normalizeFile.mjs",
     "astn-to-json": "bin/toJSON.mjs"
