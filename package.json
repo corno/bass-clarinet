@@ -70,7 +70,7 @@
     "pareto": "^0.51.1"
   },
   "bin": {
-    "astn-normalize": "bin/normalizeFile.js",
-    "astn-to-json": "bin/toJSON.js"
+    "astn-normalize": "bin/normalizeFile.mjs",
+    "astn-to-json": "bin/toJSON.mjs"
   }
 }
