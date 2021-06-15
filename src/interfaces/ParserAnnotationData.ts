@@ -1,3 +1,4 @@
+import * as p from "pareto"
 import {
     Range,
 } from "../generic/location"
@@ -38,9 +39,9 @@ export type ParserAnnotationData = {
     range: Range
 }
 
-export type ParserTreeHandler = TreeHandler<ParserAnnotationData, null>
-export type ParserRequiredValueHandler = RequiredValueHandler<ParserAnnotationData, null>
-export type ParserValueHandler = ValueHandler<ParserAnnotationData, null>
-export type ParserObjectHandler = ObjectHandler<ParserAnnotationData, null>
-export type ParserTaggedUnionHandler = TaggedUnionHandler<ParserAnnotationData, null>
-export type ParserArrayHandler = ArrayHandler<ParserAnnotationData, null>
+export type ParserTreeHandler = TreeHandler<ParserAnnotationData, null, p.IValue<null>>
+export type ParserRequiredValueHandler = RequiredValueHandler<ParserAnnotationData, null, p.IValue<null>>
+export type ParserValueHandler = ValueHandler<ParserAnnotationData, null, p.IValue<null>>
+export type ParserObjectHandler = ObjectHandler<ParserAnnotationData, null, p.IValue<null>>
+export type ParserTaggedUnionHandler = TaggedUnionHandler<ParserAnnotationData, null, p.IValue<null>>
+export type ParserArrayHandler = ArrayHandler<ParserAnnotationData, null, p.IValue<null>>

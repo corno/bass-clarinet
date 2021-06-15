@@ -34,7 +34,7 @@ describe('typed', () => {
             testName: string,
             data: string,
             callback: (
-                expect: core.IExpectContext<astn.ParserAnnotationData, null>,
+                expect: core.IExpectContext<astn.ParserAnnotationData, null, p.IValue<null>>,
                 addError: (errorLine: ErrorLine) => void
             ) => astn.ParserRequiredValueHandler,
             expectedErrors: ErrorLine[]
@@ -51,27 +51,26 @@ describe('typed', () => {
                 }
                 const streamTokenizer = astn.createParserStack(
                     () => {
-
                         return {
                             onData: () => {
                                 return p.value(false)
                             },
                             onEnd: () => {
                                 return p.success(null)
-
                             },
                         }
                     },
                     () => {
 
-                        const expect = core.createExpectContext<astn.ParserAnnotationData, null>(
+                        const expect = core.createExpectContext<astn.ParserAnnotationData, null, p.IValue<null>>(
                             $ => {
                                 const end = astn.getEndLocationFromRange($.annotation.range)
                                 foundErrors.push(["expect error", core.printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
                             },
                             onWarning,
-                            core.createDummyValueHandler,
-                            core.createDummyValueHandler,
+                            () => core.createDummyValueHandler(() => p.value(null)),
+                            () => core.createDummyValueHandler(() => p.value(null)),
+                            () => p.value(null),
                             core.Severity.warning,
                             core.OnDuplicateEntry.ignore,
                             core.createSerializedString,
@@ -95,7 +94,7 @@ describe('typed', () => {
                                 return p.success(null)
                             },
 
-                            core.createDummyValueHandler,
+                            () => core.createDummyValueHandler(() => p.value(null)),
                         )
                     },
                     (error, range) => {
@@ -162,7 +161,7 @@ describe('typed', () => {
                                     expect,
                                     ["number", {
                                         callback: () => {
-                                            return p.value(false)
+                                            return p.value(null)
                                         },
                                     }]
                                 )
@@ -192,7 +191,7 @@ describe('typed', () => {
                                         expect,
                                         ["number", {
                                             callback: () => {
-                                                return p.value(false)
+                                                return p.value(null)
                                             },
                                             onInvalidType: () => {
                                                 //addError(["stacked error", err.rangeLessMessage, $.start.line, $.start.column, $.end.line, $.end.column])
@@ -227,7 +226,7 @@ describe('typed', () => {
                                         expect,
                                         ["number", {
                                             callback: () => {
-                                                return p.value(false)
+                                                return p.value(null)
                                             },
                                             onInvalidType: () => {
                                                 //addError(["stacked error", err.rangeLessMessage, $.start.line, $.start.column, $.end.line, $.end.column])
@@ -259,7 +258,7 @@ describe('typed', () => {
                                 expect,
                                 ["number", {
                                     callback: () => {
-                                        return p.value(false)
+                                        return p.value(null)
                                     },
                                 }],
                             )
@@ -325,7 +324,7 @@ describe('typed', () => {
                     exists: expect.expectType({
                         properties: {
                             a: {
-                                onExists: (): core.RequiredValueHandler<astn.ParserAnnotationData, null> => {
+                                onExists: () => {
                                     return {
                                         exists: expect.expectTaggedUnion({
                                             options: {

@@ -18,7 +18,7 @@ export function formatASTNText(
             return core.createStackedParser<ParserAnnotationData, null, null>(
                 core.createDecoratedTree(
                     formatter.schemaFormatter,
-                    core.createTreeConcatenator(write),
+                    core.createTreeConcatenator(write, () => p.value(null)),
                 ),
                 _error => {
                     //
@@ -29,15 +29,14 @@ export function formatASTNText(
                     //no need to return an value, we're only here for the side effects, so return 'null'
                     return p.success(null)
                 },
-
-                core.createDummyValueHandler,
+                () => core.createDummyValueHandler(() => p.value(null)),
             )
         },
         () => {
             const datasubscriber = core.createStackedParser<ParserAnnotationData, null, null>(
                 core.createDecoratedTree(
                     formatter.bodyFormatter,
-                    core.createTreeConcatenator(write),
+                    core.createTreeConcatenator(write, () => p.value(null)),
                 ),
                 error => {
                     console.error("FOUND STACKED DATA ERROR", error)
@@ -48,7 +47,7 @@ export function formatASTNText(
                     return p.success(null)
                 },
 
-                core.createDummyValueHandler,
+                () => core.createDummyValueHandler(() => p.value(null)),
             )
             return datasubscriber
         },

@@ -15,6 +15,36 @@ import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
 import { getEndLocationFromRange, ParserAnnotationData } from "../src"
 
+function createStreamSplitter<DataType, EndDataType>(
+    subStreamConsumers: p.IUnsafeStreamConsumer<DataType, EndDataType, null, null>[]
+): p.IUnsafeStreamConsumer<DataType, EndDataType, null, null> {
+    return {
+        onData: (data: DataType): p.IValue<boolean> => {
+            const promises: p.IValue<boolean>[] = []
+            subStreamConsumers.forEach(s => {
+                const returnValue = s.onData(data)
+                promises.push(returnValue)
+            })
+            if (promises.length === 0) {
+                return p.value(false)
+            }
+            return p20.createArray(promises).mergeSafeValues(x => x).mapResult(abortResquests => {
+                return p.value(abortResquests.includes(true)) //if 1 promise requested an abort
+            })
+        },
+        onEnd: (aborted: boolean, endData: EndDataType): p.IUnsafeValue<null, null> => {
+            return p20.createArray(
+                subStreamConsumers
+            ).mergeUnsafeValues(v => v.onEnd(aborted, endData)
+            ).mapError(() => {
+                return p.value(null)
+            }).mapResult(() => {
+                return p.value(null)
+            })
+        },
+    }
+}
+
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
@@ -97,7 +127,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 object: () => {
                     return {
                         property: () => {
-                            return p.value(createTestRequiredValueHandler())
+                            return createTestRequiredValueHandler()
                         },
                         objectEnd: () => {
                             //
@@ -107,10 +137,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
 
                 },
                 simpleString: () => {
-                    return p.value(false)
+                    return p.value(null)
                 },
                 multilineString: () => {
-                    return p.value(false)
+                    return p.value(null)
                 },
                 taggedUnion: () => {
                     return {
@@ -121,7 +151,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                             return createTestRequiredValueHandler()
                         },
                         end: () => {
-                            //
+                            return p.value(null)
                         },
                     }
                 },
@@ -137,7 +167,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             () => {
                 return p.success<null, null>(null)
             },
-            core.createDummyValueHandler
+            () => core.createDummyValueHandler(() => p.value(null))
         )
         const eventSubscriber: core.ITreeBuilder<ParserAnnotationData, null, null> = {
             onData: data => {
@@ -226,13 +256,13 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 headerSubscribers.forEach(s => {
                     s.onSchemaDataStart(range)
                 })
-                return core.createStreamSplitter(schemaDataSubscribers)
+                return createStreamSplitter(schemaDataSubscribers)
             },
             location => {
                 headerSubscribers.forEach(s => {
                     s.onInstanceDataStart(location)
                 })
-                return core.createStreamSplitter(instanceDataSubscribers)
+                return createStreamSplitter(instanceDataSubscribers)
             },
             (error, _location) => {
                 if (DEBUG) console.log("found error")

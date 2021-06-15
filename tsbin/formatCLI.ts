@@ -1,4 +1,3 @@
-import * as p from "pareto"
 import * as fs from "fs"
 import * as stream from "stream"
 import * as core from "astn-core"
