@@ -3,11 +3,11 @@
     complexity: "off",
 */
 import * as p from "pareto"
-import * as p20 from "pareto-20"
 import { describe } from "mocha"
 import * as chai from "chai"
 import * as core from "astn-core"
 import * as astn from "../src"
+import { tryToConsumeString } from "./consumeString"
 
 //const selectedJSONTests: string[] = ["two keys"]
 //const selectedExtensionTests: string[] = []
@@ -102,8 +102,8 @@ describe('typed', () => {
                         foundErrors.push(["parser error", astn.printParsingError(error), range.start.line, range.start.column, end.line, end.column])
                     },
                 )
-                return p20.createArray([data]).streamify().tryToConsume(
-                    null,
+                return tryToConsumeString(
+                    data,
                     streamTokenizer,
                 ).reworkAndCatch(
                     _error => {

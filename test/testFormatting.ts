@@ -3,6 +3,8 @@ import * as fs from "fs"
 import * as chai from "chai"
 import * as astn from "../src"
 import * as core from "astn-core"
+import * as p20 from "pareto-20"
+import { consumeString } from "./consumeString"
 
 const dir = "./test/data/formatting/"
 
@@ -18,12 +20,17 @@ function format(
 
     const expectedOut = fs.readFileSync(dir + outBasename + ".expected." + outExtension, { encoding: "utf-8" })
 
-    return astn.formatASTNText(
-        dataIn,
+    const astnFormatter = astn.createASTNTextFormatter(
         formatter,
+        "\r\n",
         str => {
             actualOut += str
         },
+    )
+
+    return consumeString(
+        dataIn,
+        astnFormatter,
     ).convertToNativePromise().then(() => {
         if (actualOut !== expectedOut) {
             fs.writeFileSync(dir + outBasename + ".actual." + outExtension, actualOut, { encoding: "utf-8" })

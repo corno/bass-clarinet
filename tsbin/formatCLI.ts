@@ -1,35 +1,32 @@
-import * as fs from "fs"
 import * as stream from "stream"
 import * as core from "astn-core"
-import { formatASTNText, ParserAnnotationData } from "../src"
+import { createASTNTextFormatter, ParserAnnotationData } from "../src"
 
 export function formatCLI(
     formatter: core.Formatter<ParserAnnotationData, null>,
+    endString: string,
 ): void {
-
-    const [, , sourcePath, targetPath] = process.argv
-
-    const ws: stream.Writable = targetPath !== undefined
-        ? fs.createWriteStream(targetPath, { encoding: "utf-8" })
-        : process.stdout
-
-
-    if (sourcePath === undefined) {
-        console.error("missing path")
-        process.exit(1)
-    }
-
-    const dataAsString = fs.readFileSync(sourcePath, { encoding: "utf-8" })
-    formatASTNText(
-        dataAsString,
+    const astnFormatter = createASTNTextFormatter(
         formatter,
+        endString,
         str => {
-            ws.write(str)
+            process.stdout.write(str)
         },
-    ).handle(
-        () => {
-            ws.end()
-            //nothing to do
-        }
     )
+
+    process.stdin.setEncoding("utf-8")
+    process.stdin.pipe(
+        new stream.Writable({
+            defaultEncoding: "utf-8",
+            write: function (data, _encoding, callback) {
+                astnFormatter.onData(data.toString()).handle(_aborted => {
+                    callback()
+                })
+            },
+        })
+    ).on('finish', () => {
+        astnFormatter.onEnd(false, null).handle(() => {
+            //nothing to do
+        })
+    })
 }

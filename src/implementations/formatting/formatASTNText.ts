@@ -1,18 +1,16 @@
 import * as p from "pareto"
 import * as core from "astn-core"
-
-import { parseString, printParsingError } from "../parser"
+import { createParserStack, printParsingError } from "../parser"
 import { printRange } from "../../generic/location"
 import { ParserAnnotationData } from "../../interfaces"
 
-export function formatASTNText(
-    astnText: string,
+export function createASTNTextFormatter(
     formatter: core.Formatter<ParserAnnotationData, null>,
+    endString: string,
     write: (str: string) => void,
-): p.IValue<null> {
+): p.IStreamConsumer<string, null, null> {
+    const ps = createParserStack(
 
-    return parseString(
-        astnText,
         _range => {
             write(formatter.onSchemaHeader())
             return core.createStackedParser<ParserAnnotationData, null, null>(
@@ -55,16 +53,22 @@ export function formatASTNText(
         _overheadToken => {
             return p.value(false)
         },
-    ).reworkAndCatch(
-        () => {
-            write("\r\n")
-            //we're only here for the side effects, so no need to handle the error
-            return p.value(null)
-        },
-        () => {
-            write("\r\n")
-            //we're only here for the side effects, so no need to handle the result (which is 'null' anyway)
-            return p.value(null)
-        }
     )
+
+    return {
+        onData: $ => ps.onData($),
+        onEnd: (aborted, data) => {
+            write(endString)
+            return ps.onEnd(aborted, data).reworkAndCatch(
+                () => {
+                    //we're only here for the side effects, so no need to handle the error
+                    return p.value(null)
+                },
+                () => {
+                    //we're only here for the side effects, so no need to handle the result (which is 'null' anyway)
+                    return p.value(null)
+                }
+            )
+        },
+    }
 }
