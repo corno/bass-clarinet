@@ -1,5 +1,7 @@
 test/
 JSONTestSuite/
 src/
-.eslintrc.js
+.eslintrc.cjs
 tsconfig.json
+dist/test/
+tsbin/
