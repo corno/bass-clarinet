@@ -1,9 +1,10 @@
 import * as p from "pareto"
 import * as core from "astn-core"
 import {
-    createTextParser,
+    createTextParser, printTextParserError, TextErrorType,
 } from "../textParser"
 import {
+    printRange,
     Range,
 } from "../../generic/location"
 import {
@@ -12,36 +13,44 @@ import {
 import {
     createTokenizer,
 } from "../tokenizer"
-import { printPreTokenizerError, PreTokenizerError } from "../pretokenizer"
-import { printTextParserError } from "../textParser"
-import { TextParserError } from "../textParser"
 import { Token } from "../../interfaces/ITreeParser"
 import { TokenizerAnnotationData } from "../../interfaces"
+import { PreTokenizerError, printPreTokenizerError } from "../pretokenizer"
+import { printTreeParserError, TreeParserError } from "../treeParser"
 
-function assertUnreachable<RT>(_x: never): RT {
-    throw new Error("unreachable")
-}
-
-export type ParsingError = {
-    source:
-    | ["parser", TextParserError]
-    | ["tokenizer", PreTokenizerError]
-}
-
-export function printParsingError(error: ParsingError): string {
-
-    switch (error.source[0]) {
-        case "parser": {
-            const $ = error.source[1]
-            return printTextParserError($)
+export function createErrorStreamHandler(withRange: boolean, callback: (stringifiedError: string) => void): ErrorStreamsHandler {
+    function printRange2(range: Range) {
+        if (!withRange) {
+            return ""
         }
-        case "tokenizer": {
-            const $ = error.source[1]
-            return printPreTokenizerError($)
-        }
-        default:
-            return assertUnreachable(error.source[0])
+        return ` @ ${printRange(range)}`
     }
+    return {
+        onTokenizerError: $ => {
+            callback(`${printPreTokenizerError($.error)}${printRange2($.range)}`)
+        },
+        onTextParserError: $ => {
+            callback(`${printTextParserError($.error)}${printRange2($.annotation.range)}`)
+        },
+        onTreeParserError: $ => {
+            callback(`${printTreeParserError($.error)}${printRange2($.annotation.range)}`)
+        },
+    }
+}
+
+export type ErrorStreamsHandler = {
+    onTokenizerError: ($: {
+        error: PreTokenizerError
+        range: Range
+    }) => void
+    onTextParserError: ($: {
+        error: TextErrorType
+        annotation: TokenizerAnnotationData
+    }) => void
+    onTreeParserError: ($: {
+        error: TreeParserError
+        annotation: TokenizerAnnotationData
+    }) => void
 }
 
 /**
@@ -55,30 +64,15 @@ export function printParsingError(error: ParsingError): string {
 export function createParserStack<ReturnType, ErrorType>(
     onSchemaDataStart: (startToken: Token<TokenizerAnnotationData>) => core.ITreeBuilder<TokenizerAnnotationData, null, null>,
     onInstanceDataStart: (annotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, ReturnType, ErrorType>,
-    onError: (error: ParsingError, range: Range) => void = () => {
-        //
-    },
+    errorStreams: ErrorStreamsHandler
 ): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
     return createStreamPreTokenizer(
         createTokenizer(createTextParser(
             onSchemaDataStart,
             onInstanceDataStart,
-            (error, annotation) => {
-                onError(
-                    {
-                        source: ["parser", error],
-                    },
-                    annotation.range,
-                )
-            },
+            errorStreams.onTextParserError,
+            errorStreams.onTreeParserError,
         )),
-        $ => {
-            onError(
-                {
-                    source: ["tokenizer", $.error],
-                },
-                $.range,
-            )
-        },
+        errorStreams.onTokenizerError,
     )
 }

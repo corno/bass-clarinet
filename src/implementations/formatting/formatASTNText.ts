@@ -1,7 +1,6 @@
 import * as p from "pareto"
 import * as core from "astn-core"
-import { createParserStack, printParsingError } from "../parser"
-import { printRange } from "../../generic/location"
+import { createErrorStreamHandler, createParserStack } from "../parser"
 import { TokenizerAnnotationData } from "../../interfaces"
 
 export function createASTNTextFormatter(
@@ -49,7 +48,7 @@ export function createASTNTextFormatter(
             )
             return datasubscriber
         },
-        (err, range) => { console.error(`found error: ${printParsingError(err)} @ ${printRange(range)}`) },
+        createErrorStreamHandler(true, str => console.error(str))
     )
 
     return {

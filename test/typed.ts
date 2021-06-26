@@ -9,7 +9,7 @@ import * as core from "astn-core"
 import * as astn from "../src"
 import { tryToConsumeString } from "./consumeString"
 import { RequiredValueHandler } from "astn-core"
-import { TokenizerAnnotationData } from "../src"
+import { createErrorStreamHandler, printRange, TokenizerAnnotationData } from "../src"
 
 //const selectedJSONTests: string[] = ["two keys"]
 //const selectedExtensionTests: string[] = []
@@ -19,7 +19,7 @@ import { TokenizerAnnotationData } from "../src"
 //     offset: number
 // }
 
-type ErrorLine = [string, string, number, number, number, number]
+type ErrorLine = [string, string]
 
 // function getOnMissingAndOnInvalid(
 //     valueType: ValueType,
@@ -51,8 +51,7 @@ describe('typed', () => {
                     issue: core.ExpectError
                     annotation: astn.TokenizerAnnotationData
                 }) => {
-                    const end = astn.getEndLocationFromRange($.annotation.range)
-                    foundErrors.push(["expect warning", core.printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
+                    foundErrors.push(["expect warning", `${core.printExpectError($.issue)} ${printRange($.annotation.range)}`])
                 }
                 const streamTokenizer = astn.createParserStack(
                     () => {
@@ -69,8 +68,7 @@ describe('typed', () => {
 
                         const expect = core.createExpectContext<astn.TokenizerAnnotationData, null, p.IValue<null>>(
                             $ => {
-                                const end = astn.getEndLocationFromRange($.annotation.range)
-                                foundErrors.push(["expect error", core.printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
+                                foundErrors.push(["expect error", `${core.printExpectError($.issue)} ${printRange($.annotation.range)}`])
                             },
                             onWarning,
                             () => core.createDummyValueHandler(() => p.value(null)),
@@ -90,9 +88,7 @@ describe('typed', () => {
                                 ),
                             },
                             err => {
-                                const end = astn.getEndLocationFromRange(err.annotation.range)
-
-                                foundErrors.push(["stacked error", err.type[0], err.annotation.range.start.line, err.annotation.range.start.column, end.line, end.column])
+                                foundErrors.push(["stacked error", `${err.type[0]} ${printRange(err.annotation.range)}`])
                             },
                             () => {
                                 //do nothing with end
@@ -102,10 +98,7 @@ describe('typed', () => {
                             () => core.createDummyValueHandler(() => p.value(null)),
                         )
                     },
-                    (error, range) => {
-                        const end = astn.getEndLocationFromRange(range)
-                        foundErrors.push(["parser error", astn.printParsingError(error), range.start.line, range.start.column, end.line, end.column])
-                    },
+                    createErrorStreamHandler(true, str => foundErrors.push(["parser error", str])),
                 )
                 return tryToConsumeString(
                     data,
@@ -150,7 +143,7 @@ describe('typed', () => {
                 }
             },
             [
-                ["expect warning", "duplicate entry: 'a'", 1, 12, 1, 15],
+                ["expect warning", "duplicate entry: 'a' 1:12-15"],
             ]
         )
         doTest(
@@ -177,7 +170,7 @@ describe('typed', () => {
                 }]
             ),
             [
-                ["expect warning", "duplicate property: 'a'", 1, 12, 1, 15],
+                ["expect warning", "duplicate property: 'a' 1:12-15"],
             ]
         )
         doTest(
@@ -200,7 +193,7 @@ describe('typed', () => {
                                             },
                                             onInvalidType: () => {
                                                 //addError(["stacked error", err.rangeLessMessage, $.start.line, $.start.column, $.end.line, $.end.column])
-                                                addError(["invalid type", "TBD", 0, 0, 0, 0])
+                                                addError(["invalid type", "TBD 0:0-0"])
                                             },
                                         }]
                                     )
@@ -212,7 +205,7 @@ describe('typed', () => {
                 ]
             ),
             [
-                ["invalid type", "TBD", 0, 0, 0, 0],
+                ["invalid type", "TBD 0:0-0"],
             ]
         )
 
@@ -235,7 +228,7 @@ describe('typed', () => {
                                             },
                                             onInvalidType: () => {
                                                 //addError(["stacked error", err.rangeLessMessage, $.start.line, $.start.column, $.end.line, $.end.column])
-                                                addError(["invalid type", "TBD", 0, 0, 0, 0])
+                                                addError(["invalid type", "TBD 0:0-0"])
                                             },
                                         }]
                                     )
@@ -247,7 +240,7 @@ describe('typed', () => {
                 ]
             ),
             [
-                ["expect error", "missing property: 'a'", 1, 1, 1, 2],
+                ["expect error", "missing property: 'a' 1:1-2"],
             ]
         )
         doTest(
@@ -272,7 +265,7 @@ describe('typed', () => {
                 ]
             ),
             [
-                ["expect error", "expected a list ( [] ) but found an object ( {} or () )", 1, 1, 1, 2],
+                ["expect error", "expected a list ( [] ) but found an object ( {} or () ) 1:1-2"],
             ]
         )
 
@@ -337,7 +330,7 @@ describe('typed', () => {
                                                     return {
                                                         exists: expect.expectType({}),
                                                         missing: () => {
-                                                            addError(["missing", "TBD", 0, 0, 0, 0])
+                                                            addError(["missing", "TBD 0:0-0"])
                                                         },
                                                     }
                                                 },
@@ -357,11 +350,11 @@ describe('typed', () => {
                 }
             },
             [
-                ["missing", "TBD", 0, 0, 0, 0],
-                ["stacked error", "missing tagged union value", 1, 16, 1, 17],
-                ["parser error", "not in an object", 1, 16, 1, 17],
-                ["parser error", "unexpected end of text, still in tagged union", 1, 17, 1, 17],
-                ["parser error", "unexpected end of text, still in object", 1, 17, 1, 17],
+                ["missing", "TBD 0:0-0"],
+                ["stacked error", "missing tagged union value 1:16-17"],
+                ["parser error", "not in an object @ 1:16-17"],
+                ["parser error", "unexpected end of text, still in tagged union @ 1:17-17"],
+                ["parser error", "unexpected end of text, still in object @ 1:17-17"],
             ]
         )
     })

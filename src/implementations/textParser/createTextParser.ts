@@ -5,8 +5,8 @@
 import * as p from "pareto"
 import * as core from "astn-core"
 import * as Char from "../../generic/characters"
-import { createTreeParser } from "../treeParser"
-import { TextErrorType, TextParserError } from "./functionTypes"
+import { createTreeParser, TreeParserError } from "../treeParser"
+import { TextErrorType } from "./functionTypes"
 import { ITreeParser, MultilineStringData, PunctionationData, SimpleStringData, Token, TokenType } from "../../interfaces/ITreeParser"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
 
@@ -32,13 +32,20 @@ enum TextState {
  * @param onSchemaDataStart a text can contain schema data. If this is the case, this callback will be called.
  * it enables the consuming code to prepare for the instance data. It cannot produce a result itself, hence the type parameters are null and null
  * @param onInstanceDataStart when the instance data starts, this callback is called and a TextParserEventConsumer should be returned. This consumer will also produce the final resulting type
- * @param onerror a handler for when a parsing error occurs
+ * @param onTextParserError a handler for when a parsing error occurs
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
 export function createTextParser<Annotation, ReturnType, ErrorType>(
     onSchemaDataStart: (startToken: Token<Annotation>) => core.ITreeBuilder<Annotation, null, null>,
     onInstanceDataStart: (annotation: Annotation) => core.ITreeBuilder<Annotation, ReturnType, ErrorType>,
-    onerror: (error: TextParserError, annotation: Annotation) => void,
+    onTextParserError: ($: {
+        error: TextErrorType
+        annotation: Annotation
+    }) => void,
+    onTreeParserError: ($: {
+        error: TreeParserError
+        annotation: Annotation
+    }) => void,
 ): TokenConsumer<Annotation, ReturnType, ErrorType> {
 
     type RootContext = {
@@ -192,14 +199,7 @@ export function createTextParser<Annotation, ReturnType, ErrorType>(
                         data,
                         _punctuation => {
                             const bp = createTreeParser(
-                                (error, errorRange) => {
-                                    onerror(
-                                        {
-                                            type: ["body", error],
-                                        },
-                                        errorRange
-                                    )
-                                },
+                                onTreeParserError,
                                 onSchemaDataStart(data),
                             )
                             this.rootContext.state = [TextState.PROCESSING_SCHEMA, {
@@ -329,14 +329,7 @@ export function createTextParser<Annotation, ReturnType, ErrorType>(
         }
         private processComplexValueBodyData(data: Token<Annotation>) {
             const bp = createTreeParser(
-                (error, annotation) => {
-                    onerror(
-                        {
-                            type: ["body", error],
-                        },
-                        annotation
-                    )
-                },
+                onTreeParserError,
                 onInstanceDataStart(data.annotation),
             )
             this.rootContext.state = [TextState.PROCESSING_BODY, {
@@ -389,13 +382,11 @@ export function createTextParser<Annotation, ReturnType, ErrorType>(
 
         }
         private raiseStructureError(type: TextErrorType, annotation: Annotation) {
-            onerror(
+            onTextParserError(
                 {
-                    type: ["structure", {
-                        type: type,
-                    }],
+                    error: type,
+                    annotation: annotation,
                 },
-                annotation
             )
         }
     }

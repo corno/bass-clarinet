@@ -55,7 +55,10 @@ type ObjectContext = {
 }
 
 export function createTreeParser<Annotation, ReturnType, ErrorType>(
-    onerror: (error: TreeParserError, annotation: Annotation) => void,
+    onerror: ($: {
+        error: TreeParserError
+        annotation: Annotation
+    }) => void,
     eventsConsumer: core.ITreeBuilder<Annotation, ReturnType, ErrorType>
 ): ITreeParser<Annotation, ReturnType, ErrorType> {
 
@@ -97,12 +100,12 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
 
     function raiseError(message: TreeParserErrorType, annotation: Annotation) {
         //if (DEBUG) { console.log("error raised:", message, printRange(range)) }
-        onerror(
-            {
+        onerror({
+            error: {
                 type: message,
             },
-            annotation
-        )
+            annotation: annotation,
+        })
     }
     const stack = new Array<StackContext>()
     let currentContext: StackContext | null = null
@@ -125,19 +128,19 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
                 switch (stackContext.type[0]) {
                     case StackContextType2.ARRAY: {
                         //const $ = stackContext.type[1]
-                        onerror({ type: ["unexpected end of text", { "still in": ["array"] }] }, annotation)
+                        raiseError(["unexpected end of text", { "still in": ["array"] }], annotation)
 
                         break
                     }
                     case StackContextType2.OBJECT: {
                         //const $ = stackContext.type[1]
-                        onerror({ type: ["unexpected end of text", { "still in": ["object"] }] }, annotation)
+                        raiseError(["unexpected end of text", { "still in": ["object"] }], annotation)
 
                         break
                     }
                     case StackContextType2.TAGGED_UNION: {
                         //const $ = stackContext.type[1]
-                        onerror({ type: ["unexpected end of text", { "still in": ["tagged union"] }] }, annotation)
+                        raiseError(["unexpected end of text", { "still in": ["tagged union"] }], annotation)
 
                         break
                     }

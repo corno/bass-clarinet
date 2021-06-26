@@ -1,4 +1,3 @@
-import { TreeParserError } from "../treeParser";
 
 export type TextErrorType =
     | ["expected the schema start (!) or root value"]
@@ -7,11 +6,3 @@ export type TextErrorType =
     | ["unexpected data after end", {
         data: string
     }]
-
-export type TextParserError = {
-    type:
-    | ["body", TreeParserError]
-    | ["structure", {
-        type: TextErrorType
-    }]
-}

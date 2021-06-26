@@ -5,6 +5,7 @@ import * as p20 from "pareto-20"
 import * as p from "pareto"
 import * as astn from "../src";
 import { dummyParserEventConsumer } from "./dummyParserEventConsumer";
+import { createErrorStreamHandler } from "../src";
 
 const parserStack = astn.createParserStack(
     () => {
@@ -30,7 +31,7 @@ const parserStack = astn.createParserStack(
             },
         }
     },
-    err => { console.error("FOUND ERROR", err) },
+    createErrorStreamHandler(true, str => console.error(str)),
 )
 
 //let counter = 0

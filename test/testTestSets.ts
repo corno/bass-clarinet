@@ -13,7 +13,7 @@ import * as chai from "chai"
 import { ownJSONTests } from "./data/ownJSONTestset"
 import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
-import { getEndLocationFromRange, TokenizerAnnotationData, Token } from "../src"
+import { getEndLocationFromRange, TokenizerAnnotationData, Token, createErrorStreamHandler } from "../src"
 import { RequiredValueHandler, ValueHandler } from "astn-core"
 
 function createStreamSplitter<DataType, EndDataType>(
@@ -162,7 +162,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 root: createTestRequiredValueHandler(),
             },
             error => {
-
                 actualEvents.push(["stacked error", core.printStackedDataError(error.type)])
             },
             () => {
@@ -265,12 +264,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 })
                 return createStreamSplitter(instanceDataSubscribers)
             },
-            (error, _location) => {
-                if (DEBUG) console.log("found error")
-                actualEvents.push(["parsingerror", astn.printParsingError(error)])
-
-
-            },
+            createErrorStreamHandler(false, str => actualEvents.push(["parsingerror", str]))
         )
 
         return p20.createArray(chunks).streamify().tryToConsume(

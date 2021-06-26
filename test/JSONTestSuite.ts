@@ -4,7 +4,7 @@ import assert from "assert"
 import * as path from "path"
 import * as p20 from "pareto-20"
 import { dummyParserEventConsumer } from "./dummyParserEventConsumer"
-import { createParserStack } from "../src"
+import { createErrorStreamHandler, createParserStack } from "../src"
 
 function tokenizeStrings(
     strings: string[],
@@ -15,7 +15,7 @@ function tokenizeStrings(
         createParserStack(
             () => dummyParserEventConsumer,
             () => dummyParserEventConsumer,
-            onError,
+            createErrorStreamHandler(false, () => onError()),
         )
     )
 }
