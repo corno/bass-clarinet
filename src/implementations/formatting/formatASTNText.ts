@@ -2,10 +2,10 @@ import * as p from "pareto"
 import * as core from "astn-core"
 import { createParserStack, printParsingError } from "../parser"
 import { printRange } from "../../generic/location"
-import { ParserAnnotationData } from "../../interfaces"
+import { TokenizerAnnotationData } from "../../interfaces"
 
 export function createASTNTextFormatter(
-    formatter: core.Formatter<ParserAnnotationData, null>,
+    formatter: core.Formatter<TokenizerAnnotationData, null>,
     endString: string,
     write: (str: string) => void,
 ): p.IStreamConsumer<string, null, null> {
@@ -13,7 +13,7 @@ export function createASTNTextFormatter(
 
         _range => {
             write(formatter.onSchemaHeader())
-            return core.createStackedParser<ParserAnnotationData, null, null>(
+            return core.createStackedParser<TokenizerAnnotationData, null, null>(
                 core.createDecoratedTree(
                     formatter.schemaFormatter,
                     core.createTreeConcatenator(write, () => p.value(null)),
@@ -31,7 +31,7 @@ export function createASTNTextFormatter(
             )
         },
         () => {
-            const datasubscriber = core.createStackedParser<ParserAnnotationData, null, null>(
+            const datasubscriber = core.createStackedParser<TokenizerAnnotationData, null, null>(
                 core.createDecoratedTree(
                     formatter.bodyFormatter,
                     core.createTreeConcatenator(write, () => p.value(null)),
@@ -50,9 +50,6 @@ export function createASTNTextFormatter(
             return datasubscriber
         },
         (err, range) => { console.error(`found error: ${printParsingError(err)} @ ${printRange(range)}`) },
-        _overheadToken => {
-            return p.value(false)
-        },
     )
 
     return {

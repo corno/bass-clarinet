@@ -1,8 +1,8 @@
 import * as p from "pareto"
 import * as core from "astn-core"
-import { ParserAnnotationData } from "../src"
+import { TokenizerAnnotationData } from "../src"
 
-export const dummyParserEventConsumer: core.ITreeBuilder<ParserAnnotationData, null, null> = {
+export const dummyParserEventConsumer: core.ITreeBuilder<TokenizerAnnotationData, null, null> = {
     onData: () => {
         return p.value(false)
     },

@@ -31,9 +31,6 @@ const parserStack = astn.createParserStack(
         }
     },
     err => { console.error("FOUND ERROR", err) },
-    () => {
-        return p.value(false)
-    },
 )
 
 //let counter = 0

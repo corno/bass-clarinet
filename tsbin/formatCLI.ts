@@ -1,9 +1,9 @@
 import * as stream from "stream"
 import * as core from "astn-core"
-import { createASTNTextFormatter, ParserAnnotationData } from "../src"
+import { createASTNTextFormatter, TokenizerAnnotationData } from "../src"
 
 export function formatCLI(
-    formatter: core.Formatter<ParserAnnotationData, null>,
+    formatter: core.Formatter<TokenizerAnnotationData, null>,
     endString: string,
 ): void {
     const astnFormatter = createASTNTextFormatter(

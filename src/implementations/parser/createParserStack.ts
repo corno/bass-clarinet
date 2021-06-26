@@ -5,7 +5,6 @@ import {
 } from "../textParser"
 import {
     Range,
-    Location,
 } from "../../generic/location"
 import {
     createStreamPreTokenizer,
@@ -16,8 +15,8 @@ import {
 import { printPreTokenizerError, PreTokenizerError } from "../pretokenizer"
 import { printTextParserError } from "../textParser"
 import { TextParserError } from "../textParser"
-import { OverheadToken } from "../../interfaces/ITreeParser"
-import { ParserAnnotationData } from "../../interfaces"
+import { Token } from "../../interfaces/ITreeParser"
+import { TokenizerAnnotationData } from "../../interfaces"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -54,26 +53,24 @@ export function printParsingError(error: ParsingError): string {
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).
  */
 export function createParserStack<ReturnType, ErrorType>(
-    onSchemaDataStart: (range: Range) => core.ITreeBuilder<ParserAnnotationData, null, null>,
-    onInstanceDataStart: (location: Location) => core.ITreeBuilder<ParserAnnotationData, ReturnType, ErrorType>,
+    onSchemaDataStart: (startToken: Token<TokenizerAnnotationData>) => core.ITreeBuilder<TokenizerAnnotationData, null, null>,
+    onInstanceDataStart: (annotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, ReturnType, ErrorType>,
     onError: (error: ParsingError, range: Range) => void = () => {
         //
     },
-    onHeaderOverheadToken: (token: OverheadToken, range: Range) => p.IValue<boolean> = () => p.value(false),
 ): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
     return createStreamPreTokenizer(
         createTokenizer(createTextParser(
             onSchemaDataStart,
             onInstanceDataStart,
-            (error, range) => {
+            (error, annotation) => {
                 onError(
                     {
                         source: ["parser", error],
                     },
-                    range,
+                    annotation.range,
                 )
             },
-            onHeaderOverheadToken,
         )),
         $ => {
             onError(

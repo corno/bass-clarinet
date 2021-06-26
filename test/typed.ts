@@ -8,6 +8,8 @@ import * as chai from "chai"
 import * as core from "astn-core"
 import * as astn from "../src"
 import { tryToConsumeString } from "./consumeString"
+import { RequiredValueHandler } from "astn-core"
+import { TokenizerAnnotationData } from "../src"
 
 //const selectedJSONTests: string[] = ["two keys"]
 //const selectedExtensionTests: string[] = []
@@ -28,15 +30,18 @@ type ErrorLine = [string, string, number, number, number, number]
 //     }
 // }
 
+type ParserRequiredValueHandler = RequiredValueHandler<TokenizerAnnotationData, null, p.IValue<null>>
+
+
 describe('typed', () => {
     describe('#expect', () => {
         function doTest(
             testName: string,
             data: string,
             callback: (
-                expect: core.IExpectContext<astn.ParserAnnotationData, null, p.IValue<null>>,
+                expect: core.IExpectContext<astn.TokenizerAnnotationData, null, p.IValue<null>>,
                 addError: (errorLine: ErrorLine) => void
-            ) => astn.ParserRequiredValueHandler,
+            ) => ParserRequiredValueHandler,
             expectedErrors: ErrorLine[]
         ) {
 
@@ -44,7 +49,7 @@ describe('typed', () => {
                 const foundErrors: ErrorLine[] = []
                 const onWarning = ($: {
                     issue: core.ExpectError
-                    annotation: astn.ParserAnnotationData
+                    annotation: astn.TokenizerAnnotationData
                 }) => {
                     const end = astn.getEndLocationFromRange($.annotation.range)
                     foundErrors.push(["expect warning", core.printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])
@@ -62,7 +67,7 @@ describe('typed', () => {
                     },
                     () => {
 
-                        const expect = core.createExpectContext<astn.ParserAnnotationData, null, p.IValue<null>>(
+                        const expect = core.createExpectContext<astn.TokenizerAnnotationData, null, p.IValue<null>>(
                             $ => {
                                 const end = astn.getEndLocationFromRange($.annotation.range)
                                 foundErrors.push(["expect error", core.printExpectError($.issue), $.annotation.range.start.line, $.annotation.range.start.column, end.line, end.column])

@@ -31,4 +31,4 @@ export type TreeParserError = {
 export type CreateTreeParser<Annotation, ReturnType, ErrorType> = (
     onerror: (error: TreeParserError, range: Range) => void,
     eventsConsumer: core.ITreeBuilder<Annotation, ReturnType, ErrorType>
-) => ITreeParser<ReturnType, ErrorType>
+) => ITreeParser<Annotation, ReturnType, ErrorType>

@@ -13,7 +13,8 @@ import * as chai from "chai"
 import { ownJSONTests } from "./data/ownJSONTestset"
 import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
-import { getEndLocationFromRange, ParserAnnotationData } from "../src"
+import { getEndLocationFromRange, TokenizerAnnotationData, Token } from "../src"
+import { RequiredValueHandler, ValueHandler } from "astn-core"
 
 function createStreamSplitter<DataType, EndDataType>(
     subStreamConsumers: p.IUnsafeStreamConsumer<DataType, EndDataType, null, null>[]
@@ -59,9 +60,12 @@ const selectedExtensionTests = Object.keys(extensionTests)
 
 // type OnError = (message: string, range: astn.Range) => void
 
+type ParserRequiredValueHandler = RequiredValueHandler<TokenizerAnnotationData, null, p.IValue<null>>
+type ParserValueHandler = ValueHandler<TokenizerAnnotationData, null, p.IValue<null>>
+
 interface HeaderSubscriber {
-    onSchemaDataStart(range: astn.Range): void
-    onInstanceDataStart(location: astn.Location): void
+    onSchemaDataStart(token: Token<TokenizerAnnotationData>): void
+    onInstanceDataStart(annotation: astn.TokenizerAnnotationData): void
 }
 
 function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON: boolean) {
@@ -98,7 +102,8 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
         RECREATE THE ORIGINAL STRING
         */
 
-        function createTestRequiredValueHandler(): astn.ParserRequiredValueHandler {
+
+        function createTestRequiredValueHandler(): ParserRequiredValueHandler {
             return {
                 exists: createTestValueHandler(),
                 missing: () => {
@@ -106,12 +111,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 },
             }
         }
-        function createTestTreeHandler(): astn.ParserTreeHandler {
-            return {
-                root: createTestRequiredValueHandler(),
-            }
-        }
-        function createTestValueHandler(): astn.ParserValueHandler {
+        function createTestValueHandler(): ParserValueHandler {
             return {
                 array: () => {
                     return {
@@ -157,9 +157,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 },
             }
         }
-
         const stackedSubscriber = core.createStackedParser(
-            createTestTreeHandler(),
+            {
+                root: createTestRequiredValueHandler(),
+            },
             error => {
 
                 actualEvents.push(["stacked error", core.printStackedDataError(error.type)])
@@ -169,7 +170,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             },
             () => core.createDummyValueHandler(() => p.value(null))
         )
-        const eventSubscriber: core.ITreeBuilder<ParserAnnotationData, null, null> = {
+        const eventSubscriber: core.ITreeBuilder<TokenizerAnnotationData, null, null> = {
             onData: data => {
                 switch (data.type[0]) {
                     case "close array": {
@@ -222,10 +223,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             },
         }
         const out: string[] = []
-        const schemaDataSubscribers: core.ITreeBuilder<ParserAnnotationData, null, null>[] = [
+        const schemaDataSubscribers: core.ITreeBuilder<TokenizerAnnotationData, null, null>[] = [
             eventSubscriber,
         ]
-        const instanceDataSubscribers: core.ITreeBuilder<ParserAnnotationData, null, null>[] = [
+        const instanceDataSubscribers: core.ITreeBuilder<TokenizerAnnotationData, null, null>[] = [
             eventSubscriber,
             stackedSubscriber,
         ]
@@ -252,15 +253,15 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             })
         }
         const parserStack = astn.createParserStack(
-            range => {
+            token => {
                 headerSubscribers.forEach(s => {
-                    s.onSchemaDataStart(range)
+                    s.onSchemaDataStart(token)
                 })
                 return createStreamSplitter(schemaDataSubscribers)
             },
-            location => {
+            annotation => {
                 headerSubscribers.forEach(s => {
-                    s.onInstanceDataStart(location)
+                    s.onInstanceDataStart(annotation)
                 })
                 return createStreamSplitter(instanceDataSubscribers)
             },
@@ -269,9 +270,6 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 actualEvents.push(["parsingerror", astn.printParsingError(error)])
 
 
-            },
-            (_token, _range) => {
-                return p.value(false)
             },
         )
 
