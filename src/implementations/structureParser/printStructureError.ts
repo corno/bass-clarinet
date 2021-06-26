@@ -1,10 +1,10 @@
-import { TextErrorType } from "./functionTypes"
+import { StructureErrorType } from "./functionTypes"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-export function printTextParserError($$: TextErrorType): string {
+export function printStructureError($$: StructureErrorType): string {
     switch ($$[0]) {
         case "expected rootvalue": {
             return `expected rootvalue`

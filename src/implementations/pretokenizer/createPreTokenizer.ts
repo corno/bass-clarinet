@@ -9,7 +9,7 @@ import { Range, createRangeFromSingleLocation, createRangeFromLocations } from "
 import { IChunk, ILocationState, IPreTokenizer } from "../../interfaces/IPreTokenizer"
 import { Location } from "../../generic/location"
 import { PreToken, PreTokenDataType } from "../../interfaces/IPreTokenStreamConsumer"
-import { PreTokenizerError } from "./functionTypes"
+import { TokenError } from "./functionTypes"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
@@ -126,7 +126,7 @@ function getCurrentCharacterRange(ls: ILocationState): Range {
 }
 
 type OnError = ($: {
-    error: PreTokenizerError
+    error: TokenError
     range: Range
 }) => void
 

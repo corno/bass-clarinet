@@ -1,8 +1,8 @@
 import * as p from "pareto"
 import * as core from "astn-core"
 import {
-    createTextParser, printTextParserError, TextErrorType,
-} from "../textParser"
+    createTextParser, printTextParserError, StructureErrorType,
+} from "../structureParser"
 import {
     printRange,
     Range,
@@ -15,7 +15,7 @@ import {
 } from "../tokenizer"
 import { Token } from "../../interfaces/ITreeParser"
 import { TokenizerAnnotationData } from "../../interfaces"
-import { PreTokenizerError, printPreTokenizerError } from "../pretokenizer"
+import { TokenError, printPreTokenizerError } from "../pretokenizer"
 import { printTreeParserError, TreeParserError } from "../treeParser"
 
 export function createErrorStreamHandler(withRange: boolean, callback: (stringifiedError: string) => void): ErrorStreamsHandler {
@@ -40,11 +40,11 @@ export function createErrorStreamHandler(withRange: boolean, callback: (stringif
 
 export type ErrorStreamsHandler = {
     onTokenizerError: ($: {
-        error: PreTokenizerError
+        error: TokenError
         range: Range
     }) => void
     onTextParserError: ($: {
-        error: TextErrorType
+        error: StructureErrorType
         annotation: TokenizerAnnotationData
     }) => void
     onTreeParserError: ($: {
@@ -67,12 +67,14 @@ export function createParserStack<ReturnType, ErrorType>(
     errorStreams: ErrorStreamsHandler
 ): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
     return createStreamPreTokenizer(
-        createTokenizer(createTextParser(
-            onSchemaDataStart,
-            onInstanceDataStart,
-            errorStreams.onTextParserError,
-            errorStreams.onTreeParserError,
-        )),
+        createTokenizer(
+            createTextParser(
+                onSchemaDataStart,
+                onInstanceDataStart,
+                errorStreams.onTextParserError,
+                errorStreams.onTreeParserError,
+            ),
+        ),
         errorStreams.onTokenizerError,
     )
 }

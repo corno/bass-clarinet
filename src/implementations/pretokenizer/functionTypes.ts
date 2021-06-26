@@ -5,7 +5,7 @@ export type TokenizerOptions = {
 }
 
 
-export type PreTokenizerError = {
+export type TokenError = {
     type:
     | ["unterminated block comment"]
     | ["found dangling slash at the end of the text"]

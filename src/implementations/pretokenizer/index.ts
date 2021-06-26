@@ -1,4 +1,4 @@
 export * from "./functionTypes"
 
 export { createPreTokenizer } from "./createPreTokenizer"
-export { printPreTokenizerError } from "./printPreTokenizerError"
+export { printTokenError as printPreTokenizerError } from "./printTokenError"

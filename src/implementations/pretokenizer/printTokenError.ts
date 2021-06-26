@@ -1,10 +1,10 @@
-import { PreTokenizerError } from "./functionTypes"
+import { TokenError } from "./functionTypes"
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-export function printPreTokenizerError($: PreTokenizerError): string {
+export function printTokenError($: TokenError): string {
 
     switch ($.type[0]) {
         case "expected hexadecimal digit": {

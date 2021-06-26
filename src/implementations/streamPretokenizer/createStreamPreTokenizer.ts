@@ -16,7 +16,7 @@ import {
     ILocationState,
 
 } from "../../interfaces/IPreTokenizer"
-import { PreTokenizerError } from "../pretokenizer"
+import { TokenError } from "../pretokenizer"
 
 import * as Char from "../../generic/characters"
 
@@ -98,7 +98,7 @@ class Chunk implements IChunk {
 export function createStreamPreTokenizer<ReturnType, ErrorType>(
     tokenStreamConsumer: IPreTokenStreamConsumer<ReturnType, ErrorType>,
     onError: ($: {
-        error: PreTokenizerError
+        error: TokenError
         range: Range
     }) => void,
     opt?: TokenizerOptions

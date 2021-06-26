@@ -5,8 +5,8 @@
 import * as p from "pareto"
 import * as core from "astn-core"
 import * as Char from "../../generic/characters"
-import { createTreeParser, TreeParserError } from "../treeParser"
-import { TextErrorType } from "./functionTypes"
+import { createTreeParser, TreeParserError as TreeError } from "../treeParser"
+import { StructureErrorType as StructureErrorType } from "./functionTypes"
 import { ITreeParser, MultilineStringData, PunctionationData, SimpleStringData, Token, TokenType } from "../../interfaces/ITreeParser"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
 
@@ -35,15 +35,15 @@ enum TextState {
  * @param onTextParserError a handler for when a parsing error occurs
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
-export function createTextParser<Annotation, ReturnType, ErrorType>(
+export function createStructureParser<Annotation, ReturnType, ErrorType>(
     onSchemaDataStart: (startToken: Token<Annotation>) => core.ITreeBuilder<Annotation, null, null>,
     onInstanceDataStart: (annotation: Annotation) => core.ITreeBuilder<Annotation, ReturnType, ErrorType>,
     onTextParserError: ($: {
-        error: TextErrorType
+        error: StructureErrorType
         annotation: Annotation
     }) => void,
     onTreeParserError: ($: {
-        error: TreeParserError
+        error: TreeError
         annotation: Annotation
     }) => void,
 ): TokenConsumer<Annotation, ReturnType, ErrorType> {
@@ -381,7 +381,7 @@ export function createTextParser<Annotation, ReturnType, ErrorType>(
             })
 
         }
-        private raiseStructureError(type: TextErrorType, annotation: Annotation) {
+        private raiseStructureError(type: StructureErrorType, annotation: Annotation) {
             onTextParserError(
                 {
                     error: type,

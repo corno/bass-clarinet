@@ -1,6 +1,6 @@
 export * from "./pretokenizer"
 export * from "./streamPretokenizer"
-export * from "./textParser"
+export * from "./structureParser"
 export * from "./tokenizer"
 export * from "./treeParser"
 export * from "./formatting"
