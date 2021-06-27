@@ -36,7 +36,7 @@ enum TextState {
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
 export function createStructureParser<Annotation, ReturnType, ErrorType>(
-    onEmbeddedSchema: (schemaSchemaName: string) => core.ITreeBuilder<Annotation, null, null>,
+    onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: Annotation) => core.ITreeBuilder<Annotation, null, null>,
     onSchemaReference: (token: SimpleStringData, tokenAnnotation: Annotation) => void,
     onInstanceDataStart: (annotation: Annotation) => core.ITreeBuilder<Annotation, ReturnType, ErrorType>,
     onTextParserError: ($: {
@@ -202,7 +202,7 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
                             console.error("FIXME schema schema reference")
                             const bp = createTreeParser(
                                 onTreeParserError,
-                                onEmbeddedSchema("mrshl/metadata@0.1"),
+                                onEmbeddedSchema("mrshl/metadata@0.1", data.annotation),
                             )
                             this.rootContext.state = [TextState.PROCESSING_SCHEMA, {
                                 treeParser: bp,
