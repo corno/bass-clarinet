@@ -35,19 +35,19 @@ enum TextState {
  * @param onTextParserError a handler for when a parsing error occurs
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
-export function createStructureParser<Annotation, ReturnType, ErrorType>(
-    onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: Annotation) => core.ITreeBuilder<Annotation, null, null>,
-    onSchemaReference: (token: SimpleStringData, tokenAnnotation: Annotation) => p.IValue<null>,
-    onInstanceDataStart: (annotation: Annotation) => core.ITreeBuilder<Annotation, ReturnType, ErrorType>,
+export function createStructureParser<Annotation, ReturnType, ErrorType>($: {
+    onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: Annotation) => core.ITreeBuilder<Annotation, null, null>
+    onSchemaReference: (token: SimpleStringData, tokenAnnotation: Annotation) => p.IValue<null>
+    onBody: (annotation: Annotation) => core.ITreeBuilder<Annotation, ReturnType, ErrorType>
     onTextParserError: ($: {
         error: StructureErrorType
         annotation: Annotation
-    }) => void,
+    }) => void
     onTreeParserError: ($: {
         error: TreeError
         annotation: Annotation
-    }) => void,
-): TokenConsumer<Annotation, ReturnType, ErrorType> {
+    }) => void
+}): TokenConsumer<Annotation, ReturnType, ErrorType> {
 
     type RootContext = {
         state:
@@ -107,17 +107,17 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
 
                     this.raiseStructureError(["expected the schema start (!) or root value"], annotation)
 
-                    return onInstanceDataStart(annotation).onEnd(aborted, annotation)
+                    return $.onBody(annotation).onEnd(aborted, annotation)
                 }
                 case TextState.EXPECTING_SCHEMA: {
                     //const $ = this.rootContext.state[1]
 
                     this.raiseStructureError(["expected the schema"], annotation)
-                    return onInstanceDataStart(annotation).onEnd(aborted, annotation)
+                    return $.onBody(annotation).onEnd(aborted, annotation)
                 }
                 case TextState.PROCESSING_SCHEMA: {
-                    const $ = this.rootContext.state[1]
-                    return $.treeParser.forceEnd(aborted, annotation).reworkAndCatch(
+                    const $$ = this.rootContext.state[1]
+                    return $$.treeParser.forceEnd(aborted, annotation).reworkAndCatch(
                         () => {
                             return p.value(false)
                         },
@@ -127,14 +127,14 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
                         }
                     ).try(() => {
                         //this.raiseError("incomplete schema", range)
-                        return onInstanceDataStart(annotation).onEnd(aborted, annotation)
+                        return $.onBody(annotation).onEnd(aborted, annotation)
                     })
                 }
                 case TextState.EXPECTING_BODY: {
                     //const $ = this.rootContext.state[1]
                     this.raiseStructureError(["expected rootvalue"], annotation)
 
-                    return onInstanceDataStart(annotation).onEnd(aborted, annotation)
+                    return $.onBody(annotation).onEnd(aborted, annotation)
                 }
                 case TextState.PROCESSING_BODY: {
                     const $ = this.rootContext.state[1]
@@ -201,8 +201,8 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
                         _punctuation => {
                             console.error("FIXME schema schema reference")
                             const bp = createTreeParser(
-                                onTreeParserError,
-                                onEmbeddedSchema("mrshl/metadata@0.1", data.annotation),
+                                $.onTreeParserError,
+                                $.onEmbeddedSchema("mrshl/metadata@0.1", data.annotation),
                             )
                             this.rootContext.state = [TextState.PROCESSING_SCHEMA, {
                                 treeParser: bp,
@@ -221,7 +221,7 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
                             })
                         },
                         stringData => {
-                            return onSchemaReference(stringData, data.annotation).mapResult(() => {
+                            return $.onSchemaReference(stringData, data.annotation).mapResult(() => {
                                 this.rootContext.state = [TextState.EXPECTING_BODY, {
                                 }]
                                 return p.value(false)
@@ -301,8 +301,8 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
         }
         private processComplexValueBodyData(data: Token<Annotation>) {
             const bp = createTreeParser(
-                onTreeParserError,
-                onInstanceDataStart(data.annotation),
+                $.onTreeParserError,
+                $.onBody(data.annotation),
             )
             this.rootContext.state = [TextState.PROCESSING_BODY, {
                 treeParser: bp,
@@ -319,7 +319,7 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
             token: Token<Annotation>,
         ) {
 
-            const consumer = onInstanceDataStart(token.annotation)
+            const consumer = $.onBody(token.annotation)
             return consumer.onData({
                 annotation: token.annotation,
                 type: ["simple string", {
@@ -338,7 +338,7 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
             data2: MultilineStringData,
             token: Token<Annotation>,
         ) {
-            const consumer = onInstanceDataStart(token.annotation)
+            const consumer = $.onBody(token.annotation)
             return consumer.onData({
                 annotation: token.annotation,
                 type: ["multiline string", {
@@ -354,7 +354,7 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
 
         }
         private raiseStructureError(type: StructureErrorType, annotation: Annotation) {
-            onTextParserError(
+            $.onTextParserError(
                 {
                     error: type,
                     annotation: annotation,

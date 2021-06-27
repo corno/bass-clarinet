@@ -259,27 +259,27 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 },
             })
         }
-        const parserStack = astn.createParserStack(
-            schemaSchemaName => {
+        const parserStack = astn.createParserStack({
+            onEmbeddedSchema: schemaSchemaName => {
                 headerSubscribers.forEach(s => {
                     s.onEmbeddedSchema(schemaSchemaName)
                 })
                 return createStreamSplitter(schemaDataSubscribers)
             },
-            (schemaName, annotation) => {
+            onSchemaReference: (schemaName, annotation) => {
                 headerSubscribers.forEach(s => {
                     s.onSchemaReference(schemaName, annotation)
                 })
                 return p.value(null)
             },
-            annotation => {
+            onBody: annotation => {
                 headerSubscribers.forEach(s => {
                     s.onInstanceDataStart(annotation)
                 })
                 return createStreamSplitter(instanceDataSubscribers)
             },
-            createErrorStreamHandler(false, str => actualEvents.push(["parsingerror", str]))
-        )
+            errorStreams: createErrorStreamHandler(false, str => actualEvents.push(["parsingerror", str])),
+        })
 
         return p20.createArray(chunks).streamify().tryToConsume(
             null,

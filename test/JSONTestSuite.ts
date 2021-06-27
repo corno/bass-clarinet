@@ -13,14 +13,14 @@ function tokenizeStrings(
 ) {
     p20.createArray(strings).streamify().handle(
         null,
-        createParserStack(
-            () => dummyParserEventConsumer,
-            () => {
+        createParserStack({
+            onEmbeddedSchema: () => dummyParserEventConsumer,
+            onSchemaReference: () => {
                 return p.value(null)
             },
-            () => dummyParserEventConsumer,
-            createErrorStreamHandler(false, () => onError()),
-        )
+            onBody: () => dummyParserEventConsumer,
+            errorStreams: createErrorStreamHandler(false, () => onError()),
+        })
     )
 }
 

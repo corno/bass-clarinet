@@ -9,9 +9,9 @@ export function createASTNTextFormatter(
     endString: string,
     write: (str: string) => void,
 ): p.IStreamConsumer<string, null, null> {
-    const ps = createParserStack(
+    const ps = createParserStack({
 
-        _range => {
+        onEmbeddedSchema: _range => {
             write(formatter.onSchemaHeader())
             return core.createStackedParser<TokenizerAnnotationData, null, null>(
                 core.createDecoratedTree(
@@ -30,11 +30,11 @@ export function createASTNTextFormatter(
                 () => core.createDummyValueHandler(() => p.value(null)),
             )
         },
-        schemaReference => {
+        onSchemaReference: schemaReference => {
             write(createSerializedQuotedString(schemaReference.value))
             return p.value(null)
         },
-        () => {
+        onBody: () => {
             const datasubscriber = core.createStackedParser<TokenizerAnnotationData, null, null>(
                 core.createDecoratedTree(
                     formatter.bodyFormatter,
@@ -53,8 +53,8 @@ export function createASTNTextFormatter(
             )
             return datasubscriber
         },
-        createErrorStreamHandler(true, str => console.error(str))
-    )
+        errorStreams: createErrorStreamHandler(true, str => console.error(str)),
+    })
 
     return {
         onData: $ => ps.onData($),

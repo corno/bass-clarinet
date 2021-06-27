@@ -61,22 +61,22 @@ export type ErrorStreamsHandler = {
  * @param onParserError an optional callback for when a parser error occurs.
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).
  */
-export function createParserStack<ReturnType, ErrorType>(
-    onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, null, null>,
-    onSchemaReference: (token: SimpleStringData, tokenAnnotation: TokenizerAnnotationData) => p.IValue<null>,
-    onInstanceDataStart: (annotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, ReturnType, ErrorType>,
+export function createParserStack<ReturnType, ErrorType>($: {
+    onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, null, null>
+    onSchemaReference: (token: SimpleStringData, tokenAnnotation: TokenizerAnnotationData) => p.IValue<null>
+    onBody: (annotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, ReturnType, ErrorType>
     errorStreams: ErrorStreamsHandler
-): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
+}): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
     return createStreamPreTokenizer(
         createTokenizer(
-            createStructureParser(
-                onEmbeddedSchema,
-                onSchemaReference,
-                onInstanceDataStart,
-                errorStreams.onTextParserError,
-                errorStreams.onTreeParserError,
-            ),
+            createStructureParser({
+                onEmbeddedSchema: $.onEmbeddedSchema,
+                onSchemaReference: $.onSchemaReference,
+                onBody: $.onBody,
+                onTextParserError: $.errorStreams.onTextParserError,
+                onTreeParserError: $.errorStreams.onTreeParserError,
+            }),
         ),
-        errorStreams.onTokenizerError,
+        $.errorStreams.onTokenizerError,
     )
 }

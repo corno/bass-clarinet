@@ -7,14 +7,14 @@ import * as astn from "../src";
 import { dummyParserEventConsumer } from "./dummyParserEventConsumer";
 import { createErrorStreamHandler } from "../src";
 
-const parserStack = astn.createParserStack(
-    () => {
+const parserStack = astn.createParserStack({
+    onEmbeddedSchema: () => {
         return dummyParserEventConsumer
     },
-    () => {
+    onSchemaReference: () => {
         return p.value(null)
     },
-    () => {
+    onBody: () => {
         return {
             onData: _data => {
                 //return p20.result(false)
@@ -34,8 +34,8 @@ const parserStack = astn.createParserStack(
             },
         }
     },
-    createErrorStreamHandler(true, str => console.error(str)),
-)
+    errorStreams: createErrorStreamHandler(true, str => console.error(str)),
+})
 
 //let counter = 0
 

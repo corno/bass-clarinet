@@ -53,8 +53,8 @@ describe('typed', () => {
                 }) => {
                     foundErrors.push(["expect warning", `${core.printExpectError($.issue)} ${printRange($.annotation.range)}`])
                 }
-                const streamTokenizer = astn.createParserStack(
-                    () => {
+                const streamTokenizer = astn.createParserStack({
+                    onEmbeddedSchema: () => {
                         return {
                             onData: () => {
                                 return p.value(false)
@@ -64,10 +64,10 @@ describe('typed', () => {
                             },
                         }
                     },
-                    () => {
+                    onSchemaReference: () => {
                         throw new Error("IMPLEMENT ME")
                     },
-                    () => {
+                    onBody: () => {
 
                         const expect = core.createExpectContext<astn.TokenizerAnnotationData, null, p.IValue<null>>(
                             $ => {
@@ -101,8 +101,8 @@ describe('typed', () => {
                             () => core.createDummyValueHandler(() => p.value(null)),
                         )
                     },
-                    createErrorStreamHandler(true, str => foundErrors.push(["parser error", str])),
-                )
+                    errorStreams: createErrorStreamHandler(true, str => foundErrors.push(["parser error", str])),
+                })
                 return tryToConsumeString(
                     data,
                     streamTokenizer,
