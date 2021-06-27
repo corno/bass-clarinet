@@ -62,7 +62,7 @@ export type ErrorStreamsHandler = {
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).
  */
 export function createParserStack<ReturnType, ErrorType>(
-    onEmbeddedSchema: (schemaSchemaName: string) => core.ITreeBuilder<TokenizerAnnotationData, null, null>,
+    onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, null, null>,
     onSchemaReference: (token: SimpleStringData, tokenAnnotation: TokenizerAnnotationData) => void,
     onInstanceDataStart: (annotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, ReturnType, ErrorType>,
     errorStreams: ErrorStreamsHandler
