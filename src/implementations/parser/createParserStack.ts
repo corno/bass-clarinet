@@ -63,7 +63,7 @@ export type ErrorStreamsHandler = {
  */
 export function createParserStack<ReturnType, ErrorType>(
     onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, null, null>,
-    onSchemaReference: (token: SimpleStringData, tokenAnnotation: TokenizerAnnotationData) => void,
+    onSchemaReference: (token: SimpleStringData, tokenAnnotation: TokenizerAnnotationData) => p.IValue<null>,
     onInstanceDataStart: (annotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, ReturnType, ErrorType>,
     errorStreams: ErrorStreamsHandler
 ): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {

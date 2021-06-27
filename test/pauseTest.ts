@@ -12,7 +12,7 @@ const parserStack = astn.createParserStack(
         return dummyParserEventConsumer
     },
     () => {
-        //
+        return p.value(null)
     },
     () => {
         return {

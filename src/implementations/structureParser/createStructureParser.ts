@@ -37,7 +37,7 @@ enum TextState {
  */
 export function createStructureParser<Annotation, ReturnType, ErrorType>(
     onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: Annotation) => core.ITreeBuilder<Annotation, null, null>,
-    onSchemaReference: (token: SimpleStringData, tokenAnnotation: Annotation) => void,
+    onSchemaReference: (token: SimpleStringData, tokenAnnotation: Annotation) => p.IValue<null>,
     onInstanceDataStart: (annotation: Annotation) => core.ITreeBuilder<Annotation, ReturnType, ErrorType>,
     onTextParserError: ($: {
         error: StructureErrorType
@@ -221,10 +221,11 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
                             })
                         },
                         stringData => {
-                            onSchemaReference(stringData, data.annotation)
-                            this.rootContext.state = [TextState.EXPECTING_BODY, {
-                            }]
-                            return p.value(false)
+                            return onSchemaReference(stringData, data.annotation).mapResult(() => {
+                                this.rootContext.state = [TextState.EXPECTING_BODY, {
+                                }]
+                                return p.value(false)
+                            })
                         },
                         _stringData => {
                             this.raiseStructureError([`expected a schema reference or a schema body`], data.annotation)

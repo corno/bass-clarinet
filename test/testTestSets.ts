@@ -270,6 +270,7 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 headerSubscribers.forEach(s => {
                     s.onSchemaReference(schemaName, annotation)
                 })
+                return p.value(null)
             },
             annotation => {
                 headerSubscribers.forEach(s => {

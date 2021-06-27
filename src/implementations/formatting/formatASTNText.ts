@@ -32,6 +32,7 @@ export function createASTNTextFormatter(
         },
         schemaReference => {
             write(createSerializedQuotedString(schemaReference.value))
+            return p.value(null)
         },
         () => {
             const datasubscriber = core.createStackedParser<TokenizerAnnotationData, null, null>(

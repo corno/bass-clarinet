@@ -1,4 +1,5 @@
 import * as fs from "fs"
+import * as p from "pareto"
 import { describe } from "mocha"
 import assert from "assert"
 import * as path from "path"
@@ -15,7 +16,7 @@ function tokenizeStrings(
         createParserStack(
             () => dummyParserEventConsumer,
             () => {
-                //
+                return p.value(null)
             },
             () => dummyParserEventConsumer,
             createErrorStreamHandler(false, () => onError()),
