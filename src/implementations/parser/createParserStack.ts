@@ -1,7 +1,7 @@
 import * as p from "pareto"
 import * as core from "astn-core"
 import {
-    createTextParser, printTextParserError, StructureErrorType,
+    createStructureParser, printStructureError, StructureErrorType,
 } from "../structureParser"
 import {
     printRange,
@@ -13,10 +13,10 @@ import {
 import {
     createTokenizer,
 } from "../tokenizer"
-import { Token } from "../../interfaces/ITreeParser"
 import { TokenizerAnnotationData } from "../../interfaces"
 import { TokenError, printPreTokenizerError } from "../pretokenizer"
 import { printTreeParserError, TreeParserError } from "../treeParser"
+import { SimpleStringData } from "astn-core"
 
 export function createErrorStreamHandler(withRange: boolean, callback: (stringifiedError: string) => void): ErrorStreamsHandler {
     function printRange2(range: Range) {
@@ -30,7 +30,7 @@ export function createErrorStreamHandler(withRange: boolean, callback: (stringif
             callback(`${printPreTokenizerError($.error)}${printRange2($.range)}`)
         },
         onTextParserError: $ => {
-            callback(`${printTextParserError($.error)}${printRange2($.annotation.range)}`)
+            callback(`${printStructureError($.error)}${printRange2($.annotation.range)}`)
         },
         onTreeParserError: $ => {
             callback(`${printTreeParserError($.error)}${printRange2($.annotation.range)}`)
@@ -62,14 +62,16 @@ export type ErrorStreamsHandler = {
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).
  */
 export function createParserStack<ReturnType, ErrorType>(
-    onSchemaDataStart: (startToken: Token<TokenizerAnnotationData>) => core.ITreeBuilder<TokenizerAnnotationData, null, null>,
+    onEmbeddedSchema: (schemaSchemaName: string) => core.ITreeBuilder<TokenizerAnnotationData, null, null>,
+    onSchemaReference: (token: SimpleStringData, tokenAnnotation: TokenizerAnnotationData) => void,
     onInstanceDataStart: (annotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, ReturnType, ErrorType>,
     errorStreams: ErrorStreamsHandler
 ): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
     return createStreamPreTokenizer(
         createTokenizer(
-            createTextParser(
-                onSchemaDataStart,
+            createStructureParser(
+                onEmbeddedSchema,
+                onSchemaReference,
                 onInstanceDataStart,
                 errorStreams.onTextParserError,
                 errorStreams.onTreeParserError,

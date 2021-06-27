@@ -979,7 +979,6 @@ export const ownJSONTests: TestDefinitions = {
             ["token", "schema data start"],
             //["validationerror", "headers are not allowed in strict JSON"],
             ["token", "simple string", "foo", null],
-            ["end", null],
             ["instance data start"],
             ["token", "openobject", "{", null],
             ["token", "closeobject", "}", null],

@@ -2,6 +2,7 @@ import * as p from "pareto"
 import * as core from "astn-core"
 import { createErrorStreamHandler, createParserStack } from "../parser"
 import { TokenizerAnnotationData } from "../../interfaces"
+import { createSerializedQuotedString } from "astn-core"
 
 export function createASTNTextFormatter(
     formatter: core.Formatter<TokenizerAnnotationData, null>,
@@ -28,6 +29,9 @@ export function createASTNTextFormatter(
                 },
                 () => core.createDummyValueHandler(() => p.value(null)),
             )
+        },
+        schemaReference => {
+            write(createSerializedQuotedString(schemaReference.value))
         },
         () => {
             const datasubscriber = core.createStackedParser<TokenizerAnnotationData, null, null>(

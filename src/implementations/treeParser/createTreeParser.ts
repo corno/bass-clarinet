@@ -14,7 +14,7 @@ import {
     Token,
     TokenType,
     SimpleStringData,
-    PunctionationData,
+    StructuralTokenData,
     ITreeParser,
     MultilineStringData,
 } from "../../interfaces/ITreeParser"
@@ -416,7 +416,7 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
             }
 
         }
-        private onPunctuation(annotation: Annotation, data: PunctionationData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+        private onPunctuation(annotation: Annotation, data: StructuralTokenData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
             const curChar = data.char
             switch (curChar) {
                 case Char.Punctuation.exclamationMark:

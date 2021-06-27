@@ -270,7 +270,6 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["token", "schema data start"],
             ["token", "simple string", "a schema", null],
-            ["end", null],
             ["instance data start"],
             ["token", "simple string", "42", null],
             ["end", null],
@@ -282,7 +281,6 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["token", "schema data start"],
             ["token", "simple string", "a schema", null],
-            ["end", null],
             ["instance data start"],
             ["token", "openobject", "(", null],
             ["token", "closeobject", ")", null],
@@ -304,7 +302,6 @@ export const extensionTests: TestDefinitions = {
         events: [
             ["token", "schema data start"],
             ["token", "simple string", "a schema", null],
-            ["end", null],
             ["instance data start"],
             ["token", "simple string", "42", null],
             ["end", null],

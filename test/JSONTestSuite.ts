@@ -14,6 +14,9 @@ function tokenizeStrings(
         null,
         createParserStack(
             () => dummyParserEventConsumer,
+            () => {
+                //
+            },
             () => dummyParserEventConsumer,
             createErrorStreamHandler(false, () => onError()),
         )

@@ -1,5 +1,5 @@
 export * from "./functionTypes"
 
-export { createStructureParser as createTextParser } from "./createStructureParser"
-export { printStructureError as printTextParserError } from "./printStructureError"
+export { createStructureParser } from "./createStructureParser"
+export { printStructureError } from "./printStructureError"
 

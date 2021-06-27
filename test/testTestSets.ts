@@ -13,8 +13,8 @@ import * as chai from "chai"
 import { ownJSONTests } from "./data/ownJSONTestset"
 import { extensionTests } from "./data/ASTNTestSet"
 import { EventDefinition, TestRange, TestLocation, TestDefinition } from "./TestDefinition"
-import { getEndLocationFromRange, TokenizerAnnotationData, Token, createErrorStreamHandler } from "../src"
-import { RequiredValueHandler, ValueHandler } from "astn-core"
+import { getEndLocationFromRange, TokenizerAnnotationData, createErrorStreamHandler } from "../src"
+import { createSerializedQuotedString, RequiredValueHandler, SimpleStringData, ValueHandler } from "astn-core"
 
 function createStreamSplitter<DataType, EndDataType>(
     subStreamConsumers: p.IUnsafeStreamConsumer<DataType, EndDataType, null, null>[]
@@ -64,7 +64,8 @@ type ParserRequiredValueHandler = RequiredValueHandler<TokenizerAnnotationData, 
 type ParserValueHandler = ValueHandler<TokenizerAnnotationData, null, p.IValue<null>>
 
 interface HeaderSubscriber {
-    onSchemaDataStart(token: Token<TokenizerAnnotationData>): void
+    onEmbeddedSchema(schemaSchemaName: string): void
+    onSchemaReference(schemaReference: SimpleStringData, annotation: TokenizerAnnotationData): void
     onInstanceDataStart(annotation: astn.TokenizerAnnotationData): void
 }
 
@@ -231,9 +232,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
         ]
         const headerSubscribers: HeaderSubscriber[] = [
             {
-                onSchemaDataStart: () => {
+                onEmbeddedSchema: () => {
                     out.push("!")
                     return []
+                },
+                onSchemaReference: schemaReference => {
+                    out.push(`! ${createSerializedQuotedString(schemaReference.value)}`)
                 },
                 onInstanceDataStart: () => {
                     return []
@@ -243,8 +247,12 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
 
         if (test.testHeaders) {
             headerSubscribers.push({
-                onSchemaDataStart: _range => {
+                onEmbeddedSchema: _range => {
                     actualEvents.push(["token", "schema data start"])
+                },
+                onSchemaReference: (schemaReference, annotation) => {
+                    actualEvents.push(["token", "schema data start"])
+                    actualEvents.push(["token", "simple string", schemaReference.value, getRange(test.testForLocation, annotation.range)])
                 },
                 onInstanceDataStart: () => {
                     actualEvents.push(["instance data start"])
@@ -252,11 +260,16 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             })
         }
         const parserStack = astn.createParserStack(
-            token => {
+            schemaSchemaName => {
                 headerSubscribers.forEach(s => {
-                    s.onSchemaDataStart(token)
+                    s.onEmbeddedSchema(schemaSchemaName)
                 })
                 return createStreamSplitter(schemaDataSubscribers)
+            },
+            (schemaName, annotation) => {
+                headerSubscribers.forEach(s => {
+                    s.onSchemaReference(schemaName, annotation)
+                })
             },
             annotation => {
                 headerSubscribers.forEach(s => {

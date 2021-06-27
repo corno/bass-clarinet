@@ -65,6 +65,9 @@ describe('typed', () => {
                         }
                     },
                     () => {
+                        throw new Error("IMPLEMENT ME")
+                    },
+                    () => {
 
                         const expect = core.createExpectContext<astn.TokenizerAnnotationData, null, p.IValue<null>>(
                             $ => {

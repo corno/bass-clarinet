@@ -15,6 +15,9 @@ export function printStructureError($$: StructureErrorType): string {
         case "expected the schema start (!) or root value": {
             return `expected the schema start (!) or root value`
         }
+        case "expected a schema reference or a schema body": {
+            return `expected a schema reference or a schema body`
+        }
         case "unexpected data after end": {
             const $$$ = $$[1]
             return `unexpected data after end: ${$$$.data}`

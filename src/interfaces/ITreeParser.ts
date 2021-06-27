@@ -20,38 +20,20 @@ export type MultilineStringData = {
     terminated: boolean
 }
 
-// export type WhiteSpaceData = {
-//     value: string
-// }
-
-// export type CommentData = {
-//     comment: string
-//     innerRange: Range //without the open and close tokens:
-//     indentation: null | string
-//     type: "block" | "line"
-// }
-
-export type PunctionationData = {
+export type StructuralTokenData = {
     char: number
+    // | ["!"]
+    // | ["<"]
+    // | [">"]
+    // | ["("]
+    // | [")"]
+    // | ["{"]
+    // | ["}"]
+    // | ["["]
+    // | ["]"]
 }
 
-// export enum OverheadTokenType {
-//     Comment,
-//     NewLine,
-//     WhiteSpace
-// }
-
-// export type OverheadToken = {
-//     type:
-//     | [OverheadTokenType.Comment, CommentData]
-//     | [OverheadTokenType.NewLine, {
-//         //
-//     }]
-//     | [OverheadTokenType.WhiteSpace, WhiteSpaceData]
-// }
-
 export enum TokenType {
-//    Overhead,
     Structural,
     SimpleString,
     MultilineString,
@@ -60,8 +42,7 @@ export enum TokenType {
 export type Token<Annotation> = {
     annotation: Annotation
     type:
-    //| [TokenType.Overhead, OverheadToken]
-    | [TokenType.Structural, PunctionationData]
+    | [TokenType.Structural, StructuralTokenData]
     | [TokenType.SimpleString, SimpleStringData]
     | [TokenType.MultilineString, MultilineStringData]
 }

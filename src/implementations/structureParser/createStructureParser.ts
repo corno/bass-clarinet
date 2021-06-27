@@ -7,7 +7,7 @@ import * as core from "astn-core"
 import * as Char from "../../generic/characters"
 import { createTreeParser, TreeParserError as TreeError } from "../treeParser"
 import { StructureErrorType as StructureErrorType } from "./functionTypes"
-import { ITreeParser, MultilineStringData, PunctionationData, SimpleStringData, Token, TokenType } from "../../interfaces/ITreeParser"
+import { ITreeParser, MultilineStringData, StructuralTokenData, SimpleStringData, Token, TokenType } from "../../interfaces/ITreeParser"
 import { TokenConsumer } from "../../interfaces/ITokenConsumer"
 
 function assertUnreachable<RT>(_x: never): RT {
@@ -29,14 +29,15 @@ enum TextState {
  * for this reason it has 2 type parameters:
  * -ReturnType: The type if parsing went succesful
  * -ErrorType: The type if the parsing produced an unexpected error
- * @param onSchemaDataStart a text can contain schema data. If this is the case, this callback will be called.
+ * @param onEmbeddedSchema a text can contain schema data. If this is the case, this callback will be called.
  * it enables the consuming code to prepare for the instance data. It cannot produce a result itself, hence the type parameters are null and null
  * @param onInstanceDataStart when the instance data starts, this callback is called and a TextParserEventConsumer should be returned. This consumer will also produce the final resulting type
  * @param onTextParserError a handler for when a parsing error occurs
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
 export function createStructureParser<Annotation, ReturnType, ErrorType>(
-    onSchemaDataStart: (startToken: Token<Annotation>) => core.ITreeBuilder<Annotation, null, null>,
+    onEmbeddedSchema: (schemaSchemaName: string) => core.ITreeBuilder<Annotation, null, null>,
+    onSchemaReference: (token: SimpleStringData, tokenAnnotation: Annotation) => void,
     onInstanceDataStart: (annotation: Annotation) => core.ITreeBuilder<Annotation, ReturnType, ErrorType>,
     onTextParserError: ($: {
         error: StructureErrorType
@@ -151,14 +152,14 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
         }
         private handleToken(
             token: Token<Annotation>,
-            onPunctuation: (data: PunctionationData) => p.IValue<boolean>,
+            onStructuralToken: (data: StructuralTokenData) => p.IValue<boolean>,
             onSimpleString: (stringData: SimpleStringData) => p.IValue<boolean>,
             onMultilineString: (stringData: MultilineStringData) => p.IValue<boolean>,
         ): p.IValue<boolean> {
             switch (token.type[0]) {
                 case TokenType.Structural: {
                     const $ = token.type[1]
-                    return onPunctuation($)
+                    return onStructuralToken($)
                 }
                 case TokenType.SimpleString: {
                     const $ = token.type[1]
@@ -198,9 +199,10 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
                     return this.handleToken(
                         data,
                         _punctuation => {
+                            console.error("FIXME schema schema reference")
                             const bp = createTreeParser(
                                 onTreeParserError,
-                                onSchemaDataStart(data),
+                                onEmbeddedSchema("mrshl/metadata@0.1"),
                             )
                             this.rootContext.state = [TextState.PROCESSING_SCHEMA, {
                                 treeParser: bp,
@@ -219,45 +221,14 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>(
                             })
                         },
                         stringData => {
-                            const consumer = onSchemaDataStart(data)
-                            return consumer.onData({
-                                annotation: data.annotation,
-                                type: ["simple string", {
-                                    value: stringData.value,
-                                    wrapping: stringData.wrapping,
-                                }],
-                            }).mapResult(() => {
-                                this.rootContext.state = [TextState.EXPECTING_BODY, {
-                                }]
-                                return consumer.onEnd(false, data.annotation).reworkAndCatch(
-                                    () => {
-                                        return p.value(false)
-                                    },
-                                    () => {
-                                        return p.value(false)
-                                    },
-                                )
-                            })
+                            onSchemaReference(stringData, data.annotation)
+                            this.rootContext.state = [TextState.EXPECTING_BODY, {
+                            }]
+                            return p.value(false)
                         },
-                        stringData => {
-                            const consumer = onSchemaDataStart(data)
-                            return consumer.onData({
-                                annotation: data.annotation,
-                                type: ["multiline string", {
-                                    lines: stringData.lines,
-                                }],
-                            }).mapResult(() => {
-                                this.rootContext.state = [TextState.EXPECTING_BODY, {
-                                }]
-                                return consumer.onEnd(false, data.annotation).reworkAndCatch(
-                                    () => {
-                                        return p.value(false)
-                                    },
-                                    () => {
-                                        return p.value(false)
-                                    },
-                                )
-                            })
+                        _stringData => {
+                            this.raiseStructureError([`expected a schema reference or a schema body`], data.annotation)
+                            return p.value(false)
                         },
                     )
                 }

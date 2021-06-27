@@ -12,6 +12,9 @@ const parserStack = astn.createParserStack(
         return dummyParserEventConsumer
     },
     () => {
+        //
+    },
+    () => {
         return {
             onData: _data => {
                 //return p20.result(false)
