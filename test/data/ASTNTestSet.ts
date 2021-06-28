@@ -307,7 +307,7 @@ export const extensionTests: TestDefinitions = {
             ["end", null],
         ],
     },
-    "internal schema": {
+    "embedded schema": {
         text: `!(
     'component types': {
         'root': (
