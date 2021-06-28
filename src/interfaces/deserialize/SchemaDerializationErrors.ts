@@ -5,3 +5,4 @@ export type SchemaDeserializationError =
     "message": string
 }]
 | ["expect", astncore.ExpectError]
+| ["stacked", astncore.StackedDataErrorType]
