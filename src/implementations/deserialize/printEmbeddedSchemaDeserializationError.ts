@@ -22,6 +22,11 @@ export function printEmbeddedSchemaDeserializationError(error: SchemaDeserializa
 
             return $$$.message
         }
+        case "stacked": {
+            const $$$ = error[1]
+
+            return astncore.printStackedDataError($$$)
+        }
         default:
             return assertUnreachable(error[0])
     }
