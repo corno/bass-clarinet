@@ -16,7 +16,7 @@ export function createNOPSideEffects<Annotation>(): astncore.RootHandler<Annotat
     }
 }
 
-function createVerboseTypeNOPSideEffects<Annotation>(): astncore.VerboseTypeHandler<Annotation> {
+function createTypeNOPSideEffects<Annotation>(): astncore.TypeHandler<Annotation> {
     return {
         onUnexpectedProperty: () => {
             //
@@ -27,19 +27,8 @@ function createVerboseTypeNOPSideEffects<Annotation>(): astncore.VerboseTypeHand
         // onUnexpectedProperty: () => {
         //     //
         // }
-        onVerboseTypeClose: () => {
+        onClose: () => {
             //
-        },
-    }
-}
-
-function createShorthandTypeNOPSideEffects<Annotation>(): astncore.ShorthandTypeHandler<Annotation> {
-    return {
-        onShorthandTypeClose: () => {
-            //
-        },
-        onProperty: () => {
-            return createValueNOPSideEffects()
         },
     }
 }
@@ -47,7 +36,7 @@ function createShorthandTypeNOPSideEffects<Annotation>(): astncore.ShorthandType
 function createStateGroupNOPSideEffects<Annotation>(): astncore.TypedTaggedUnionHandler<Annotation> {
     return {
         onUnexpectedOption: () => {
-            //
+            return createValueNOPSideEffects()
         },
         onOption: () => {
             return createValueNOPSideEffects()
@@ -73,17 +62,14 @@ function createValueNOPSideEffects<Annotation>(): astncore.TypedValueHandler<Ann
         onMultilineString: () => {
             //
         },
-        onNull: () => {
-            //
-        },
         onComponent: () => {
             return createValueNOPSideEffects()
         },
         onShorthandTypeOpen: () => {
-            return createShorthandTypeNOPSideEffects()
+            return createTypeNOPSideEffects()
         },
         onVerboseTypeOpen: () => {
-            return createVerboseTypeNOPSideEffects()
+            return createTypeNOPSideEffects()
         },
     }
 }
@@ -105,7 +91,7 @@ function createListNOPSideEffects<Annotation>(): astncore.ListHandler<Annotation
         onClose: () => {
             //
         },
-        onEntry: () => {
+        onElement: () => {
             return createValueNOPSideEffects()
         },
     }

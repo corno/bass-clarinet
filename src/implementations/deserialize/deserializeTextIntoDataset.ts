@@ -171,7 +171,7 @@ export function deserializeTextIntoDataset($: {
 					severity,
 				)
 			},
-			allSideEffects,
+			astncore.split(allSideEffects),
 			$.getSchemaSchemaBuilder,
 		)
 		return p20.createArray([$.documentText]).streamify().tryToConsume(

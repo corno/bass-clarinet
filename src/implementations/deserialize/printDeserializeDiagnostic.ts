@@ -1,7 +1,7 @@
 /* eslint
     "max-classes-per-file": off,
 */
-
+import * as astncore from "astn-core"
 import { printEmbeddedSchemaDeserializationError } from "./printEmbeddedSchemaDeserializationError"
 import { DeserializationDiagnostic } from "../../interfaces/deserialize/DeserializationDiagnostic"
 import { printPreTokenizerError, printStructureError, printTreeParserError } from ".."
@@ -16,9 +16,9 @@ export function printDeserializationDiagnostic($: DeserializationDiagnostic): st
             const $$ = $.type[1]
             return $$[0]
         }
-        case "validation": {
+        case "deserialize": {
             const $$ = $.type[1]
-            return $$.message
+            return astncore.printDeserializeError($$)
         }
         case "tokenizer": {
             const $$ = $.type[1]

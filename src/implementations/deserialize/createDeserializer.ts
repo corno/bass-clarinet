@@ -44,7 +44,7 @@ export function createDeserializer(
     ) => IDeserializedDataset,
     onNoEmbeddedSchema: () => IDataset | null,
     onError: (diagnostic: DeserializationDiagnostic, range: astn.Range, severity: astncore.DiagnosticSeverity) => void,
-    sideEffectsHandlers: astncore.RootHandler<astn.TokenizerAnnotationData>[],
+    handler: astncore.RootHandler<astn.TokenizerAnnotationData>,
     getSchemaSchemaBuilder: (
         name: string,
     ) => SchemaSchemaBuilder<astn.TokenizerAnnotationData> | null,
@@ -200,19 +200,15 @@ export function createDeserializer(
             return astncore.createStackedParser(
                 astncore.createDatasetDeserializer(
                     dataset.dataset.schema,
-                    dataset.dataset.root,
-                    dataset.dataset.rootComments,
-                    sideEffectsHandlers.map(h => h.root),
-                    (message, annotation, severity) => onError(createDiagnostic(["validation", { message: message }]), annotation.range, severity),
+                    handler.root,
+                    (error, annotation, severity) => onError(createDiagnostic(["deserialize", error]), annotation.range, severity),
                     () => p.value(null),
                 ),
                 error => {
                     onError(createDiagnostic(["stacked", error.type]), error.annotation.range, astncore.DiagnosticSeverity.error)
                 },
                 () => {
-                    sideEffectsHandlers.forEach(h => {
-                        h.onEnd({})
-                    })
+                    handler.onEnd({})
                     return p.success(dataset)
                 },
                 () => astncore.createDummyValueHandler(() => p.value(null))

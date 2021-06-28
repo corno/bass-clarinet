@@ -15,9 +15,7 @@ export type ReferencedSchemaResolvingError =
 export type DeserializationDiagnosticType =
     | ["ignoring invalid embedded schema"]
     | ["ignoring invalid schema reference"]
-    | ["validation", {
-        message: string
-    }]
+    | ["deserialize", astncore.DeserializeError]
     | ["stacked", astncore.StackedDataErrorType]
     | ["tokenizer", TokenError]
     | ["structure", StructureErrorType]
