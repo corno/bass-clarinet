@@ -10,10 +10,10 @@ import {
 	IDeserializedDataset,
 } from "../../interfaces/deserialize/Dataset"
 
-import { ResolveExternalSchema, RetrievalError } from "../../interfaces/deserialize/ResolveExternalSchema"
+import { ResolveReferencedSchema, RetrievalError } from "../../interfaces/deserialize/ResolveReferencedSchema"
 
 import { createDeserializer } from "./createDeserializer"
-import { ExternalSchemaDeserializationError } from "../../interfaces/deserialize/ExternalSchemaDeserializationError"
+import { ReferencedSchemaDeserializationError } from "../../interfaces/deserialize/ReferencedSchemaDeserializationError"
 
 
 import { SchemaAndSideEffects } from "../../interfaces/deserialize/SchemaAndSideEffects"
@@ -36,7 +36,7 @@ export const schemaFileName = "schema.astn-schema"
 export function deserializeTextIntoDataset($: {
 	documentText: string
 	contextSchemaData: ContextSchemaData
-	resolveExternalSchema: ResolveExternalSchema
+	resolveReferencedSchema: ResolveReferencedSchema
 	getSchemaSchemaBuilder: (
 		name: string
 	) => SchemaSchemaBuilder<astn.TokenizerAnnotationData> | null
@@ -67,7 +67,7 @@ export function deserializeTextIntoDataset($: {
 		})
 	}
 
-	function validateThatErrorsAreFound(error: ExternalSchemaDeserializationError) {
+	function validateThatErrorsAreFound(error: ReferencedSchemaDeserializationError) {
 		if (!diagnosticFound) {
 			addDiagnostic(
 				['schema retrieval', {
@@ -114,7 +114,7 @@ export function deserializeTextIntoDataset($: {
 		}
 
 		const deser = createDeserializer(
-			$.resolveExternalSchema,
+			$.resolveReferencedSchema,
 			(internalSchemaSpecification, schemaAndSideEffects2): IDeserializedDataset => {
 
 				function createDeserializedDataset(
@@ -143,7 +143,7 @@ export function deserializeTextIntoDataset($: {
 
 				addDiagnostic2(
 					["schema retrieval", {
-						issue: ["found both external and internal schema. ignoring internal schema"],
+						issue: ["found both internal and context schema. ignoring internal schema"],
 					}],
 					astncore.DiagnosticSeverity.warning,
 				)
@@ -231,14 +231,14 @@ export function deserializeTextIntoDataset($: {
 					(error, _range) => {
 						dc({
 							type: ["schema retrieval", {
-								issue: ["error in external schema", error],
+								issue: ["error in referenced schema", error],
 							}],
 							severity: astncore.DiagnosticSeverity.error,
 						})
 					},
 					$.getSchemaSchemaBuilder,
 				),
-			).mapError<ExternalSchemaDeserializationError>(
+			).mapError<ReferencedSchemaDeserializationError>(
 				() => {
 					return p.value({ problem: "missing schema" })
 				}

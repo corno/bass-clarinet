@@ -15,6 +15,5 @@ export {
     deserializeTextIntoDataset
 } from "./deserialize/deserializeTextIntoDataset"
 export * from "./deserialize/printDeserializeDiagnostic"
-export * from "./deserialize/printInternalSchemaError"
 export * from "./deserialize/printLoadDocumentDiagnostic"
 export * from "./deserialize/printSchemaSchemaError"

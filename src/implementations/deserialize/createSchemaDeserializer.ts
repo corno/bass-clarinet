@@ -3,10 +3,10 @@ import * as astncore from "astn-core"
 import * as p from "pareto"
 import { SchemaSchemaBuilder } from "../../interfaces/deserialize"
 import { SchemaAndSideEffects } from "../../interfaces/deserialize/SchemaAndSideEffects"
-import { SchemaSchemaError } from "../../interfaces/deserialize/SchemaSchemaError"
+import { SchemaError } from "../../interfaces/deserialize/SchemaSchemaError"
 
 export function createSchemaDeserializer(
-    onError: (error: SchemaSchemaError, range: astn.Range) => void,
+    onError: (error: SchemaError, range: astn.Range) => void,
     getSchemaSchemaBuilder: (
         name: string,
     ) => SchemaSchemaBuilder<astn.TokenizerAnnotationData> | null,
@@ -15,7 +15,7 @@ export function createSchemaDeserializer(
 
     let schemaDefinitionFound = false
     let schemaSchemaBuilder: null | SchemaSchemaBuilder<astn.TokenizerAnnotationData> = null
-    function onSchemaError(error: SchemaSchemaError, range: astn.Range) {
+    function onSchemaError(error: SchemaError, range: astn.Range) {
         onError(error, range)
         foundError = true
     }
@@ -23,7 +23,7 @@ export function createSchemaDeserializer(
     //console.log("SCHEMA DESER")
     return astn.createParserStack({
         onEmbeddedSchema: (_schemaSchemaName, annotation) => {
-            onSchemaError(["internal schema", ["unexpected schema format", { found: ["object"] }]], annotation.range)
+            onSchemaError(["schema schema cannot be embedded"], annotation.range)
             return astncore.createStackedParser(
                 astncore.createDummyTreeHandler(() => p.value(null)),
                 _$ => {

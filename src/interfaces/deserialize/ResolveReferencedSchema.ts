@@ -11,4 +11,4 @@ export type RetrievalError =
 		"description": string
 	}]
 
-export type ResolveExternalSchema = (id: string) => p.IUnsafeValue<p.IStream<string, null>, RetrievalError>
+export type ResolveReferencedSchema = (id: string) => p.IUnsafeValue<p.IStream<string, null>, RetrievalError>

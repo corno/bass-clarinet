@@ -54,6 +54,9 @@ type ObjectContext = {
     //readonly openChar: number
 }
 
+/*
+ * CSCH: This Parser only really trivially converts the token. All errors are also reported by the ITreeBuilder
+ */
 export function createTreeParser<Annotation, ReturnType, ErrorType>(
     onerror: ($: {
         error: TreeParserError

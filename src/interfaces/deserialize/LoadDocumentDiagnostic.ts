@@ -1,5 +1,5 @@
 
-import { SchemaSchemaError } from "./SchemaSchemaError"
+import { SchemaError } from "./SchemaSchemaError"
 import { DeserializationDiagnostic } from "./DeserializationDiagnostic"
 import * as astncore from "astn-core"
 import { Range } from "../../generic"
@@ -9,8 +9,8 @@ export type LoadDocumentDiagnosticType =
     issue:
     | ["unknown retrieval error", { "description": string }]
     | ["validating schema file against internal schema"]
-    | ["found both external and internal schema. ignoring internal schema"]
-    | ["error in external schema", SchemaSchemaError]
+    | ["found both internal and context schema. ignoring internal schema"]
+    | ["error in referenced schema", SchemaError]
     | ["no valid schema"]
     | ["missing schema"]
 }]

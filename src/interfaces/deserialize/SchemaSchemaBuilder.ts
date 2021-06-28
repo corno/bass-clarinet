@@ -1,7 +1,7 @@
 import { SchemaAndSideEffects } from "./SchemaAndSideEffects"
 import * as astncore from "astn-core"
-import { InternalSchemaDeserializationError } from "./SchemaDerializationErrors"
+import { SchemaDeserializationError } from "./SchemaDerializationErrors"
 
 export type SchemaSchemaBuilder<Annotation> = (
-    onSchemaError: (error: InternalSchemaDeserializationError, annotation: Annotation) => void
+    onSchemaError: (error: SchemaDeserializationError, annotation: Annotation) => void
 ) => astncore.ITreeBuilder<Annotation, SchemaAndSideEffects<Annotation>, null>

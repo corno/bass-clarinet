@@ -1,13 +1,12 @@
-import { printInternalSchemaError } from "./printInternalSchemaError"
-import { printInternalSchemaDeserializationError } from "./printInternalSchemaDeserializationError"
-import { SchemaSchemaError } from "../../interfaces/deserialize/SchemaSchemaError"
+import { printEmbeddedSchemaDeserializationError } from "./printEmbeddedSchemaDeserializationError"
+import { SchemaError } from "../../interfaces/deserialize/SchemaSchemaError"
 import { printPreTokenizerError, printStructureError, printTreeParserError } from ".."
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-export function printSchemaSchemaError($$: SchemaSchemaError): string {
+export function printSchemaSchemaError($$: SchemaError): string {
     switch ($$[0]) {
         case "missing schema schema definition": {
             //const $$$ = $$[1]
@@ -27,11 +26,10 @@ export function printSchemaSchemaError($$: SchemaSchemaError): string {
         }
         case "schema processing": {
             const $$$ = $$[1]
-            return printInternalSchemaDeserializationError($$$)
+            return printEmbeddedSchemaDeserializationError($$$)
         }
-        case "internal schema": {
-            const $$$ = $$[1]
-            return printInternalSchemaError($$$)
+        case "schema schema cannot be embedded": {
+            return "schema schema cannot be embedded"
         }
         case "unknown schema schema": {
             //const $$$ = $$[1]

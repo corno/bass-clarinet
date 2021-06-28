@@ -11,12 +11,12 @@ import * as astn from "../.."
 import { InternalSchemaSpecification, InternalSchemaSpecificationType } from "../../interfaces/deserialize/Dataset"
 import { SchemaAndSideEffects } from "../../interfaces/deserialize/SchemaAndSideEffects"
 
-import { ExternalSchemaDeserializationError } from "../../interfaces/deserialize/ExternalSchemaDeserializationError"
+import { ReferencedSchemaDeserializationError } from "../../interfaces/deserialize/ReferencedSchemaDeserializationError"
 import { DeserializationDiagnostic, DeserializationDiagnosticType } from "../../interfaces/deserialize/DeserializationDiagnostic"
 import { IDeserializedDataset } from "../../interfaces/deserialize/Dataset"
 import { IDataset } from "../../interfaces/deserialize/Dataset"
-import { ResolveExternalSchema } from "../../interfaces/deserialize/ResolveExternalSchema"
-import { InternalSchemaDeserializationError, SchemaSchemaBuilder } from "../../interfaces/deserialize"
+import { ResolveReferencedSchema } from "../../interfaces/deserialize/ResolveReferencedSchema"
+import { SchemaDeserializationError, SchemaSchemaBuilder } from "../../interfaces/deserialize"
 import { createSchemaDeserializer } from "./createSchemaDeserializer"
 import { ReferencedSchemaResolvingError } from "../../interfaces/deserialize"
 
@@ -29,31 +29,31 @@ function assertUnreachable<RT>(_x: never): RT {
  * this function returns a promise to a deserialized dataset and the promise is resolved when the validation has been completed
  * @param serializedDataset
  * @param schemaReferenceResolver if the document contains a reference to a schema, this callback resolves the schema
- * @param onInternalSchema if the document contains a schema (either reference or embedded), this callback is used to create the dataset
- * @param onNoInternalSchema if the document does not contain a schema, this callback is used to create the dataset
+ * @param onEmbeddedSchema if the document contains a schema (either reference or embedded), this callback is used to create the dataset
+ * @param onNoEmbeddedSchema if the document does not contain a schema, this callback is used to create the dataset
  * @param onError
  * @param onWarning
  * @param sideEffectsHandlers these handlers will be called during the deserialization.
  * Can be used to create additional errors and warnings about the serialized document. For example missing properties or invalid formatting
  */
 export function createDeserializer(
-    resolveExternalSchema: ResolveExternalSchema,
-    onInternalSchema: (
+    resolveReferencedSchema: ResolveReferencedSchema,
+    onEmbeddedSchema: (
         specification: InternalSchemaSpecification,
         schemaAndSideEffects: SchemaAndSideEffects<astn.TokenizerAnnotationData>,
     ) => IDeserializedDataset,
-    onNoInternalSchema: () => IDataset | null,
+    onNoEmbeddedSchema: () => IDataset | null,
     onError: (diagnostic: DeserializationDiagnostic, range: astn.Range, severity: astncore.DiagnosticSeverity) => void,
     sideEffectsHandlers: astncore.RootHandler<astn.TokenizerAnnotationData>[],
     getSchemaSchemaBuilder: (
         name: string,
     ) => SchemaSchemaBuilder<astn.TokenizerAnnotationData> | null,
-): p20.IUnsafeStreamConsumer<string, null, IDeserializedDataset, ExternalSchemaDeserializationError> {
+): p20.IUnsafeStreamConsumer<string, null, IDeserializedDataset, ReferencedSchemaDeserializationError> {
 
     /*
-    CSCH: I think it is better to not have the 2 callbacks: onInternalSchema and onNoInternalSchema,
-    both their behaviour depends on the external schema.
-    just add a 'externalSchema' parameter and then handle the logic in this function.
+    CSCH: I think it is better to not have the 2 callbacks: onEmbeddedSchema and onNoEmbeddedSchema,
+    both their behaviour depends on the referenced schema.
+    just add a 'referencedSchema' parameter and then handle the logic in this function.
     */
 
     function createDiagnostic(type: DeserializationDiagnosticType): DeserializationDiagnostic {
@@ -62,7 +62,7 @@ export function createDeserializer(
         }
     }
 
-    let internalSchemaSpecificationStart: null | astn.Range = null
+    let embeddedSchemaSpecificationStart: null | astn.Range = null
     let foundSchemaErrors = false
 
     type InternalSchema = {
@@ -73,14 +73,9 @@ export function createDeserializer(
     let internalSchema: InternalSchema | null = null
 
 
-    function onSchemaError(error: InternalSchemaDeserializationError, range: astn.Range) {
-        onError(createDiagnostic(["schema error", error]), range, astncore.DiagnosticSeverity.error)
-        foundSchemaErrors = true
-    }
-
-    const parserStack = astn.createParserStack<IDeserializedDataset, ExternalSchemaDeserializationError>({
+    const parserStack = astn.createParserStack<IDeserializedDataset, ReferencedSchemaDeserializationError>({
         onEmbeddedSchema: (schemaSchemaReference, firstTokenAnnotation) => {
-            internalSchemaSpecificationStart = firstTokenAnnotation.range
+            embeddedSchemaSpecificationStart = firstTokenAnnotation.range
 
             const schemaSchemaBuilder = getSchemaSchemaBuilder(schemaSchemaReference)
 
@@ -89,7 +84,8 @@ export function createDeserializer(
             }
             const builder = schemaSchemaBuilder(
                 (error, annotation) => {
-                    onSchemaError(error, annotation.range)
+                    onError(createDiagnostic(["embedded schema error", error]), annotation.range, astncore.DiagnosticSeverity.error)
+                    foundSchemaErrors = true
                 }
             )
             return {
@@ -106,7 +102,7 @@ export function createDeserializer(
             }
         },
         onSchemaReference: (schemaReference, annotation) => {
-            return resolveExternalSchema(schemaReference.value).mapError<ReferencedSchemaResolvingError>(error => {
+            return resolveReferencedSchema(schemaReference.value).mapError<ReferencedSchemaResolvingError>(error => {
                 switch (error[0]) {
                     case "not found": {
                         return p.value(["loading", { message: `schema not found` }])
@@ -136,13 +132,20 @@ export function createDeserializer(
                     ).mapError(
                         () => {
                             //const myUrl = new URL(encodeURI(reference), pathStart)
-                            return p.value(["errors in schema"])
+                            return p.value(["errors in referenced schema"])
                         },
                     )
                 },
             ).reworkAndCatch(
                 error => {
-                    onSchemaError(["schema reference resolving", error], annotation.range)
+                    foundSchemaErrors = true
+                    onError(
+                        createDiagnostic(
+                            ["schema reference resolving", error],
+                        ),
+                        annotation.range,
+                        astncore.DiagnosticSeverity.warning,
+                    )
                     onError(
                         createDiagnostic(
                             ["ignoring invalid schema reference"],
@@ -161,8 +164,8 @@ export function createDeserializer(
                 },
             )
         },
-        onBody: (): astncore.ITreeBuilder<astn.TokenizerAnnotationData, IDeserializedDataset, ExternalSchemaDeserializationError> => {
-            if (internalSchemaSpecificationStart !== null && internalSchema === null) {
+        onBody: (): astncore.ITreeBuilder<astn.TokenizerAnnotationData, IDeserializedDataset, ReferencedSchemaDeserializationError> => {
+            if (embeddedSchemaSpecificationStart !== null && internalSchema === null) {
                 if (!foundSchemaErrors) {
                     console.error("NO SCHEMA AND NO ERROR")
                     //throw new Error("Unexpected: no schema errors and no schema")
@@ -171,7 +174,7 @@ export function createDeserializer(
 
             const dataset: IDeserializedDataset | null = (internalSchema === null)
                 ? ((): IDeserializedDataset | null => { //no internal schema
-                    const ds = onNoInternalSchema()
+                    const ds = onNoEmbeddedSchema()
                     if (ds === null) {
                         return null
                     }
@@ -180,7 +183,7 @@ export function createDeserializer(
                         internalSchemaSpecification: [InternalSchemaSpecificationType.None],
                     }
                 })()
-                : onInternalSchema(internalSchema.specification, internalSchema.schemaAndSideEffects) //internal schema
+                : onEmbeddedSchema(internalSchema.specification, internalSchema.schemaAndSideEffects) //internal schema
 
             if (dataset === null) {
                 return {
@@ -201,7 +204,7 @@ export function createDeserializer(
                     dataset.dataset.build.root,
                     dataset.dataset.build.rootComments,
                     sideEffectsHandlers.map(h => h.root),
-                    (message, annotation, severity) => onError(createDiagnostic(["deserializer", { message: message }]), annotation.range, severity),
+                    (message, annotation, severity) => onError(createDiagnostic(["validation", { message: message }]), annotation.range, severity),
                     () => p.value(null),
                 ),
                 error => {

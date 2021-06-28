@@ -16,12 +16,12 @@ export function printLoadDocumentDiagnostic(loadDiagnostic: LoadDocumentDiagnost
 		case "schema retrieval": {
 			const $ = loadDiagnostic.type[1]
 			switch ($.issue[0]) {
-				case "error in external schema": {
+				case "error in referenced schema": {
 					const $$ = $.issue[1]
-					return `error in external schema: ${printSchemaSchemaError($$)}`
+					return `error in referenced schema: ${printSchemaSchemaError($$)}`
 				}
-				case "found both external and internal schema. ignoring internal schema": {
-					return `found both external and internal schema. ignoring internal schema`
+				case "found both internal and context schema. ignoring internal schema": {
+					return `found both internal and context schema. ignoring internal schema`
 				}
 				case "missing schema": {
 					return `missing schema`

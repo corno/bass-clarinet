@@ -2,7 +2,7 @@
     "max-classes-per-file": off,
 */
 
-import { printInternalSchemaDeserializationError } from "./printInternalSchemaDeserializationError"
+import { printEmbeddedSchemaDeserializationError } from "./printEmbeddedSchemaDeserializationError"
 import { DeserializationDiagnostic } from "../../interfaces/deserialize/DeserializationDiagnostic"
 import { printPreTokenizerError, printStructureError, printTreeParserError } from ".."
 
@@ -16,7 +16,7 @@ export function printDeserializationDiagnostic($: DeserializationDiagnostic): st
             const $$ = $.type[1]
             return $$[0]
         }
-        case "deserializer": {
+        case "validation": {
             const $$ = $.type[1]
             return $$.message
         }
@@ -32,15 +32,29 @@ export function printDeserializationDiagnostic($: DeserializationDiagnostic): st
             const $$ = $.type[1]
             return printTreeParserError($$)
         }
-        case "schema error": {
+        case "embedded schema error": {
             const $$ = $.type[1]
-            return printInternalSchemaDeserializationError($$)
+            return printEmbeddedSchemaDeserializationError($$)
         }
         case "ignoring invalid embedded schema": {
             return $.type[0]
         }
         case "ignoring invalid schema reference": {
             return $.type[0]
+        }
+        case "schema reference resolving": {
+            const $$$ = $.type[1]
+            switch ($$$[0]) {
+                case "errors in referenced schema": {
+                    return `errors in referenced schema`
+                }
+                case "loading": {
+                    const $$$$ = $$$[1]
+                    return $$$$.message
+                }
+                default:
+                    return assertUnreachable($$$[0])
+            }
         }
         default:
             return assertUnreachable($.type[0])
