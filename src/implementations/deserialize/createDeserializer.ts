@@ -8,7 +8,7 @@ import * as astncore from "astn-core"
 import * as astn from "../.."
 
 
-import { InternalSchemaSpecification, InternalSchemaSpecificationType } from "../../interfaces/deserialize/Dataset"
+import { InternalSchemaSpecification } from "../../interfaces/deserialize/Dataset"
 import { SchemaAndSideEffects } from "../../interfaces/deserialize/SchemaAndSideEffects"
 
 import { ReferencedSchemaDeserializationError } from "../../interfaces/deserialize/ReferencedSchemaDeserializationError"
@@ -16,7 +16,7 @@ import { DeserializationDiagnostic, DeserializationDiagnosticType } from "../../
 import { IDeserializedDataset } from "../../interfaces/deserialize/Dataset"
 import { IDataset } from "../../interfaces/deserialize/Dataset"
 import { ResolveReferencedSchema } from "../../interfaces/deserialize/ResolveReferencedSchema"
-import { SchemaDeserializationError, SchemaSchemaBuilder } from "../../interfaces/deserialize"
+import { SchemaSchemaBuilder } from "../../interfaces/deserialize"
 import { createSchemaDeserializer } from "./createSchemaDeserializer"
 import { ReferencedSchemaResolvingError } from "../../interfaces/deserialize"
 
@@ -94,7 +94,7 @@ export function createDeserializer(
                     return builder.onEnd(aborted, data).mapResult(schemaAndSideEffects => {
                         internalSchema = {
                             schemaAndSideEffects: schemaAndSideEffects,
-                            specification: [InternalSchemaSpecificationType.Embedded],
+                            specification: ["embedded"],
                         }
                         return p.value(null)
                     })
@@ -158,7 +158,7 @@ export function createDeserializer(
                 schemaAndSideEffects => {
                     internalSchema = {
                         schemaAndSideEffects: schemaAndSideEffects,
-                        specification: [InternalSchemaSpecificationType.Reference, { name: schemaReference.value }],
+                        specification: ["reference", { name: schemaReference.value }],
                     }
                     return p.value(null)
                 },
@@ -180,7 +180,7 @@ export function createDeserializer(
                     }
                     return {
                         dataset: ds,
-                        internalSchemaSpecification: [InternalSchemaSpecificationType.None],
+                        internalSchemaSpecification: ["none"],
                     }
                 })()
                 : onEmbeddedSchema(internalSchema.specification, internalSchema.schemaAndSideEffects) //internal schema
@@ -200,9 +200,9 @@ export function createDeserializer(
             }
             return astncore.createStackedParser(
                 astncore.createDatasetDeserializer(
-                    dataset.dataset.build.schema,
-                    dataset.dataset.build.root,
-                    dataset.dataset.build.rootComments,
+                    dataset.dataset.schema,
+                    dataset.dataset.root,
+                    dataset.dataset.rootComments,
                     sideEffectsHandlers.map(h => h.root),
                     (message, annotation, severity) => onError(createDiagnostic(["validation", { message: message }]), annotation.range, severity),
                     () => p.value(null),
