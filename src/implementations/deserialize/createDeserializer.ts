@@ -109,7 +109,6 @@ export function createDeserializer(
                     }
                     case "other": {
                         const $ = error[1]
-
                         return p.value(["loading", { message: `other: ${$.description}` }])
                     }
                     default:
@@ -144,7 +143,7 @@ export function createDeserializer(
                             ["schema reference resolving", error],
                         ),
                         annotation.range,
-                        astncore.DiagnosticSeverity.warning,
+                        astncore.DiagnosticSeverity.error,
                     )
                     onError(
                         createDiagnostic(
