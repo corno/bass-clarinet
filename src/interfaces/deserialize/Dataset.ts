@@ -12,7 +12,7 @@ export type SerializationStyle =
 
 export type IDataset = {
     readonly schema: astncore.Schema
-    readonly root: astncore.Node
+    readonly root: astncore.Root
     readonly documentComments: astncore.Comments
     readonly rootComments: astncore.Comments
     serialize: (

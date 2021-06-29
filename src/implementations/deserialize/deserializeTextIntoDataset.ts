@@ -120,8 +120,15 @@ export function deserializeTextIntoDataset($: {
 				function createDeserializedDataset(
 					schema: astncore.Schema,
 				): IDeserializedDataset {
+					const id = $.createInitialDataset(schema)
+					allSideEffects.push(astncore.build(
+						id.root,
+						() => {
+							//
+						}
+					))
 					return {
-						dataset: $.createInitialDataset(schema),
+						dataset: id,
 						internalSchemaSpecification: internalSchemaSpecification,
 					}
 				}
