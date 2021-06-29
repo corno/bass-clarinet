@@ -35,7 +35,7 @@ export type ResolvedSchema = {
  * Can be used to create additional errors and warnings about the serialized document. For example missing properties or invalid formatting
  */
 export function createDeserializer(
-    contextSchema: SchemaAndSideEffects<astn.TokenizerAnnotationData>,
+    contextSchema: SchemaAndSideEffects<astn.TokenizerAnnotationData> | null,
     resolveReferencedSchema: ResolveReferencedSchema,
     onError: (diagnostic: DeserializeError, range: astn.Range, severity: astncore.DiagnosticSeverity) => void,
 
@@ -99,14 +99,15 @@ export function createDeserializer(
                         astncore.DiagnosticSeverity.warning,
                     )
                 },
-                schemaAndSideEffects => {
-                    internalSchema = {
-                        schemaAndSideEffects: schemaAndSideEffects,
-                        specification: ["reference", { name: schemaReference.value }],
-                    }
-                    return p.value(null)
+            ).mapResult(schemaAndSideEffects => {
+                internalSchema = {
+                    schemaAndSideEffects: schemaAndSideEffects,
+                    specification: ["reference", { name: schemaReference.value }],
                 }
-            )
+                return p.value(null)
+            }).catch(() => {
+                return p.value(null)
+            })
         },
         onBody: firstBodyTokenAnnotation => {
             const dummyStackParser = astncore.createStackedParser<astn.TokenizerAnnotationData>(
