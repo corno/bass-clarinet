@@ -18,16 +18,13 @@ export function loadContextSchema(
         name: string,
     ) => SchemaSchemaBuilder<TokenizerAnnotationData> | null,
     onError: (error: ContextSchemaError, severity: astncore.DiagnosticSeverity) => void,
-    onSchema: (
-        schema: SchemaAndSideEffects<TokenizerAnnotationData>
-    ) => p.IValue<null>
-): p.IValue<null> {
+): p.IUnsafeValue<SchemaAndSideEffects<TokenizerAnnotationData>, null> {
     const basename = path.basename(data.filePath)
     const dir = path.dirname(data.filePath)
     if (basename === schemaFileName) {
         //don't validate the schema against itself
         onError(["validating schema file against internal schema"], astncore.DiagnosticSeverity.warning)
-        return p.value(null)
+        return p.error(null)
     }
 
     return loadExternalSchema(
@@ -39,6 +36,5 @@ export function loadContextSchema(
         error => {
             onError(["external schema resolving", error], astncore.DiagnosticSeverity.error)
         },
-        onSchema,
     )
 }
