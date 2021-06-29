@@ -1,5 +1,5 @@
 import { printEmbeddedSchemaDeserializationError } from "./printEmbeddedSchemaDeserializationError"
-import { SchemaError } from "../../interfaces/deserialize/SchemaSchemaError"
+import { SchemaError } from "../../interfaces/deserialize/Errors"
 import { printPreTokenizerError, printStructureError, printTreeParserError } from ".."
 
 function assertUnreachable<RT>(_x: never): RT {

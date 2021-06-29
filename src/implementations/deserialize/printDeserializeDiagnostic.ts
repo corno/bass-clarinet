@@ -3,60 +3,71 @@
 */
 import * as astncore from "astn-core"
 import { printEmbeddedSchemaDeserializationError } from "./printEmbeddedSchemaDeserializationError"
-import { DeserializationDiagnostic } from "../../interfaces/deserialize/DeserializationDiagnostic"
+import { DeserializeError, ExternalSchemaResolvingError } from "../../interfaces/deserialize/Errors"
 import { printPreTokenizerError, printStructureError, printTreeParserError } from ".."
 
 function assertUnreachable<RT>(_x: never): RT {
     throw new Error("unreachable")
 }
 
-export function printDeserializationDiagnostic($: DeserializationDiagnostic): string {
-    switch ($.type[0]) {
+export function printExternalSchemaResolvingError(error: ExternalSchemaResolvingError): string {
+
+    switch (error[0]) {
+        case "errors in referenced schema": {
+            return `errors in referenced schema`
+        }
+        case "loading": {
+            const $$$$ = error[1]
+            return $$$$.message
+        }
+        default:
+            return assertUnreachable(error[0])
+    }
+}
+
+export function printDeserializationDiagnostic($: DeserializeError): string {
+    switch ($[0]) {
         case "stacked": {
-            const $$ = $.type[1]
+            const $$ = $[1]
             return $$[0]
         }
         case "deserialize": {
-            const $$ = $.type[1]
+            const $$ = $[1]
             return astncore.printDeserializeError($$)
         }
         case "tokenizer": {
-            const $$ = $.type[1]
+            const $$ = $[1]
             return printPreTokenizerError($$)
         }
         case "structure": {
-            const $$ = $.type[1]
+            const $$ = $[1]
             return printStructureError($$)
         }
         case "tree": {
-            const $$ = $.type[1]
+            const $$ = $[1]
             return printTreeParserError($$)
         }
         case "embedded schema error": {
-            const $$ = $.type[1]
+            const $$ = $[1]
             return printEmbeddedSchemaDeserializationError($$)
         }
-        case "ignoring invalid embedded schema": {
-            return $.type[0]
+        case "found both internal and context schema. ignoring internal schema": {
+            return `found both internal and context schema. ignoring internal schema`
         }
-        case "ignoring invalid schema reference": {
-            return $.type[0]
+        case "invalid embedded schema": {
+            return $[0]
+        }
+        case "no valid schema": {
+            return "no valid schema"
+        }
+        case "invalid schema reference": {
+            return $[0]
         }
         case "schema reference resolving": {
-            const $$$ = $.type[1]
-            switch ($$$[0]) {
-                case "errors in referenced schema": {
-                    return `errors in referenced schema`
-                }
-                case "loading": {
-                    const $$$$ = $$$[1]
-                    return $$$$.message
-                }
-                default:
-                    return assertUnreachable($$$[0])
-            }
+            const $$$ = $[1]
+            return printExternalSchemaResolvingError($$$)
         }
         default:
-            return assertUnreachable($.type[0])
+            return assertUnreachable($[0])
     }
 }

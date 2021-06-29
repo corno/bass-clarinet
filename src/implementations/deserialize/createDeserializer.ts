@@ -12,18 +12,17 @@ import { InternalSchemaSpecification } from "../../interfaces/deserialize/Datase
 import { SchemaAndSideEffects } from "../../interfaces/deserialize/SchemaAndSideEffects"
 
 import { ReferencedSchemaDeserializationError } from "../../interfaces/deserialize/ReferencedSchemaDeserializationError"
-import { DeserializationDiagnostic, DeserializationDiagnosticType } from "../../interfaces/deserialize/DeserializationDiagnostic"
-import { IDeserializedDataset } from "../../interfaces/deserialize/Dataset"
-import { IDataset } from "../../interfaces/deserialize/Dataset"
+import { DeserializeError } from "../../interfaces/deserialize/Errors"
 import { ResolveReferencedSchema } from "../../interfaces/deserialize/ResolveReferencedSchema"
 import { SchemaSchemaBuilder } from "../../interfaces/deserialize"
-import { createSchemaDeserializer } from "./createSchemaDeserializer"
-import { ReferencedSchemaResolvingError } from "../../interfaces/deserialize"
+import { DiagnosticSeverity } from "astn-core"
+import { loadExternalSchema } from "./loadExternalSchema"
 
-
-function assertUnreachable<RT>(_x: never): RT {
-    throw new Error("unreachable")
+export type ResolvedSchema = {
+    specification: InternalSchemaSpecification
+    schemaAndSideEffects: SchemaAndSideEffects<astn.TokenizerAnnotationData>
 }
+
 
 /**
  * this function returns a promise to a deserialized dataset and the promise is resolved when the validation has been completed
@@ -37,43 +36,25 @@ function assertUnreachable<RT>(_x: never): RT {
  * Can be used to create additional errors and warnings about the serialized document. For example missing properties or invalid formatting
  */
 export function createDeserializer(
+    contextSchema: SchemaAndSideEffects<astn.TokenizerAnnotationData>,
     resolveReferencedSchema: ResolveReferencedSchema,
-    onEmbeddedSchema: (
-        specification: InternalSchemaSpecification,
-        schemaAndSideEffects: SchemaAndSideEffects<astn.TokenizerAnnotationData>,
-    ) => IDeserializedDataset,
-    onNoEmbeddedSchema: () => IDataset | null,
-    onError: (diagnostic: DeserializationDiagnostic, range: astn.Range, severity: astncore.DiagnosticSeverity) => void,
-    handler: astncore.RootHandler<astn.TokenizerAnnotationData>,
+    onError: (diagnostic: DeserializeError, range: astn.Range, severity: astncore.DiagnosticSeverity) => void,
+
     getSchemaSchemaBuilder: (
         name: string,
     ) => SchemaSchemaBuilder<astn.TokenizerAnnotationData> | null,
-): p20.IUnsafeStreamConsumer<string, null, IDeserializedDataset, ReferencedSchemaDeserializationError> {
-
-    /*
-    CSCH: I think it is better to not have the 2 callbacks: onEmbeddedSchema and onNoEmbeddedSchema,
-    both their behaviour depends on the referenced schema.
-    just add a 'referencedSchema' parameter and then handle the logic in this function.
-    */
-
-    function createDiagnostic(type: DeserializationDiagnosticType): DeserializationDiagnostic {
-        return {
-            type: type,
-        }
-    }
+    handlerBuilder: (
+        schemaSpec: ResolvedSchema,
+    ) => astncore.RootHandler<astn.TokenizerAnnotationData>,
+): p20.IUnsafeStreamConsumer<string, null, null, ReferencedSchemaDeserializationError> {
 
     let embeddedSchemaSpecificationStart: null | astn.Range = null
     let foundSchemaErrors = false
 
-    type InternalSchema = {
-        specification: InternalSchemaSpecification
-        schemaAndSideEffects: SchemaAndSideEffects<astn.TokenizerAnnotationData>
-    }
-
-    let internalSchema: InternalSchema | null = null
+    let internalSchema: ResolvedSchema | null = null
 
 
-    const parserStack = astn.createParserStack<IDeserializedDataset, ReferencedSchemaDeserializationError>({
+    const parserStack = astn.createParserStack<null, ReferencedSchemaDeserializationError>({
         onEmbeddedSchema: (schemaSchemaReference, firstTokenAnnotation) => {
             embeddedSchemaSpecificationStart = firstTokenAnnotation.range
 
@@ -84,7 +65,7 @@ export function createDeserializer(
             }
             const builder = schemaSchemaBuilder(
                 (error, annotation) => {
-                    onError(createDiagnostic(["embedded schema error", error]), annotation.range, astncore.DiagnosticSeverity.error)
+                    onError(["embedded schema error", error], annotation.range, astncore.DiagnosticSeverity.error)
                     foundSchemaErrors = true
                 }
             )
@@ -102,127 +83,113 @@ export function createDeserializer(
             }
         },
         onSchemaReference: (schemaReference, annotation) => {
-            return resolveReferencedSchema(schemaReference.value).mapError<ReferencedSchemaResolvingError>(error => {
-                switch (error[0]) {
-                    case "not found": {
-                        return p.value(["loading", { message: `schema not found` }])
-                    }
-                    case "other": {
-                        const $ = error[1]
-                        return p.value(["loading", { message: `other: ${$.description}` }])
-                    }
-                    default:
-                        return assertUnreachable(error[0])
-                }
-            }).try(
-                stream => {
-                    //console.log("FROM URL")
-                    const schemaTok = createSchemaDeserializer(
-                        message => {
-                            //do nothing with errors
-                            console.error("SCHEMA ERROR", message)
-                        },
-                        getSchemaSchemaBuilder,
-                    )
-
-                    return stream.tryToConsume<SchemaAndSideEffects<astn.TokenizerAnnotationData>, null>(
-                        null,
-                        schemaTok,
-                    ).mapError(
-                        () => {
-                            //const myUrl = new URL(encodeURI(reference), pathStart)
-                            return p.value(["errors in referenced schema"])
-                        },
-                    )
-                },
-            ).reworkAndCatch(
+            return loadExternalSchema(
+                resolveReferencedSchema(schemaReference.value),
+                getSchemaSchemaBuilder,
                 error => {
                     foundSchemaErrors = true
                     onError(
-                        createDiagnostic(
-                            ["schema reference resolving", error],
-                        ),
+                        ["schema reference resolving", error],
                         annotation.range,
                         astncore.DiagnosticSeverity.error,
                     )
                     onError(
-                        createDiagnostic(
-                            ["ignoring invalid schema reference"],
-                        ),
+                        ["invalid schema reference"],
                         annotation.range,
                         astncore.DiagnosticSeverity.warning,
                     )
-                    return p.value(null)
                 },
                 schemaAndSideEffects => {
                     internalSchema = {
                         schemaAndSideEffects: schemaAndSideEffects,
                         specification: ["reference", { name: schemaReference.value }],
                     }
-                    return p.value(null)
-                },
+                }
             )
         },
-        onBody: (): astncore.ITreeBuilder<astn.TokenizerAnnotationData, IDeserializedDataset, ReferencedSchemaDeserializationError> => {
-            if (embeddedSchemaSpecificationStart !== null && internalSchema === null) {
-                if (!foundSchemaErrors) {
-                    console.error("NO SCHEMA AND NO ERROR")
-                    //throw new Error("Unexpected: no schema errors and no schema")
-                }
-            }
-
-            const dataset: IDeserializedDataset | null = (internalSchema === null)
-                ? ((): IDeserializedDataset | null => { //no internal schema
-                    const ds = onNoEmbeddedSchema()
-                    if (ds === null) {
-                        return null
-                    }
-                    return {
-                        dataset: ds,
-                        internalSchemaSpecification: ["none"],
-                    }
-                })()
-                : onEmbeddedSchema(internalSchema.specification, internalSchema.schemaAndSideEffects) //internal schema
-
-            if (dataset === null) {
-                return {
-                    onData: () => {
-                        //
-                        return p.value(false)
-                    },
-                    onEnd: () => {
-                        return p.error({
-                            problem: "no valid schema",
-                        })
-                    },
-                }
-            }
-            return astncore.createStackedParser(
-                astncore.createDatasetDeserializer(
-                    dataset.dataset.schema,
-                    handler.root,
-                    (error, annotation, severity) => onError(createDiagnostic(["deserialize", error]), annotation.range, severity),
-                    () => p.value(null),
-                ),
+        onBody: firstBodyTokenAnnotation => {
+            const dummyStackParser = astncore.createStackedParser<astn.TokenizerAnnotationData, null, astn.ReferencedSchemaDeserializationError>(
+                astncore.createDummyTreeHandler(() => p.value(null)),
                 error => {
-                    onError(createDiagnostic(["stacked", error.type]), error.annotation.range, astncore.DiagnosticSeverity.error)
+                    onError(["stacked", error.type], error.annotation.range, astncore.DiagnosticSeverity.error)
                 },
                 () => {
-                    handler.onEnd({})
-                    return p.success(dataset)
+                    return p.success(null)
                 },
                 () => astncore.createDummyValueHandler(() => p.value(null))
             )
+            if (contextSchema !== null) {
+                if (embeddedSchemaSpecificationStart !== null) {
+                    onError(
+                        ["found both internal and context schema. ignoring internal schema"],
+                        embeddedSchemaSpecificationStart,
+                        DiagnosticSeverity.warning
+                    )
+                }
+                const handler = handlerBuilder({
+                    schemaAndSideEffects: contextSchema,
+                    specification: ["none"],
+                })
+                return astncore.createStackedParser(
+                    astncore.createDatasetDeserializer(
+                        contextSchema.schema,
+                        handler.root,
+                        (error, annotation, severity) => onError(["deserialize", error], annotation.range, severity),
+                        () => p.value(null),
+                    ),
+                    error => {
+                        onError(["stacked", error.type], error.annotation.range, astncore.DiagnosticSeverity.error)
+                    },
+                    () => {
+                        handler.onEnd({})
+                        return p.success(null)
+                    },
+                    () => astncore.createDummyValueHandler(() => p.value(null))
+                )
+            } else if (embeddedSchemaSpecificationStart !== null) {
+                if (internalSchema === null) {
+                    if (!foundSchemaErrors) {
+                        console.error("NO SCHEMA AND NO ERROR")
+                    }
+                    return dummyStackParser
+                } else {
+                    const handler = handlerBuilder(internalSchema)
+                    return astncore.createStackedParser(
+                        astncore.createDatasetDeserializer(
+                            internalSchema.schemaAndSideEffects.schema,
+                            handler.root,
+                            (error, annotation, severity) => onError(["deserialize", error], annotation.range, severity),
+                            () => p.value(null),
+                        ),
+                        error => {
+                            onError(["stacked", error.type], error.annotation.range, astncore.DiagnosticSeverity.error)
+                        },
+                        () => {
+                            handler.onEnd({})
+                            return p.success(null)
+                        },
+                        () => astncore.createDummyValueHandler(() => p.value(null))
+                    )
+                }
+            } else {
+                onError(
+                    ["no valid schema"],
+                    firstBodyTokenAnnotation.range,
+                    DiagnosticSeverity.error,
+                )
+                return dummyStackParser
+            }
+
         },
         errorStreams: {
             onTreeParserError: $ => {
-                onError(createDiagnostic(["tree", $.error]), $.annotation.range, astncore.DiagnosticSeverity.error)
+                onError(["tree", $.error], $.annotation.range, astncore.DiagnosticSeverity.error)
             },
             onTextParserError: $ => {
-                onError(createDiagnostic(["structure", $.error]), $.annotation.range, astncore.DiagnosticSeverity.error)
+                onError(["structure", $.error], $.annotation.range, astncore.DiagnosticSeverity.error)
             },
             onTokenizerError: $ => {
-                onError(createDiagnostic(["tokenizer", $.error]), $.range, astncore.DiagnosticSeverity.error)
+                onError(["tokenizer", $.error], $.range, astncore.DiagnosticSeverity.error)
             },
         },
     })

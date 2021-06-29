@@ -12,8 +12,11 @@ export {
     createHoverTextFinder
 } from "./ide-integration/createHoverTextFinder"
 export {
-    deserializeTextIntoDataset
-} from "./deserialize/deserializeTextIntoDataset"
+    createDeserializer
+} from "./deserialize/createDeserializer"
+export {
+    loadContextSchema
+} from "./deserialize/loadContextSchema"
 export * from "./deserialize/printDeserializeDiagnostic"
-export * from "./deserialize/printLoadDocumentDiagnostic"
+export * from "./deserialize/printContextSchemaError"
 export * from "./deserialize/printSchemaSchemaError"
