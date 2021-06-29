@@ -25,13 +25,13 @@ export function printTreeParserError(error: TreeParserError): string {
         case "invalid dictionary close": {
             return `expected '}'`
         }
-        case "invalid verbose type close": {
+        case "invalid verbose group close": {
             return `expected ')'`
         }
         case "invalid list close": {
             return `expected ']'`
         }
-        case "invalid shorthand type close": {
+        case "invalid shorthand group close": {
             return `expected '>'`
         }
         case "not in an object": {

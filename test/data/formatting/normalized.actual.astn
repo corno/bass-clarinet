@@ -25,15 +25,15 @@
                 "foo"
                 "foo"
             ]
-            'empty shorthand type': < >
-            'non empty shorthand type': < "foo" "foo" >
+            'empty shorthand group': < >
+            'non empty shorthand group': < "foo" "foo" >
         )
         'objects': (
             'empty dictionary': { }
             'non empty dictionary': {
                 "correct property": "foo"
             }
-            'empty verbose type': ( )
+            'empty verbose group': ( )
         )
         'tagged union': | 'bar' ( )
     )

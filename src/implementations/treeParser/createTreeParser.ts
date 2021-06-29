@@ -50,7 +50,7 @@ type ObjectContext = {
     | ["dictionary", {
         //
     }]
-    | ["verbose type"]
+    | ["verbose group"]
     //readonly openChar: number
 }
 
@@ -73,7 +73,7 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
             | ["list", {
                 //
             }]
-            | ["shorthand type"]
+            | ["shorthand group"]
         }]
         | [StackContextType2.OBJECT, ObjectContext]
         | [StackContextType2.TAGGED_UNION, TaggedUnionContext]
@@ -480,13 +480,13 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
                     type: [StackContextType2.OBJECT, {
                         state: ObjectState.EXPECTING_KEY,
                         //openChar: curChar,
-                        type: openCharacter === "(" ? ["verbose type"] : ["dictionary", {}],
+                        type: openCharacter === "(" ? ["verbose group"] : ["dictionary", {}],
                     }],
                 })
                 return eventsConsumer.onData({
                     annotation: annotation,
                     type: ["open object", {
-                        type: openCharacter === "(" ? ["verbose type"] : ["dictionary"],
+                        type: openCharacter === "(" ? ["verbose group"] : ["dictionary"],
                     }],
                 })
 
@@ -512,9 +512,9 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
                             }
                             break
                         }
-                        case "verbose type": {
+                        case "verbose group": {
                             if (closeCharacter !== ")") {
-                                raiseError(["invalid verbose type close"], annotation)
+                                raiseError(["invalid verbose group close"], annotation)
                             }
                             break
                         }
@@ -530,13 +530,13 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
                 this.pushContext({
                     annotation: annotation,
                     type: [StackContextType2.ARRAY, {
-                        type: openCharacter === "<" ? ["shorthand type"] : ["list", {}],
+                        type: openCharacter === "<" ? ["shorthand group"] : ["list", {}],
                     }],
                 })
                 return eventsConsumer.onData({
                     annotation: annotation,
                     type: ["open array", {
-                        type: openCharacter === "<" ? ["shorthand type"] : ["list"],
+                        type: openCharacter === "<" ? ["shorthand group"] : ["list"],
 
                     }],
                 })
@@ -564,9 +564,9 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
                             }
                             break
                         }
-                        case "shorthand type": {
+                        case "shorthand group": {
                             if (closeCharacter !== ">") {
-                                raiseError(["invalid shorthand type close"], annotation)
+                                raiseError(["invalid shorthand group close"], annotation)
                             }
                             break
                         }

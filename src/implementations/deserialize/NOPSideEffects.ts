@@ -16,7 +16,7 @@ export function createNOPSideEffects<Annotation>(): astncore.RootHandler<Annotat
     }
 }
 
-function createTypeNOPSideEffects<Annotation>(): astncore.TypeHandler<Annotation> {
+function createGroupNOPSideEffects<Annotation>(): astncore.GroupHandler<Annotation> {
     return {
         onUnexpectedProperty: () => {
             //
@@ -33,7 +33,7 @@ function createTypeNOPSideEffects<Annotation>(): astncore.TypeHandler<Annotation
     }
 }
 
-function createStateGroupNOPSideEffects<Annotation>(): astncore.TypedTaggedUnionHandler<Annotation> {
+function createTaggedUnionNOPSideEffects<Annotation>(): astncore.TypedTaggedUnionHandler<Annotation> {
     return {
         onUnexpectedOption: () => {
             return createValueNOPSideEffects()
@@ -54,7 +54,7 @@ function createValueNOPSideEffects<Annotation>(): astncore.TypedValueHandler<Ann
             return createListNOPSideEffects()
         },
         onTaggedUnion: () => {
-            return createStateGroupNOPSideEffects()
+            return createTaggedUnionNOPSideEffects()
         },
         onSimpleString: () => {
             //
@@ -62,14 +62,14 @@ function createValueNOPSideEffects<Annotation>(): astncore.TypedValueHandler<Ann
         onMultilineString: () => {
             //
         },
-        onComponent: () => {
+        onTypeReference: () => {
             return createValueNOPSideEffects()
         },
-        onShorthandTypeOpen: () => {
-            return createTypeNOPSideEffects()
+        onShorthandGroupOpen: () => {
+            return createGroupNOPSideEffects()
         },
-        onVerboseTypeOpen: () => {
-            return createTypeNOPSideEffects()
+        onVerboseGroupOpen: () => {
+            return createGroupNOPSideEffects()
         },
     }
 }

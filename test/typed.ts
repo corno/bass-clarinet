@@ -154,7 +154,7 @@ describe('typed', () => {
             `( "a": 42, "a": 42 )`,
             expect => core.createRequiredValueHandler(
                 expect,
-                ["verbose type", {
+                ["verbose group", {
                     properties: {
                         a: {
                             onExists: () => {
@@ -183,7 +183,7 @@ describe('typed', () => {
             (expect, addError) => core.createRequiredValueHandler(
                 expect,
                 [
-                    "verbose type",
+                    "verbose group",
                     {
                         properties: {
                             a: {
@@ -218,7 +218,7 @@ describe('typed', () => {
             (expect, addError) => core.createRequiredValueHandler(
                 expect,
                 [
-                    "verbose type",
+                    "verbose group",
                     {
                         properties: {
                             a: {
