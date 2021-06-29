@@ -180,7 +180,7 @@ export function loadExternalSchema(
                 if (!foundErrors) {
                     throw new Error("no schema and no errors")
                 }
-                onError(["errors in referenced schema"])
+                onError(["errors in external schema"])
                 return p.error(null)
             } else {
                 return p.success(schema)

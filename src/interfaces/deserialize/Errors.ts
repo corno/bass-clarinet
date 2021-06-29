@@ -13,7 +13,7 @@ export type SchemaError =
 
 
 export type ExternalSchemaResolvingError =
-    | ["errors in referenced schema"]
+    | ["errors in external schema"]
     | ["loading", {
         message: string
     }]

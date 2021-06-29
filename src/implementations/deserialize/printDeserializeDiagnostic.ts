@@ -13,8 +13,8 @@ function assertUnreachable<RT>(_x: never): RT {
 export function printExternalSchemaResolvingError(error: ExternalSchemaResolvingError): string {
 
     switch (error[0]) {
-        case "errors in referenced schema": {
-            return `errors in referenced schema`
+        case "errors in external schema": {
+            return `errors in external schema`
         }
         case "loading": {
             const $$$$ = error[1]

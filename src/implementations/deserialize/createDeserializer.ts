@@ -35,7 +35,10 @@ export type ResolvedSchema = {
  * Can be used to create additional errors and warnings about the serialized document. For example missing properties or invalid formatting
  */
 export function createDeserializer(
-    contextSchema: SchemaAndSideEffects<astn.TokenizerAnnotationData> | null,
+    contextSchema: 
+        | ["not available"]
+        | ["has errors"]
+        | ["available", SchemaAndSideEffects<astn.TokenizerAnnotationData>],
     resolveReferencedSchema: ResolveReferencedSchema,
     onError: (diagnostic: DeserializeError, range: astn.Range, severity: astncore.DiagnosticSeverity) => void,
 
@@ -117,7 +120,7 @@ export function createDeserializer(
                 },
                 () => astncore.createDummyValueHandler(() => p.value(null))
             )
-            if (contextSchema !== null) {
+            if (contextSchema[0] === "available") {
                 if (internalSchemaSpecificationStart !== null) {
                     onError(
                         ["found both internal and context schema. ignoring internal schema"],
@@ -126,7 +129,7 @@ export function createDeserializer(
                     )
                 }
                 const handler = handlerBuilder({
-                    schemaAndSideEffects: contextSchema,
+                    schemaAndSideEffects: contextSchema[1],
                     specification: ["none"],
                 })
                 return astncore.createStackedParser(
@@ -174,11 +177,19 @@ export function createDeserializer(
                     )
                 }
             } else {
-                onError(
-                    ["no schema"],
-                    firstBodyTokenAnnotation.range,
-                    DiagnosticSeverity.error,
-                )
+                if (contextSchema[0] === "has errors") {
+                    onError(
+                        ["no valid schema"],
+                        firstBodyTokenAnnotation.range,
+                        DiagnosticSeverity.error,
+                    )
+                } else {
+                    onError(
+                        ["no schema"],
+                        firstBodyTokenAnnotation.range,
+                        DiagnosticSeverity.error,
+                    )
+                }
                 return dummyStackParser
             }
 
