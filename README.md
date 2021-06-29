@@ -148,7 +148,7 @@ export function createPrettyPrinter(indentation: string, writer: (str: string) =
         () => {
             //onEnd
             //no need to return an value, we're only here for the side effects, so return 'null'
-            return p.success(null)
+            return p.value(null)
         }
     )
     return datasubscriber
@@ -277,7 +277,7 @@ export const parserEventConsumer: astn.TextParserEventConsumer<null, null> = {
     },
     onEnd: () => {
         //place your code here
-        return p.success(null)
+        return p.value(null)
     },
 }
 const parserStack = astn.createParserStack(

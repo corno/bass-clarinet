@@ -11,11 +11,11 @@ export function consumeString<ReturnType>(
     )
 }
 
-export function tryToConsumeString<ReturnType, ErrorType>(
+export function tryToConsumeString(
     dataIn: string,
-    streamConsumer: p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType>,
-): p.IUnsafeValue<ReturnType, ErrorType> {
-    return p20.createArray([dataIn]).streamify().tryToConsume(
+    streamConsumer: p.IStreamConsumer<string, null, null>,
+): p.IValue<null> {
+    return p20.createArray([dataIn]).streamify().consume(
         null,
         streamConsumer,
     )

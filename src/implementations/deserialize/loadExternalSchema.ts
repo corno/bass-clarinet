@@ -18,11 +18,13 @@ function assertUnreachable<RT>(_x: never): RT {
 }
 
 export function createSchemaDeserializer(
-    onError: (error: SchemaError, range: astn.Range) => void,
     getSchemaSchemaBuilder: (
         name: string,
     ) => SchemaSchemaBuilder<astn.TokenizerAnnotationData> | null,
-): p.IUnsafeStreamConsumer<string, null, SchemaAndSideEffects<astn.TokenizerAnnotationData>, null> {
+    onError: (error: SchemaError, range: astn.Range) => void,
+    onSchema: (schema: SchemaAndSideEffects<astn.TokenizerAnnotationData>) => void,
+    //SchemaAndSideEffects<astn.TokenizerAnnotationData>,
+): p.IStreamConsumer<string, null, null> {
     let foundError = false
 
     let schemaDefinitionFound = false
@@ -42,7 +44,7 @@ export function createSchemaDeserializer(
                     return p.value(false)
                 },
                 () => {
-                    return p.success(null)
+                    return p.value(null)
                 },
                 () => astncore.createDummyValueHandler(() => p.value(null))
             )
@@ -65,7 +67,7 @@ export function createSchemaDeserializer(
                         return p.value(false) //FIXME should be 'true', to abort
                     },
                     onEnd: () => {
-                        return p.error(null)
+                        return p.value(null)
                     },
                 }
             } else {
@@ -75,17 +77,19 @@ export function createSchemaDeserializer(
                     }
                     return {
                         onData: () => {
-                            //
                             return p.value(true)
                         },
                         onEnd: () => {
-                            return p.error(null)
+                            return p.value(null)
                         },
                     }
                 } else {
                     return schemaSchemaBuilder(
                         (error, annotation2) => {
                             onError(["schema processing", error], annotation2.range)
+                        },
+                        schemaAndSideEffects => {
+                            onSchema(schemaAndSideEffects)
                         }
                     )
                 }
@@ -137,21 +141,24 @@ export function loadExternalSchema(
         }
     }).try<null>(
         stream => {
-            return stream.tryToConsume<SchemaAndSideEffects<astn.TokenizerAnnotationData>, null>(
+            let foundErrors = false
+            return stream.consume<null>(
                 null,
                 createSchemaDeserializer(
-                    message => {
-                        //do nothing with errors
-                        console.error("SCHEMA ERROR", message)
-                    },
                     getSchemaSchemaBuilder,
+                    error => {
+                        foundErrors = true
+                        console.error("SCHEMA ERROR", error)
+                    },
+                    schema => {
+                        onSchema(schema)
+                    }
                 ),
-            ).mapResult($ => {
-                onSchema($)
-                return p.value(null)
-            }).catch(
+            ).mapResult(
                 () => {
-                    onError(["errors in referenced schema"])
+                    if (foundErrors) {
+                        onError(["errors in referenced schema"])
+                    }
                     return p.value(null)
                 },
             )

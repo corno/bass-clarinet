@@ -66,9 +66,9 @@ class TokenizerStackPanicError extends RangeError {
     }
 }
 
-export function createTokenizer<ReturnType, ErrorType>(
-    parser: TokenConsumer<TokenizerAnnotationData, ReturnType, ErrorType>,
-): IPreTokenStreamConsumer<ReturnType, ErrorType> {
+export function createTokenizer(
+    parser: TokenConsumer<TokenizerAnnotationData>,
+): IPreTokenStreamConsumer {
 
     class IndentationState {
         private indentation = ""
@@ -110,9 +110,9 @@ export function createTokenizer<ReturnType, ErrorType>(
         }
     }
     class Tokenizer {
-        private readonly parser: TokenConsumer<TokenizerAnnotationData, ReturnType, ErrorType>
+        private readonly parser: TokenConsumer<TokenizerAnnotationData>
         private currentToken: CurrentToken = [CurrentTokenType.NONE]
-        constructor(consumer: TokenConsumer<TokenizerAnnotationData, ReturnType, ErrorType>) {
+        constructor(consumer: TokenConsumer<TokenizerAnnotationData>) {
             this.parser = consumer
         }
         public onData(data: PreToken): p.IValue<boolean> {
@@ -185,7 +185,7 @@ export function createTokenizer<ReturnType, ErrorType>(
                     return assertUnreachable(data.type[0])
             }
         }
-        public onEnd(aborted: boolean, location: Location): p.IUnsafeValue<ReturnType, ErrorType> {
+        public onEnd(aborted: boolean, location: Location): p.IValue<null> {
             return this.parser.onEnd(
                 aborted,
                 createAnnotation(

@@ -47,10 +47,10 @@ export type Token<Annotation> = {
     | [TokenType.MultilineString, MultilineStringData]
 }
 
-export interface ITreeParser<Annotation, ReturnType, ErrorType> {
-    forceEnd(aborted: boolean, annotation: Annotation): p.IUnsafeValue<ReturnType, ErrorType>
+export interface ITreeParser<Annotation> {
+    forceEnd(aborted: boolean, annotation: Annotation): p.IValue<null>
     onData(
         token: Token<Annotation>,
-        onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>
+        onStackEmpty: (result: p.IValue<null>) => p.IValue<boolean>
     ): p.IValue<boolean>
 }

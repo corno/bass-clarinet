@@ -25,20 +25,16 @@ enum TextState {
 }
 
 /**
- * A parser is used to build a certain type,
- * for this reason it has 2 type parameters:
- * -ReturnType: The type if parsing went succesful
- * -ErrorType: The type if the parsing produced an unexpected error
  * @param onEmbeddedSchema a text can contain schema data. If this is the case, this callback will be called.
  * it enables the consuming code to prepare for the instance data. It cannot produce a result itself, hence the type parameters are null and null
  * @param onInstanceDataStart when the instance data starts, this callback is called and a TextParserEventConsumer should be returned. This consumer will also produce the final resulting type
  * @param onTextParserError a handler for when a parsing error occurs
  * @param onHeaderOverheadToken when a whitespace, newline or comment is encountered while parsing the header, this callback is called
  */
-export function createStructureParser<Annotation, ReturnType, ErrorType>($: {
-    onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: Annotation) => core.ITreeBuilder<Annotation, null, null>
+export function createStructureParser<Annotation>($: {
+    onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: Annotation) => core.ITreeBuilder<Annotation>
     onSchemaReference: (token: SimpleStringData, tokenAnnotation: Annotation) => p.IValue<null>
-    onBody: (annotation: Annotation) => core.ITreeBuilder<Annotation, ReturnType, ErrorType>
+    onBody: (annotation: Annotation) => core.ITreeBuilder<Annotation>
     onTextParserError: ($: {
         error: StructureErrorType
         annotation: Annotation
@@ -47,22 +43,22 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>($: {
         error: TreeError
         annotation: Annotation
     }) => void
-}): TokenConsumer<Annotation, ReturnType, ErrorType> {
+}): TokenConsumer<Annotation> {
 
     type RootContext = {
         state:
         | [TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE]
         | [TextState.EXPECTING_SCHEMA]
         | [TextState.PROCESSING_SCHEMA, {
-            treeParser: ITreeParser<Annotation, null, null>
+            treeParser: ITreeParser<Annotation>
         }]
         | [TextState.EXPECTING_BODY, {
         }]
         | [TextState.PROCESSING_BODY, {
-            treeParser: ITreeParser<Annotation, ReturnType, ErrorType>
+            treeParser: ITreeParser<Annotation>
         }]
         | [TextState.EXPECTING_END, {
-            result: p.IUnsafeValue<ReturnType, ErrorType>
+            result: p.IValue<null>
         }]
     }
     // function createAnnotation(token: Token<ParserAnnotationData>): ParserAnnotationData {
@@ -99,7 +95,7 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>($: {
         /*
         a structure overhead token is a newline/whitspace/comment outside the content parts: (schema data, instance data)
         */
-        public onEnd(aborted: boolean, annotation: Annotation): p.IUnsafeValue<ReturnType, ErrorType> {
+        public onEnd(aborted: boolean, annotation: Annotation): p.IValue<null> {
 
             switch (this.rootContext.state[0]) {
                 case TextState.EXPECTING_SCHEMA_START_OR_ROOT_VALUE: {
@@ -117,15 +113,7 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>($: {
                 }
                 case TextState.PROCESSING_SCHEMA: {
                     const $$ = this.rootContext.state[1]
-                    return $$.treeParser.forceEnd(aborted, annotation).reworkAndCatch(
-                        () => {
-                            return p.value(false)
-                        },
-                        () => {
-                            return p.value(false)
-
-                        }
-                    ).try(() => {
+                    return $$.treeParser.forceEnd(aborted, annotation).mapResult(() => {
                         //this.raiseError("incomplete schema", range)
                         return $.onBody(annotation).onEnd(aborted, annotation)
                     })
@@ -210,10 +198,7 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>($: {
                             return bp.onData(data, result => {
                                 this.rootContext.state = [TextState.EXPECTING_BODY, {
                                 }]
-                                return result.reworkAndCatch(
-                                    () => {
-                                        return p.value(false)
-                                    },
+                                return result.mapResult(
                                     () => {
                                         return p.value(false)
                                     }
@@ -238,10 +223,7 @@ export function createStructureParser<Annotation, ReturnType, ErrorType>($: {
 
                     return $.treeParser.onData(data, result => {
                         this.rootContext.state = [TextState.EXPECTING_BODY, {}]
-                        return result.reworkAndCatch(
-                            () => {
-                                return p.value(false)
-                            },
+                        return result.mapResult(
                             () => {
                                 return p.value(false)
 

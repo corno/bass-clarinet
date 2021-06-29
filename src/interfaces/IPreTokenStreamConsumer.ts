@@ -80,4 +80,4 @@ export enum PreTokenDataType {
     }]
 }
 
-export type IPreTokenStreamConsumer<ReturnType, ErrorType> = p.IUnsafeStreamConsumer<PreToken, Location, ReturnType, ErrorType>
+export type IPreTokenStreamConsumer = p.IStreamConsumer<PreToken, Location, null>

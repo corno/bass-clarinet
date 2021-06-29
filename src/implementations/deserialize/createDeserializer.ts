@@ -11,7 +11,6 @@ import * as astn from "../.."
 import { InternalSchemaSpecification } from "../../interfaces/deserialize/Dataset"
 import { SchemaAndSideEffects } from "../../interfaces/deserialize/SchemaAndSideEffects"
 
-import { ReferencedSchemaDeserializationError } from "../../interfaces/deserialize/ReferencedSchemaDeserializationError"
 import { DeserializeError } from "../../interfaces/deserialize/Errors"
 import { ResolveReferencedSchema } from "../../interfaces/deserialize/ResolveReferencedSchema"
 import { SchemaSchemaBuilder } from "../../interfaces/deserialize"
@@ -46,7 +45,7 @@ export function createDeserializer(
     handlerBuilder: (
         schemaSpec: ResolvedSchema,
     ) => astncore.RootHandler<astn.TokenizerAnnotationData>,
-): p20.IUnsafeStreamConsumer<string, null, null, ReferencedSchemaDeserializationError> {
+): p20.IStreamConsumer<string, null, null> {
 
     let embeddedSchemaSpecificationStart: null | astn.Range = null
     let foundSchemaErrors = false
@@ -54,7 +53,7 @@ export function createDeserializer(
     let internalSchema: ResolvedSchema | null = null
 
 
-    const parserStack = astn.createParserStack<null, ReferencedSchemaDeserializationError>({
+    const parserStack = astn.createParserStack({
         onEmbeddedSchema: (schemaSchemaReference, firstTokenAnnotation) => {
             embeddedSchemaSpecificationStart = firstTokenAnnotation.range
 
@@ -67,18 +66,19 @@ export function createDeserializer(
                 (error, annotation) => {
                     onError(["embedded schema error", error], annotation.range, astncore.DiagnosticSeverity.error)
                     foundSchemaErrors = true
+                },
+                schemaAndSideEffects => {
+                    internalSchema = {
+                        schemaAndSideEffects: schemaAndSideEffects,
+                        specification: ["embedded"],
+                    }
+
                 }
             )
             return {
                 onData: data => builder.onData(data),
                 onEnd: (aborted, data) => {
-                    return builder.onEnd(aborted, data).mapResult(schemaAndSideEffects => {
-                        internalSchema = {
-                            schemaAndSideEffects: schemaAndSideEffects,
-                            specification: ["embedded"],
-                        }
-                        return p.value(null)
-                    })
+                    return builder.onEnd(aborted, data)
                 },
             }
         },
@@ -108,13 +108,13 @@ export function createDeserializer(
             )
         },
         onBody: firstBodyTokenAnnotation => {
-            const dummyStackParser = astncore.createStackedParser<astn.TokenizerAnnotationData, null, astn.ReferencedSchemaDeserializationError>(
+            const dummyStackParser = astncore.createStackedParser<astn.TokenizerAnnotationData>(
                 astncore.createDummyTreeHandler(() => p.value(null)),
                 error => {
                     onError(["stacked", error.type], error.annotation.range, astncore.DiagnosticSeverity.error)
                 },
                 () => {
-                    return p.success(null)
+                    return p.value(null)
                 },
                 () => astncore.createDummyValueHandler(() => p.value(null))
             )
@@ -142,7 +142,7 @@ export function createDeserializer(
                     },
                     () => {
                         handler.onEnd({})
-                        return p.success(null)
+                        return p.value(null)
                     },
                     () => astncore.createDummyValueHandler(() => p.value(null))
                 )
@@ -166,7 +166,7 @@ export function createDeserializer(
                         },
                         () => {
                             handler.onEnd({})
-                            return p.success(null)
+                            return p.value(null)
                         },
                         () => astncore.createDummyValueHandler(() => p.value(null))
                     )

@@ -57,13 +57,13 @@ type ObjectContext = {
 /*
  * CSCH: This Parser only really trivially converts the token. All errors are also reported by the ITreeBuilder
  */
-export function createTreeParser<Annotation, ReturnType, ErrorType>(
+export function createTreeParser<Annotation>(
     onerror: ($: {
         error: TreeParserError
         annotation: Annotation
     }) => void,
-    eventsConsumer: core.ITreeBuilder<Annotation, ReturnType, ErrorType>
-): ITreeParser<Annotation, ReturnType, ErrorType> {
+    eventsConsumer: core.ITreeBuilder<Annotation>
+): ITreeParser<Annotation> {
 
     type StackContext = {
         annotation: Annotation
@@ -114,7 +114,7 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
     let currentContext: StackContext | null = null
 
     class TreeParser {
-        public forceEnd(aborted: boolean, annotation: Annotation): p.IUnsafeValue<ReturnType, ErrorType> {
+        public forceEnd(aborted: boolean, annotation: Annotation): p.IValue<null> {
             // const annotation = {
             //     tokenString: "FIXME",
             //     indentation: indentationState.getIndentation(),
@@ -188,7 +188,7 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
             }
             currentContext = context
         }
-        public popContext(annotation: Annotation, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+        public popContext(annotation: Annotation, onStackEmpty: (result: p.IValue<null>) => p.IValue<boolean>): p.IValue<boolean> {
             const popped = stack.pop()
             if (popped === undefined) {
                 return onStackEmpty(eventsConsumer.onEnd(false, annotation))
@@ -215,7 +215,7 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
          */
         public onData(
             token: Token<Annotation>,
-            onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>
+            onStackEmpty: (result: p.IValue<null>) => p.IValue<boolean>
         ): p.IValue<boolean> {
 
             // const annotation = {
@@ -277,7 +277,7 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
         private onMultilineString(
             annotation: Annotation,
             data: MultilineStringData,
-            onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+            onStackEmpty: (result: p.IValue<null>) => p.IValue<boolean>): p.IValue<boolean> {
 
 
             if (currentContext === null) {
@@ -341,7 +341,7 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
         private onSimpleString(
             annotation: Annotation,
             data: SimpleStringData,
-            onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+            onStackEmpty: (result: p.IValue<null>) => p.IValue<boolean>): p.IValue<boolean> {
 
 
             if (currentContext === null) {
@@ -419,7 +419,7 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
             }
 
         }
-        private onPunctuation(annotation: Annotation, data: StructuralTokenData, onStackEmpty: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+        private onPunctuation(annotation: Annotation, data: StructuralTokenData, onStackEmpty: (result: p.IValue<null>) => p.IValue<boolean>): p.IValue<boolean> {
             const curChar = data.char
             switch (curChar) {
                 case Char.Punctuation.exclamationMark:
@@ -492,7 +492,7 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
 
             })
         }
-        private onObjectClose(closeCharacter: ")" | "}", annotation: Annotation, onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>): p.IValue<boolean> {
+        private onObjectClose(closeCharacter: ")" | "}", annotation: Annotation, onEndOfStack: (result: p.IValue<null>) => p.IValue<boolean>): p.IValue<boolean> {
             return eventsConsumer.onData({
                 annotation: annotation,
                 type: ["close object", {}],
@@ -546,7 +546,7 @@ export function createTreeParser<Annotation, ReturnType, ErrorType>(
         private onArrayClose(
             closeCharacter: "]" | ">",
             annotation: Annotation,
-            onEndOfStack: (result: p.IUnsafeValue<ReturnType, ErrorType>) => p.IValue<boolean>,
+            onEndOfStack: (result: p.IValue<null>) => p.IValue<boolean>,
         ) {
             return eventsConsumer.onData({
                 annotation: annotation,

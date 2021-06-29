@@ -60,7 +60,7 @@ describe('typed', () => {
                                 return p.value(false)
                             },
                             onEnd: () => {
-                                return p.success(null)
+                                return p.value(null)
                             },
                         }
                     },
@@ -95,7 +95,7 @@ describe('typed', () => {
                             },
                             () => {
                                 //do nothing with end
-                                return p.success(null)
+                                return p.value(null)
                             },
 
                             () => core.createDummyValueHandler(() => p.value(null)),
@@ -106,13 +106,6 @@ describe('typed', () => {
                 return tryToConsumeString(
                     data,
                     streamTokenizer,
-                ).reworkAndCatch(
-                    _error => {
-                        throw new Error("unexpected")
-                    },
-                    _result => {
-                        return p.value(null)
-                    }
                 ).convertToNativePromise().then(() => {
                     chai.assert.deepEqual(foundErrors, expectedErrors)
                 })

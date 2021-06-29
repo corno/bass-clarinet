@@ -61,12 +61,12 @@ export type ErrorStreamsHandler = {
  * @param onParserError an optional callback for when a parser error occurs.
  * @param onHeaderOverheadToken an optional callback for handling overhead tokens in the header (comments, whitespace, newlines).
  */
-export function createParserStack<ReturnType, ErrorType>($: {
-    onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, null, null>
+export function createParserStack($: {
+    onEmbeddedSchema: (schemaSchemaName: string, firstTokenAnnotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData>
     onSchemaReference: (token: SimpleStringData, tokenAnnotation: TokenizerAnnotationData) => p.IValue<null>
-    onBody: (annotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData, ReturnType, ErrorType>
+    onBody: (annotation: TokenizerAnnotationData) => core.ITreeBuilder<TokenizerAnnotationData>
     errorStreams: ErrorStreamsHandler
-}): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
+}): p.IStreamConsumer<string, null, null> {
     return createStreamPreTokenizer(
         createTokenizer(
             createStructureParser({

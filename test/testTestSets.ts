@@ -17,8 +17,8 @@ import { getEndLocationFromRange, TokenizerAnnotationData, createErrorStreamHand
 import { createSerializedQuotedString, RequiredValueHandler, SimpleStringData, ValueHandler } from "astn-core"
 
 function createStreamSplitter<DataType, EndDataType>(
-    subStreamConsumers: p.IUnsafeStreamConsumer<DataType, EndDataType, null, null>[]
-): p.IUnsafeStreamConsumer<DataType, EndDataType, null, null> {
+    subStreamConsumers: p.IStreamConsumer<DataType, EndDataType, null>[]
+): p.IStreamConsumer<DataType, EndDataType, null> {
     return {
         onData: (data: DataType): p.IValue<boolean> => {
             const promises: p.IValue<boolean>[] = []
@@ -33,13 +33,11 @@ function createStreamSplitter<DataType, EndDataType>(
                 return p.value(abortResquests.includes(true)) //if 1 promise requested an abort
             })
         },
-        onEnd: (aborted: boolean, endData: EndDataType): p.IUnsafeValue<null, null> => {
+        onEnd: (aborted: boolean, endData: EndDataType) => {
             return p20.createArray(
                 subStreamConsumers
-            ).mergeUnsafeValues(v => v.onEnd(aborted, endData)
-            ).mapError(() => {
-                return p.value(null)
-            }).mapResult(() => {
+            ).mergeSafeValues(v => v.onEnd(aborted, endData)
+            ).mapResult(() => {
                 return p.value(null)
             })
         },
@@ -166,11 +164,11 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 actualEvents.push(["stacked error", core.printStackedDataError(error.type)])
             },
             () => {
-                return p.success<null, null>(null)
+                return p.value(null)
             },
             () => core.createDummyValueHandler(() => p.value(null))
         )
-        const eventSubscriber: core.ITreeBuilder<TokenizerAnnotationData, null, null> = {
+        const eventSubscriber: core.ITreeBuilder<TokenizerAnnotationData> = {
             onData: data => {
                 switch (data.type[0]) {
                     case "close array": {
@@ -216,17 +214,17 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
                 }
                 return p.value(false)
             },
-            onEnd: (_aborted, endData): p.IUnsafeValue<null, null> => {
+            onEnd: (_aborted, endData) => {
                 if (DEBUG) console.log("found end")
                 actualEvents.push(["end", getLocation(test.testForLocation, getEndLocationFromRange(endData.range))])
-                return p.success(null)
+                return p.value(null)
             },
         }
         const out: string[] = []
-        const schemaDataSubscribers: core.ITreeBuilder<TokenizerAnnotationData, null, null>[] = [
+        const schemaDataSubscribers: core.ITreeBuilder<TokenizerAnnotationData>[] = [
             eventSubscriber,
         ]
-        const instanceDataSubscribers: core.ITreeBuilder<TokenizerAnnotationData, null, null>[] = [
+        const instanceDataSubscribers: core.ITreeBuilder<TokenizerAnnotationData>[] = [
             eventSubscriber,
             stackedSubscriber,
         ]
@@ -281,10 +279,10 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             errorStreams: createErrorStreamHandler(false, str => actualEvents.push(["parsingerror", str])),
         })
 
-        return p20.createArray(chunks).streamify().tryToConsume(
+        return p20.createArray(chunks).streamify().consume(
             null,
             parserStack,
-        ).convertToNativePromise(() => "Error found").then(() => {
+        ).convertToNativePromise().then(() => {
             //
 
             if (test.events !== undefined) {

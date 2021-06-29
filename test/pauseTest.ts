@@ -30,7 +30,7 @@ const parserStack = astn.createParserStack({
             },
             onEnd: () => {
                 console.log("Reached end")
-                return p.success<null, null>(null)
+                return p.value(null)
             },
         }
     },

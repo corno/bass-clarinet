@@ -13,7 +13,7 @@ export function createASTNTextFormatter(
 
         onEmbeddedSchema: _range => {
             write(formatter.onSchemaHeader())
-            return core.createStackedParser<TokenizerAnnotationData, null, null>(
+            return core.createStackedParser<TokenizerAnnotationData>(
                 core.createDecoratedTree(
                     formatter.schemaFormatter,
                     core.createTreeConcatenator(write, () => p.value(null)),
@@ -25,7 +25,7 @@ export function createASTNTextFormatter(
                     write(formatter.onAfterSchema())
                     //onEnd
                     //no need to return an value, we're only here for the side effects, so return 'null'
-                    return p.success(null)
+                    return p.value(null)
                 },
                 () => core.createDummyValueHandler(() => p.value(null)),
             )
@@ -35,7 +35,7 @@ export function createASTNTextFormatter(
             return p.value(null)
         },
         onBody: () => {
-            const datasubscriber = core.createStackedParser<TokenizerAnnotationData, null, null>(
+            const datasubscriber = core.createStackedParser<TokenizerAnnotationData>(
                 core.createDecoratedTree(
                     formatter.bodyFormatter,
                     core.createTreeConcatenator(write, () => p.value(null)),
@@ -46,7 +46,7 @@ export function createASTNTextFormatter(
                 () => {
                     //onEnd
                     //no need to return an value, we're only here for the side effects, so return 'null'
-                    return p.success(null)
+                    return p.value(null)
                 },
 
                 () => core.createDummyValueHandler(() => p.value(null)),
@@ -60,16 +60,7 @@ export function createASTNTextFormatter(
         onData: $ => ps.onData($),
         onEnd: (aborted, data) => {
             write(endString)
-            return ps.onEnd(aborted, data).reworkAndCatch(
-                () => {
-                    //we're only here for the side effects, so no need to handle the error
-                    return p.value(null)
-                },
-                () => {
-                    //we're only here for the side effects, so no need to handle the result (which is 'null' anyway)
-                    return p.value(null)
-                }
-            )
+            return ps.onEnd(aborted, data)
         },
     }
 }

@@ -95,20 +95,20 @@ class Chunk implements IChunk {
  * @param onError
  * @param opt
  */
-export function createStreamPreTokenizer<ReturnType, ErrorType>(
-    tokenStreamConsumer: IPreTokenStreamConsumer<ReturnType, ErrorType>,
+export function createStreamPreTokenizer(
+    tokenStreamConsumer: IPreTokenStreamConsumer,
     onError: ($: {
         error: TokenError
         range: Range
     }) => void,
     opt?: TokenizerOptions
-): p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
+): p.IStreamConsumer<string, null, null> {
 
-    class StreamPreTokenizer implements p.IUnsafeStreamConsumer<string, null, ReturnType, ErrorType> {
+    class StreamPreTokenizer implements p.IStreamConsumer<string, null, null> {
 
         private readonly tokenizerState: IPreTokenizer
         private readonly locationState: LocationState
-        private readonly tokenStreamConsumer: IPreTokenStreamConsumer<ReturnType, ErrorType>
+        private readonly tokenStreamConsumer: IPreTokenStreamConsumer
         private aborted = false
 
         constructor(
@@ -156,11 +156,11 @@ export function createStreamPreTokenizer<ReturnType, ErrorType>(
             return this.loopUntilPromiseOrEnd(currentChunk)
         }
 
-        public onEnd(aborted: boolean): p.IUnsafeValue<ReturnType, ErrorType> {
+        public onEnd(aborted: boolean): p.IValue<null> {
             const tokenData = this.tokenizerState.handleDanglingToken()
             if (tokenData !== null) {
                 const onDataReturnValue = this.tokenStreamConsumer.onData(tokenData)
-                return onDataReturnValue.try(_abort => {
+                return onDataReturnValue.mapResult(_abort => {
                     //nothing to abort anymore
                     return this.tokenStreamConsumer.onEnd(aborted, this.locationState.getCurrentLocation())
 
