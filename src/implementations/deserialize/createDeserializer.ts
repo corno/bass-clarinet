@@ -35,7 +35,7 @@ export type ResolvedSchema = {
  * Can be used to create additional errors and warnings about the serialized document. For example missing properties or invalid formatting
  */
 export function createDeserializer(
-    contextSchema: 
+    contextSchema:
         | ["not available"]
         | ["has errors"]
         | ["available", SchemaAndSideEffects<astn.TokenizerAnnotationData>],
