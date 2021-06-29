@@ -47,7 +47,7 @@ export function createDeserializer(
     ) => astncore.RootHandler<astn.TokenizerAnnotationData>,
 ): p20.IStreamConsumer<string, null, null> {
 
-    let embeddedSchemaSpecificationStart: null | astn.Range = null
+    let internalSchemaSpecificationStart: null | astn.Range = null
     let foundSchemaErrors = false
 
     let internalSchema: ResolvedSchema | null = null
@@ -55,7 +55,7 @@ export function createDeserializer(
 
     const parserStack = astn.createParserStack({
         onEmbeddedSchema: (schemaSchemaReference, firstTokenAnnotation) => {
-            embeddedSchemaSpecificationStart = firstTokenAnnotation.range
+            internalSchemaSpecificationStart = firstTokenAnnotation.range
 
             const schemaSchemaBuilder = getSchemaSchemaBuilder(schemaSchemaReference)
 
@@ -83,6 +83,8 @@ export function createDeserializer(
             }
         },
         onSchemaReference: (schemaReference, annotation) => {
+            internalSchemaSpecificationStart = annotation.range
+
             return loadPossibleExternalSchema(
                 resolveReferencedSchema(schemaReference.value),
                 getSchemaSchemaBuilder,
@@ -121,10 +123,10 @@ export function createDeserializer(
                 () => astncore.createDummyValueHandler(() => p.value(null))
             )
             if (contextSchema !== null) {
-                if (embeddedSchemaSpecificationStart !== null) {
+                if (internalSchemaSpecificationStart !== null) {
                     onError(
                         ["found both internal and context schema. ignoring internal schema"],
-                        embeddedSchemaSpecificationStart,
+                        internalSchemaSpecificationStart,
                         DiagnosticSeverity.warning
                     )
                 }
@@ -147,7 +149,7 @@ export function createDeserializer(
                     },
                     () => astncore.createDummyValueHandler(() => p.value(null))
                 )
-            } else if (embeddedSchemaSpecificationStart !== null) {
+            } else if (internalSchemaSpecificationStart !== null) {
                 if (internalSchema === null) {
                     if (!foundSchemaErrors) {
                         console.error("NO SCHEMA AND NO ERROR")
