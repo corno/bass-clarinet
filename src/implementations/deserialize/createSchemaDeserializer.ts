@@ -39,7 +39,7 @@ export function createSchemaDeserializer(
             schemaDefinitionFound = true
             schemaSchemaBuilder = getSchemaSchemaBuilder(schemaSchemaReference.value)
             if (schemaSchemaBuilder === null) {
-                console.error(`unknown schema schema '${schemaSchemaReference.value},`)
+                console.error(`unknown schema schema '${schemaSchemaReference.value}'`)
                 onSchemaError(["unknown schema schema", { name: schemaSchemaReference.value }], annotation.range)
             }
             return p.value(null)
