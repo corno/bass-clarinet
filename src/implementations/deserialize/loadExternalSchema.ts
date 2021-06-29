@@ -111,7 +111,7 @@ export function createSchemaDeserializer(
     })
 }
 
-export function loadExternalSchema(
+export function loadPossibleExternalSchema(
     possibleStream: p.IUnsafeValue<p.IStream<string, null>, RetrievalError>,
     getSchemaSchemaBuilder: (
         name: string,
@@ -120,6 +120,7 @@ export function loadExternalSchema(
         error: ExternalSchemaResolvingError
     ) => void,
 ): p.IUnsafeValue<SchemaAndSideEffects<TokenizerAnnotationData>, null> {
+
     return possibleStream.mapError(error => {
         switch (error[0]) {
             case "not found": {
@@ -138,36 +139,52 @@ export function loadExternalSchema(
             default:
                 return assertUnreachable(error[0])
         }
-    }).try<SchemaAndSideEffects<TokenizerAnnotationData>>(
+    }).try(
         stream => {
-            let foundErrors = false
-            let schema: SchemaAndSideEffects<TokenizerAnnotationData> | null = null
-            return stream.consume<null>(
-                null,
-                createSchemaDeserializer(
-                    getSchemaSchemaBuilder,
-                    _error => {
-                        foundErrors = true
-                        //console.error("SCHEMA ERROR", error)
-                    },
-                    $ => {
-                        schema = $
-                        return p.value(null)
-                    }
-                ),
-            ).try(
-                () => {
-                    if (schema === null) {
-                        if (!foundErrors) {
-                            throw new Error("no schema and no errors")
-                        }
-                        onError(["errors in referenced schema"])
-                        return p.error(null)
-                    } else {
-                        return p.success(schema)
-                    }
-                },
+            return loadExternalSchema(
+                stream,
+                getSchemaSchemaBuilder,
+                onError,
             )
+        }
+    )
+}
+
+export function loadExternalSchema(
+    stream: p.IStream<string, null>,
+    getSchemaSchemaBuilder: (
+        name: string,
+    ) => SchemaSchemaBuilder<TokenizerAnnotationData> | null,
+    onError: (
+        error: ExternalSchemaResolvingError
+    ) => void,
+): p.IUnsafeValue<SchemaAndSideEffects<TokenizerAnnotationData>, null> {
+    let foundErrors = false
+    let schema: SchemaAndSideEffects<TokenizerAnnotationData> | null = null
+    return stream.consume<null>(
+        null,
+        createSchemaDeserializer(
+            getSchemaSchemaBuilder,
+            _error => {
+                foundErrors = true
+                //console.error("SCHEMA ERROR", error)
+            },
+            $ => {
+                schema = $
+                return p.value(null)
+            }
+        ),
+    ).try(
+        () => {
+            if (schema === null) {
+                if (!foundErrors) {
+                    throw new Error("no schema and no errors")
+                }
+                onError(["errors in referenced schema"])
+                return p.error(null)
+            } else {
+                return p.success(schema)
+            }
         },
     )
 }

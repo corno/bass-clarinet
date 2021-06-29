@@ -15,7 +15,7 @@ import { DeserializeError } from "../../interfaces/deserialize/Errors"
 import { ResolveReferencedSchema } from "../../interfaces/deserialize/ResolveReferencedSchema"
 import { SchemaSchemaBuilder } from "../../interfaces/deserialize"
 import { DiagnosticSeverity } from "astn-core"
-import { loadExternalSchema } from "./loadExternalSchema"
+import { loadPossibleExternalSchema } from "./loadExternalSchema"
 
 export type ResolvedSchema = {
     specification: InternalSchemaSpecification
@@ -83,7 +83,7 @@ export function createDeserializer(
             }
         },
         onSchemaReference: (schemaReference, annotation) => {
-            return loadExternalSchema(
+            return loadPossibleExternalSchema(
                 resolveReferencedSchema(schemaReference.value),
                 getSchemaSchemaBuilder,
                 error => {

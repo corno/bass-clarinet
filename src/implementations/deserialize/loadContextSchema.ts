@@ -5,6 +5,10 @@ import { ContextSchemaError, SchemaAndSideEffects, SchemaSchemaBuilder, Tokenize
 import { RetrievalError } from "../../interfaces/deserialize/ResolveReferencedSchema"
 import { loadExternalSchema } from "./loadExternalSchema"
 
+function assertUnreachable<RT>(_x: never): RT {
+    throw new Error("unreachable")
+}
+
 export type ContextSchemaData = {
     filePath: string
     getContextSchema: (dir: string, schemaFileName: string) => p.IUnsafeValue<p.IStream<string, null>, RetrievalError>
@@ -27,14 +31,41 @@ export function loadContextSchema(
         return p.error(null)
     }
 
-    return loadExternalSchema(
-        data.getContextSchema(
-            dir,
-            schemaFileName,
-        ),
-        getSchemaSchemaBuilder,
-        error => {
-            onError(["external schema resolving", error], astncore.DiagnosticSeverity.error)
-        },
+    return data.getContextSchema(
+        dir,
+        schemaFileName,
+    ).mapError<null>(error => {
+        switch (error[0]) {
+            case "not found": {
+                //this is okay, the context schema is optional
+                return p.value(null)
+            }
+            case "other": {
+                const $ = error[1]
+                onError(["external schema resolving", ["loading", {
+                    message: `other: ${$.description}`,
+                }]], astncore.DiagnosticSeverity.error)
+                return p.value(null)
+            }
+            default:
+                return assertUnreachable(error[0])
+        }
+    }).try(
+        stream => {
+            return loadExternalSchema(
+                stream,
+                getSchemaSchemaBuilder,
+                error => {
+                    onError(["external schema resolving", error], astncore.DiagnosticSeverity.error)
+                },
+            )
+        }
     )
+    // return loadExternalSchema(
+    //     ,
+    //     getSchemaSchemaBuilder,
+    //     error => {
+    //         onError(["external schema resolving", error], astncore.DiagnosticSeverity.error)
+    //     },
+    // )
 }
