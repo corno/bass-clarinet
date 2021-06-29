@@ -143,8 +143,7 @@ export function createDeserializer(
                         onError(["stacked", error.type], error.annotation.range, astncore.DiagnosticSeverity.error)
                     },
                     () => {
-                        handler.onEnd({})
-                        return p.value(null)
+                        return handler.onEnd({})
                     },
                     () => astncore.createDummyValueHandler(() => p.value(null))
                 )
@@ -167,8 +166,7 @@ export function createDeserializer(
                             onError(["stacked", error.type], error.annotation.range, astncore.DiagnosticSeverity.error)
                         },
                         () => {
-                            handler.onEnd({})
-                            return p.value(null)
+                            return handler.onEnd({})
                         },
                         () => astncore.createDummyValueHandler(() => p.value(null))
                     )
