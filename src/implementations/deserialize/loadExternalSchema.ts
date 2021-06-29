@@ -22,7 +22,7 @@ export function createSchemaDeserializer(
         name: string,
     ) => SchemaSchemaBuilder<astn.TokenizerAnnotationData> | null,
     onError: (error: SchemaError, range: astn.Range) => void,
-    onSchema: (schema: SchemaAndSideEffects<astn.TokenizerAnnotationData>) => void,
+    onSchema: (schema: SchemaAndSideEffects<astn.TokenizerAnnotationData>) => p.IValue<null>,
     //SchemaAndSideEffects<astn.TokenizerAnnotationData>,
 ): p.IStreamConsumer<string, null, null> {
     let foundError = false
@@ -89,7 +89,7 @@ export function createSchemaDeserializer(
                             onError(["schema processing", error], annotation2.range)
                         },
                         schemaAndSideEffects => {
-                            onSchema(schemaAndSideEffects)
+                            return onSchema(schemaAndSideEffects)
                         }
                     )
                 }
@@ -119,7 +119,7 @@ export function loadExternalSchema(
     ) => void,
     onSchema: (
         schema: astn.SchemaAndSideEffects<astn.TokenizerAnnotationData>
-    ) => void,
+    ) => p.IValue<null>,
 ): p.IValue<null> {
     return possibleStream.mapError(error => {
         switch (error[0]) {
@@ -151,7 +151,7 @@ export function loadExternalSchema(
                         console.error("SCHEMA ERROR", error)
                     },
                     schema => {
-                        onSchema(schema)
+                        return onSchema(schema)
                     }
                 ),
             ).mapResult(

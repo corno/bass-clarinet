@@ -72,7 +72,7 @@ export function createDeserializer(
                         schemaAndSideEffects: schemaAndSideEffects,
                         specification: ["embedded"],
                     }
-
+                    return p.value(null)
                 }
             )
             return {
@@ -104,6 +104,7 @@ export function createDeserializer(
                         schemaAndSideEffects: schemaAndSideEffects,
                         specification: ["reference", { name: schemaReference.value }],
                     }
+                    return p.value(null)
                 }
             )
         },

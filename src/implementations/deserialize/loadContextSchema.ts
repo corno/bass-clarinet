@@ -20,7 +20,7 @@ export function loadContextSchema(
     onError: (error: ContextSchemaError, severity: astncore.DiagnosticSeverity) => void,
     onSchema: (
         schema: SchemaAndSideEffects<TokenizerAnnotationData>
-    ) => void
+    ) => p.IValue<null>
 ): p.IValue<null> {
     const basename = path.basename(data.filePath)
     const dir = path.dirname(data.filePath)
