@@ -125,7 +125,7 @@ export function loadPossibleExternalSchema(
         switch (error[0]) {
             case "not found": {
                 onError(["loading", {
-                    message: "missing (valid) schema",
+                    message: "schema not found",
                 }])
                 return p.value(null)
             }

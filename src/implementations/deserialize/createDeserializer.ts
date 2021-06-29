@@ -95,11 +95,6 @@ export function createDeserializer(
                         annotation.range,
                         astncore.DiagnosticSeverity.error,
                     )
-                    onError(
-                        ["invalid schema reference"],
-                        annotation.range,
-                        astncore.DiagnosticSeverity.warning,
-                    )
                 },
             ).mapResult(schemaAndSideEffects => {
                 internalSchema = {
