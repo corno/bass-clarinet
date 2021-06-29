@@ -134,7 +134,7 @@ export function createDeserializer(
                 })
                 return astncore.createStackedParser(
                     astncore.createDatasetDeserializer(
-                        contextSchema.schema,
+                        contextSchema[1].schema,
                         handler,
                         (error, annotation, severity) => onError(["deserialize", error], annotation.range, severity),
                         () => p.value(null),
