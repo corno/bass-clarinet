@@ -65,7 +65,7 @@
   },
   "license": "BSD-2-Clause",
   "dependencies": {
-    "astn-core": "^0.4.5",
+    "astn-core": "^0.4.6",
     "pareto": "^0.51.1"
   },
   "bin": {

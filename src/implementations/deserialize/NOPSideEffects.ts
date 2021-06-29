@@ -3,15 +3,13 @@
 */
 
 import * as astncore from "astn-core"
-/* eslint
-    "max-classes-per-file": off,
-*/
+import * as p from "pareto"
 
 export function createNOPSideEffects<Annotation>(): astncore.RootHandler<Annotation> {
     return {
         root: createValueNOPSideEffects(),
         onEnd: () => {
-            //
+            return p.value(null)
         },
     }
 }

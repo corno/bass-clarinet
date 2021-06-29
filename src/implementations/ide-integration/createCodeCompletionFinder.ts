@@ -1,4 +1,6 @@
 import * as astncore from "astn-core"
+import * as p from "pareto"
+
 import { getEndLocationFromRange } from "../../generic"
 import { TokenizerAnnotationData } from "../../interfaces"
 import { isPositionBeforeLocation } from "./isPositionBeforeLocation"
@@ -48,6 +50,7 @@ export function createCodeCompletionFinder(
             if (!positionAlreadyFound) {
                 generate(previousAfter)
             }
+            return p.value(null)
         }
     )
 }

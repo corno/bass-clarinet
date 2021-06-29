@@ -1,3 +1,5 @@
+
+import * as p from "pareto"
 import * as astncore from "astn-core"
 import { getEndLocationFromRange } from "../../generic"
 import { TokenizerAnnotationData } from "../../interfaces"
@@ -22,7 +24,7 @@ export function createHoverTextFinder(
             }
         },
         () => {
-            //
+            return p.value(null)
         }
     )
 }
