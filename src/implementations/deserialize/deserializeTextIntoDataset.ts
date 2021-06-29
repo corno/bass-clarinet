@@ -123,8 +123,14 @@ export function deserializeTextIntoDataset($: {
 					const id = $.createInitialDataset(schema)
 					allSideEffects.push(astncore.build(
 						id.root,
-						() => {
-							//
+						(message, annotation, severitiy) => {
+							addDiagnostic(
+								["build", {
+									range: annotation.range,
+									message: message,
+								}],
+								severitiy,
+							)
 						}
 					))
 					return {

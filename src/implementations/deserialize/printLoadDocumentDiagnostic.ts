@@ -48,6 +48,10 @@ export function printLoadDocumentDiagnostic(loadDiagnostic: LoadDocumentDiagnost
 			const $ = loadDiagnostic.type[1]
 			return `${$.message} @ ${printRange($.range)}`
 		}
+		case "build": {
+			const $ = loadDiagnostic.type[1]
+			return `${$.message} @ ${printRange($.range)}`
+		}
 		default:
 			return assertUnreachable(loadDiagnostic.type[0])
 	}

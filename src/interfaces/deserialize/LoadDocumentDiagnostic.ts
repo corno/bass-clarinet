@@ -25,6 +25,10 @@ export type LoadDocumentDiagnosticType =
     data: DeserializationDiagnostic
     range: Range
 }]
+| ["build", {
+    message: string
+    range: Range
+}]
 
 
 export type LoadDocumentDiagnostic = {
