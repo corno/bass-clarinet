@@ -16,12 +16,12 @@ import { ResolveReferencedSchema } from "../../interfaces/deserialize/ResolveRef
 import { SchemaSchemaBuilder } from "../../interfaces/deserialize"
 import { DiagnosticSeverity } from "astn-core"
 import { loadPossibleExternalSchema } from "./loadExternalSchema"
+import { ContextSchema } from "./loadContextSchema"
 
 export type ResolvedSchema = {
     specification: InternalSchemaSpecification
     schemaAndSideEffects: SchemaAndSideEffects<astn.TokenizerAnnotationData>
 }
-
 
 /**
  * this function returns a promise to a deserialized dataset and the promise is resolved when the validation has been completed
@@ -35,10 +35,7 @@ export type ResolvedSchema = {
  * Can be used to create additional errors and warnings about the serialized document. For example missing properties or invalid formatting
  */
 export function createDeserializer(
-    contextSchema:
-        | ["not available"]
-        | ["has errors"]
-        | ["available", SchemaAndSideEffects<astn.TokenizerAnnotationData>],
+    contextSchema: ContextSchema,
     resolveReferencedSchema: ResolveReferencedSchema,
     onError: (diagnostic: DeserializeError, range: astn.Range, severity: astncore.DiagnosticSeverity) => void,
 
