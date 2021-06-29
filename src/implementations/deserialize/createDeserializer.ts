@@ -149,6 +149,11 @@ export function createDeserializer(
                     if (!foundSchemaErrors) {
                         console.error("NO SCHEMA AND NO ERROR")
                     }
+                    onError(
+                        ["no valid schema"],
+                        firstBodyTokenAnnotation.range,
+                        DiagnosticSeverity.error,
+                    )
                     return dummyStackParser
                 } else {
                     const handler = handlerBuilder(internalSchema)
@@ -170,7 +175,7 @@ export function createDeserializer(
                 }
             } else {
                 onError(
-                    ["no valid schema"],
+                    ["no schema"],
                     firstBodyTokenAnnotation.range,
                     DiagnosticSeverity.error,
                 )

@@ -35,6 +35,7 @@ export type SchemaDeserializationError =
 
 export type DeserializeError =
 | ["no valid schema"]
+| ["no schema"]
 | ["found both internal and context schema. ignoring internal schema"]
 | ["invalid embedded schema"]
 | ["invalid schema reference"]

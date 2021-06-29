@@ -57,8 +57,11 @@ export function printDeserializationDiagnostic($: DeserializeError): string {
         case "invalid embedded schema": {
             return $[0]
         }
+        case "no schema": {
+            return "no schema found"
+        }
         case "no valid schema": {
-            return "no valid schema"
+            return "no valid schema found"
         }
         case "invalid schema reference": {
             return $[0]
