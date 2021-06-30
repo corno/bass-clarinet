@@ -1,3 +1,5 @@
+import { TokenizerAnnotationData } from "../TokenizerAnnotationData"
+import { SchemaAndSideEffects } from "./SchemaAndSideEffects"
 
 export type InternalSchemaSpecification =
     | ["embedded"]
@@ -7,3 +9,9 @@ export type InternalSchemaSpecification =
 export type SerializationStyle =
     | ["expanded", { omitPropertiesWithDefaultValues: boolean }]
     | ["compact"]
+
+export type ContextSchema =
+    | ["ignored"]
+    | ["not available"]
+    | ["has errors"]
+    | ["available", SchemaAndSideEffects<TokenizerAnnotationData>]

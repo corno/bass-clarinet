@@ -3,7 +3,6 @@ import * as fs from "fs"
 import * as chai from "chai"
 import * as astn from "../src"
 import * as core from "astn-core"
-import * as p20 from "pareto-20"
 import { consumeString } from "./consumeString"
 
 const dir = "./test/data/formatting/"

@@ -5,10 +5,9 @@
 import * as p20 from "pareto-20"
 import * as p from "pareto"
 import * as astncore from "astn-core"
-import * as astn from "../.."
 
 
-import { InternalSchemaSpecification } from "../../interfaces/deserialize/Dataset"
+import { ContextSchema, InternalSchemaSpecification } from "../../interfaces/deserialize/Dataset"
 import { SchemaAndSideEffects } from "../../interfaces/deserialize/SchemaAndSideEffects"
 
 import { DeserializeError } from "../../interfaces/deserialize/Errors"
@@ -16,11 +15,13 @@ import { ResolveReferencedSchema } from "../../interfaces/deserialize/ResolveRef
 import { SchemaSchemaBuilder } from "../../interfaces/deserialize"
 import { DiagnosticSeverity } from "astn-core"
 import { loadPossibleExternalSchema } from "./loadExternalSchema"
-import { ContextSchema } from "./loadContextSchema"
+import { TokenizerAnnotationData } from "../../interfaces"
+import { createParserStack } from "../parser"
+import { Range } from "../../generic"
 
 export type ResolvedSchema = {
     specification: InternalSchemaSpecification
-    schemaAndSideEffects: SchemaAndSideEffects<astn.TokenizerAnnotationData>
+    schemaAndSideEffects: SchemaAndSideEffects<TokenizerAnnotationData>
 }
 
 /**
@@ -37,23 +38,23 @@ export type ResolvedSchema = {
 export function createDeserializer(
     contextSchema: ContextSchema,
     resolveReferencedSchema: ResolveReferencedSchema,
-    onError: (diagnostic: DeserializeError, range: astn.Range, severity: astncore.DiagnosticSeverity) => void,
+    onError: (diagnostic: DeserializeError, range: Range, severity: astncore.DiagnosticSeverity) => void,
 
     getSchemaSchemaBuilder: (
         name: string,
-    ) => SchemaSchemaBuilder<astn.TokenizerAnnotationData> | null,
+    ) => SchemaSchemaBuilder<TokenizerAnnotationData> | null,
     handlerBuilder: (
         schemaSpec: ResolvedSchema,
-    ) => astncore.RootHandler<astn.TokenizerAnnotationData>,
+    ) => astncore.RootHandler<TokenizerAnnotationData>,
 ): p20.IStreamConsumer<string, null, null> {
 
-    let internalSchemaSpecificationStart: null | astn.Range = null
+    let internalSchemaSpecificationStart: null | Range = null
     let foundSchemaErrors = false
 
     let internalSchema: ResolvedSchema | null = null
 
 
-    const parserStack = astn.createParserStack({
+    const parserStack = createParserStack({
         onEmbeddedSchema: (schemaSchemaReference, firstTokenAnnotation) => {
             internalSchemaSpecificationStart = firstTokenAnnotation.range
 
@@ -107,7 +108,7 @@ export function createDeserializer(
             })
         },
         onBody: firstBodyTokenAnnotation => {
-            const dummyStackParser = astncore.createStackedParser<astn.TokenizerAnnotationData>(
+            const dummyStackParser = astncore.createStackedParser<TokenizerAnnotationData>(
                 astncore.createDummyTreeHandler(() => p.value(null)),
                 error => {
                     onError(["stacked", error.type], error.annotation.range, astncore.DiagnosticSeverity.error)

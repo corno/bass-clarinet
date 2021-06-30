@@ -1,7 +1,7 @@
 import * as p from "pareto"
 import * as path from "path"
 import * as astncore from "astn-core"
-import { ContextSchemaError, SchemaAndSideEffects, SchemaSchemaBuilder, TokenizerAnnotationData } from "../../interfaces"
+import { ContextSchema, ContextSchemaError, SchemaSchemaBuilder, TokenizerAnnotationData } from "../../interfaces"
 import { RetrievalError } from "../../interfaces/deserialize/ResolveReferencedSchema"
 import { loadExternalSchema } from "./loadExternalSchema"
 
@@ -15,13 +15,6 @@ export type ContextSchemaData = {
 }
 
 export const schemaFileName = "schema.astn-schema"
-
-export type ContextSchema =
-    | ["ignored"]
-    | ["not available"]
-    | ["has errors"]
-    | ["available", SchemaAndSideEffects<TokenizerAnnotationData>]
-
 
 export function loadContextSchema(
     data: ContextSchemaData,
@@ -57,7 +50,7 @@ export function loadContextSchema(
             default:
                 return assertUnreachable(error[0])
         }
-    }).try<ContextSchema>(
+    }).mapResult<ContextSchema>(
         stream => {
             return loadExternalSchema(
                 stream,
