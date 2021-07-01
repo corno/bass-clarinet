@@ -63,10 +63,7 @@ function createValueNOPSideEffects<Annotation>(): astncore.TypedValueHandler<Ann
         onTypeReference: () => {
             return createValueNOPSideEffects()
         },
-        onShorthandGroupOpen: () => {
-            return createGroupNOPSideEffects()
-        },
-        onVerboseGroupOpen: () => {
+        onGroup: () => {
             return createGroupNOPSideEffects()
         },
     }
