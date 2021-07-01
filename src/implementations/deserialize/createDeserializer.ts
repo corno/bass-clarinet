@@ -7,22 +7,16 @@ import * as p from "pareto"
 import * as astncore from "astn-core"
 
 
-import { ContextSchema, InternalSchemaSpecification } from "../../interfaces/deserialize/Dataset"
-import { SchemaAndSideEffects } from "../../interfaces/deserialize/SchemaAndSideEffects"
-
+import { ContextSchema } from "../../interfaces/deserialize/Dataset"
 import { DeserializeError } from "../../interfaces/deserialize/Errors"
 import { ResolveReferencedSchema } from "../../interfaces/deserialize/ResolveReferencedSchema"
-import { SchemaSchemaBuilder } from "../../interfaces/deserialize"
+import { ResolvedSchema, SchemaSchemaBuilder } from "../../interfaces/deserialize"
 import { DiagnosticSeverity } from "astn-core"
 import { loadPossibleExternalSchema } from "./loadExternalSchema"
 import { TokenizerAnnotationData } from "../../interfaces"
 import { createParserStack } from "../parser"
 import { Range } from "../../generic"
 
-export type ResolvedSchema = {
-    specification: InternalSchemaSpecification
-    schemaAndSideEffects: SchemaAndSideEffects<TokenizerAnnotationData>
-}
 
 /**
  * this function returns a promise to a deserialized dataset and the promise is resolved when the validation has been completed
@@ -44,14 +38,14 @@ export function createDeserializer(
         name: string,
     ) => SchemaSchemaBuilder<TokenizerAnnotationData> | null,
     handlerBuilder: (
-        schemaSpec: ResolvedSchema,
+        schemaSpec: ResolvedSchema<TokenizerAnnotationData>,
     ) => astncore.RootHandler<TokenizerAnnotationData>,
 ): p20.IStreamConsumer<string, null, null> {
 
     let internalSchemaSpecificationStart: null | Range = null
     let foundSchemaErrors = false
 
-    let internalSchema: ResolvedSchema | null = null
+    let internalSchema: ResolvedSchema<TokenizerAnnotationData> | null = null
 
 
     const parserStack = createParserStack({
