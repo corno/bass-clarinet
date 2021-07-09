@@ -20,9 +20,9 @@ export function loadContextSchema(
     data: ContextSchemaData,
     getSchemaSchemaBuilder: (
         name: string,
-    ) => SchemaSchemaBuilder<TokenizerAnnotationData> | null,
+    ) => SchemaSchemaBuilder<TokenizerAnnotationData, p.IValue<null>> | null,
     onError: (error: ContextSchemaError, severity: astncore.DiagnosticSeverity) => void,
-): p.IValue<ContextSchema> {
+): p.IValue<ContextSchema<TokenizerAnnotationData, p.IValue<null>>> {
     const basename = path.basename(data.filePath)
     const dir = path.dirname(data.filePath)
     if (basename === schemaFileName) {
@@ -34,7 +34,7 @@ export function loadContextSchema(
     return data.getContextSchema(
         dir,
         schemaFileName,
-    ).mapError<ContextSchema>(error => {
+    ).mapError<ContextSchema<TokenizerAnnotationData, p.IValue<null>>>(error => {
         switch (error[0]) {
             case "not found": {
                 //this is okay, the context schema is optional
@@ -50,7 +50,7 @@ export function loadContextSchema(
             default:
                 return assertUnreachable(error[0])
         }
-    }).mapResult<ContextSchema>(
+    }).mapResult<ContextSchema<TokenizerAnnotationData, p.IValue<null>>>(
         stream => {
             return loadExternalSchema(
                 stream,
@@ -58,7 +58,7 @@ export function loadContextSchema(
                 error => {
                     onError(["external schema resolving", error], astncore.DiagnosticSeverity.error)
                 },
-            ).reworkAndCatch<ContextSchema>(
+            ).reworkAndCatch<ContextSchema<TokenizerAnnotationData, p.IValue<null>>>(
                 _error => {
                     return p.value(["has errors"])
                 },

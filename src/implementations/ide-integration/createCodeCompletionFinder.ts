@@ -9,7 +9,7 @@ export function createCodeCompletionFinder(
     completionPositionLine: number,
     completionPositionCharacter: number,
     callback: (codeCompletion: string) => void
-): astncore.RootHandler<TokenizerAnnotationData> {
+): astncore.RootHandler<TokenizerAnnotationData, p.IValue<null>> {
     let positionAlreadyFound = false
     let previousAfter: null | (() => string[]) = null
     //console.log("FINDING COMPLETIONS", line, character)

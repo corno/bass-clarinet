@@ -82,23 +82,27 @@ describe('typed', () => {
                             core.createSerializedString,
                         )
                         return core.createStackedParser(
-                            {
-                                root: callback(
-                                    expect,
-                                    errorLine => {
-                                        foundErrors.push(errorLine)
-                                    }
-                                ),
-                            },
-                            err => {
-                                foundErrors.push(["stacked error", `${err.type[0]} ${printRange(err.annotation.range)}`])
-                            },
-                            () => {
-                                //do nothing with end
-                                return p.value(null)
-                            },
-
-                            () => core.createDummyValueHandler(() => p.value(null)),
+                            core.createSemanticState(
+                                {
+                                    root: callback(
+                                        expect,
+                                        errorLine => {
+                                            foundErrors.push(errorLine)
+                                        }
+                                    ),
+                                },
+                                (err, annotation) => {
+                                    foundErrors.push(["stacked error", `${err[0]} ${printRange(annotation.range)}`])
+                                },
+                                () => {
+                                    return p.value(null)
+                                },
+                                () => core.createDummyValueHandler(() => p.value(null)),
+                                () => {
+                                    //do nothing with end
+                                    return p.value(null)
+                                },
+                            )
                         )
                     },
                     errorStreams: createErrorStreamHandler(true, str => foundErrors.push(["parser error", str])),

@@ -22,15 +22,15 @@ function assertUnreachable<RT>(_x: never): RT {
 export function createSchemaDeserializer(
     getSchemaSchemaBuilder: (
         name: string,
-    ) => SchemaSchemaBuilder<TokenizerAnnotationData> | null,
+    ) => SchemaSchemaBuilder<TokenizerAnnotationData, p.IValue<null>> | null,
     onError: (error: SchemaError, range: Range) => void,
-    onSchema: (schema: SchemaAndSideEffects<TokenizerAnnotationData> | null) => p.IValue<null>,
+    onSchema: (schema: SchemaAndSideEffects<TokenizerAnnotationData, p.IValue<null>> | null) => p.IValue<null>,
     //SchemaAndSideEffects<TokenizerAnnotationData>,
 ): p.IStreamConsumer<string, null, null> {
     let foundError = false
 
     let schemaDefinitionFound = false
-    let schemaSchemaBuilder: null | SchemaSchemaBuilder<TokenizerAnnotationData> = null
+    let schemaSchemaBuilder: null | SchemaSchemaBuilder<TokenizerAnnotationData, p.IValue<null>> = null
     function onSchemaError(error: SchemaError, range: Range) {
         onError(error, range)
         foundError = true
@@ -41,14 +41,19 @@ export function createSchemaDeserializer(
         onEmbeddedSchema: (_schemaSchemaName, annotation) => {
             onSchemaError(["schema schema cannot be embedded"], annotation.range)
             return astncore.createStackedParser(
-                astncore.createDummyTreeHandler(() => p.value(null)),
-                _$ => {
-                    return p.value(false)
-                },
-                () => {
-                    return p.value(null)
-                },
-                () => astncore.createDummyValueHandler(() => p.value(null))
+                astncore.createSemanticState(
+                    astncore.createDummyTreeHandler(() => p.value(null)),
+                    _$ => {
+                        return p.value(false)
+                    },
+                    () => {
+                        return p.value(null)
+                    },
+                    () => astncore.createDummyValueHandler(() => p.value(null)),
+                    () => {
+                        return p.value(null)
+                    },
+                )
             )
         },
         onSchemaReference: (schemaSchemaReference, annotation) => {
@@ -115,11 +120,11 @@ export function loadPossibleExternalSchema(
     possibleStream: p.IUnsafeValue<p.IStream<string, null>, RetrievalError>,
     getSchemaSchemaBuilder: (
         name: string,
-    ) => SchemaSchemaBuilder<TokenizerAnnotationData> | null,
+    ) => SchemaSchemaBuilder<TokenizerAnnotationData, p.IValue<null>> | null,
     onError: (
         error: ExternalSchemaResolvingError
     ) => void,
-): p.IUnsafeValue<SchemaAndSideEffects<TokenizerAnnotationData>, null> {
+): p.IUnsafeValue<SchemaAndSideEffects<TokenizerAnnotationData, p.IValue<null>>, null> {
 
     return possibleStream.mapError(error => {
         switch (error[0]) {
@@ -154,13 +159,13 @@ export function loadExternalSchema(
     stream: p.IStream<string, null>,
     getSchemaSchemaBuilder: (
         name: string,
-    ) => SchemaSchemaBuilder<TokenizerAnnotationData> | null,
+    ) => SchemaSchemaBuilder<TokenizerAnnotationData, p.IValue<null>> | null,
     onError: (
         error: ExternalSchemaResolvingError
     ) => void,
-): p.IUnsafeValue<SchemaAndSideEffects<TokenizerAnnotationData>, null> {
+): p.IUnsafeValue<SchemaAndSideEffects<TokenizerAnnotationData, p.IValue<null>>, null> {
     let foundErrors = false
-    let schema: SchemaAndSideEffects<TokenizerAnnotationData> | null = null
+    let schema: SchemaAndSideEffects<TokenizerAnnotationData, p.IValue<null>> | null = null
     return stream.consume<null>(
         null,
         createSchemaDeserializer(

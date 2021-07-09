@@ -3,13 +3,14 @@
 */
 
 import * as astncore from "astn-core"
-import * as p from "pareto"
 
-export function createNOPSideEffects<Annotation>(): astncore.RootHandler<Annotation> {
+export function createNOPSideEffects<Annotation, ReturnType>(
+    createReturnValue: () => ReturnType
+): astncore.RootHandler<Annotation, ReturnType> {
     return {
         root: createValueNOPSideEffects(),
         onEnd: () => {
-            return p.value(null)
+            return createReturnValue()
         },
     }
 }

@@ -14,20 +14,25 @@ export function createASTNTextFormatter(
         onEmbeddedSchema: _range => {
             write(formatter.onSchemaHeader())
             return core.createStackedParser<TokenizerAnnotationData>(
-                core.createDecoratedTree(
-                    formatter.schemaFormatter,
-                    core.createTreeConcatenator(write, () => p.value(null)),
-                ),
-                _error => {
-                    //
-                },
-                () => {
-                    write(formatter.onAfterSchema())
-                    //onEnd
-                    //no need to return an value, we're only here for the side effects, so return 'null'
-                    return p.value(null)
-                },
-                () => core.createDummyValueHandler(() => p.value(null)),
+                core.createSemanticState(
+                    core.createDecoratedTree(
+                        formatter.schemaFormatter,
+                        core.createTreeConcatenator(write, () => p.value(null)),
+                    ),
+                    _error => {
+                        //
+                    },
+                    () => {
+                        return p.value(null)
+                    },
+                    () => core.createDummyValueHandler(() => p.value(null)),
+                    () => {
+                        write(formatter.onAfterSchema())
+                        //onEnd
+                        //no need to return an value, we're only here for the side effects, so return 'null'
+                        return p.value(null)
+                    },
+                )
             )
         },
         onSchemaReference: schemaReference => {
@@ -36,20 +41,24 @@ export function createASTNTextFormatter(
         },
         onBody: () => {
             const datasubscriber = core.createStackedParser<TokenizerAnnotationData>(
-                core.createDecoratedTree(
-                    formatter.bodyFormatter,
-                    core.createTreeConcatenator(write, () => p.value(null)),
-                ),
-                error => {
-                    console.error("FOUND STACKED DATA ERROR", error)
-                },
-                () => {
-                    //onEnd
-                    //no need to return an value, we're only here for the side effects, so return 'null'
-                    return p.value(null)
-                },
-
-                () => core.createDummyValueHandler(() => p.value(null)),
+                core.createSemanticState(
+                    core.createDecoratedTree(
+                        formatter.bodyFormatter,
+                        core.createTreeConcatenator(write, () => p.value(null)),
+                    ),
+                    error => {
+                        console.error("FOUND STACKED DATA ERROR", error)
+                    },
+                    () => {
+                        return p.value(null)
+                    },
+                    () => core.createDummyValueHandler(() => p.value(null)),
+                    () => {
+                        //onEnd
+                        //no need to return an value, we're only here for the side effects, so return 'null'
+                        return p.value(null)
+                    },
+                )
             )
             return datasubscriber
         },
