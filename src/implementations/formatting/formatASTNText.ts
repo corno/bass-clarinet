@@ -14,25 +14,25 @@ export function createASTNTextFormatter(
         onEmbeddedSchema: _range => {
             write(formatter.onSchemaHeader())
             return core.createStackedParser<TokenizerAnnotationData>(
-                core.createSemanticState(
-                    core.createDecoratedTree(
+                core.createSemanticState({
+                    treeHandler: core.createDecoratedTree(
                         formatter.schemaFormatter,
                         core.createTreeConcatenator(write, () => p.value(null)),
                     ),
-                    _error => {
+                    raiseError: _error => {
                         //
                     },
-                    () => {
+                    createReturnValue: () => {
                         return p.value(null)
                     },
-                    () => core.createDummyValueHandler(() => p.value(null)),
-                    () => {
+                    createUnexpectedValueHandler: () => core.createDummyValueHandler(() => p.value(null)),
+                    onEnd: () => {
                         write(formatter.onAfterSchema())
                         //onEnd
                         //no need to return an value, we're only here for the side effects, so return 'null'
                         return p.value(null)
                     },
-                )
+                })
             )
         },
         onSchemaReference: schemaReference => {
@@ -41,24 +41,24 @@ export function createASTNTextFormatter(
         },
         onBody: () => {
             const datasubscriber = core.createStackedParser<TokenizerAnnotationData>(
-                core.createSemanticState(
-                    core.createDecoratedTree(
+                core.createSemanticState({
+                    treeHandler: core.createDecoratedTree(
                         formatter.bodyFormatter,
                         core.createTreeConcatenator(write, () => p.value(null)),
                     ),
-                    error => {
+                    raiseError: error => {
                         console.error("FOUND STACKED DATA ERROR", error)
                     },
-                    () => {
+                    createReturnValue: () => {
                         return p.value(null)
                     },
-                    () => core.createDummyValueHandler(() => p.value(null)),
-                    () => {
+                    createUnexpectedValueHandler: () => core.createDummyValueHandler(() => p.value(null)),
+                    onEnd: () => {
                         //onEnd
                         //no need to return an value, we're only here for the side effects, so return 'null'
                         return p.value(null)
                     },
-                )
+                })
             )
             return datasubscriber
         },

@@ -41,19 +41,19 @@ export function createSchemaDeserializer(
         onEmbeddedSchema: (_schemaSchemaName, annotation) => {
             onSchemaError(["schema schema cannot be embedded"], annotation.range)
             return astncore.createStackedParser(
-                astncore.createSemanticState(
-                    astncore.createDummyTreeHandler(() => p.value(null)),
-                    _$ => {
+                astncore.createSemanticState({
+                    treeHandler: astncore.createDummyTreeHandler(() => p.value(null)),
+                    raiseError: _$ => {
                         return p.value(false)
                     },
-                    () => {
+                    createReturnValue: () => {
                         return p.value(null)
                     },
-                    () => astncore.createDummyValueHandler(() => p.value(null)),
-                    () => {
+                    createUnexpectedValueHandler: () => astncore.createDummyValueHandler(() => p.value(null)),
+                    onEnd: () => {
                         return p.value(null)
                     },
-                )
+                })
             )
         },
         onSchemaReference: (schemaSchemaReference, annotation) => {

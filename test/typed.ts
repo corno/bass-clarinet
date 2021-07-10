@@ -82,8 +82,8 @@ describe('typed', () => {
                             core.createSerializedString,
                         )
                         return core.createStackedParser(
-                            core.createSemanticState(
-                                {
+                            core.createSemanticState({
+                                treeHandler: {
                                     root: callback(
                                         expect,
                                         errorLine => {
@@ -91,18 +91,18 @@ describe('typed', () => {
                                         }
                                     ),
                                 },
-                                (err, annotation) => {
+                                raiseError: (err, annotation) => {
                                     foundErrors.push(["stacked error", `${err[0]} ${printRange(annotation.range)}`])
                                 },
-                                () => {
+                                createReturnValue: () => {
                                     return p.value(null)
                                 },
-                                () => core.createDummyValueHandler(() => p.value(null)),
-                                () => {
+                                createUnexpectedValueHandler: () => core.createDummyValueHandler(() => p.value(null)),
+                                onEnd: () => {
                                     //do nothing with end
                                     return p.value(null)
                                 },
-                            )
+                            })
                         )
                     },
                     errorStreams: createErrorStreamHandler(true, str => foundErrors.push(["parser error", str])),

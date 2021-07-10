@@ -157,21 +157,21 @@ function createTestFunction(chunks: string[], test: TestDefinition, _strictJSON:
             }
         }
         const stackedSubscriber = core.createStackedParser(
-            core.createSemanticState(
-                {
+            core.createSemanticState({
+                treeHandler: {
                     root: createTestRequiredValueHandler(),
                 },
-                error => {
+                raiseError: error => {
                     actualEvents.push(["stacked error", core.printStackedDataError(error)])
                 },
-                () => {
+                createReturnValue: () => {
                     return p.value(null)
                 },
-                () => core.createDummyValueHandler(() => p.value(null)),
-                () => {
+                createUnexpectedValueHandler: () => core.createDummyValueHandler(() => p.value(null)),
+                onEnd: () => {
                     return p.value(null)
                 },
-            )
+            })
         )
         const eventSubscriber: core.ITreeBuilder<TokenizerAnnotationData> = {
             onData: data => {

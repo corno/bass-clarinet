@@ -103,19 +103,19 @@ export function createDeserializer(
         },
         onBody: firstBodyTokenAnnotation => {
             const dummyStackParser = astncore.createStackedParser<TokenizerAnnotationData>(
-                astncore.createSemanticState(
-                    astncore.createDummyTreeHandler(() => p.value(null)),
-                    (error, annotation) => {
+                astncore.createSemanticState({
+                    treeHandler: astncore.createDummyTreeHandler(() => p.value(null)),
+                    raiseError: (error, annotation) => {
                         onError(["stacked", error], annotation.range, astncore.DiagnosticSeverity.error)
                     },
-                    () => {
+                    createReturnValue: () => {
                         return p.value(null)
                     },
-                    () => astncore.createDummyValueHandler(() => p.value(null)),
-                    () => {
+                    createUnexpectedValueHandler: () => astncore.createDummyValueHandler(() => p.value(null)),
+                    onEnd: () => {
                         return p.value(null)
                     },
-                )
+                })
             )
             if (contextSchema[0] === "available") {
                 if (internalSchemaSpecificationStart !== null) {
@@ -130,24 +130,24 @@ export function createDeserializer(
                     specification: ["none"],
                 })
                 return astncore.createStackedParser(
-                    astncore.createSemanticState(
-                        astncore.createDatasetDeserializer(
+                    astncore.createSemanticState({
+                        treeHandler: astncore.createDatasetDeserializer(
                             contextSchema[1].schema,
                             handler,
                             (error, annotation, severity) => onError(["deserialize", error], annotation.range, severity),
                             () => p.value(null),
                         ),
-                        (error, annotation) => {
+                        raiseError: (error, annotation) => {
                             onError(["stacked", error], annotation.range, astncore.DiagnosticSeverity.error)
                         },
-                        () => {
+                        createReturnValue: () => {
                             return p.value(null)
                         },
-                        () => astncore.createDummyValueHandler(() => p.value(null)),
-                        () => {
+                        createUnexpectedValueHandler: () => astncore.createDummyValueHandler(() => p.value(null)),
+                        onEnd: () => {
                             return handler.onEnd({})
                         },
-                    )
+                    })
                 )
             } else if (internalSchemaSpecificationStart !== null) {
                 if (internalSchema === null) {
@@ -163,24 +163,24 @@ export function createDeserializer(
                 } else {
                     const handler = handlerBuilder(internalSchema)
                     return astncore.createStackedParser(
-                        astncore.createSemanticState(
-                            astncore.createDatasetDeserializer(
+                        astncore.createSemanticState({
+                            treeHandler: astncore.createDatasetDeserializer(
                                 internalSchema.schemaAndSideEffects.schema,
                                 handler,
                                 (error, annotation, severity) => onError(["deserialize", error], annotation.range, severity),
                                 () => p.value(null),
                             ),
-                            (error, annotation) => {
+                            raiseError: (error, annotation) => {
                                 onError(["stacked", error], annotation.range, astncore.DiagnosticSeverity.error)
                             },
-                            () => {
+                            createReturnValue: () => {
                                 return p.value(null)
                             },
-                            () => astncore.createDummyValueHandler(() => p.value(null)),
-                            () => {
+                            createUnexpectedValueHandler: () => astncore.createDummyValueHandler(() => p.value(null)),
+                            onEnd: () => {
                                 return handler.onEnd({})
                             },
-                        )
+                        })
                     )
                 }
             } else {
